@@ -29,17 +29,18 @@ export function nodeToPage(node: RepoNode): PageView {
     template: (p["cq:template"] as string | undefined)?.split("/").pop(), locale: p["jcr:language"] as string | undefined, resourceType: p["sling:resourceType"] as string | undefined,
     status: (p["ucp:status"] as PageView["status"]) ?? "draft",
     created: p["jcr:created"] as string | undefined, lastModified: p["cq:lastModified"] as string | undefined ?? (p["jcr:lastModified"] as string | undefined), lastModifiedBy: p["cq:lastModifiedBy"] as string | undefined,
+    meta: p,
     components,
   };
 }
 export function nodeToSummary(node: RepoNode): PageSummary {
   const v = nodeToPage(node); const { components, ...rest } = v; void components;
-  const isFolder = node.primaryType !== "cq:Page" || !node.children?.some((c) => c.name === "jcr:content");
+  const rt = String(v.resourceType ?? ""); const isFolder = node.primaryType !== "cq:Page" || !node.children?.some((c) => c.name === "jcr:content") || rt.endsWith("/folder") || rt.endsWith("/site");
   return { ...rest, isFolder, childCount: (node.children ?? []).filter((c) => c.name !== "jcr:content").length };
 }
 export function pageToNode(page: PageView): RepoNode {
   return { path: page.path, name: page.name, primaryType: "cq:Page", properties: {}, children: [
-    { path: `${page.path}/jcr:content`, name: "jcr:content", primaryType: "cq:PageContent", properties: { "jcr:title": page.title, "jcr:description": page.description, navTitle: page.navTitle, hideInNav: page.hideInNav, "cq:template": page.template ? `/conf/hsbc/settings/wcm/templates/${page.template}` : undefined, "jcr:language": page.locale, "sling:resourceType": page.resourceType ?? "hsbc/components/page", "ucp:status": page.status, "jcr:created": page.created, "cq:lastModified": page.lastModified, "cq:lastModifiedBy": page.lastModifiedBy },
+    { path: `${page.path}/jcr:content`, name: "jcr:content", primaryType: "cq:PageContent", properties: { ...(page.meta ?? {}), "jcr:title": page.title, "jcr:description": page.description, navTitle: page.navTitle, hideInNav: page.hideInNav, "cq:template": page.template ? `/conf/hsbc/settings/wcm/templates/${page.template}` : undefined, "jcr:language": page.locale, "sling:resourceType": page.resourceType ?? "hsbc/components/page", "ucp:status": page.status, "jcr:created": page.created, "cq:lastModified": page.lastModified, "cq:lastModifiedBy": page.lastModifiedBy },
       children: [{ path: `${page.path}/jcr:content/root`, name: "root", primaryType: "nt:unstructured", properties: { "sling:resourceType": "hsbc/components/container" },
         children: page.components.map((c) => ({ path: `${page.path}/jcr:content/root/${c.name}`, name: c.name, primaryType: "nt:unstructured", properties: { "sling:resourceType": c.resourceType, ...c.props } })) }] } ] };
 }

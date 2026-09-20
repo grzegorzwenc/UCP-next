@@ -38,6 +38,10 @@ export const slingRepo: ContentRepository = {
   kind: "sling",
   identity: async () => { const { base } = cfg(); const res = await fetch(`${base}/system/sling/info.sessionInfo.json`, { headers: auth(), cache: "no-store" }); const j = res.ok ? await res.json() : {}; return { id: j.userID ?? "anonymous", authType: j.authType ?? "basic", groups: [] }; },
   getNode: async (path, depth = 1) => (await getJson(path, depth)) ?? undefined,
+  createNode: async (path, primaryType, props = {}) => { const form: Record<string, string> = { "jcr:primaryType": primaryType }; for (const [k, v] of Object.entries(props)) if (v !== undefined && v !== null) form[k] = typeof v === "string" ? v : JSON.stringify(v); await post(path, form); return (await getJson(path, 1))!; },
+  setProps: async (path, props) => { const form: Record<string, string> = {}; for (const [k, v] of Object.entries(props)) { if (v === null || v === undefined) form[`${k}@Delete`] = ""; else form[k] = typeof v === "string" ? v : JSON.stringify(v); } await post(path, form); return (await getJson(path, 1))!; },
+  deleteNode: async (path) => { await post(path, { ":operation": "delete" }); },
+  moveNode: async (path, dest) => { await post(path, { ":operation": "move", ":dest": dest }); return (await getJson(dest, 1))!; },
   getPage: async (path) => { const n = await getJson(path, "infinity"); return n ? nodeToPage(n) : undefined; },
   listChildren: async (path, { offset = 0, limit = 50 } = {}) => { const n = await getJson(path, 2); if (!n) throw new RepoError(404, "Not found"); const kids = (n.children ?? []).filter((c) => c.name !== "jcr:content"); return { items: kids.slice(offset, offset + limit).map(nodeToSummary), more: kids.length > offset + limit }; },
   createPage: async ({ parentPath, name, template, title }) => {

@@ -25,6 +25,8 @@ export type PageView = {
   template?: string; locale?: string; resourceType?: string;
   status: PageStatus;
   created?: string; lastModified?: string; lastModifiedBy?: string;
+  /** Raw jcr:content properties (workflow metadata such as ucp:sentBy, ucp:due, ucp:sourcePath live here). */
+  meta?: NodeProps;
   components: ComponentNode[];
 };
 export type PageSummary = Omit<PageView, "components"> & { isFolder: boolean; childCount?: number };
@@ -44,6 +46,12 @@ export interface ContentRepository {
   identity(): Promise<Identity>;
   /** Raw node tree (CRXDE-style inspection). depth = how many child levels to include. */
   getNode(path: string, depth?: number): Promise<RepoNode | undefined>;
+  /* ---- generic node operations: everything that is not a page (assets, users, models, templates, audit) goes through these ---- */
+  createNode(path: string, primaryType: string, props?: NodeProps): Promise<RepoNode>;
+  /** Merge properties; a `null` value removes the property. Returns the node (depth 1). */
+  setProps(path: string, props: NodeProps): Promise<RepoNode>;
+  deleteNode(path: string): Promise<void>;
+  moveNode(path: string, destinationPath: string): Promise<RepoNode>;
   getPage(path: string): Promise<PageView | undefined>;
   listChildren(path: string, opts?: { offset?: number; limit?: number }): Promise<{ items: PageSummary[]; more: boolean }>;
   createPage(input: CreatePageInput): Promise<PageView>;
