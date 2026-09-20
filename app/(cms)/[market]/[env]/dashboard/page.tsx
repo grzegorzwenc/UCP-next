@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { market, env } from "@/lib/markets";
-import { allPages, isFolder, mode } from "@/lib/server/pages";
+import { allPages, backend } from "@/lib/server/pages";
 import { Pill } from "@/components/ui/Pill";
 
 export default async function Dashboard({ params }: PageProps<"/[market]/[env]/dashboard">) {
   const { market: mid, env: eid } = await params;
   const mk = market(mid), ev = env(eid);
-  const all = (await allPages(mk.root)).filter((p) => !isFolder(p));
+  const all = (await allPages(mk.root)).filter((p) => !p.isFolder);
   const c = (s: string) => all.filter((p) => p.status === s).length;
   const base = `/${mid}/${eid}`;
   const tiles = [
@@ -21,7 +21,7 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
       <div className="flex items-center gap-4 mb-6 p-5 bg-surface border border-line border-l-[5px] border-l-accent">
         <div className="text-[40px] leading-none" aria-hidden>{mk.flag}</div>
         <div><div className="text-2xl font-semibold leading-tight">{mk.name}</div><div className="text-[13px] text-ink-3 mt-1 flex gap-1.5 items-center"><span className="font-mono">{mk.domain}</span> · {mk.locales.join(", ")} · <Pill status={mk.status === "Live on UCP" ? "published" : mk.status === "On AEM" ? "draft" : "scheduled"} label={mk.status} /></div></div>
-        <div className="ml-auto text-right text-sm font-semibold"><span><i className="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style={{ background: ev.color }} />{ev.name}</span><small className="block font-normal text-xs text-ink-3">{ev.id === "prod" ? "Publishing here goes live for customers." : "Nothing in this environment reaches customers."}</small><small className="block font-normal text-xs text-ink-3">Data source: ContentLIBRE ({mode})</small></div>
+        <div className="ml-auto text-right text-sm font-semibold"><span><i className="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style={{ background: ev.color }} />{ev.name}</span><small className="block font-normal text-xs text-ink-3">{ev.id === "prod" ? "Publishing here goes live for customers." : "Nothing in this environment reaches customers."}</small><small className="block font-normal text-xs text-ink-3">Backend: {backend()}</small></div>
       </div>
       <h2 className="text-[15px] font-semibold text-ink-2 mb-2.5">What do you want to do?</h2>
       <div className="grid grid-cols-4 gap-3.5 mb-5">

@@ -2,13 +2,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import type { ContentV1Page } from "@/lib/api/types";
-import { contentV1, ApiError } from "@/lib/api";
+import type { PageSummary } from "@/lib/api/types";
+import { repoApi, ApiError } from "@/lib/api";
 import { TEMPLATES } from "@/lib/blocks/registry";
 import { Pill } from "@/components/ui/Pill";
 
-type Props = { marketId: string; envId: string; root: string; marketName: string; flag: string; folder: ContentV1Page; items: ContentV1Page[]; tree: { path: string; title: string }[]; allPages: ContentV1Page[]; openNew?: boolean };
-const isFolder = (p: ContentV1Page) => p.template === "folder" || p.template === "site";
+type Props = { marketId: string; envId: string; root: string; marketName: string; flag: string; folder: { path: string; title: string }; items: PageSummary[]; tree: { path: string; title: string }[]; allPages: PageSummary[]; openNew?: boolean };
+const isFolder = (p: PageSummary) => p.isFolder;
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
 export function Explorer({ marketId, envId, root, marketName, flag, folder, items, tree, allPages, openNew }: Props) {
@@ -23,7 +23,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
 
   async function create() {
     setBusy(true); setErr(null);
-    try { const page = await contentV1.createPage({ parentPath: parent, name: slug || slugify(title), template: tpl, title }); setModal(false); router.push(`${base}/page${rel(page.path)}`); router.refresh(); }
+    try { const page = await repoApi.createPage({ parentPath: parent, name: slug || slugify(title), template: tpl, title }); setModal(false); router.push(`${base}/page${rel(page.path)}`); router.refresh(); }
     catch (e) { setErr(e instanceof ApiError ? `${e.problem.title}${e.problem.detail ? ": " + e.problem.detail : ""} (request ${e.requestId ?? "n/a"})` : String(e)); }
     finally { setBusy(false); }
   }
@@ -37,13 +37,13 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
       </aside>
       <div className="p-6 overflow-auto min-w-0">
         <div className="text-[13px] text-ink-3 mb-2 flex gap-1.5 flex-wrap"><Link href={`${base}/pages`} className="hover:text-ink">{marketName}</Link>{crumbs.map((c, i) => <span key={c.path}><span className="text-ink-4"> / </span>{i === crumbs.length - 1 ? <b className="text-ink">{c.name}</b> : <Link href={`${base}/pages${rel(c.path)}`} className="hover:text-ink">{c.name}</Link>}</span>)}</div>
-        <div className="flex items-end gap-4 mb-5"><div><h1 className="text-2xl font-semibold">{q ? `Search results for “${q}”` : folder.title ?? folder.name}</h1><p className="text-[13px] text-ink-3 mt-1 font-mono">{q ? `${rows.length} pages match` : `${rel(folder.path)} · ${items.filter(isFolder).length} folders · ${items.filter((i) => !isFolder(i)).length} pages`}</p></div>
+        <div className="flex items-end gap-4 mb-5"><div><h1 className="text-2xl font-semibold">{q ? `Search results for “${q}”` : folder.title}</h1><p className="text-[13px] text-ink-3 mt-1 font-mono">{q ? `${rows.length} pages match` : `${rel(folder.path)} · ${items.filter(isFolder).length} folders · ${items.filter((i) => !isFolder(i)).length} pages`}</p></div>
           <div className="ml-auto flex gap-2"><button className="btn btn-primary" onClick={() => { setParent(folder.path); setModal(true); }}>＋ New page here</button></div></div>
         <div className="flex gap-2 mb-3.5"><label className="flex items-center gap-2 bg-surface border border-line-2 rounded-lg px-2.5 py-1.5 min-w-[280px]"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13.5px]" placeholder="Find a page by title or URL" value={q} onChange={(e) => setQ(e.target.value)} /></label></div>
         {rows.length ? <table className="w-full text-[13.5px]"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="py-2.5 px-3 border-b border-line-2 w-[38%]">Name</th><th className="py-2.5 px-3 border-b border-line-2">Status</th><th className="py-2.5 px-3 border-b border-line-2">URL</th><th className="py-2.5 px-3 border-b border-line-2">Template</th><th className="py-2.5 px-3 border-b border-line-2">Updated</th><th className="border-b border-line-2" /></tr></thead>
           <tbody>{rows.map((n) => isFolder(n)
-            ? <tr key={n.path} className="hover:bg-surface-2"><td className="py-2.5 px-3 border-b border-line"><Link href={`${base}/pages${rel(n.path)}`} className="font-medium flex items-center gap-2"><span className="text-warn">▪</span>{n.title ?? n.name}</Link></td><td className="py-2.5 px-3 border-b border-line text-ink-3">folder</td><td className="py-2.5 px-3 border-b border-line font-mono text-xs text-ink-2">{rel(n.path)}</td><td className="py-2.5 px-3 border-b border-line text-ink-3">—</td><td className="py-2.5 px-3 border-b border-line text-ink-3">—</td><td className="py-2.5 px-3 border-b border-line"><Link className="btn btn-sm" href={`${base}/pages${rel(n.path)}`}>Open folder</Link></td></tr>
-            : <tr key={n.path} className="hover:bg-surface-2"><td className="py-2.5 px-3 border-b border-line"><Link href={`${base}/page${rel(n.path)}`} className="font-medium flex items-center gap-2"><span className="text-ink-3">▫</span>{n.title ?? n.name}{n.locale && n.locale !== "en-GB" && <span className="font-mono text-[11px] bg-surface-3 px-1.5 rounded">{n.locale}</span>}</Link></td><td className="py-2.5 px-3 border-b border-line"><Pill status={n.status ?? "draft"} /></td><td className="py-2.5 px-3 border-b border-line font-mono text-xs text-ink-2">{rel(n.path)}</td><td className="py-2.5 px-3 border-b border-line text-ink-3">{TEMPLATES.find((t) => t.id === n.template)?.name ?? n.template}</td><td className="py-2.5 px-3 border-b border-line text-ink-3">{n.lastModified?.slice(0, 10)}</td><td className="py-2.5 px-3 border-b border-line"><Link className="btn btn-sm" href={`${base}/page${rel(n.path)}`}>Edit page</Link></td></tr>)}</tbody></table>
+            ? <tr key={n.path} className="hover:bg-surface-2"><td className="py-2.5 px-3 border-b border-line"><Link href={`${base}/pages${rel(n.path)}`} className="font-medium flex items-center gap-2"><span className="text-warn">▪</span>{n.title}</Link></td><td className="py-2.5 px-3 border-b border-line text-ink-3">folder</td><td className="py-2.5 px-3 border-b border-line font-mono text-xs text-ink-2">{rel(n.path)}</td><td className="py-2.5 px-3 border-b border-line text-ink-3">—</td><td className="py-2.5 px-3 border-b border-line text-ink-3">—</td><td className="py-2.5 px-3 border-b border-line"><Link className="btn btn-sm" href={`${base}/pages${rel(n.path)}`}>Open folder</Link></td></tr>
+            : <tr key={n.path} className="hover:bg-surface-2"><td className="py-2.5 px-3 border-b border-line"><Link href={`${base}/page${rel(n.path)}`} className="font-medium flex items-center gap-2"><span className="text-ink-3">▫</span>{n.title}{n.locale && n.locale !== "en-GB" && <span className="font-mono text-[11px] bg-surface-3 px-1.5 rounded">{n.locale}</span>}</Link></td><td className="py-2.5 px-3 border-b border-line"><Pill status={n.status} /></td><td className="py-2.5 px-3 border-b border-line font-mono text-xs text-ink-2">{rel(n.path)}</td><td className="py-2.5 px-3 border-b border-line text-ink-3">{TEMPLATES.find((t) => t.id === n.template)?.name ?? n.template}</td><td className="py-2.5 px-3 border-b border-line text-ink-3">{n.lastModified?.slice(0, 10)}</td><td className="py-2.5 px-3 border-b border-line"><Link className="btn btn-sm" href={`${base}/page${rel(n.path)}`}>Edit page</Link></td></tr>)}</tbody></table>
           : <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">This folder is empty. <button className="underline" onClick={() => setModal(true)}>Create the first page</button>.</div>}
       </div>
       {modal && <div className="fixed inset-0 bg-black/45 grid place-items-center z-50" onClick={(e) => { if (e.target === e.currentTarget) setModal(false); }}>

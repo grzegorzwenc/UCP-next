@@ -1,19 +1,20 @@
 "use client";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Block, ContentV1Page, PageStatus } from "@/lib/api/types";
-import { contentV1, ApiError } from "@/lib/api";
+import type { Block, PageView, PageStatus } from "@/lib/api/types";
+import { repoApi, ApiError } from "@/lib/api";
+import { blocksToComponents, componentsToBlocks } from "@/lib/repo/mapping";
 import { BLOCKS, BLOCK_BY_TYPE, GROUPS, makeBlock, lines, joinLines, missingRequired, TEMPLATES } from "@/lib/blocks/registry";
 import { RenderBlock, SiteChrome } from "@/lib/blocks/Render";
 import { Pill } from "@/components/ui/Pill";
 
-type Props = { marketId: string; envId: string; marketName: string; flag: string; domain: string; locale: string; envName: string; root: string; page: ContentV1Page };
+type Props = { marketId: string; envId: string; marketName: string; flag: string; domain: string; locale: string; envName: string; root: string; page: PageView };
 const STEPS = [["Add blocks", "Click: open Components"], ["Fill in content", "Click: jump to next empty field"], ["Preview", "Click: toggle visitor view"], ["Send for review", "Click: send to a reviewer"], ["In review", "Click: approve (reviewers)"], ["Publish", "Click: put it live"], ["Published", "Live for customers"]];
 
 export function Builder({ marketId, envId, marketName, flag, domain, locale, envName, root, page }: Props) {
-  const [blocks, setBlocks] = useState<Block[]>(page.blocks ?? []);
-  const [status, setStatus] = useState<PageStatus>(page.status ?? "draft");
-  const [title, setTitle] = useState(page.title ?? page.name);
+  const [blocks, setBlocks] = useState<Block[]>(() => componentsToBlocks(page.components));
+  const [status, setStatus] = useState<PageStatus>(page.status);
+  const [title, setTitle] = useState(page.title);
   const [sel, setSel] = useState<string | null>(null);
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [preview, setPreview] = useState(false);
@@ -35,14 +36,14 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const move = (id: string, d: number) => mutate((b) => { const i = b.findIndex((x) => x.id === id); const j = i + d; if (j < 0 || j >= b.length) return b; const c = b.slice(); [c[i], c[j]] = [c[j], c[i]]; return c; });
   const remove = (id: string) => { mutate((b) => b.filter((x) => x.id !== id)); setSel(null); };
 
-  async function save(extra: Partial<ContentV1Page> = {}) {
+  async function save(extra: { status?: PageStatus } = {}) {
     setSaving("Saving…");
-    try { await contentV1.patchPage(page.path, { title, blocks, status, ...extra }); setDirty(false); setSaving("Saved just now"); }
+    try { await repoApi.saveComponents(page.path, blocksToComponents(blocks)); await repoApi.updateContent(page.path, { title, status, ...extra }); setDirty(false); setSaving("Saved just now"); }
     catch (e) { setSaving("Save failed"); say(e instanceof ApiError ? `${e.problem.title} · request ${e.requestId ?? "n/a"}` : String(e)); throw e; }
   }
   async function transition(next: PageStatus, msg: string) {
     if (next === "review" && missing) { say(`Fill in ${missing} required field${missing === 1 ? "" : "s"} first`); const b = blocks.find((x) => missingRequired(x).length); if (b) { setSel(b.id); setRightTab("block"); setRight(true); } return; }
-    setStatus(next); try { await contentV1.patchPage(page.path, { title, blocks, status: next }); setDirty(false); setSaving("Saved just now"); say(msg); } catch { setStatus(status); }
+    setStatus(next); try { await save({ status: next }); say(msg); } catch { setStatus(status); }
   }
   useEffect(() => { const h = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); save().catch(() => {}); } }; window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); });
 
@@ -137,7 +138,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               <label className="text-xs text-ink-2 font-medium">Page title<input className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] font-normal text-ink" value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true); setSaving("Unsaved"); }} /></label>
               <div className="text-xs text-ink-2 font-medium">URL<div className="mt-1 font-mono text-xs bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">{domain}{rel}</div></div>
               <div className="text-xs text-ink-2 font-medium">Template<div className="mt-1 bg-surface-2 border border-line rounded-md px-2.5 py-1.5 font-normal text-ink-2">{TEMPLATES.find((t) => t.id === page.template)?.name ?? page.template}</div><small className="text-ink-3 font-normal">Fixed after creation</small></div>
-              <div className="text-xs text-ink-2 font-medium">Repository path<div className="mt-1 font-mono text-[11.5px] bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">{page.path}</div></div>
+              <div className="text-xs text-ink-2 font-medium">Repository path (JCR)<div className="mt-1 font-mono text-[11.5px] bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">{page.path}/jcr:content</div><small className="text-ink-3 font-normal">Components are stored under jcr:content/root as nodes with sling:resourceType</small></div>
               <div className="text-xs text-ink-3">Created {page.created?.slice(0, 10)} · Last modified {page.lastModified?.slice(0, 16).replace("T", " ")}</div>
             </div>
             : !selected ? <div className="text-ink-3 p-2"><b className="block text-sm text-ink mb-1.5">Nothing selected</b>Click any block on the page to edit its text, images and links here.<div className="mt-3.5 flex flex-col gap-1.5">{blocks.slice(0, 8).map((k, ix) => <button key={k.id} className="btn btn-sm justify-start" onClick={() => setSel(k.id)}>{ix + 1}. {BLOCK_BY_TYPE[k.type].name}</button>)}</div></div>
