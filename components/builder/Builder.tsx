@@ -7,19 +7,31 @@ import { blocksToComponents, componentsToBlocks } from "@/lib/repo/mapping";
 import { BLOCKS, BLOCK_BY_TYPE, GROUPS, makeBlock, lines, joinLines, missingRequired, TEMPLATES } from "@/lib/blocks/registry";
 import { RenderBlock, SiteChrome } from "@/lib/blocks/Render";
 import { Pill } from "@/components/ui/Pill";
+import { proposeAi, AI_SUGGESTIONS, type AiProposal } from "@/lib/ai/mock";
 
 type Props = { marketId: string; envId: string; marketName: string; flag: string; domain: string; locale: string; envName: string; root: string; page: PageView };
 const STEPS = [["Add blocks", "Click: open Components"], ["Fill in content", "Click: jump to next empty field"], ["Preview", "Click: toggle visitor view"], ["Send for review", "Click: send to a reviewer"], ["In review", "Click: approve (reviewers)"], ["Publish", "Click: put it live"], ["Published", "Live for customers"]];
 
+/**
+ * Interaction model (three levels):
+ *   hover        → subtle outline + component name
+ *   click        → select; contextual toolbar appears at the block: ✎ Edit · ⚙ Configure · ✨ AI · ⋯ More
+ *   double-click → straight into inline edit
+ * Edit never opens the right panel; Configure does (with Cancel / Save).
+ */
 export function Builder({ marketId, envId, marketName, flag, domain, locale, envName, root, page }: Props) {
   const [blocks, setBlocks] = useState<Block[]>(() => componentsToBlocks(page.components));
   const [status, setStatus] = useState<PageStatus>(page.status);
   const [title, setTitle] = useState(page.title);
   const [sel, setSel] = useState<string | null>(null);
+  const [mode, setMode] = useState<"select" | "edit">("select");
+  const [pop, setPop] = useState<"ai" | "more" | null>(null);
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [preview, setPreview] = useState(false);
-  const [left, setLeft] = useState(true); const [right, setRight] = useState(true);
+  const [left, setLeft] = useState(true); const [right, setRight] = useState(false);
   const [rightTab, setRightTab] = useState<"block" | "page">("page");
+  const [cfgSnapshot, setCfgSnapshot] = useState<Record<string, unknown> | null>(null);
+  const [clipboard, setClipboard] = useState<Block | null>(null);
   const [dirty, setDirty] = useState(false); const [saving, setSaving] = useState<string>("Saved");
   const [toast, setToast] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -32,9 +44,13 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
 
   const mutate = useCallback((fn: (b: Block[]) => Block[]) => { setBlocks((b) => fn(b)); setDirty(true); setSaving("Unsaved"); }, []);
   const setProp = (id: string, k: string, v: unknown) => mutate((b) => b.map((x) => (x.id === id ? { ...x, props: { ...x.props, [k]: v } } : x)));
-  const add = (type: string) => { const nb = makeBlock(type); mutate((b) => { const i = sel ? b.findIndex((x) => x.id === sel) + 1 : b.length; const c = b.slice(); c.splice(i, 0, nb); return c; }); setSel(nb.id); setRightTab("block"); setRight(true); say(`${BLOCK_BY_TYPE[type].name} added`); };
+  const select = (id: string | null) => { setSel(id); setMode("select"); setPop(null); if (id && right && rightTab === "block") setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
+  const add = (type: string) => { const nb = makeBlock(type); mutate((b) => { const i = sel ? b.findIndex((x) => x.id === sel) + 1 : b.length; const c = b.slice(); c.splice(i, 0, nb); return c; }); select(nb.id); say(`${BLOCK_BY_TYPE[type].name} added · click ✎ Edit to fill it in`); };
   const move = (id: string, d: number) => mutate((b) => { const i = b.findIndex((x) => x.id === id); const j = i + d; if (j < 0 || j >= b.length) return b; const c = b.slice(); [c[i], c[j]] = [c[j], c[i]]; return c; });
-  const remove = (id: string) => { mutate((b) => b.filter((x) => x.id !== id)); setSel(null); };
+  const remove = (id: string) => { mutate((b) => b.filter((x) => x.id !== id)); select(null); };
+  const duplicate = (b: Block) => mutate((bl) => { const i = bl.findIndex((x) => x.id === b.id); const c = bl.slice(); c.splice(i + 1, 0, { ...b, id: makeBlock(b.type).id, props: { ...b.props } }); return c; });
+  const configure = (id: string) => { setSel(id); setMode("select"); setPop(null); setRightTab("block"); setRight(true); setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
+  const closeConfigure = (keep: boolean) => { if (!keep && sel && cfgSnapshot) mutate((b) => b.map((x) => (x.id === sel ? { ...x, props: cfgSnapshot } : x))); setCfgSnapshot(null); setRight(false); };
 
   async function save(extra: { status?: PageStatus } = {}) {
     setSaving("Saving…");
@@ -42,15 +58,22 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     catch (e) { setSaving("Save failed"); say(e instanceof ApiError ? `${e.problem.title} · request ${e.requestId ?? "n/a"}` : String(e)); throw e; }
   }
   async function transition(next: PageStatus, msg: string) {
-    if (next === "review" && missing) { say(`Fill in ${missing} required field${missing === 1 ? "" : "s"} first`); const b = blocks.find((x) => missingRequired(x).length); if (b) { setSel(b.id); setRightTab("block"); setRight(true); } return; }
+    if (next === "review" && missing) { say(`Fill in ${missing} required field${missing === 1 ? "" : "s"} first`); const b = blocks.find((x) => missingRequired(x).length); if (b) configure(b.id); return; }
     setStatus(next); try { await save({ status: next }); say(msg); } catch { setStatus(status); }
   }
   useEffect(() => { const h = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); save().catch(() => {}); } }; window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); });
 
-  /* ---- inline editing: single click on a text of the selected block, Enter/✓ saves, Esc/✕ cancels ---- */
+  /* ---- inline editing (only in Edit mode): click a text, Enter/✓ saves, Esc/✕ cancels ---- */
   const [editing, setEditing] = useState<{ el: HTMLElement; key: string; original: string } | null>(null);
+  const [ctaPop, setCtaPop] = useState<{ id: string; labelKey: string; linkKey?: string } | null>(null);
+  const scrollGuard = useRef<(() => void) | null>(null);
+  function startInline(ie: HTMLElement) {
+    ie.contentEditable = "true"; ie.classList.add("editing"); ie.focus({ preventScroll: true }); setEditing({ el: ie, key: ie.dataset.inline!, original: ie.innerText });
+    // the caret must never drag the 1:1 canvas sideways while typing
+    const c = canvasRef.current; if (c) { const left = c.scrollLeft; const h = () => { if (c.scrollLeft !== left) c.scrollLeft = left; }; c.addEventListener("scroll", h); scrollGuard.current = () => c.removeEventListener("scroll", h); }
+  }
   function commitInline(save: boolean) {
-    if (!editing) return; const { el, key, original } = editing; el.contentEditable = "false"; el.classList.remove("editing");
+    if (!editing) return; const { el, key, original } = editing; el.contentEditable = "false"; el.classList.remove("editing"); scrollGuard.current?.(); scrollGuard.current = null;
     if (!save) { el.innerText = original; setEditing(null); return; }
     const [id, f, r, c] = key.split("|"); const v = el.innerText.replace(/\n+$/, "").replace(/\|/g, "/");
     const b = blocks.find((x) => x.id === id); if (!b) { setEditing(null); return; }
@@ -59,28 +82,45 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     else { const rows = lines(b.props[f]); if (rows[Number(r)]) { rows[Number(r)][Number(c)] = v; setProp(id, f, joinLines(rows)); } }
     setEditing(null);
   }
+  function enterEdit(id: string, target?: HTMLElement) {
+    const b = blocks.find((x) => x.id === id); if (!b || b.props.locked) { say("This block is locked. Unlock it from ⋯ More."); return; }
+    setSel(id); setMode("edit"); setPop(null);
+    const ie = target?.closest<HTMLElement>(".ie") ?? canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"] .ie`) ?? undefined;
+    if (ie) setTimeout(() => startInline(ie), 0);
+  }
   function onCanvasClick(e: React.MouseEvent) {
     if (preview) return;
-    const t = e.target as HTMLElement; const blk = t.closest<HTMLElement>(".block"); if (!blk) return;
-    const ie = t.closest<HTMLElement>(".ie");
-    if (ie && blk.dataset.id === sel && !editing) { e.preventDefault(); ie.contentEditable = "true"; ie.classList.add("editing"); ie.focus(); setEditing({ el: ie, key: ie.dataset.inline!, original: ie.innerText }); return; }
-    if (editing && !ie) commitInline(true);
+    const t = e.target as HTMLElement; if (t.closest("[data-ui]")) return;
+    const blk = t.closest<HTMLElement>(".cblk"); if (!blk) { if (editing) commitInline(true); select(null); return; }
+    const id = blk.dataset.id!; const ie = t.closest<HTMLElement>(".ie");
     if (t.closest("a, summary, .s-cta")) e.preventDefault();
-    if (blk.dataset.id !== sel) { setSel(blk.dataset.id!); setRightTab("block"); setRight(true); }
+    if (id !== sel) { if (editing) commitInline(true); select(id); return; }
+    if (mode !== "edit") return;
+    if (ie && !editing) { e.preventDefault(); const cta = t.closest(".s-cta"); const b = blocks.find((x) => x.id === id)!; const hasLink = BLOCK_BY_TYPE[b.type].fields.some((f) => f.k === "link");
+      if (cta && hasLink && !ie.dataset.inline!.includes("|")) { setCtaPop({ id, labelKey: ie.dataset.inline!.split("|")[1], linkKey: "link" }); return; }
+      startInline(ie); return; }
+    if (editing && !ie) commitInline(true);
   }
-  function onCanvasKey(e: React.KeyboardEvent) { if (!editing) return; if (e.key === "Escape") { e.preventDefault(); commitInline(false); } if (e.key === "Enter" && !e.shiftKey && !editing.key.includes("|p|")) { e.preventDefault(); commitInline(true); say("Saved"); } }
+  function onCanvasDouble(e: React.MouseEvent) { if (preview) return; const t = e.target as HTMLElement; if (t.closest("[data-ui]")) return; const blk = t.closest<HTMLElement>(".cblk"); if (!blk) return; if (editing) commitInline(true); enterEdit(blk.dataset.id!, t); }
+  function onCanvasKey(e: React.KeyboardEvent) {
+    if (e.key === "Escape") { e.preventDefault(); if (editing) commitInline(false); else if (ctaPop || pop) { setCtaPop(null); setPop(null); } else if (mode === "edit") setMode("select"); else select(null); return; }
+    if (!editing) return;
+    if (e.key === "Enter" && !e.shiftKey && !editing.key.includes("|p|")) { e.preventDefault(); commitInline(true); say("Saved"); }
+  }
 
   const nextTxt = cur === 0 ? "Add your first block from Components" : cur === 1 ? `Fill in ${missing} required field${missing === 1 ? "" : "s"}` : cur === 2 ? "Check the preview, then send for review" : cur === 4 ? "Waiting for a reviewer" : cur === 5 ? "Approved. Publish when ready" : `Live on ${domain}`;
   const flowClick = (i: number) => {
     if (i <= 2 && cur >= 4) { if (confirm("Reopen this page as a draft?")) transition("draft", "Back to draft"); return; }
     if (i === 0) { setPreview(false); setLeft(true); return; }
-    if (i === 1) { setPreview(false); const b = blocks.find((x) => missingRequired(x).length) || blocks[0]; if (b) { setSel(b.id); setRightTab("block"); setRight(true); } return; }
-    if (i === 2) { setPreview((p) => !p); setSel(null); return; }
+    if (i === 1) { setPreview(false); const b = blocks.find((x) => missingRequired(x).length) || blocks[0]; if (b) enterEdit(b.id); return; }
+    if (i === 2) { setPreview((p) => !p); select(null); return; }
     if (i === 3) { if (status === "draft" || status === "failed") transition("review", "Sent for review"); return; }
     if (i === 4) { if (status === "review") transition("approved", "Approved"); return; }
     if (i === 5) { if (status === "approved" || status === "scheduled") transition("published", `Published to ${envName}`); return; }
   };
   const filtered = BLOCKS.filter((b) => !q || b.name.toLowerCase().includes(q.toLowerCase()));
+  const padL = left && !preview ? 344 : 24, padR = right && !preview ? 364 : 24;
+  const hint = preview ? "Preview: exactly what visitors will see" : mode === "edit" ? "Edit mode: click any highlighted text to change it. Enter saves, Esc cancels." : sel ? "Use the toolbar on the block: ✎ Edit text in place · ⚙ Configure everything · ✨ AI · ⋯ More" : "Hover to see block names. Click a block to select it, double-click to edit its text.";
 
   return (
     <div className="h-full grid grid-rows-[54px_48px_1fr] min-w-0 overflow-hidden">
@@ -92,8 +132,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         <div className="inline-flex border border-line-2 rounded-lg overflow-hidden">{(["desktop", "tablet", "mobile"] as const).map((d) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 text-[13px] ${device === d ? "bg-ink text-white" : "text-ink-3"}`} title={d}>{d === "desktop" ? "🖥" : d === "tablet" ? "▭" : "📱"}</button>)}</div>
         <div className="ml-auto flex items-center gap-2.5">
           <span className="text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1">{saving}</span>
-          <div className="flex gap-1 pl-2.5 border-l border-line"><button className={`btn btn-icon btn-sm ${left ? "on" : ""}`} onClick={() => setLeft(!left)} title="Components panel" aria-pressed={left}>▤</button><button className={`btn btn-icon btn-sm ${right ? "on" : ""}`} onClick={() => setRight(!right)} title="Right panel" aria-pressed={right}>▥</button></div>
-          <div className="flex gap-1 pl-2.5 border-l border-line"><button className="btn btn-sm" onClick={() => { setPreview(!preview); setSel(null); }}>{preview ? "Edit" : "Preview"}</button><button className="btn btn-sm" onClick={() => save().then(() => say("Saved")).catch(() => {})} disabled={!dirty}>Save</button>
+          <div className="flex gap-1 pl-2.5 border-l border-line"><button className={`btn btn-icon btn-sm ${left ? "on" : ""}`} onClick={() => setLeft(!left)} title="Components panel" aria-pressed={left}>▤</button><button className={`btn btn-icon btn-sm ${right ? "on" : ""}`} onClick={() => { if (right) closeConfigure(true); else { setRightTab(sel ? "block" : "page"); setRight(true); } }} title="Page settings panel" aria-pressed={right}>▥</button></div>
+          <div className="flex gap-1 pl-2.5 border-l border-line"><button className="btn btn-sm" onClick={() => { setPreview(!preview); select(null); }}>{preview ? "Edit" : "Preview"}</button><button className="btn btn-sm" onClick={() => save().then(() => say("Saved")).catch(() => {})} disabled={!dirty}>Save</button>
             {(status === "draft" || status === "failed") && <button className="btn btn-sm btn-primary" onClick={() => transition("review", "Sent for review")}>Send for review</button>}
             {status === "review" && <button className="btn btn-sm btn-primary" onClick={() => transition("approved", "Approved")}>Approve</button>}
             {(status === "approved" || status === "scheduled") && <button className="btn btn-sm btn-primary" onClick={() => transition("published", `Published to ${envName}`)}>Publish</button>}
@@ -112,27 +152,37 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
       {/* Body */}
       <div className="relative min-h-0 overflow-hidden bg-bg">
         <div className={`absolute inset-0 flex flex-col ${preview ? "preview" : ""}`}>
-          <div className="flex items-center gap-3 px-6 py-2 text-[12.5px] text-ink-3 border-b border-line bg-surface-2" style={{ paddingLeft: left && !preview ? 344 : 24, paddingRight: right && !preview ? 364 : 24 }}><span className="mr-auto">{preview ? "Preview: exactly what visitors will see" : "Click a block to select it. Click any text of the selected block to edit it in place."}</span><span className="border border-line-2 rounded px-2 py-0.5 bg-surface">1:1 · {device === "desktop" ? 1200 : device === "tablet" ? 768 : 390} px</span></div>
-          <div ref={canvasRef} className="flex-1 overflow-auto p-6 pb-24" style={{ paddingLeft: left && !preview ? 344 : 24, paddingRight: right && !preview ? 364 : 24 }} onClick={onCanvasClick} onKeyDown={onCanvasKey}>
+          <div className="flex items-center gap-3 px-6 py-2 text-[12.5px] text-ink-3 border-b border-line bg-surface-2" style={{ paddingLeft: padL, paddingRight: padR }}><span className="mr-auto">{hint}</span><span className="border border-line-2 rounded px-2 py-0.5 bg-surface">1:1 · {device === "desktop" ? 1200 : device === "tablet" ? 768 : 390} px</span></div>
+          <div ref={canvasRef} className="flex-1 overflow-auto p-6 pb-24" style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey}>
             <SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
-              {blocks.length ? blocks.map((b, i) => <div key={b.id} data-id={b.id} className={`block ${sel === b.id ? "sel" : ""}`} tabIndex={0}><span className="tag">{BLOCK_BY_TYPE[b.type].name}{sel === b.id ? " · click any text to edit" : ""}</span>
-                {sel === b.id && !preview && <div className="absolute -top-4 right-2.5 flex gap-0.5 bg-[#0F1013] rounded-lg p-1 z-[2] text-white text-xs" role="toolbar"><b className="px-2 py-1">{BLOCK_BY_TYPE[b.type].name}</b><button className="px-2 rounded hover:bg-white/15" onClick={(e) => { e.stopPropagation(); move(b.id, -1); }} disabled={i === 0} title="Move up">↑</button><button className="px-2 rounded hover:bg-white/15" onClick={(e) => { e.stopPropagation(); move(b.id, 1); }} disabled={i === blocks.length - 1} title="Move down">↓</button><button className="px-2 rounded hover:bg-white/15" onClick={(e) => { e.stopPropagation(); mutate((bl) => { const c = bl.slice(); c.splice(i + 1, 0, { ...b, id: makeBlock(b.type).id }); return c; }); }} title="Duplicate">⧉</button><button className="px-2 rounded hover:bg-accent" onClick={(e) => { e.stopPropagation(); remove(b.id); }} title="Remove">🗑</button></div>}
-                <RenderBlock b={b} /></div>)
+              {blocks.length ? blocks.map((b, i) => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""}`} tabIndex={0}>
+                <span className="tag">{def.name}{b.props.locked ? " · 🔒 locked" : ""}{b.props.hidden ? " · hidden" : ""}</span>
+                {isSel && !preview && <ContextBar block={b} index={i} count={blocks.length} mode={mode} pop={pop} setPop={setPop} clipboard={clipboard}
+                  onEdit={() => (mode === "edit" ? (commitInline(true), setMode("select")) : enterEdit(b.id))} onConfigure={() => configure(b.id)}
+                  onMore={(a) => { setPop(null); if (a === "duplicate") duplicate(b); else if (a === "copy") { setClipboard(b); say("Copied"); } else if (a === "paste" && clipboard) { mutate((bl) => { const c = bl.slice(); c.splice(i + 1, 0, { ...clipboard, id: makeBlock(clipboard.type).id, props: { ...clipboard.props } }); return c; }); } else if (a === "up") move(b.id, -1); else if (a === "down") move(b.id, 1); else if (a === "hide") setProp(b.id, "hidden", !b.props.hidden); else if (a === "lock") { setProp(b.id, "locked", !b.props.locked); if (!b.props.locked) setMode("select"); } else if (a === "delete") remove(b.id); else if (a === "usage") say(`Used on 1 page: ${title}`); else if (a === "history") say("Version history comes from JCR (jcr:versionHistory) once the Sling backend is connected"); }}
+                  onAi={(p) => { mutate((bl) => bl.map((x) => (x.id === b.id ? { ...x, props: { ...x.props, ...p.props } } : x))); say("AI changes applied"); }} />}
+                <RenderBlock b={b} /></div>; })
               : <div className="m-7 p-11 border-2 border-dashed border-line-2 rounded-xl text-center text-ink-2 text-[15px]">How do you want to start this page?<small className="block text-[13px] text-ink-3 mt-1.5">Pick a layout, or add components one by one from the left.</small><div className="grid grid-cols-3 gap-3 mt-4 text-left">{TEMPLATES.filter((t) => t.blocks.length).slice(0, 3).map((t) => <button key={t.id} className="border border-line-2 bg-surface p-3.5 text-left hover:border-ink" onClick={() => mutate(() => t.blocks.map((x) => makeBlock(x, x === "mast" ? { heading: title } : {})))}><b className="block text-[13.5px]">{t.name}</b><small className="text-ink-3">{t.desc}</small></button>)}</div></div>}
             </SiteChrome>
           </div>
-          {editing && <div className="absolute left-1/2 -translate-x-1/2 bottom-6 flex gap-1 bg-[#0F1013] rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}><span className="px-2 py-1.5 text-white/70">Editing text</span><button className="px-3 py-1.5 rounded bg-good font-semibold" onClick={() => { commitInline(true); say("Saved"); }}>✓ Save</button><button className="px-3 py-1.5 rounded hover:bg-white/15" onClick={() => commitInline(false)}>✕ Cancel</button></div>}
+          {editing && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 flex gap-1 bg-[#0F1013] rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}><span className="px-2 py-1.5 text-white/70">Editing text</span><button className="px-3 py-1.5 rounded bg-good font-semibold" onClick={() => { commitInline(true); say("Saved"); }}>✓ Save</button><button className="px-3 py-1.5 rounded hover:bg-white/15" onClick={() => commitInline(false)}>✕ Cancel</button></div>}
+          {ctaPop && selected && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 w-[420px] bg-surface border border-line rounded-xl shadow-2xl z-20 p-3.5 text-[13px]" onMouseDown={(e) => { e.stopPropagation(); if (!(e.target as HTMLElement).closest("input, textarea")) e.preventDefault(); }}>
+            <div className="flex items-center mb-2.5"><b>Button</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => setCtaPop(null)} aria-label="Close">✕</button></div>
+            <label className="block text-xs text-ink-2 font-medium">Label<input autoFocus className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink font-normal" value={String(selected.props[ctaPop.labelKey] ?? "")} onChange={(e) => setProp(selected.id, ctaPop.labelKey, e.target.value)} /></label>
+            {ctaPop.linkKey && <label className="block text-xs text-ink-2 font-medium mt-2.5">URL<input className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink font-mono font-normal" value={String(selected.props[ctaPop.linkKey] ?? "")} onChange={(e) => setProp(selected.id, ctaPop.linkKey!, e.target.value)} placeholder="/borrowing/credit-cards/apply" /></label>}
+            <div className="flex justify-end mt-3"><button className="btn btn-sm btn-primary" onClick={() => setCtaPop(null)}>Done</button></div>
+          </div>}
         </div>
         {/* Left panel */}
-        {left && !preview && <aside className="absolute left-0 top-0 bottom-0 w-[320px] bg-surface border-r border-line flex flex-col z-[5]">
+        {left && !preview && <aside data-ui className="absolute left-0 top-0 bottom-0 w-[320px] bg-surface border-r border-line flex flex-col z-[5]">
           <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">Components</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => setLeft(false)} aria-label="Close">✕</button></div>
           <div className="p-3 border-b border-line"><input className="w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px]" placeholder="Find a component" value={q} onChange={(e) => setQ(e.target.value)} /></div>
           <div className="flex-1 overflow-auto p-3">{GROUPS.map((g) => { const items = filtered.filter((b) => b.group === g); if (!items.length) return null; return <div key={g}><h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold mt-3 mb-1.5 first:mt-0">{g}</h6>{items.map((b) => <div key={b.type} className="border border-line rounded-xl p-2.5 mb-2.5 bg-surface hover:border-ink-3 hover:shadow-md"><div className="flex justify-between items-center mb-1"><b className="text-[13.5px]">{b.name}</b><span className="text-[10.5px] uppercase tracking-[.06em] text-ink-3 font-semibold">{b.group}</span></div><small className="block text-ink-3 text-xs mb-2">{b.desc}</small><button className="btn btn-sm w-full justify-center hover:bg-accent hover:text-white hover:border-accent" onClick={() => add(b.type)}>＋ Add to page</button></div>)}</div>; })}</div>
         </aside>}
-        {/* Right panel */}
-        {right && !preview && <aside className="absolute right-0 top-0 bottom-0 w-[340px] bg-surface border-l border-line flex flex-col z-[5]">
-          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">{rightTab === "block" ? "Edit block" : "Page settings"}</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => setRight(false)} aria-label="Close">✕</button></div>
-          <div className="flex border-b border-line">{(["block", "page"] as const).map((t) => <button key={t} onClick={() => setRightTab(t)} className={`flex-1 py-2.5 text-[12.5px] font-medium border-b-2 -mb-px ${rightTab === t ? "border-accent text-ink" : "border-transparent text-ink-3 hover:text-ink"}`}>{t === "block" ? "Edit block" : "Page"}</button>)}</div>
+        {/* Right panel: Configure (contextual) or Page settings */}
+        {right && !preview && <aside data-ui className="absolute right-0 top-0 bottom-0 w-[340px] bg-surface border-l border-line flex flex-col z-[5]">
+          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">{rightTab === "block" ? "Configure" : "Page settings"}</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => closeConfigure(true)} aria-label="Close">✕</button></div>
+          <div className="flex border-b border-line">{(["block", "page"] as const).map((t) => <button key={t} onClick={() => setRightTab(t)} className={`flex-1 py-2.5 text-[12.5px] font-medium border-b-2 -mb-px ${rightTab === t ? "border-accent text-ink" : "border-transparent text-ink-3 hover:text-ink"}`}>{t === "block" ? "Component" : "Page"}</button>)}</div>
           <div className="flex-1 overflow-auto p-3.5 text-[13px]">
             {rightTab === "page" ? <div className="flex flex-col gap-3">
               <label className="text-xs text-ink-2 font-medium">Page title<input className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] font-normal text-ink" value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true); setSaving("Unsaved"); }} /></label>
@@ -141,25 +191,67 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               <div className="text-xs text-ink-2 font-medium">Repository path (JCR)<div className="mt-1 font-mono text-[11.5px] bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">{page.path}/jcr:content</div><small className="text-ink-3 font-normal">Components are stored under jcr:content/root as nodes with sling:resourceType</small></div>
               <div className="text-xs text-ink-3">Created {page.created?.slice(0, 10)} · Last modified {page.lastModified?.slice(0, 16).replace("T", " ")}</div>
             </div>
-            : !selected ? <div className="text-ink-3 p-2"><b className="block text-sm text-ink mb-1.5">Nothing selected</b>Click any block on the page to edit its text, images and links here.<div className="mt-3.5 flex flex-col gap-1.5">{blocks.slice(0, 8).map((k, ix) => <button key={k.id} className="btn btn-sm justify-start" onClick={() => setSel(k.id)}>{ix + 1}. {BLOCK_BY_TYPE[k.type].name}</button>)}</div></div>
-            : <div className="flex flex-col gap-3">
-              <div className="flex items-start justify-between sticky -top-3.5 bg-surface pt-1 pb-2 border-b border-line"><div><b className="text-sm">{BLOCK_BY_TYPE[selected.type].name}</b><div className="text-[11px] text-ink-3">Block {blocks.indexOf(selected) + 1} of {blocks.length} · click any text on the page to edit it in place</div></div><button className="btn btn-sm" onClick={() => { setSel(null); setRightTab("page"); }}>Done</button></div>
-              <div className="flex gap-1.5 flex-wrap"><button className="btn btn-sm" onClick={() => move(selected.id, -1)}>↑ Up</button><button className="btn btn-sm" onClick={() => move(selected.id, 1)}>↓ Down</button><button className="btn btn-sm" onClick={() => mutate((b) => b.map((x) => (x.id === selected.id ? { ...x, props: { ...BLOCK_BY_TYPE[x.type].defaults } } : x)))}>Reset</button><button className="btn btn-sm hover:bg-accent hover:text-white hover:border-accent" onClick={() => remove(selected.id)}>🗑 Remove</button></div>
-              {BLOCK_BY_TYPE[selected.type].fields.map((f) => { const v = selected.props[f.k]; const invalid = f.req && !v; return <div key={f.k}><label className="flex justify-between text-xs text-ink-2 font-medium mb-1">{f.l}{f.req && <small className="font-mono text-[10.5px] text-ink-4">required</small>}</label>
-                {f.t === "text" ? <input className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${f.mono ? "font-mono" : ""} ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(selected.id, f.k, e.target.value)} />
-                : f.t === "textarea" ? <textarea rows={4} className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(selected.id, f.k, e.target.value)} />
-                : f.t === "lines" ? <ListEditor rows={lines(v)} hint={f.hint} onChange={(rows) => setProp(selected.id, f.k, joinLines(rows))} />
-                : f.t === "select" ? <div className="flex gap-1">{f.o!.map((o) => <button key={o} className={`btn btn-sm capitalize ${v === o ? "on" : ""}`} onClick={() => setProp(selected.id, f.k, o)}>{o}</button>)}</div>
-                : f.t === "bool" ? <button className={`w-9 h-5 rounded-full relative ${v ? "bg-good" : "bg-line-2"}`} aria-pressed={!!v} onClick={() => setProp(selected.id, f.k, !v)}><i className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${v ? "left-4" : "left-0.5"}`} /></button>
-                : <input className="w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] font-mono" value={String(v ?? "")} onChange={(e) => setProp(selected.id, f.k, e.target.value)} />}
-                {invalid ? <div className="text-[11.5px] text-crit mt-1">Required before the page can be sent for review.</div> : f.hint && f.t !== "lines" ? <div className="text-[11.5px] text-ink-3 mt-1">{f.hint}</div> : null}</div>; })}
-            </div>}
+            : !selected ? <div className="text-ink-3 p-2"><b className="block text-sm text-ink mb-1.5">Nothing selected</b>Click a block on the page, then ⚙ Configure.<div className="mt-3.5 flex flex-col gap-1.5">{blocks.slice(0, 8).map((k, ix) => <button key={k.id} className="btn btn-sm justify-start" onClick={() => configure(k.id)}>{ix + 1}. {BLOCK_BY_TYPE[k.type].name}</button>)}</div></div>
+            : <ConfigForm block={selected} index={blocks.indexOf(selected)} count={blocks.length} setProp={(k, v) => setProp(selected.id, k, v)} />}
           </div>
+          {rightTab === "block" && selected && <div className="flex justify-end gap-2 px-3.5 py-2.5 border-t border-line bg-surface"><button className="btn btn-sm" onClick={() => closeConfigure(false)}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => { closeConfigure(true); say("Component updated · Save the page when you're done"); }}>Save</button></div>}
         </aside>}
         {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] shadow-xl z-50">{toast}</div>}
       </div>
     </div>
   );
+}
+
+/* ---- contextual toolbar at the selected block: ✎ Edit · ⚙ Configure · ✨ AI · ⋯ More ---- */
+function Btn({ children, on, onClick, disabled, title }: { children: React.ReactNode; on?: boolean; onClick: () => void; disabled?: boolean; title: string }) { return <button title={title} disabled={disabled} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); onClick(); }} className={`px-2.5 py-1.5 rounded-md text-[12.5px] font-medium whitespace-nowrap disabled:opacity-40 ${on ? "bg-accent text-white" : "hover:bg-white/15"}`}>{children}</button>; }
+type MoreAction = "duplicate" | "copy" | "paste" | "up" | "down" | "hide" | "lock" | "delete" | "usage" | "history";
+function ContextBar({ block: b, index, count, mode, pop, setPop, clipboard, onEdit, onConfigure, onMore, onAi }: { block: Block; index: number; count: number; mode: "select" | "edit"; pop: "ai" | "more" | null; setPop: (p: "ai" | "more" | null) => void; clipboard: Block | null; onEdit: () => void; onConfigure: () => void; onMore: (a: MoreAction) => void; onAi: (p: AiProposal) => void }) {
+  const locked = !!b.props.locked; const editing = mode === "edit";
+  const [prompt, setPrompt] = useState(""); const [proposal, setProposal] = useState<AiProposal | null>(null);
+  const ask = (p: string) => { setPrompt(p); setProposal(proposeAi(p, b)); };
+  const items: [MoreAction, string, boolean?][] = [["duplicate", "Duplicate"], ["copy", "Copy"], ["paste", "Paste after", !clipboard], ["up", "Move up", index === 0], ["down", "Move down", index === count - 1], ["hide", b.props.hidden ? "Show" : "Hide"], ["lock", locked ? "Unlock" : "Lock"], ["usage", "View usage"], ["history", "Version history"], ["delete", "Delete"]];
+  return <div data-ui className="absolute -top-5 left-3 z-[4]" onMouseDown={(e) => { e.stopPropagation(); if (!(e.target as HTMLElement).closest("input, textarea")) e.preventDefault(); }} onDoubleClick={(e) => e.stopPropagation()}>
+    <div role="toolbar" aria-label={`${BLOCK_BY_TYPE[b.type].name} actions`} className="flex items-center gap-0.5 bg-[#0F1013] text-white rounded-lg p-1 shadow-xl">
+      <b className="px-2 text-[12px] text-white/70 border-r border-white/15 mr-0.5">{BLOCK_BY_TYPE[b.type].name}{locked ? " 🔒" : ""}{b.props.hidden ? " · hidden" : ""}</b>
+      <Btn title={editing ? "Finish editing text" : "Edit text, images and buttons in place"} on={editing} onClick={onEdit} disabled={locked}>{editing ? "✓ Done" : "✎ Edit"}</Btn>
+      <Btn title="All properties, layout and behaviour" onClick={onConfigure}>⚙ Configure</Btn>
+      <Btn title="Ask AI to change this block" on={pop === "ai"} onClick={() => { setPop(pop === "ai" ? null : "ai"); setProposal(null); }} disabled={locked}>✨ AI</Btn>
+      <Btn title="More actions" on={pop === "more"} onClick={() => setPop(pop === "more" ? null : "more")}>⋯</Btn>
+    </div>
+    {pop === "more" && <div role="menu" className="absolute left-0 top-full mt-1 w-44 bg-surface border border-line rounded-lg shadow-2xl py-1 text-[13px] text-ink">{items.map(([a, l, dis]) => <button key={a} role="menuitem" disabled={dis} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); onMore(a); }} className={`w-full text-left px-3 py-1.5 hover:bg-surface-3 disabled:opacity-40 ${a === "delete" ? "text-accent border-t border-line mt-1" : ""}`}>{l}</button>)}</div>}
+    {pop === "ai" && <div className="absolute left-0 top-full mt-1 w-[440px] bg-surface border border-line rounded-xl shadow-2xl p-3.5 text-[13px] text-ink">
+      <div className="flex items-center mb-2"><b>✨ What would you like to change?</b><span className="ml-auto text-[11px] text-ink-3">{BLOCK_BY_TYPE[b.type].name} only</span></div>
+      {!proposal && <div className="flex flex-col gap-1 mb-2.5">{AI_SUGGESTIONS.map((s) => <button key={s} onMouseDown={(e) => e.preventDefault()} className="text-left px-2.5 py-1.5 rounded-md border border-line hover:border-ink hover:bg-surface-2" onClick={(e) => { e.stopPropagation(); ask(s); }}>“{s}”</button>)}</div>}
+      {proposal && <div className="mb-2.5">
+        <div className="text-[11.5px] text-ink-3 mb-1.5">{proposal.note}</div>
+        {Object.entries(proposal.props).length > 0 && <div className="border border-line rounded-md divide-y divide-line max-h-60 overflow-auto">{Object.entries(proposal.props).map(([k, v]) => <div key={k} className="p-2"><div className="text-[10.5px] uppercase tracking-[.06em] text-ink-3 font-semibold">{k}</div><div className="line-through text-ink-3 text-[12px] break-words">{String(b.props[k] ?? "")}</div><div className="text-[12.5px] break-words">{String(v)}</div></div>)}</div>}
+        <div className="flex justify-end gap-2 mt-2.5"><button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setProposal(null); }}>Discard</button>{Object.keys(proposal.props).length > 0 && <button className="btn btn-sm btn-primary" onClick={(e) => { e.stopPropagation(); onAi(proposal); setProposal(null); setPop(null); }}>Apply</button>}</div>
+      </div>}
+      <form className="flex gap-1.5" onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); if (prompt.trim()) ask(prompt.trim()); }}><input className="flex-1 border border-line-2 rounded-md px-2.5 py-1.5 text-[13px]" placeholder="Ask AI…" value={prompt} onChange={(e) => setPrompt(e.target.value)} /><button className="btn btn-sm btn-primary">Ask</button></form>
+    </div>}
+  </div>;
+}
+
+/* ---- Configure panel: Content / Layout / Behaviour / Metadata ---- */
+function Section({ t, children }: { t: string; children: React.ReactNode }) { return <div className="border-t border-line pt-3 mt-1"><h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold mb-2.5">{t}</h6><div className="flex flex-col gap-3">{children}</div></div>; }
+function ConfigForm({ block: selected, index, count, setProp }: { block: Block; index: number; count: number; setProp: (k: string, v: unknown) => void }) {
+  const def = BLOCK_BY_TYPE[selected.type]; const P = selected.props;
+  const Seg = ({ k, opts }: { k: string; opts: string[] }) => <div className="flex gap-1">{opts.map((o) => <button key={o} className={`btn btn-sm capitalize ${(P[k] ?? opts[0]) === o ? "on" : ""}`} onClick={() => setProp(k, o)}>{o}</button>)}</div>;
+  const Tog = ({ k, l }: { k: string; l: string }) => <label className="flex items-center justify-between text-xs text-ink-2 font-medium">{l}<button className={`w-9 h-5 rounded-full relative ${P[k] ? "bg-good" : "bg-line-2"}`} aria-pressed={!!P[k]} onClick={() => setProp(k, !P[k])}><i className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${P[k] ? "left-4" : "left-0.5"}`} /></button></label>;
+  return <div className="flex flex-col gap-3">
+    <div><b className="text-sm">{def.name}</b><div className="text-[11px] text-ink-3">Block {index + 1} of {count} · {def.desc}</div></div>
+    <Section t="Content">{def.fields.map((f) => { const v = selected.props[f.k]; const invalid = f.req && !v; return <div key={f.k}><label className="flex justify-between text-xs text-ink-2 font-medium mb-1">{f.l}{f.req && <small className="font-mono text-[10.5px] text-ink-4">required</small>}</label>
+      {f.t === "text" ? <input className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${f.mono ? "font-mono" : ""} ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} />
+      : f.t === "textarea" ? <textarea rows={4} className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} />
+      : f.t === "lines" ? <ListEditor rows={lines(v)} hint={f.hint} onChange={(rows) => setProp(f.k, joinLines(rows))} />
+      : f.t === "select" ? <div className="flex gap-1">{f.o!.map((o) => <button key={o} className={`btn btn-sm capitalize ${v === o ? "on" : ""}`} onClick={() => setProp(f.k, o)}>{o}</button>)}</div>
+      : f.t === "bool" ? <button className={`w-9 h-5 rounded-full relative ${v ? "bg-good" : "bg-line-2"}`} aria-pressed={!!v} onClick={() => setProp(f.k, !v)}><i className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${v ? "left-4" : "left-0.5"}`} /></button>
+      : <input className="w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] font-mono" value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} />}
+      {invalid ? <div className="text-[11.5px] text-crit mt-1">Required before the page can be sent for review.</div> : f.hint && f.t !== "lines" ? <div className="text-[11.5px] text-ink-3 mt-1">{f.hint}</div> : null}</div>; })}</Section>
+    <Section t="Layout"><div><label className="block text-xs text-ink-2 font-medium mb-1">Width</label><Seg k="layout" opts={["full", "contained", "narrow"]} /></div><div><label className="block text-xs text-ink-2 font-medium mb-1">Spacing</label><Seg k="spacing" opts={["default", "compact", "roomy"]} /></div></Section>
+    <Section t="Behaviour"><Tog k="hidden" l="Hidden (not rendered on the live site)" /><Tog k="hideMobile" l="Hide on mobile" /><Tog k="locked" l="Locked (no edits until unlocked)" /><Tog k="personalise" l="Targeting enabled (Adobe Target segment)" /></Section>
+    <Section t="Metadata"><div className="text-xs text-ink-2 font-medium">Node<div className="mt-1 font-mono text-[11.5px] bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">jcr:content/root/{selected.id}</div></div><div className="text-xs text-ink-2 font-medium">sling:resourceType<div className="mt-1 font-mono text-[11.5px] bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2">hsbc/components/{selected.type}</div></div></Section>
+  </div>;
 }
 
 function ListEditor({ rows, hint, onChange }: { rows: string[][]; hint?: string; onChange: (rows: string[][]) => void }) {
