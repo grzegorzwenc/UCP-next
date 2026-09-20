@@ -40,7 +40,9 @@ const content = (n: RepoNode) => n.children?.find((c) => c.name === "jcr:content
 const pages = (n: RepoNode) => (n.children ?? []).filter((c) => c.name !== "jcr:content");
 export function walk(n: RepoNode = tree()): RepoNode[] { return [n, ...pages(n).flatMap(walk)]; }
 
+function prune(n: RepoNode, depth: number): RepoNode { return depth <= 0 ? { ...n, children: undefined } : { ...n, children: n.children?.map((c) => prune(c, depth - 1)) }; }
 export const mockRepo: ContentRepository = {
+  async getNode(path, depth = 1) { const n = find(tree(), path); return n && prune(n, depth); },
   kind: "mock",
   async identity() { return { id: "jordan.mensah", authType: "mock", groups: ["uk-authors", "uk-reviewers"] }; },
   async getPage(path) { const n = find(tree(), path); return n ? nodeToPage(n) : undefined; },

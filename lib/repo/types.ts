@@ -42,6 +42,8 @@ export class RepoError extends Error {
 export interface ContentRepository {
   readonly kind: "mock" | "contentlibre" | "sling";
   identity(): Promise<Identity>;
+  /** Raw node tree (CRXDE-style inspection). depth = how many child levels to include. */
+  getNode(path: string, depth?: number): Promise<RepoNode | undefined>;
   getPage(path: string): Promise<PageView | undefined>;
   listChildren(path: string, opts?: { offset?: number; limit?: number }): Promise<{ items: PageSummary[]; more: boolean }>;
   createPage(input: CreatePageInput): Promise<PageView>;

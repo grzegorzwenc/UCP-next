@@ -37,6 +37,7 @@ const propMap: Record<keyof PageContentPatch, string> = { title: "jcr:title", de
 export const slingRepo: ContentRepository = {
   kind: "sling",
   identity: async () => { const { base } = cfg(); const res = await fetch(`${base}/system/sling/info.sessionInfo.json`, { headers: auth(), cache: "no-store" }); const j = res.ok ? await res.json() : {}; return { id: j.userID ?? "anonymous", authType: j.authType ?? "basic", groups: [] }; },
+  getNode: async (path, depth = 1) => (await getJson(path, depth)) ?? undefined,
   getPage: async (path) => { const n = await getJson(path, "infinity"); return n ? nodeToPage(n) : undefined; },
   listChildren: async (path, { offset = 0, limit = 50 } = {}) => { const n = await getJson(path, 2); if (!n) throw new RepoError(404, "Not found"); const kids = (n.children ?? []).filter((c) => c.name !== "jcr:content"); return { items: kids.slice(offset, offset + limit).map(nodeToSummary), more: kids.length > offset + limit }; },
   createPage: async ({ parentPath, name, template, title }) => {

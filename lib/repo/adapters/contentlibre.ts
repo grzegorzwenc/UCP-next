@@ -1,4 +1,5 @@
 import "server-only";
+import { pageToNode } from "../mapping";
 import type { ContentRepository, PageView, PageSummary, ComponentNode } from "../types";
 import { RepoError } from "../types";
 /** Wire types transcribed from the ContentLIBRE Swagger (content-v1). */
@@ -27,6 +28,7 @@ const toSummary = (p: ClPage): PageSummary => { const { components, ...rest } = 
 export const contentLibreRepo: ContentRepository = {
   kind: "contentlibre",
   identity: () => call("GET", "identity/v1/me"),
+  getNode: async (path) => { const p = await contentLibreRepo.getPage(path); return p && pageToNode(p); },
   getPage: async (path) => { try { return toView(await call<ClPage>("GET", "content/v1/page", { path })); } catch (e) { if (e instanceof RepoError && e.status === 404) return undefined; throw e; } },
   listChildren: async (path, { offset = 0, limit = 50 } = {}) => { const l = await call<ContentV1PageList>("GET", "content/v1/children", { path, offset, limit }); return { items: l.items.map(toSummary), more: l.more }; },
   createPage: async (input) => toView(await call<ClPage>("POST", "content/v1/pages", {}, input)),

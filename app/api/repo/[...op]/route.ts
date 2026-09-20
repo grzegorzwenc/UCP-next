@@ -10,6 +10,7 @@ import { repo, RepoError } from "@/lib/repo";
  *   PUT    /api/repo/components?path=      ComponentNode[]
  *   DELETE /api/repo/page?path=&recursive=
  *   POST   /api/repo/move?path=            { destinationPath }
+ *   GET    /api/repo/node?path=&depth=     → RepoNode (raw JCR view)
  *   GET    /api/repo/me
  */
 const problem = (e: unknown) => {
@@ -21,6 +22,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
   const ok = (b: unknown, status = 200) => NextResponse.json(b, { status, headers: { "X-Request-Id": crypto.randomUUID(), "X-Backend": r.kind } });
   try {
     if (o === "me") return ok(await r.identity());
+    if (o === "node") { const n = await r.getNode(path, Number(q.get("depth") ?? 1)); return n ? ok(n) : problem(new RepoError(404, "Not found")); }
     if (o === "page" && req.method === "GET") { const p = await r.getPage(path); return p ? ok(p) : problem(new RepoError(404, "Not found")); }
     if (o === "page" && req.method === "PATCH") return ok(await r.updateContent(path, await req.json()));
     if (o === "page" && req.method === "DELETE") { await r.deletePage(path, q.get("recursive") === "true"); return new NextResponse(null, { status: 204 }); }
