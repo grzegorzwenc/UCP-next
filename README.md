@@ -1,36 +1,29 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# UCP Next — HSBC Content Management on Next.js
 
-## Getting Started
+Next.js (App Router) implementation of the UCP authoring UI, backed by the **ContentLIBRE Management API**
+(`content-v1`, `identity-v1`). The Next.js server acts as a backend-for-frontend: the browser calls `/api/cl/*`,
+the server adds HTTP Basic + `X-Requested-With: ContentLIBRE`. Credentials never reach the browser.
 
-First, run the development server:
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # CONTENTLIBRE_MODE=mock works without any API access
+npm run dev -- -p 3100
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Set `CONTENTLIBRE_MODE=live` plus `CONTENTLIBRE_API_URL`, `CONTENTLIBRE_USER`, `CONTENTLIBRE_PASSWORD` to talk to the real API.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `app/(cms)/[market]/[env]/…` — dashboard, pages explorer, page builder, section pages
+- `app/api/cl/[...path]/route.ts` — BFF proxy (live) / in-memory ContentLIBRE stand-in (mock)
+- `lib/api/*` — typed client for the Management API (types transcribed from the Swagger spec)
+- `lib/blocks/*` — HSBC block registry (schemas, defaults, React renderers) shared by the builder
+- `lib/server/*` — server-side data access and the mock store
+- `components/*` — shell, explorer, builder, UI primitives
 
-## Learn More
+## Notes
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Page `status` and `blocks` are a UCP extension the upstream page allowlist does not expose yet; the mock stores them,
+  the live adapter will keep them in a sidecar until the API adds them.
