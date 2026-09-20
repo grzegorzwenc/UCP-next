@@ -32,6 +32,7 @@ export const contentLibreRepo: ContentRepository = {
   /* The Management API only knows pages. Non-page nodes need the Sling backend (or a future ContentLIBRE module). */
   createNode: async (path) => { throw new RepoError(501, "Not supported by the ContentLIBRE Management API", `createNode ${path}: only pages are exposed by content-v1`); },
   setProps: async (path, props) => { if (!path.endsWith("/jcr:content")) throw new RepoError(501, "Not supported by the ContentLIBRE Management API", `setProps ${path}`); const p = await call<ClPage>("PATCH", "content/v1/page", { path: path.replace(/\/jcr:content$/, "") }, props, "application/merge-patch+json"); return pageToNode(toView(p)).children![0]; },
+  putFile: async (path) => { throw new RepoError(501, "Not supported by the ContentLIBRE Management API", `putFile ${path}`); },
   deleteNode: async (path) => { throw new RepoError(501, "Not supported by the ContentLIBRE Management API", `deleteNode ${path}`); },
   moveNode: async (path) => { throw new RepoError(501, "Not supported by the ContentLIBRE Management API", `moveNode ${path}`); },
   getPage: async (path) => { try { return toView(await call<ClPage>("GET", "content/v1/page", { path })); } catch (e) { if (e instanceof RepoError && e.status === 404) return undefined; throw e; } },

@@ -5,6 +5,7 @@ import { makeBlock, TEMPLATES } from "@/lib/blocks/registry";
 import { MARKETS } from "@/lib/markets";
 import { SEED_USERS, SEED_ASSETS, ASSET_FOLDERS, SEED_MODELS, SEED_TEMPLATES, FORMS, ME } from "@/lib/ucp/seed";
 import { PATHS } from "@/lib/ucp/paths";
+import { sessionUserId } from "@/lib/server/session";
 
 /**
  * In-memory JCR-like repository. One tree rooted at "/" with the same layout the Sling backend will have:
@@ -17,7 +18,7 @@ import { PATHS } from "@/lib/ucp/paths";
  *   /var/audit/ucp/<market>/<id>   audit events (append-only)
  * Same node shapes the Sling adapter produces, so switching backends changes nothing above the port.
  */
-const g = globalThis as unknown as { __ucpRepo_v4?: RepoNode };
+const g = globalThis as unknown as { __ucpRepo_v5?: RepoNode };
 
 const node = (path: string, primaryType: string, properties: NodeProps = {}, children?: RepoNode[]): RepoNode => ({ path, name: path.split("/").pop() || "", primaryType, properties, children });
 function page(parent: string, name: string, title: string, status: PageView["status"], template: string, blocks?: ReturnType<typeof makeBlock>[], extra: NodeProps = {}): RepoNode {
@@ -89,7 +90,7 @@ function seed(): RepoNode {
   ])))])]);
   return node("/", "rep:root", {}, [content, home, conf, varNode]);
 }
-const tree = () => (g.__ucpRepo_v4 ??= seed());
+const tree = () => (g.__ucpRepo_v5 ??= seed());
 function find(n: RepoNode, path: string): RepoNode | undefined { if (n.path === path) return n; if (path !== "/" && !path.startsWith(n.path === "/" ? "/" : n.path + "/")) return undefined; for (const c of n.children ?? []) { const f = find(c, path); if (f) return f; } }
 const parentPath = (p: string) => p.replace(/\/[^/]+$/, "") || "/";
 const content = (n: RepoNode) => n.children?.find((c) => c.name === "jcr:content");
@@ -100,17 +101,18 @@ const need = (path: string) => { const n = find(tree(), path); if (!n) throw new
 
 export const mockRepo: ContentRepository = {
   kind: "mock",
-  async identity() { return { id: ME, authType: "mock", groups: ["uk-authors", "uk-reviewers"] }; },
+  async identity() { const id = (await sessionUserId()) ?? ME; return { id, authType: "session", groups: [`uk-${id.split(".")[0]}`] }; },
   async getNode(path, depth = 1) { const n = find(tree(), path); return n && prune(n, depth); },
   async createNode(path, primaryType, props = {}) { if (find(tree(), path)) throw new RepoError(409, "Node already exists", path); const pp = parentPath(path); let par = find(tree(), pp); if (!par) { par = await mockRepo.createNode(pp, "sling:Folder"); par = find(tree(), pp)!; } const n = node(path, primaryType, { ...props, "jcr:created": new Date().toISOString() }); (par.children ??= []).push(n); return prune(n, 1); },
   async setProps(path, props) { const n = need(path); for (const [k, v] of Object.entries(props)) { if (v === null || v === undefined) delete n.properties[k]; else n.properties[k] = v; } return prune(n, 1); },
+  async putFile(path, data, mime) { const n = find(tree(), path) ?? await mockRepo.createNode(path, "nt:file"); const real = find(tree(), n.path)!; real.properties["jcr:mimeType"] = mime; real.properties["ucp:data"] = `data:${mime};base64,${Buffer.from(data).toString("base64")}`; real.properties["jcr:lastModified"] = new Date().toISOString(); return prune(real, 0); },
   async deleteNode(path) { const n = need(path); const par = find(tree(), parentPath(path))!; par.children = par.children!.filter((c) => c !== n); },
   async moveNode(path, dest) { const n = need(path); if (find(tree(), dest)) throw new RepoError(409, "Destination is occupied", dest); const par = find(tree(), parentPath(path))!; const dp = find(tree(), parentPath(dest)); if (!dp) throw new RepoError(404, "Destination parent not found", parentPath(dest)); par.children = par.children!.filter((c) => c !== n); const ren = (m: RepoNode) => { m.path = dest + m.path.slice(path.length); m.name = m.path.split("/").pop()!; m.children?.forEach(ren); }; ren(n); (dp.children ??= []).push(n); return prune(n, 1); },
   async getPage(path) { const n = find(tree(), path); return n && content(n) ? nodeToPage(n) : undefined; },
   async listChildren(path, { offset = 0, limit = 50 } = {}) { const n = need(path); const kids = pages(n).filter((c) => c.primaryType === "cq:Page"); return { items: kids.slice(offset, offset + limit).map(nodeToSummary), more: kids.length > offset + limit }; },
   async createPage({ parentPath: pp, name, template, title }) { const par = need(pp); if (pages(par).some((c) => c.name === name)) throw new RepoError(409, "A page with that name already exists", `${pp}/${name}`); const n = page(pp, name, title || name, "draft", template); const c = content(n); if (c) { const now = new Date().toISOString(); c.properties["jcr:created"] = now; c.properties["cq:lastModified"] = now; } (par.children ??= []).push(n); return nodeToPage(n); },
-  async updateContent(path, patch) { const n = need(path); const c = content(n); if (!c) throw new RepoError(404, "Not a page", path); const map: Record<string, string> = { title: "jcr:title", description: "jcr:description", navTitle: "navTitle", hideInNav: "hideInNav", locale: "jcr:language", status: "ucp:status" }; for (const [k, v] of Object.entries(patch)) if (k in map) c.properties[map[k]] = v; c.properties["cq:lastModified"] = new Date().toISOString(); c.properties["cq:lastModifiedBy"] = ME; return nodeToPage(n); },
-  async saveComponents(path, components: ComponentNode[]) { const n = need(path); const c = content(n); if (!c) throw new RepoError(404, "Not a page", path); const root: RepoNode = node(`${path}/jcr:content/root`, "nt:unstructured", { "sling:resourceType": "hsbc/components/container" }, components.map((x) => node(`${path}/jcr:content/root/${x.name}`, "nt:unstructured", { "sling:resourceType": x.resourceType, ...x.props }))); c.children = [root]; c.properties["cq:lastModified"] = new Date().toISOString(); c.properties["cq:lastModifiedBy"] = ME; return nodeToPage(n); },
+  async updateContent(path, patch) { const n = need(path); const c = content(n); if (!c) throw new RepoError(404, "Not a page", path); const map: Record<string, string> = { title: "jcr:title", description: "jcr:description", navTitle: "navTitle", hideInNav: "hideInNav", locale: "jcr:language", status: "ucp:status" }; for (const [k, v] of Object.entries(patch)) if (k in map) c.properties[map[k]] = v; c.properties["cq:lastModified"] = new Date().toISOString(); c.properties["cq:lastModifiedBy"] = (await mockRepo.identity()).id; return nodeToPage(n); },
+  async saveComponents(path, components: ComponentNode[]) { const n = need(path); const c = content(n); if (!c) throw new RepoError(404, "Not a page", path); const root: RepoNode = node(`${path}/jcr:content/root`, "nt:unstructured", { "sling:resourceType": "hsbc/components/container" }, components.map((x) => node(`${path}/jcr:content/root/${x.name}`, "nt:unstructured", { "sling:resourceType": x.resourceType, ...x.props }))); c.children = [root]; c.properties["cq:lastModified"] = new Date().toISOString(); c.properties["cq:lastModifiedBy"] = (await mockRepo.identity()).id; return nodeToPage(n); },
   async deletePage(path, recursive = false) { const n = need(path); if (pages(n).length && !recursive) throw new RepoError(409, "Page has children; pass recursive=true"); const par = find(tree(), parentPath(path))!; par.children = par.children!.filter((c) => c !== n); },
   async movePage(path, dest) { const n = await mockRepo.moveNode(path, dest); return nodeToPage(find(tree(), n.path)!); },
 };

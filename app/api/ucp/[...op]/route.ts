@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { listTasks, notifications, listAssets, listUsers, createAsset, logEvent, readLog, me, listTemplates, listModels } from "@/lib/server/ucp";
+import { listTasks, notifications, listAssets, listUsers, createAsset, logEvent, readLog, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion } from "@/lib/server/ucp";
+import { SESSION_COOKIE } from "@/lib/server/session";
 import { PATHS } from "@/lib/ucp/paths";
 import { CY } from "@/lib/ucp/seed";
 import { market } from "@/lib/markets";
@@ -25,6 +26,10 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
   const ok = (b: unknown, status = 200) => NextResponse.json(b, { status, headers: { "X-Request-Id": rid } });
   try {
     if (o === "tasks") return ok(await listTasks(mid));
+    if (o === "login" && req.method === "POST") { const { id } = await req.json(); const u = (await listUsers()).find((x) => x.id === id); if (!u) return problem(new RepoError(401, "Unknown user", id)); const res = ok({ ok: true, user: u }); res.cookies.set(SESSION_COOKIE, u.id, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 12 }); await logEvent(mid, { type: "system", who: u.id, text: "signed in (SSO stand-in)", target: `user:${u.id}`, requestId: rid }); return res; }
+    if (o === "logout" && req.method === "POST") { const res = ok({ ok: true }); res.cookies.set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 }); return res; }
+    if (o === "versions" && req.method === "GET") return ok(await listVersions(q.get("path") ?? ""));
+    if (o === "versions/restore" && req.method === "POST") { const { id } = await req.json(); const path = q.get("path") ?? ""; const u = await me(); await snapshotVersion(path, "before restore", u.id); await restoreVersion(path, id); await logEvent(mid, { type: "content", text: `restored version ${id} of ${path.split("/").pop()}`, target: path, requestId: rid }); return ok({ ok: true }); }
     if (o === "me") return ok(await me());
     if (o === "assets") return ok(await listAssets(mid));
     if (o === "notifications") return ok(await notifications(mid));

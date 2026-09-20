@@ -9,6 +9,8 @@ import { RenderBlock, SiteChrome, AssetsContext } from "@/lib/blocks/Render";
 import { AssetPicker } from "./AssetPicker";
 import { Pill } from "@/components/ui/Pill";
 import { proposeAi, AI_SUGGESTIONS, type AiProposal } from "@/lib/ai/mock";
+import { useSession } from "@/components/shell/Session";
+import { permForStatus } from "@/lib/ucp/perms";
 
 type Props = { marketId: string; envId: string; marketName: string; flag: string; domain: string; locale: string; envName: string; root: string; page: PageView };
 const STEPS = [["Add blocks", "Click: open Components"], ["Fill in content", "Click: jump to next empty field"], ["Preview", "Click: toggle visitor view"], ["Send for review", "Click: send to a reviewer"], ["In review", "Click: approve (reviewers)"], ["Publish", "Click: put it live"], ["Published", "Live for customers"]];
@@ -21,6 +23,8 @@ const STEPS = [["Add blocks", "Click: open Components"], ["Fill in content", "Cl
  * Edit never opens the right panel; Configure does (with Cancel / Save).
  */
 export function Builder({ marketId, envId, marketName, flag, domain, locale, envName, root, page }: Props) {
+  const { can } = useSession();
+  const canEdit = can("edit", page.path); const mayStatus = (s: PageStatus) => can(permForStatus[s], page.path);
   const [blocks, setBlocks] = useState<Block[]>(() => componentsToBlocks(page.components));
   const [status, setStatus] = useState<PageStatus>(page.status);
   const [title, setTitle] = useState(page.title);
@@ -28,7 +32,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [mode, setMode] = useState<"select" | "edit">("select");
   const [pop, setPop] = useState<"ai" | "more" | null>(null);
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
-  const [preview, setPreview] = useState(false);
+  const [preview, setPreviewRaw] = useState(!canEdit); const setPreview = (v: boolean | ((p: boolean) => boolean)) => { if (!canEdit) return; setPreviewRaw(v); };
   const [left, setLeft] = useState(true); const [right, setRight] = useState(false);
   const [rightTab, setRightTab] = useState<"block" | "page">("page");
   const [cfgSnapshot, setCfgSnapshot] = useState<Record<string, unknown> | null>(null);
@@ -59,6 +63,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     catch (e) { setSaving("Save failed"); say(e instanceof ApiError ? `${e.problem.title} · request ${e.requestId ?? "n/a"}` : String(e)); throw e; }
   }
   async function transition(next: PageStatus, msg: string) {
+    if (!mayStatus(next)) { say(`You don't have ${permForStatus[next] === "publish" ? "Publish" : permForStatus[next] === "review" ? "Review & approve" : "Edit"} on this folder`); return; }
     if (next === "review" && missing) { say(`Fill in ${missing} required field${missing === 1 ? "" : "s"} first`); const b = blocks.find((x) => missingRequired(x).length); if (b) configure(b.id); return; }
     setStatus(next); try { await save({ status: next }); say(msg); } catch { setStatus(status); }
   }
@@ -133,7 +138,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   };
   const filtered = BLOCKS.filter((b) => !q || b.name.toLowerCase().includes(q.toLowerCase()));
   const padL = left && !preview ? 344 : 24, padR = right && !preview ? 364 : 24;
-  const hint = preview ? "Preview: exactly what visitors will see" : mode === "edit" ? "Edit mode: click any highlighted text to change it. Enter saves, Esc cancels." : sel ? "Use the toolbar on the block: ✎ Edit text in place · ⚙ Configure everything · ✨ AI · ⋯ More" : "Hover to see block names. Click a block to select it, double-click to edit its text.";
+  const hint = !canEdit ? "Read-only: you don't have Edit on this folder. Ask a site admin to grant it." : preview ? "Preview: exactly what visitors will see" : mode === "edit" ? "Edit mode: click any highlighted text to change it. Enter saves, Esc cancels." : sel ? "Use the toolbar on the block: ✎ Edit text in place · ⚙ Configure everything · ✨ AI · ⋯ More" : "Hover to see block names. Click a block to select it, double-click to edit its text.";
 
   return (
     <div className="h-full grid grid-rows-[54px_48px_1fr] min-w-0 overflow-hidden">
@@ -146,11 +151,11 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         <div className="ml-auto flex items-center gap-2.5">
           <span className="text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1">{saving}</span>
           <div className="flex gap-1 pl-2.5 border-l border-line"><button className={`btn btn-icon btn-sm ${left ? "on" : ""}`} onClick={() => setLeft(!left)} title="Components panel" aria-pressed={left}>▤</button><button className={`btn btn-icon btn-sm ${right ? "on" : ""}`} onClick={() => { if (right) closeConfigure(true); else { setRightTab(sel ? "block" : "page"); setRight(true); } }} title="Page settings panel" aria-pressed={right}>▥</button></div>
-          <div className="flex gap-1 pl-2.5 border-l border-line"><button className="btn btn-sm" onClick={() => { setPreview(!preview); select(null); }}>{preview ? "Edit" : "Preview"}</button><button className="btn btn-sm" onClick={() => save().then(() => say("Saved")).catch(() => {})} disabled={!dirty}>Save</button>
-            {(status === "draft" || status === "failed") && <button className="btn btn-sm btn-primary" onClick={() => transition("review", "Sent for review")}>Send for review</button>}
-            {status === "review" && <button className="btn btn-sm btn-primary" onClick={() => transition("approved", "Approved")}>Approve</button>}
-            {(status === "approved" || status === "scheduled") && <button className="btn btn-sm btn-primary" onClick={() => transition("published", `Published to ${envName}`)}>Publish</button>}
-            {status === "published" && <button className="btn btn-sm" onClick={() => transition("draft", "New draft")}>New draft</button>}</div>
+          <div className="flex gap-1 pl-2.5 border-l border-line">{canEdit ? <button className="btn btn-sm" onClick={() => { setPreview(!preview); select(null); }}>{preview ? "Edit" : "Preview"}</button> : <span className="text-xs text-ink-3 px-2" title="Ask a site admin for Edit on this folder">🔒 Read-only</span>}<button className="btn btn-sm" onClick={() => save().then(() => say("Saved")).catch(() => {})} disabled={!dirty || !canEdit}>Save</button>
+            {(status === "draft" || status === "failed") && mayStatus("review") && <button className="btn btn-sm btn-primary" onClick={() => transition("review", "Sent for review")}>Send for review</button>}
+            {status === "review" && (mayStatus("approved") ? <button className="btn btn-sm btn-primary" onClick={() => transition("approved", "Approved")}>Approve</button> : <span className="text-xs text-ink-3">Waiting for a reviewer</span>)}
+            {(status === "approved" || status === "scheduled") && (mayStatus("published") ? <button className="btn btn-sm btn-primary" onClick={() => transition("published", `Published to ${envName}`)}>Publish</button> : <span className="text-xs text-ink-3">Waiting for a publisher</span>)}
+            {status === "published" && mayStatus("draft") && <button className="btn btn-sm" onClick={() => transition("draft", "New draft")}>New draft</button>}</div>
         </div>
       </div>
       {/* Flow stepper */}

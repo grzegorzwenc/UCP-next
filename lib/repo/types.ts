@@ -50,6 +50,8 @@ export interface ContentRepository {
   createNode(path: string, primaryType: string, props?: NodeProps): Promise<RepoNode>;
   /** Merge properties; a `null` value removes the property. Returns the node (depth 1). */
   setProps(path: string, props: NodeProps): Promise<RepoNode>;
+  /** Store a binary (asset rendition). Sling: multipart POST creating nt:file; mock: inline data URL. */
+  putFile(path: string, data: Uint8Array, mime: string): Promise<RepoNode>;
   deleteNode(path: string): Promise<void>;
   moveNode(path: string, destinationPath: string): Promise<RepoNode>;
   getPage(path: string): Promise<PageView | undefined>;

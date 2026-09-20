@@ -12,7 +12,7 @@ export const ROLES: Record<Role, { name: string; perms: Partial<Record<PermKey, 
 export const PERM_COLS: [PermKey, string, string][] = [["read", "Read", "See pages and content"], ["edit", "Edit", "Change drafts"], ["review", "Review & approve", "Approve for publishing"], ["publish", "Publish", "Push to production"], ["manage", "Manage", "Permissions and settings"]];
 
 export const SEED_USERS: { id: string; name: string; email: string; role: Role; team: string; perms: Perms }[] = [
-  { id: "jordan.mensah", name: "Jordan Mensah", email: "jordan.mensah@hsbc.com", role: "author", team: "Savings & Mortgages", perms: { root: { read: true }, banking: { read: true, edit: true }, borrowing: { read: true, edit: true } } },
+  { id: "jordan.mensah", name: "Jordan Mensah", email: "jordan.mensah@hsbc.com", role: "publisher", team: "Savings & Mortgages", perms: { root: { read: true, edit: true, review: true, publish: true } } },
   { id: "anna.kowalczyk", name: "Anna Kowalczyk", email: "anna.kowalczyk@hsbc.com", role: "author", team: "Cards", perms: { root: { read: true }, borrowing: { read: true, edit: true } } },
   { id: "rachel.hughes", name: "Rachel Hughes", email: "rachel.hughes@hsbc.com", role: "reviewer", team: "Compliance", perms: { root: { read: true, edit: true, review: true } } },
   { id: "michael.osei", name: "Michael Osei", email: "michael.osei@hsbc.com", role: "publisher", team: "Digital channel", perms: { root: { read: true, review: true, publish: true } } },

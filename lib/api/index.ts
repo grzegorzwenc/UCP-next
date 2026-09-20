@@ -43,5 +43,9 @@ export const ucpApi = {
   log: (market: string) => U<AuditEvent[]>("log", { query: { market } }),
   logEvent: (market: string, ev: { type: "content" | "publishing" | "permissions" | "system"; text: string; target?: string; level?: "crit" | "" }) => U<{ ok: true }>("log", { method: "POST", query: { market }, body: JSON.stringify(ev) }),
   upload: (market: string, folder: string, files: File[]) => { const fd = new FormData(); files.forEach((f) => fd.append("files", f)); return U<Asset[]>("upload", { method: "POST", query: { market, folder }, body: fd }); },
+  login: (id: string) => U<{ ok: true; user: User }>("login", { method: "POST", body: JSON.stringify({ id }) }),
+  logout: () => U<{ ok: true }>("logout", { method: "POST", body: "{}" }),
+  versions: (path: string) => U<{ id: string; time: string; who: string; note: string; title: string; status: string; blocks: number }[]>("versions", { query: { path } }),
+  restoreVersion: (market: string, path: string, id: string) => U<{ ok: true }>("versions/restore", { method: "POST", query: { market, path }, body: JSON.stringify({ id }) }),
   translate: (market: string, body: { pages: string[]; langs: string[]; review?: boolean; dest?: string; mode?: "ai" | "vendor" }) => U<{ created: string[] }>("translate", { method: "POST", query: { market }, body: JSON.stringify(body) }),
 };

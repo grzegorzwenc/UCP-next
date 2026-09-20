@@ -5,6 +5,7 @@ import { PATHS } from "@/lib/ucp/paths";
 import type { Asset, AssetType, AuditEvent, AuditType, FormDef, Model, ModelField, Notification, Perms, Role, Task, TaskKind, Template, User } from "@/lib/ucp/types";
 import { BLOCK_MODELS, ME, SEED_USERS } from "@/lib/ucp/seed";
 import { allPages } from "@/lib/server/pages";
+import { sessionUserId } from "@/lib/server/session";
 
 /**
  * Domain services over the repository port. Each object is one JCR node; these helpers only map properties.
@@ -39,7 +40,7 @@ const toUser = (n: RepoNode): User => ({ id: n.name, path: n.path, name: str(n.p
 export async function listUsers(): Promise<User[]> { const u = await kids(PATHS.users, 1); return u.length ? u.map(toUser) : SEED_USERS.map((x) => ({ ...x, path: `${PATHS.users}/${x.id}` })); }
 export async function getUser(id: string): Promise<User | undefined> { return (await listUsers()).find((u) => u.id === id); }
 export async function userName(id: string): Promise<string> { if (id === "system") return "System"; const u = await getUser(id); return u?.name ?? id.split(".").map((s) => s[0]?.toUpperCase() + s.slice(1)).join(" "); }
-export async function me(): Promise<User> { const id = (await repo().identity().catch(() => ({ id: ME }))).id; return (await getUser(id)) ?? { id, path: `${PATHS.users}/${id}`, name: await userName(id), email: "", role: "author", team: "", perms: { root: { read: true } } }; }
+export async function me(): Promise<User> { const id = (await sessionUserId()) ?? (await repo().identity().catch(() => ({ id: ME }))).id; return (await getUser(id)) ?? { id, path: `${PATHS.users}/${id}`, name: await userName(id), email: "", role: "author", team: "", perms: { root: { read: true } } }; }
 
 /* ---------------- models (/conf/hsbc/models/<id>) + block types from the registry ---------------- */
 const toModel = (n: RepoNode): Model => ({ id: n.name, path: n.path, name: str(n.properties["jcr:title"], n.name), group: str(n.properties["ucp:group"], "Core"), version: num(n.properties["ucp:version"]) ?? 1, source: str(n.properties["ucp:source"], "Core"), fields: json<ModelField[]>(n.properties["ucp:fields"], []) });
@@ -105,3 +106,17 @@ export async function pageDeliveryJson(marketId: string, path: string, host: str
   return { id: v.path, route, market: marketId.toUpperCase(), language: v.locale ?? "en-GB", title: v.title, status: v.status, template: v.template, templateName: templates.find((t) => t.id === v.template)?.name, updatedAt: v.lastModified, updatedBy: v.lastModifiedBy, blocks, meta: { canonical: `https://${host}${route}`, index: true, description: v.description ?? "" }, _links: { self: `/v1/pages${route}`, preview: `/v1/preview/pages${route}`, schema: "/v1/models/page", repository: v.path } };
 }
 export { modelSchema } from "@/lib/ucp/schema";
+
+/* ---------------- versions: snapshots under <page>/jcr:content/ucp:versions/<id> (last 20) ---------------- */
+export type PageVersion = { id: string; time: string; who: string; note: string; title: string; status: string; blocks: number };
+const VER = (path: string) => `${path}/jcr:content/ucp:versions`;
+export async function listVersions(path: string): Promise<PageVersion[]> { const v = await kids(VER(path), 1); return v.map((n) => ({ id: n.name, time: str(n.properties["ucp:time"]), who: str(n.properties["ucp:who"]), note: str(n.properties["ucp:note"]), title: str(n.properties["ucp:title"]), status: str(n.properties["ucp:status"]), blocks: json<unknown[]>(n.properties["ucp:components"], []).length })).sort((a, b) => b.time.localeCompare(a.time)); }
+export async function snapshotVersion(path: string, note: string, who: string): Promise<void> {
+  const v = await repo().getPage(path); if (!v) return; const time = new Date().toISOString(); const id = `v${time.replace(/[^0-9]/g, "").slice(0, 17)}`;
+  try { await repo().createNode(`${VER(path)}/${id}`, "nt:unstructured", { "ucp:time": time, "ucp:who": who, "ucp:note": note, "ucp:title": v.title, "ucp:status": v.status, "ucp:components": JSON.stringify(v.components) });
+    const all = await listVersions(path); for (const old of all.slice(20)) await repo().deleteNode(`${VER(path)}/${old.id}`).catch(() => {}); } catch { /* backends without version nodes keep no history */ }
+}
+export async function restoreVersion(path: string, id: string): Promise<void> {
+  const n = await repo().getNode(`${VER(path)}/${id}`, 0); if (!n) throw new Error("Version not found");
+  await repo().saveComponents(path, json(n.properties["ucp:components"], [])); const title = str(n.properties["ucp:title"]); if (title) await repo().updateContent(path, { title });
+}
