@@ -22,15 +22,33 @@ npm run dev -- -p 3100
 
 Set `UCP_BACKEND=contentlibre` (+ `CONTENTLIBRE_*`) or `UCP_BACKEND=sling` (+ `SLING_URL`, `SLING_USER`, `SLING_PASSWORD`) to use a real backend.
 
+## Repository layout (what the Sling instance must contain)
+
+| Path | Node type | Holds |
+|---|---|---|
+| `/content/<market>/…` | `cq:Page` → `jcr:content` → `root` → components | pages; workflow in `ucp:status`, `ucp:sentBy`, `ucp:sentAt`, `ucp:due`, translations via `jcr:language` + `ucp:sourcePath` |
+| `/content/dam/<market>/<folder>/<file>` | `dam:Asset` | assets (`dam:type`, `dam:size`, `dam:width/height`, `ucp:data` inline for mock uploads) |
+| `/home/users/<id>` | `rep:User` | users; role in `ucp:role`, per-folder grants as JSON in `ucp:perms` |
+| `/conf/hsbc/models/<id>` | `nt:unstructured` | content models; fields as JSON in `ucp:fields`, `ucp:version` |
+| `/conf/hsbc/settings/wcm/templates/<id>` | `cq:Template` | page templates (`ucp:blocks`, `ucp:folder`) |
+| `/conf/hsbc/forms/<id>` | `nt:unstructured` | forms service registry |
+| `/var/audit/ucp/<market>/<id>` | `nt:unstructured` | append-only audit trail (`ucp:time/type/who/text/target/level/requestId`) |
+
+Everything above is defined once in `lib/ucp/paths.ts`. Tasks and notifications are derived from page workflow state; nothing else is stored.
+
 ## Structure
 
-- `app/(cms)/[market]/[env]/…` — dashboard, pages explorer, page builder, section pages
-- `app/api/repo/[...op]/route.ts` — BFF over the port (page, children, pages, components, move, me)
-- `lib/repo/*` — port, JCR mapping (`mapping.ts`: blocks ⇄ component nodes, node tree ⇄ PageView), adapters
-- `lib/api/*` — browser client mirroring the port
-- `lib/blocks/*` — HSBC block registry (schemas, defaults, React renderers) shared by the builder
-- `lib/server/*` — server-side data access and the mock store
-- `components/*` — shell, explorer, builder, UI primitives
+- `app/(cms)/[market]/[env]/…` — dashboard, pages explorer, page builder, assets, content models, templates, tasks, API & delivery, users & roles, audit log, repository (JCR) browser
+- `app/api/repo/[...op]/route.ts` — BFF over the port: pages (page, children, pages, components, move) + generic nodes (node GET/POST/PATCH/DELETE, node/move) + me. Every mutation writes an audit event carrying the response `X-Request-Id`.
+- `app/api/ucp/[...op]/route.ts` — market-scoped derived reads and actions: tasks, notifications, search, assets, log, upload (multipart), translate
+- `app/api/delivery/v1/[...op]/route.ts` — public read-only delivery API (pages, preview/pages, models, assets, templates, markets)
+- `lib/repo/*` — port, JCR mapping (`mapping.ts`), adapters (mock seed lives in `adapters/mock.ts`)
+- `lib/ucp/*` — domain types, repository paths, demo seed constants (client-safe)
+- `lib/server/ucp.ts` — domain services over the port (assets, users, models, templates, forms, audit, tasks, delivery JSON)
+- `lib/api/*` — browser client (`repoApi`, `ucpApi`)
+- `lib/blocks/*` — HSBC block registry (schemas, defaults, React renderers) shared by the builder, templates and models
+- `lib/ai/mock.ts` — deterministic stand-in for block-scoped AI proposals (swap for a model-backed route)
+- `components/*` — shell (top bar, side nav, palette), explorer, builder, per-section UIs, UI primitives
 
 ## Notes
 

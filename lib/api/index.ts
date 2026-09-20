@@ -35,7 +35,9 @@ export const repoApi = {
 };
 /** Market-scoped derived reads and actions. */
 export const ucpApi = {
+  me: () => U<User>("me"),
   tasks: (market: string) => U<Task[]>("tasks", { query: { market } }),
+  assets: (market: string) => U<Asset[]>("assets", { query: { market } }),
   notifications: (market: string) => U<Notification[]>("notifications", { query: { market } }),
   search: (market: string, q: string) => U<{ pages: PageSummary[]; assets: Asset[]; users: User[]; templates: Template[]; models: Model[] }>("search", { query: { market, q } }),
   log: (market: string) => U<AuditEvent[]>("log", { query: { market } }),

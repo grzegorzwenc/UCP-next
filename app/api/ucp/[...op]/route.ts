@@ -9,6 +9,8 @@ import { market } from "@/lib/markets";
 /**
  * Derived, market-scoped reads and a few multi-step actions the UI needs. Everything persists through the repo port.
  *   GET  /api/ucp/tasks?market=            Task[]
+ *   GET  /api/ucp/me                       User (signed-in user, resolved from repo identity)
+ *   GET  /api/ucp/assets?market=           Asset[]
  *   GET  /api/ucp/notifications?market=    Notification[]
  *   GET  /api/ucp/search?market=&q=        { pages, assets, users, templates, models }
  *   GET  /api/ucp/log?market=              AuditEvent[]
@@ -23,6 +25,8 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
   const ok = (b: unknown, status = 200) => NextResponse.json(b, { status, headers: { "X-Request-Id": rid } });
   try {
     if (o === "tasks") return ok(await listTasks(mid));
+    if (o === "me") return ok(await me());
+    if (o === "assets") return ok(await listAssets(mid));
     if (o === "notifications") return ok(await notifications(mid));
     if (o === "log" && req.method === "GET") return ok(await readLog(mid));
     if (o === "log" && req.method === "POST") { const b = await req.json(); await logEvent(mid, { ...b, requestId: rid }); return ok({ ok: true }, 201); }

@@ -1,5 +1,7 @@
 import type { Block } from "@/lib/api/types";
 import { BLOCK_BY_TYPE, lines } from "./registry";
+import { AssetsContext, MastSurface } from "./AssetsContext";
+export { AssetsContext };
 
 const ICONS: Record<string, string> = {
   star: "M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z",
@@ -21,7 +23,7 @@ export function RenderBlock({ b }: { b: Block }) {
   const id = b.id;
   switch (b.type) {
     case "mast":
-      return <div className="s-mast"><div className="box"><h1><T id={id} f="heading">{p.heading}</T></h1>{p.intro && <p><T id={id} f="intro">{p.intro}</T></p>}{p.cta && <span className="s-cta"><T id={id} f="cta">{p.cta}</T></span>}</div></div>;
+      return <MastSurface image={p.image}><div className="box"><h1><T id={id} f="heading">{p.heading}</T></h1>{p.intro && <p><T id={id} f="intro">{p.intro}</T></p>}{p.cta && <span className="s-cta"><T id={id} f="cta">{p.cta}</T></span>}</div></MastSurface>;
     case "contentmaster":
       return <div><h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2><p className="s-p"><T id={id} f="body">{p.body}</T></p></div>;
     case "icontiles":

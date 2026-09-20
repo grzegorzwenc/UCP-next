@@ -46,6 +46,18 @@ const toModel = (n: RepoNode): Model => ({ id: n.name, path: n.path, name: str(n
 export async function listModels(): Promise<Model[]> { const m = await kids(PATHS.models, 1); return [...m.map(toModel), ...BLOCK_MODELS]; }
 export async function getModel(id: string): Promise<Model | undefined> { return (await listModels()).find((m) => m.id === id); }
 
+/** Which pages use a model. Block types: pages whose components include that block. Core models: derived from the blocks that carry that content. */
+export async function modelUsage(marketId: string, all?: PageSummary[]): Promise<Record<string, PageSummary[]>> {
+  const pages = (all ?? await allPages(PATHS.content(marketId))).filter((p) => !p.isFolder); const out: Record<string, PageSummary[]> = {};
+  const add = (id: string, p: PageSummary) => { (out[id] ??= []); if (!out[id].includes(p)) out[id].push(p); };
+  for (const p of pages) {
+    add("page", p); if (p.template === "campaign") add("campaign", p);
+    const v = await repo().getPage(p.path).catch(() => undefined);
+    for (const c of v?.components ?? []) { const t = c.resourceType.split("/").pop() ?? ""; add("block-" + t, p); if (t === "mastertiles" || t === "cards") add("product", p); if (t === "rates") add("rate", p); if (t === "faq") add("faq-item", p); }
+  }
+  return out;
+}
+
 /* ---------------- templates (/conf/hsbc/settings/wcm/templates/<id>) ---------------- */
 const toTemplate = (n: RepoNode): Template => ({ id: n.name, path: n.path, name: str(n.properties["jcr:title"], n.name), desc: str(n.properties["jcr:description"]), blocks: str(n.properties["ucp:blocks"]).split(",").filter(Boolean), folder: str(n.properties["ucp:folder"], "Global (all markets)") });
 export async function listTemplates(): Promise<Template[]> { const t = await kids(PATHS.templates, 1); return t.filter((x) => x.name !== "folder").map(toTemplate); }
@@ -92,8 +104,4 @@ export async function pageDeliveryJson(marketId: string, path: string, host: str
   const blocks = v.components.map((c) => { const props: NodeProps = {}; for (const [k, val] of Object.entries(c.props)) { if (k === "ucp:id") continue; if (k === "image" && typeof val === "string") { const a = assets.find((x) => x.id === val); props[k] = a ? { id: a.id, name: a.name, url: `/v1/assets/${a.id}/original`, renditions: { hero: `/v1/assets/${a.id}/hero`, card: `/v1/assets/${a.id}/card` } } : null; } else if (k === "form" && typeof val === "string") { const f = forms.find((x) => x.id === val); props[k] = f ? { id: f.id, name: f.name, version: f.version, embed: `forms://${marketId}/${f.id}/v${f.version}` } : null; } else if (typeof val === "string" && val.includes("|") && val.includes("\n")) props[k] = val.split("\n").map((r) => r.split("|").map((x) => x.trim())); else props[k] = val; } return { id: c.props["ucp:id"] ?? c.name, type: c.resourceType.split("/").pop(), resourceType: c.resourceType, props }; });
   return { id: v.path, route, market: marketId.toUpperCase(), language: v.locale ?? "en-GB", title: v.title, status: v.status, template: v.template, templateName: templates.find((t) => t.id === v.template)?.name, updatedAt: v.lastModified, updatedBy: v.lastModifiedBy, blocks, meta: { canonical: `https://${host}${route}`, index: true, description: v.description ?? "" }, _links: { self: `/v1/pages${route}`, preview: `/v1/preview/pages${route}`, schema: "/v1/models/page", repository: v.path } };
 }
-export function modelSchema(md: Model) {
-  const typeMap: Record<string, object> = { Text: { type: "string" }, "Rich text": { type: "string", format: "html" }, Number: { type: "integer" }, Decimal: { type: "number" }, Boolean: { type: "boolean" }, Date: { type: "string", format: "date-time" }, Enum: { type: "string", enum: ["…"] }, "Multi-select": { type: "array", items: { type: "string" } }, Asset: { $ref: "#/$defs/assetRef" }, Reference: { $ref: "#/$defs/contentRef" }, Group: { type: "object" }, List: { type: "array", items: { type: "array", items: { type: "string" } } }, "Form reference": { $ref: "#/$defs/formRef" }, Blocks: { type: "array", items: { $ref: "#/$defs/block" } } };
-  const properties: Record<string, object> = {}; md.fields.forEach((f) => { properties[f.k] = { title: f.l, ...(typeMap[f.t] ?? { type: "string" }), ...(f.loc ? { "x-localised": true } : {}) }; });
-  return { $schema: "https://json-schema.org/draft/2020-12/schema", $id: `/v1/models/${md.id}`, title: md.name, version: md.version, type: "object", required: md.fields.filter((f) => f.req).map((f) => f.k), properties, $defs: { assetRef: { type: "object", properties: { id: { type: "string" }, url: { type: "string" }, renditions: { type: "object" } } }, contentRef: { type: "object", properties: { id: { type: "string" }, model: { type: "string" } } }, formRef: { type: "object", properties: { id: { type: "string" }, version: { type: "integer" } } }, block: { type: "object", properties: { type: { type: "string" }, props: { type: "object" } } } } };
-}
+export { modelSchema } from "@/lib/ucp/schema";

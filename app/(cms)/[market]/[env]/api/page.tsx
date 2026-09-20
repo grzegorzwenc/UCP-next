@@ -1,17 +1,18 @@
 import { market } from "@/lib/markets";
 import { allPages } from "@/lib/server/pages";
-import { TEMPLATES, BLOCKS } from "@/lib/blocks/registry";
-import { Pill } from "@/components/ui/Pill";
+import { listModels, pageDeliveryJson } from "@/lib/server/ucp";
+import { modelSchema } from "@/lib/ucp/schema";
+import { ApiExplorer, type ApiTab } from "@/components/api/ApiExplorer";
 
-export default async function Page({ params }: PageProps<"/[market]/[env]/api">) {
-  const { market: mid, env: eid } = await params; const mk = market(mid);
-  const pages = (await allPages(mk.root)).filter((p) => !p.isFolder);
-  const base = `/${mid}/${eid}`; const seg: string = "api";
-  return (<div className="p-7"><h1 className="text-2xl font-semibold">API & delivery</h1><p className="text-ink-3 text-[13px] mt-1 mb-6">Endpoints exposed through the Next.js BFF at /api/repo/*, backed by the ContentRepository port (mock, ContentLIBRE or Sling/JCR).</p>
-    {seg === "tasks" && <table className="w-full text-[13.5px] bg-surface border border-line"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="p-3 border-b border-line-2">Task</th><th className="p-3 border-b border-line-2">Page</th><th className="p-3 border-b border-line-2">Status</th><th className="border-b border-line-2" /></tr></thead><tbody>{pages.filter((p) => p.status !== "published").map((p) => <tr key={p.path}><td className="p-3 border-b border-line font-medium">{p.status === "review" ? "Review and approve" : p.status === "approved" ? "Publish approved page" : p.status === "failed" ? "Fix failed publish" : "Finish draft"}</td><td className="p-3 border-b border-line">{p.title}</td><td className="p-3 border-b border-line"><Pill status={p.status} /></td><td className="p-3 border-b border-line"><a className="btn btn-sm" href={`${base}/page${p.path.replace(mk.root, "")}`}>Open</a></td></tr>)}</tbody></table>}
-    {seg === "templates" && <div className="grid grid-cols-3 gap-4">{TEMPLATES.map((t) => <div key={t.id} className="bg-surface border border-line p-4"><b className="block text-[15px]">{t.name}</b><small className="text-ink-3">{t.desc}</small><div className="text-xs text-ink-2 mt-2">Used by {pages.filter((p) => p.template === t.id).length} pages</div></div>)}</div>}
-    {seg === "models" && <table className="w-full text-[13.5px] bg-surface border border-line"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="p-3 border-b border-line-2">Block type</th><th className="p-3 border-b border-line-2">Group</th><th className="p-3 border-b border-line-2">Fields</th><th className="p-3 border-b border-line-2">Used on</th></tr></thead><tbody>{BLOCKS.map((b) => <tr key={b.type}><td className="p-3 border-b border-line font-medium">{b.name}</td><td className="p-3 border-b border-line text-ink-3">{b.group}</td><td className="p-3 border-b border-line">{b.fields.length}</td><td className="p-3 border-b border-line text-ink-3">{0} pages</td></tr>)}</tbody></table>}
-    {seg === "api" && <div className="bg-surface border border-line p-4 font-mono text-[12.5px] leading-7"><div>GET    /api/repo/page?path=…            → PageView (JCR-shaped)</div><div>GET    /api/repo/children?path=…&offset=&limit=</div><div>POST   /api/repo/pages                 {"{"} parentPath, name, template, title {"}"}</div><div>PATCH  /api/repo/page?path=…            PageContentPatch</div><div>PUT    /api/repo/components?path=…      ComponentNode[] (sling:resourceType + props)</div><div>DELETE /api/repo/page?path=…&recursive=</div><div>POST   /api/repo/move?path=…            {"{"} destinationPath {"}"}</div><div>GET    /api/repo/me</div><div className="mt-3 text-ink-3">Backend adapter: UCP_BACKEND = mock | contentlibre | sling (Sling GET .infinity.json + POST servlet)</div></div>}
-    {!["tasks","templates","models","api"].includes(seg) && <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">Coming in the next increment.</div>}
-  </div>);
+/** API & delivery: every saved page and model as JSON, with the real endpoint served under /api/delivery/v1 on this instance. */
+export default async function Page({ params, searchParams }: PageProps<"/[market]/[env]/api">) {
+  const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = market(mid);
+  const tab = (["pages", "models", "endpoints"].includes(String(sp.tab)) ? sp.tab : "pages") as ApiTab;
+  const [pages, models] = await Promise.all([allPages(mk.root).then((l) => l.filter((p) => !p.isFolder)), listModels()]);
+  const pgPath = typeof sp.page === "string" && sp.page.startsWith(mk.root) ? sp.page : pages[0]?.path; const pg = pages.find((p) => p.path === pgPath) ?? pages[0];
+  const md = models.find((m) => m.id === sp.model) ?? models[0];
+  const pageJson = tab === "pages" && pg ? await pageDeliveryJson(mid, pg.path, mk.domain) : undefined;
+  return <ApiExplorer base={`/${mid}/${eid}`} marketId={mid} domain={mk.domain} marketRoot={mk.root} tab={tab}
+    pages={pages.map((p) => ({ path: p.path, title: p.title, status: p.status }))} models={models.map((m) => ({ id: m.id, name: m.name, group: m.group, version: m.version, fields: m.fields.length }))}
+    page={pg ? { path: pg.path, title: pg.title, status: pg.status } : undefined} pageJson={pageJson} modelId={md?.id} modelSchema={md ? modelSchema(md) : undefined} />;
 }

@@ -1,17 +1,22 @@
 import { market } from "@/lib/markets";
+import { repo } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { TEMPLATES, BLOCKS } from "@/lib/blocks/registry";
-import { Pill } from "@/components/ui/Pill";
+import { listAssets, assetFolders, assetUsage } from "@/lib/server/ucp";
+import { ASSET_FOLDERS } from "@/lib/ucp/seed";
+import { AssetLibrary } from "@/components/assets/AssetLibrary";
 
-export default async function Page({ params }: PageProps<"/[market]/[env]/assets">) {
-  const { market: mid, env: eid } = await params; const mk = market(mid);
+/** Asset library: every file is a dam:Asset node under /content/dam/<market>/<folder>. */
+export default async function Page({ params, searchParams }: PageProps<"/[market]/[env]/assets">) {
+  const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = market(mid);
+  const folder = typeof sp.folder === "string" ? sp.folder : "";
+  const view = sp.view === "unused" || sp.view === "noalt" ? sp.view : "";
   const pages = (await allPages(mk.root)).filter((p) => !p.isFolder);
-  const base = `/${mid}/${eid}`; const seg: string = "assets";
-  return (<div className="p-7"><h1 className="text-2xl font-semibold">Assets</h1><p className="text-ink-3 text-[13px] mt-1 mb-6">Asset library will connect to the ContentLIBRE DAM module when it is published in the Management API.</p>
-    {seg === "tasks" && <table className="w-full text-[13.5px] bg-surface border border-line"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="p-3 border-b border-line-2">Task</th><th className="p-3 border-b border-line-2">Page</th><th className="p-3 border-b border-line-2">Status</th><th className="border-b border-line-2" /></tr></thead><tbody>{pages.filter((p) => p.status !== "published").map((p) => <tr key={p.path}><td className="p-3 border-b border-line font-medium">{p.status === "review" ? "Review and approve" : p.status === "approved" ? "Publish approved page" : p.status === "failed" ? "Fix failed publish" : "Finish draft"}</td><td className="p-3 border-b border-line">{p.title}</td><td className="p-3 border-b border-line"><Pill status={p.status} /></td><td className="p-3 border-b border-line"><a className="btn btn-sm" href={`${base}/page${p.path.replace(mk.root, "")}`}>Open</a></td></tr>)}</tbody></table>}
-    {seg === "templates" && <div className="grid grid-cols-3 gap-4">{TEMPLATES.map((t) => <div key={t.id} className="bg-surface border border-line p-4"><b className="block text-[15px]">{t.name}</b><small className="text-ink-3">{t.desc}</small><div className="text-xs text-ink-2 mt-2">Used by {pages.filter((p) => p.template === t.id).length} pages</div></div>)}</div>}
-    {seg === "models" && <table className="w-full text-[13.5px] bg-surface border border-line"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="p-3 border-b border-line-2">Block type</th><th className="p-3 border-b border-line-2">Group</th><th className="p-3 border-b border-line-2">Fields</th><th className="p-3 border-b border-line-2">Used on</th></tr></thead><tbody>{BLOCKS.map((b) => <tr key={b.type}><td className="p-3 border-b border-line font-medium">{b.name}</td><td className="p-3 border-b border-line text-ink-3">{b.group}</td><td className="p-3 border-b border-line">{b.fields.length}</td><td className="p-3 border-b border-line text-ink-3">{0} pages</td></tr>)}</tbody></table>}
-    {seg === "api" && <div className="bg-surface border border-line p-4 font-mono text-[12.5px] leading-7"><div>GET    /api/repo/page?path=…            → PageView (JCR-shaped)</div><div>GET    /api/repo/children?path=…&offset=&limit=</div><div>POST   /api/repo/pages                 {"{"} parentPath, name, template, title {"}"}</div><div>PATCH  /api/repo/page?path=…            PageContentPatch</div><div>PUT    /api/repo/components?path=…      ComponentNode[] (sling:resourceType + props)</div><div>DELETE /api/repo/page?path=…&recursive=</div><div>POST   /api/repo/move?path=…            {"{"} destinationPath {"}"}</div><div>GET    /api/repo/me</div><div className="mt-3 text-ink-3">Backend adapter: UCP_BACKEND = mock | contentlibre | sling (Sling GET .infinity.json + POST servlet)</div></div>}
-    {!["tasks","templates","models","api"].includes(seg) && <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">Coming in the next increment.</div>}
-  </div>);
+  const [assets, storedFolders, usage] = await Promise.all([listAssets(mid), assetFolders(mid), assetUsage(mid, pages)]);
+  // Folders: seed order first, then anything else that exists in the repository or on an asset.
+  const folders = [...ASSET_FOLDERS]; for (const f of [...storedFolders, ...assets.map((a) => a.folder)]) if (!folders.includes(f)) folders.push(f);
+  // Images placed on a page without alt text (an `image` prop that points at an asset, no `alt` prop).
+  const noAlt: string[] = [];
+  for (const p of pages) { const v = await repo().getPage(p.path).catch(() => undefined); for (const c of v?.components ?? []) { const img = c.props["image"]; if (typeof img === "string" && img && !c.props["alt"] && !noAlt.includes(img)) noAlt.push(img); } }
+  const usageSlim = Object.fromEntries(Object.entries(usage).map(([id, ps]) => [id, ps.map((p) => ({ path: p.path, title: p.title, status: p.status }))]));
+  return <AssetLibrary marketId={mid} envId={eid} marketName={mk.name} flag={mk.flag} root={mk.root} assets={assets} folders={folders} usage={usageSlim} noAlt={noAlt} folder={folder} view={view} />;
 }
