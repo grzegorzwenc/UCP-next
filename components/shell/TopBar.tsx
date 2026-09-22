@@ -27,9 +27,9 @@ function RichText({ text }: { text: string }) {
 
 function Bell({ marketId, base, root }: { marketId: string; base: string; root: string }) {
   const router = useRouter(); const ref = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState(false); const [items, setItems] = useState<Notification[]>([]); const [read, setRead] = useState<Set<string>>(new Set()); const [toast, setToast] = useState<string | null>(null);
+  const [open, setOpen] = useState(false); const [items, setItems] = useState<Notification[]>([]); const [read, setRead] = useState<Set<string>>(() => (typeof window === "undefined" ? new Set() : readIds())); const [toast, setToast] = useState<string | null>(null);
   const close = useCallback(() => setOpen(false), []); useDismiss(open, close, ref);
-  useEffect(() => { let on = true; setRead(readIds()); const load = () => ucpApi.notifications(marketId).then((n) => { if (on) setItems(n); }).catch(() => {}); load(); const t = setInterval(load, 60000); return () => { on = false; clearInterval(t); }; }, [marketId]);
+  useEffect(() => { let on = true; const load = () => ucpApi.notifications(marketId).then((n) => { if (on) setItems(n); }).catch(() => {}); load(); const t = setInterval(load, 60000); return () => { on = false; clearInterval(t); }; }, [marketId]);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2200); return () => clearTimeout(t); }, [toast]);
   const unread = items.filter((n) => !read.has(notifId(n))).length;
   const markAll = () => { const s = new Set(items.map(notifId)); setRead(s); try { localStorage.setItem(READ_KEY, JSON.stringify([...s])); } catch {} setOpen(false); setToast("All notifications marked as read"); };
@@ -60,7 +60,7 @@ function Search({ marketId, base, root }: { marketId: string; base: string; root
   const router = useRouter(); const ref = useRef<HTMLDivElement>(null);
   const [q, setQ] = useState(""); const [res, setRes] = useState<Results | null>(null); const [open, setOpen] = useState(false);
   const close = useCallback(() => setOpen(false), []); useDismiss(open, close, ref);
-  useEffect(() => { const s = q.trim(); if (!s) { setRes(null); return; } const t = setTimeout(() => ucpApi.search(marketId, s).then((r) => { setRes(r); setOpen(true); }).catch(() => {}), 200); return () => clearTimeout(t); }, [q, marketId]);
+  useEffect(() => { const s = q.trim(); if (!s) return; const t = setTimeout(() => ucpApi.search(marketId, s).then((r) => { setRes(r); setOpen(true); }).catch(() => {}), 200); return () => clearTimeout(t); }, [q, marketId]);
   const groups: { title: string; hits: Hit[] }[] = res ? [
     { title: "Pages", hits: res.pages.map((p) => ({ key: p.path, href: `${base}/page${p.path.replace(root, "")}`, node: <><Pill status={p.status} /><span className="font-medium">{p.title}</span><span className="font-mono text-[11px] text-ink-3 ml-auto">{p.path.replace(root, "") || "/"}</span></> })) },
     { title: "Assets", hits: res.assets.map((a) => ({ key: a.path, href: `${base}/assets?folder=${encodeURIComponent(a.folder)}`, node: <><span className="text-ink-3">▣</span><span className="font-medium">{a.name}</span><span className="text-[11.5px] text-ink-3 ml-auto">{a.folder} · {a.size}</span></> })) },
@@ -74,7 +74,7 @@ function Search({ marketId, base, root }: { marketId: string; base: string; root
   return (
     <div ref={ref} className="relative flex-1 max-w-[460px]">
       <div className="flex items-center gap-2 bg-white/10 border border-white/15 rounded-md px-3 py-1.5 text-[13px] text-white/60 focus-within:border-white/40"><span>⌕</span>
-        <input aria-label="Search" className="flex-1 bg-transparent outline-none text-white placeholder:text-white/50" placeholder="Search pages, assets, people…" value={q} onChange={(e) => setQ(e.target.value)} onFocus={() => { if (res) setOpen(true); }}
+        <input aria-label="Search" className="flex-1 bg-transparent outline-none text-white placeholder:text-white/50" placeholder="Search pages, assets, people…" value={q} onChange={(e) => { setQ(e.target.value); if (!e.target.value.trim()) { setRes(null); setOpen(false); } }} onFocus={() => { if (res) setOpen(true); }}
           onKeyDown={(e) => { if (e.key === "Enter" && first) { e.preventDefault(); go(first.href); } else if (e.key === "Escape") { setOpen(false); (e.target as HTMLInputElement).blur(); } }} />
         <button type="button" aria-label="Open command palette" onClick={openPalette} className="font-mono text-[10.5px] border border-white/25 rounded px-1 hover:bg-white/10">⌘K</button></div>
       {open && res && <div role="listbox" aria-label="Search results" className="absolute left-0 right-0 top-[40px] bg-surface text-ink border border-line rounded-xl shadow-2xl z-50 max-h-[70vh] overflow-auto py-1">

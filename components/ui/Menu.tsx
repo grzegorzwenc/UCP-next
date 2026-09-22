@@ -9,7 +9,7 @@ export type MenuItem = { id: string; label: React.ReactNode; onSelect: () => voi
  *   - items: role="menuitem" with roving tabindex; ArrowUp/Down wrap, Home/End jump, Escape closes and returns focus to the trigger
  *   - clicking outside (or focusing outside) closes it
  */
-export function Menu({ label, items, align = "right", className = "", buttonClassName = "btn btn-sm" }: { label: React.ReactNode; items: MenuItem[]; align?: "left" | "right"; className?: string; buttonClassName?: string }) {
+export function Menu({ label, ariaLabel, items, align = "right", className = "", buttonClassName = "btn btn-sm" }: { label: React.ReactNode; ariaLabel?: string; items: MenuItem[]; align?: "left" | "right"; className?: string; buttonClassName?: string }) {
   const id = useId();
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -47,7 +47,7 @@ export function Menu({ label, items, align = "right", className = "", buttonClas
 
   return (
     <div ref={rootRef} className={`relative inline-block ${className}`}>
-      <button ref={btnRef} type="button" id={`${id}-btn`} className={buttonClassName} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? `${id}-menu` : undefined}
+      <button ref={btnRef} type="button" id={`${id}-btn`} className={buttonClassName} aria-label={ariaLabel} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? `${id}-menu` : undefined}
         onClick={(e) => { e.stopPropagation(); if (open) close(); else show("first"); }} onKeyDown={onButtonKey}>{label}</button>
       {open && (
         <div ref={listRef} id={`${id}-menu`} role="menu" aria-labelledby={`${id}-btn`} onKeyDown={onListKey}

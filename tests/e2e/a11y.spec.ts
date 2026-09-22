@@ -16,7 +16,7 @@ test.describe("keyboard and shell", () => {
     await page.keyboard.press("ArrowDown");
     const second = await box.getAttribute("aria-activedescendant");
     expect(second).not.toBe(first);
-    await expect(page.locator(`#${CSS.escape(second!)}`)).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator(`[id="${second}"]`)).toHaveAttribute("aria-selected", "true");
     // Tab stays inside the dialog
     await page.keyboard.press("Tab");
     await expect(page.getByRole("dialog", { name: "Command palette" }).locator(":focus")).toHaveCount(1);
@@ -44,7 +44,7 @@ test.describe("keyboard and shell", () => {
 
   test("repository row menu is a keyboard-operable ARIA menu", async ({ page }) => {
     await page.goto(`${BASE}/repo`);
-    const trigger = page.getByRole("button", { name: "⋯" }).first();
+    const trigger = page.getByRole("button", { name: /More actions for/ }).first();
     await trigger.focus();
     await page.keyboard.press("ArrowDown");
     const menu = page.getByRole("menu");

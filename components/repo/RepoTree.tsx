@@ -26,7 +26,7 @@ function Node({ n, depth, base, root, openPath, onCopy }: { n: RepoNode; depth: 
         {props.length > 0 && <button type="button" className="btn btn-sm" aria-expanded={showProps} onClick={() => setShowProps(!showProps)}>{props.length} props</button>}
         {isPage(n) && !isFolder(n) && <Link className="btn btn-sm" href={`${base}/page${n.path.replace(root, "")}`}>Edit page</Link>}
         {isPage(n) && !kids.length && <Link className="btn btn-sm" href={`${openPath}?path=${encodeURIComponent(n.path)}`}>Open</Link>}
-        <Menu label={<span aria-hidden>⋯</span>} buttonClassName="btn btn-sm" items={[
+        <Menu label={<span aria-hidden>⋯</span>} ariaLabel={`More actions for ${n.name}`} buttonClassName="btn btn-sm" items={[
           { id: "copy", label: "Copy path", onSelect: () => onCopy(n.path) },
           { id: "builder", label: "Open in builder", disabled: !(isPage(n) && !isFolder(n)), onSelect: () => router.push(`${base}/page${n.path.replace(root, "")}`) },
         ]} />
