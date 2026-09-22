@@ -1,4 +1,5 @@
 "use client";
+import { ViewToggle } from "@/components/ui/ViewToggle";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -20,14 +21,19 @@ const when = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); i
 function Thumb({ a, className = "" }: { a: Asset; className?: string }) {
   return a.data
     ? <div className={`bg-surface-3 bg-cover bg-center rounded-md ${className}`} style={{ backgroundImage: `url(${a.data})` }} role="img" aria-label={a.name} />
-    : <div className={`bg-surface-3 rounded-md grid place-items-center text-ink-4 text-[11px] font-semibold tracking-[.1em] ${className}`}>{TYPE_LABEL[a.type] ?? "FILE"}</div>;
+    : <div className={`relative rounded-md grid place-items-center overflow-hidden ${a.type === "image" ? "bg-[linear-gradient(135deg,#dfe3ea,#b8bfcc)]" : a.type === "pdf" ? "bg-[#FDECEE]" : "bg-surface-3"} ${className}`} role="img" aria-label={`${a.name} (${TYPE_LABEL[a.type] ?? "FILE"})`}>
+        {a.type === "image" ? <svg viewBox="0 0 24 24" className="w-[38%] h-[38%] max-w-8 max-h-8 fill-none stroke-white" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="M21 16l-5-5-8 8" /></svg>
+        : a.type === "pdf" ? <svg viewBox="0 0 24 24" className="w-[38%] h-[38%] max-w-8 max-h-8 fill-none stroke-accent" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5M8 13h8M8 17h5" /></svg>
+        : <svg viewBox="0 0 24 24" className="w-[38%] h-[38%] max-w-8 max-h-8 fill-none stroke-ink-3" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5" /></svg>}
+        <span className="absolute bottom-1 right-1 text-[9.5px] font-semibold tracking-[.08em] px-1 rounded bg-black/55 text-white">{TYPE_LABEL[a.type] ?? "FILE"}</span>
+      </div>;
 }
 
 export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, folders, usage, noAlt, folder, view }: Props) {
   const router = useRouter(); const { can, marketRoot } = useSession();
   const canEdit = can("edit", marketRoot);
   const base = `/${marketId}/${envId}`;
-  const [q, setQ] = useState(""); const [type, setType] = useState(""); const [mode, setMode] = useState<"grid" | "list">("grid");
+  const [q, setQ] = useState(""); const [type, setType] = useState(""); const [mode, setMode] = useState<"grid" | "list">(() => { try { return (typeof window !== "undefined" && localStorage.getItem("ucp-assets-view") === "list") ? "list" : "grid"; } catch { return "grid"; } });
   const [limit, setLimit] = useState(PAGE); const listKey = `${folder}|${view}|${q}|${type}`; const [seenKey, setSeenKey] = useState(listKey); if (seenKey !== listKey) { setSeenKey(listKey); setLimit(PAGE); }
   const [sel, setSel] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState<string | null>(null);
@@ -77,7 +83,7 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
         <div className="flex items-center gap-2 mb-4">
           <input className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] w-[280px]" placeholder="Find a file by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a file by name" />
           <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface" value={type} onChange={(e) => setType(e.target.value)} aria-label="File type"><option value="">Any type</option><option value="image">Images</option><option value="pdf">Documents</option><option value="svg">Icons</option></select>
-          <button className={`btn btn-sm ${mode === "grid" ? "on" : ""}`} onClick={() => setMode("grid")}>Grid</button><button className={`btn btn-sm ${mode === "list" ? "on" : ""}`} onClick={() => setMode("list")}>List</button>
+          <ViewToggle value={mode} onChange={(v) => { setMode(v); try { localStorage.setItem("ucp-assets-view", v); } catch {} }} className="ml-auto" />
         </div>
         {err && <div className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded mb-4 flex items-center">{err}<button className="ml-auto underline" onClick={() => setErr(null)}>Dismiss</button></div>}
 

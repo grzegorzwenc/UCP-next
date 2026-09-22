@@ -112,3 +112,25 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 /* Focus mode (builder ⌘⇧F): body.focus hides the top bar and side nav so the canvas fills the window. Toggled in components/builder/Builder.tsx. */
 body.focus .cms-shell { grid-template-rows: 1fr; }
 body.focus .cms-shell > header, body.focus .cms-shell nav[aria-label="Main"] { display: none; }
+
+/* ---- Page renditions: what the builder shows for the tablet and mobile breakpoints of hsbc.co.uk ---- */
+.site.tablet .cblk { padding: 18px 20px; } .site.tablet .s-mast { margin: -18px -20px 0; padding: 28px 28px; }
+.site.tablet .hs-foot .cols { grid-template-columns: repeat(2, 1fr); } .site.tablet .s-icons { grid-template-columns: repeat(3, 1fr); gap: 16px; } .site.tablet .s-facts { grid-template-columns: repeat(3, 1fr); }
+.site.tablet .hs-head nav { gap: 16px; font-size: 13px; }
+
+.site.mobile .cblk { padding: 14px 16px; }
+.site.mobile .hs-util { padding: 0 16px; gap: 10px; font-size: 10.5px; overflow: hidden; } .site.mobile .hs-util > span:nth-child(n+3) { display: none; } .site.mobile .hs-util .r > *:not(.logon) { display: none; }
+.site.mobile .hs-head { padding: 0 16px; height: 52px; justify-content: space-between; }
+.site.mobile .hs-head::after { content: "☰"; font-size: 18px; color: #1b1c1f; }
+.site.mobile .hs-crumb { padding: 10px 16px 0; font-size: 11.5px; flex-wrap: nowrap; overflow: hidden; white-space: nowrap; } .site.mobile .hs-crumb > *:not(:nth-last-child(-n+3)) { display: none; }
+.site.mobile .s-mast { margin: -14px -16px 0; min-height: 240px; padding: 22px 16px; align-items: flex-end; } .site.mobile .s-mast .box { max-width: none; padding: 18px 18px; width: 100%; }
+.site.mobile .s-mast h1 { font-size: 26px; } .site.mobile .s-h2, .site.mobile h2 { font-size: 22px; }
+.site.mobile .s-tile .tv { height: 100px; } .site.mobile .s-tile h3 { font-size: 17px; }
+.site.mobile .s-icons { gap: 16px; } .site.mobile .s-icons h3 { font-size: 16px; }
+.site.mobile .s-banner { flex-direction: column; align-items: flex-start; padding: 20px 18px; gap: 14px; } .site.mobile .s-banner .s-cta { margin-left: 0; }
+.site.mobile .s-facts { grid-template-columns: 1fr; gap: 10px; }
+.site.mobile .s-form { grid-template-columns: 1fr; padding: 14px; } .site.mobile .s-form .full { grid-column: auto; }
+.site.mobile .hs-foot { padding: 18px 16px; } .site.mobile .hs-foot .cols { grid-template-columns: 1fr 1fr; gap: 12px; } .site.mobile .hs-foot .legal { flex-direction: column; align-items: flex-start; gap: 8px; }
+.site.mobile .s-cta { display: block; text-align: center; width: 100%; box-sizing: border-box; }
+.site.mobile .s-rates { font-size: 12px; } .site.mobile table { display: block; overflow-x: auto; }
+.site.mobile .s-ltiles, .site.mobile .s-tiles, .site.mobile .s-icons { grid-template-columns: 1fr; }

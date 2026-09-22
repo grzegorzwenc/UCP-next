@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  /* The floating "N" dev indicator confuses reviewers on phones; errors still surface in the console. */
+  devIndicators: false,
 };
 
 export default nextConfig;

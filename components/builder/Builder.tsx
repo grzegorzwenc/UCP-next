@@ -115,8 +115,22 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const undoAllAi = (task: AiTask) => { task.done.slice().reverse().forEach((id) => undoAiOp(task, id)); say("Changes undone"); };
 
   /* ---- Focus mode (⌘⇧F): body.focus hides the top bar and side nav (CSS in globals.css); other parts of the shell can listen to ucp:focus. ---- */
-  const setFocusMode = (on: boolean) => { setFocus(on); document.body.classList.toggle("focus", on); window.dispatchEvent(new CustomEvent("ucp:focus", { detail: { on } })); };
-  useEffect(() => () => { document.body.classList.remove("focus"); }, []);
+  const panelsBeforeFocus = useRef<{ left: boolean; right: boolean } | null>(null);
+  const setFocusMode = (on: boolean) => {
+    // Full screen shows the page alone: panels close (and come back when you leave), the canvas is centred.
+    if (on) { panelsBeforeFocus.current = { left, right }; setLeftRaw(false); setRight(false); setPop(null); }
+    else if (panelsBeforeFocus.current) { setLeftRaw(panelsBeforeFocus.current.left); setRight(panelsBeforeFocus.current.right); panelsBeforeFocus.current = null; }
+    setFocus(on); document.body.classList.toggle("focus", on); window.dispatchEvent(new CustomEvent("ucp:focus", { detail: { on } }));
+    // Real full screen: the browser chrome goes away too. Fails silently where the API is blocked (then only the CMS chrome hides).
+    if (on && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
+    if (!on && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+  };
+  useEffect(() => {
+    // Leaving full screen with the browser's own Esc / gesture must also leave focus mode.
+    const onFs = () => { if (!document.fullscreenElement && document.body.classList.contains("focus")) { setFocus(false); document.body.classList.remove("focus"); window.dispatchEvent(new CustomEvent("ucp:focus", { detail: { on: false } })); } };
+    document.addEventListener("fullscreenchange", onFs);
+    return () => { document.removeEventListener("fullscreenchange", onFs); document.body.classList.remove("focus"); if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {}); };
+  }, []);
 
   async function save(extra: { status?: PageStatus } = {}) {
     setSaving("Saving…");
@@ -206,20 +220,20 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   };
   const filtered = BLOCKS.filter((b) => !q || b.name.toLowerCase().includes(q.toLowerCase()));
   // On phones and tablets the panels float over the canvas instead of reserving space, so the 1:1 page keeps its width.
-  const padL = left && !preview && !narrow ? 344 : narrow ? 12 : 24, padR = right && !preview && !narrow ? 364 : narrow ? 12 : 24;
+  const padL = focus ? 24 : left && !preview && !narrow ? 344 : narrow ? 12 : 24, padR = focus ? 24 : right && !preview && !narrow ? 364 : narrow ? 12 : 24;
   const hint = !canEdit ? "Read-only: you don't have Edit on this folder. Ask a site admin to grant it." : preview ? "Preview: exactly what visitors will see" : mode === "edit" ? "Edit mode: click any highlighted text to change it. Enter saves, Esc cancels." : sel ? "Use the toolbar on the block: ✎ Edit text in place · ⚙ Configure everything · ✨ AI · ⋯ More" : "Hover to see block names. Click a block to select it, double-click to edit its text.";
 
   return (
-    <div className="h-full grid grid-rows-[54px_48px_1fr] min-w-0 overflow-hidden">
+    <div className={`h-full grid ${focus ? "grid-rows-[54px_1fr]" : "grid-rows-[54px_48px_1fr]"} min-w-0 overflow-hidden`}>
       {/* Toolbar (docked) */}
       <div className="flex items-center gap-3 px-2.5 bg-surface border-b border-line overflow-x-auto overflow-y-hidden">
         <Link href={`/${marketId}/${envId}/pages${rel.replace(/\/[^/]+$/, "")}`} className="btn btn-quiet btn-sm">‹ Pages</Link>
-        <div className="min-w-0 flex-1"><b className="block text-[14.5px] truncate">{title}</b><span className="block text-[11.5px] text-ink-3 truncate font-mono">{flag} {locale} · {domain}{rel}</span></div>
+        <div className="min-w-0 flex-1"><b className="block text-[14.5px] truncate">{title}</b><span className="hidden sm:block text-[11.5px] text-ink-3 truncate font-mono">{flag} {locale} · {domain}{rel}</span></div>
         <Pill status={status} />
-        <div className="inline-flex border border-line-2 rounded-lg overflow-hidden">{(["desktop", "tablet", "mobile"] as const).map((d) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 text-[13px] ${device === d ? "bg-ink text-white" : "text-ink-3"}`} title={d}>{d === "desktop" ? "🖥" : d === "tablet" ? "▭" : "📱"}</button>)}</div>
+        <div className="hidden sm:inline-flex border border-line-2 rounded-lg overflow-hidden">{(["desktop", "tablet", "mobile"] as const).map((d) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 text-[13px] ${device === d ? "bg-ink text-white" : "text-ink-3"}`} title={d}>{d === "desktop" ? "🖥" : d === "tablet" ? "▭" : "📱"}</button>)}</div>
         <div className="ml-auto flex items-center gap-2.5">
-          <span className="text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1">{saving}</span>
-          <div className="flex gap-1 pl-2.5 border-l border-line"><button className={`btn btn-icon btn-sm ${left ? "on" : ""}`} onClick={() => setLeft(!left)} title="Components panel" aria-pressed={left}>▤</button><button className={`btn btn-icon btn-sm ${right ? "on" : ""}`} onClick={() => { if (right) closeConfigure(true); else { setRightTab(sel ? "block" : "page"); setRight(true); } }} title="Page settings panel" aria-pressed={right}>▥</button><button className={`btn btn-sm ${focus ? "on" : ""}`} onClick={() => setFocusMode(!focus)} title="Focus mode: hide the navigation (⌘⇧F)" aria-pressed={focus}>Focus</button></div>
+          <span className="hidden sm:inline text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1">{saving}</span>
+          <div className="hidden md:flex gap-1 pl-2.5 border-l border-line"><button className={`btn btn-icon btn-sm ${left ? "on" : ""}`} onClick={() => setLeft(!left)} title="Components panel" aria-pressed={left}>▤</button><button className={`btn btn-icon btn-sm ${right ? "on" : ""}`} onClick={() => { if (right) closeConfigure(true); else { setRightTab(sel ? "block" : "page"); setRight(true); } }} title="Page settings panel" aria-pressed={right}>▥</button><button className={`btn btn-sm ${focus ? "on" : ""}`} onClick={() => setFocusMode(!focus)} title="Focus mode: hide the navigation (⌘⇧F)" aria-pressed={focus}>⛶ Full screen</button></div>
           <div className="flex gap-1 pl-2.5 border-l border-line">{canEdit ? <button className="btn btn-sm" onClick={() => { setPreview(!preview); select(null); }}>{preview ? "Edit" : "Preview"}</button> : <span className="text-xs text-ink-3 px-2" title="Ask a site admin for Edit on this folder">🔒 Read-only</span>}<button className="btn btn-sm" onClick={() => save().then(() => say("Saved")).catch(() => {})} disabled={!dirty || !canEdit}>Save</button>
             {(status === "draft" || status === "failed") && mayStatus("review") && <button className="btn btn-sm btn-primary" onClick={() => transition("review", "Sent for review")}>Send for review</button>}
             {status === "review" && (mayStatus("approved") ? <button className="btn btn-sm btn-primary" onClick={() => transition("approved", "Approved")}>Approve</button> : <span className="text-xs text-ink-3">Waiting for a reviewer</span>)}
@@ -227,15 +241,15 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             {status === "published" && mayStatus("draft") && <button className="btn btn-sm" onClick={() => transition("draft", "New draft")}>New draft</button>}</div>
         </div>
       </div>
-      {/* Flow stepper */}
-      <div className="flex items-center px-4 bg-surface border-b border-line overflow-hidden" role="list" aria-label="Page progress">
+      {/* Flow stepper (hidden in full screen) */}
+      {!focus && <div className="flex items-center px-4 bg-surface border-b border-line overflow-hidden" role="list" aria-label="Page progress">
         <div className="flex-1 min-w-0 flex items-center overflow-x-auto h-12">
           {STEPS.map((s, i) => { const done = i < cur || (cur === 6 && i === 6); const on = i === cur && cur !== 6; return <div key={s[0]} role="listitem" className="flex items-center flex-none">
             <button onClick={() => flowClick(i)} className={`flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-surface-3 text-[12.5px] ${on ? "text-ink font-semibold" : "text-ink-3"}`} title={s[1]}><i className={`w-6 h-6 rounded-full border-2 grid place-items-center not-italic text-[11px] font-bold ${done ? "bg-good border-good text-white" : on ? "bg-accent border-accent text-white shadow-[0_0_0_3px_var(--accent-soft)]" : "border-line-2"}`}>{done ? "✓" : i + 1}</i><span className="leading-tight">{s[0]}{on && <small className="block text-[10.5px] text-ink-3 font-normal">{s[1]}</small>}</span></button>
             {i < STEPS.length - 1 && <span className={`w-7 h-0.5 mx-1 ${i < cur ? "bg-good" : "bg-line"}`} />}</div>; })}
         </div>
         <div className="flex-none max-w-[38%] flex items-center gap-2 pl-3.5 border-l border-line text-[12.5px] text-ink-3 whitespace-nowrap overflow-hidden"><span className="text-[10.5px] tracking-[.08em] uppercase text-accent font-bold">Next</span><b className="text-ink truncate">{nextTxt}</b></div>
-      </div>
+      </div>}
       {/* Body */}
       <div className="relative min-h-0 overflow-hidden bg-bg">
         <div className={`absolute inset-0 flex flex-col ${preview ? "preview" : ""}`}>
@@ -263,7 +277,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {(!preview || !canEdit) && !aiBar && <button data-ui className="absolute right-6 bottom-6 z-[6] h-11 px-4 rounded-full bg-[#0F1013] text-white shadow-xl flex items-center gap-2 text-[13px] font-semibold hover:bg-black" onClick={() => (canEdit ? setAiBar(true) : say(READ_ONLY))} title="Ask AI to change this page (⌘K)" aria-expanded={aiBar}><span aria-hidden>✨</span>Ask AI</button>}
           {aiBar && canEdit && <AiBar draft={aiDraft} setDraft={setAiDraft} onAsk={startAiTask} onSide={() => { setAiBar(false); setRightTab("ai"); setRight(true); }} onClose={() => setAiBar(false)} />}
         </div>
-        {focus && <button data-ui className="fixed top-3 right-3 z-[60] bg-[#0F1013] text-white text-[12px] font-medium px-3 py-1.5 rounded-full shadow-xl hover:bg-black" onClick={() => setFocusMode(false)}>Exit focus (Esc)</button>}
+        {focus && <button data-ui className="fixed top-3 right-3 z-[60] bg-[#0F1013] text-white text-[12px] font-medium px-3 py-1.5 rounded-full shadow-xl hover:bg-black" onClick={() => setFocusMode(false)}>Exit full screen (Esc)</button>}
         {/* Left panel */}
         {left && !preview && <aside data-ui className="absolute left-0 top-0 bottom-0 w-[320px] max-w-full bg-surface border-r border-line flex flex-col z-[5] shadow-xl md:shadow-none">
           <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">Components</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => setLeft(false)} aria-label="Close">✕</button></div>
