@@ -37,15 +37,15 @@ export function SideNav({ marketId, envId, forcedMini }: { marketId: string; env
   const mk = market(marketId), e = env(envId);
   if (phone && !drawer) return null;
   const nav = (
-    <nav aria-label="Main" className={`relative bg-surface border-r border-line flex flex-col overflow-auto h-full ${mini ? "w-14 px-2 py-3" : "w-[264px] px-3.5 pt-4 pb-6"}`}>
+    <nav aria-label="Main" className={`relative bg-surface border-r border-line flex flex-col overflow-auto h-full ${mini ? "w-[60px] px-2 py-3" : "w-[264px] px-3.5 pt-4 pb-6"}`}>
       {!forcedMini && !tablet && !phone && <button type="button" aria-label={mini ? "Expand menu" : "Collapse menu"} aria-expanded={!mini} aria-controls="ucp-sidenav-items" onClick={() => setPref(!mini)} className={`absolute top-2.5 w-7 h-7 border border-line bg-surface rounded-md grid place-items-center text-ink-3 ${mini ? "left-1/2 -translate-x-1/2" : "right-2"}`}><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-2" aria-hidden><path d={mini ? "M9 6l6 6-6 6" : "M15 6l-6 6 6 6"} /></svg></button>}
       {phone && <button type="button" aria-label="Close menu" onClick={() => openDrawer(false)} className="absolute top-2.5 right-2 w-8 h-8 rounded-md grid place-items-center text-ink-3 hover:bg-surface-3">✕</button>}
       <div id="ucp-sidenav-items" className="contents">
       {ITEMS.map((it, i) => it.length === 1
         ? (mini ? <span key={i} aria-hidden className={`block h-px bg-line ${i === 0 ? "mt-9 mb-2" : "my-2"}`} /> : <h6 key={i} className={`text-[11px] tracking-[.1em] uppercase text-ink-3 font-semibold mx-3 mb-2 ${i === 0 ? "mt-8" : "mt-4"}`}>{it[0]}</h6>)
         : <Link key={it[0]} href={`/${marketId}/${envId}/${it[0]}`} aria-current={active === it[0] ? "page" : undefined} title={it[1]} onClick={() => phone && openDrawer(false)}
-            className={mini ? `mx-auto my-0.5 w-10 h-10 rounded-lg grid place-items-center ${active === it[0] ? "bg-accent text-white" : "text-ink-2 hover:bg-surface-3 hover:text-ink"}` : `flex items-center gap-3 rounded-none text-[15px] border-l-[3px] px-3 py-2.5 ${active === it[0] ? "bg-accent-soft text-accent-hover font-semibold border-accent" : "text-ink-2 border-transparent hover:bg-surface-3 hover:text-ink"}`}>
-            <svg viewBox="0 0 24 24" className={`${mini ? "w-[22px] h-[22px]" : "w-5 h-5"} flex-none stroke-current fill-none`} strokeWidth={mini ? 1.7 : 1.8} strokeLinecap="round" strokeLinejoin="round"><path d={it[2]} /></svg>{!mini && <span>{it[1]}</span>}
+            className={mini ? `mx-auto my-1 w-11 h-11 rounded-lg grid place-items-center ${active === it[0] ? "bg-accent text-white" : "text-ink-2 hover:bg-surface-3 hover:text-ink"}` : `flex items-center gap-3 rounded-none text-[15px] border-l-[3px] px-3 py-2.5 ${active === it[0] ? "bg-accent-soft text-accent-hover font-semibold border-accent" : "text-ink-2 border-transparent hover:bg-surface-3 hover:text-ink"}`}>
+            <svg viewBox="0 0 24 24" className={`${mini ? "w-6 h-6" : "w-5 h-5"} flex-none stroke-current fill-none`} strokeWidth={mini ? 1.7 : 1.8} strokeLinecap="round" strokeLinejoin="round"><path d={it[2]} /></svg>{!mini && <span>{it[1]}</span>}
           </Link>)}
       </div>
       {!mini && <div className="mt-auto border-t border-line pt-3 text-[12.5px] text-ink-3"><b className="block text-ink font-semibold text-[13px]">{mk.flag} {mk.name}</b>{e.name} · {mk.locales.join(", ")}</div>}

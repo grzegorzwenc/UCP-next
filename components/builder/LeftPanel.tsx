@@ -17,7 +17,7 @@ export function LeftPanel({ tab, setTab, phone, width = 320, onResizeStart, bloc
   // Stable ids: the same markup on the server and in the browser (random ids would trip hydration).
   const samples = useMemo(() => Object.fromEntries(BLOCKS.map((b) => [b.type, { ...makeBlock(b.type), id: `sample_${b.type}` }])) as Record<string, Block>, []);
   return (
-    <aside data-ui style={phone ? undefined : { width }} className={phone ? "absolute inset-x-0 top-0 bottom-12 bg-surface flex flex-col z-[5]" : "absolute left-11 top-0 bottom-0 max-w-[calc(100%-44px)] bg-surface border-r border-line flex flex-col z-[5] shadow-xl md:shadow-none"}>
+    <aside data-ui style={phone ? undefined : { width }} className={phone ? "absolute inset-x-0 top-0 bottom-12 bg-surface flex flex-col z-[5]" : "absolute left-[52px] top-0 bottom-0 max-w-[calc(100%-52px)] bg-surface border-r border-line flex flex-col z-[5] shadow-xl md:shadow-none"}>
       {!phone && onResizeStart && <div role="separator" aria-orientation="vertical" aria-label="Resize panel" title="Drag to resize" onMouseDown={onResizeStart} className="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize hover:bg-accent/30 active:bg-accent/40 z-10" />}
       <div className="flex items-center px-2 pt-2 border-b border-line">
         {(["add", "outline"] as const).map((t) => <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t} className={`px-3 py-2 text-[13px] font-medium border-b-2 -mb-px ${tab === t ? "border-accent text-ink" : "border-transparent text-ink-3 hover:text-ink"}`}>{t === "add" ? "＋ Add" : `Outline · ${blocks.length}`}</button>)}

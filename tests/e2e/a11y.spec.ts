@@ -32,11 +32,11 @@ test.describe("keyboard and shell", () => {
     await expect(toggle).toHaveAttribute("aria-expanded", "true");
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await expect(nav).toHaveClass(/w-14/);
+    await expect(nav).toHaveClass(/w-\[60px\]/);
     await toggle.click();
     await expect(nav).toHaveClass(/w-\[264px\]/);
     await page.setViewportSize({ width: 1000, height: 800 });
-    await expect(nav).toHaveClass(/w-14/);
+    await expect(nav).toHaveClass(/w-\[60px\]/);
     await expect(toggle).toHaveCount(0);
     await page.setViewportSize({ width: 1280, height: 800 });
     await expect(nav).toHaveClass(/w-\[264px\]/);
