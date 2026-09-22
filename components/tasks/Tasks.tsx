@@ -3,7 +3,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import type { Task, TaskKind } from "@/lib/ucp/types";
-import { repoApi, ApiError } from "@/lib/api";
+import { repoApi } from "@/lib/api";
+import { errorText } from "@/lib/api/errors";
+import { useSession } from "@/components/shell/Session";
 import { Pill } from "@/components/ui/Pill";
 
 type Sort = "due" | "name" | "kind";
@@ -28,7 +30,7 @@ export function waitingLabel(sentAt?: string): string {
 const DUE_CLS = { crit: "bg-crit-soft text-crit", warn: "bg-warn-soft text-warn", "": "bg-surface-3 text-ink-2" } as const;
 
 export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: kind0, sort: sort0 }: Props) {
-  const router = useRouter();
+  const router = useRouter(); const { can } = useSession();
   const base = `/${marketId}/${envId}`;
   const routeOf = (path: string) => path.replace(root, "") || "/";
   const builderHref = (path: string) => `${base}/page${routeOf(path)}`;
@@ -50,7 +52,7 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
     if (t.kind === "Publish" || t.kind === "Fix") {
       setBusy(t.page.path);
       try { await repoApi.updateContent(t.page.path, { status: "published" }); setToast(t.kind === "Fix" ? `Publish retried · ${t.page.title} is live` : `${t.page.title} published`); router.refresh(); }
-      catch (err) { setToast(err instanceof ApiError ? `${err.problem.title} · request ${err.requestId ?? "n/a"}` : String(err)); }
+      catch (err) { setToast(errorText(err)); }
       finally { setBusy(null); }
       return;
     }
@@ -72,14 +74,15 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
       {rows.length ? (
         <table className="w-full text-[13.5px] bg-surface border border-line">
           <thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="p-3 border-b border-line-2">Task</th><th className="p-3 border-b border-line-2">Page</th><th className="p-3 border-b border-line-2">Sent by</th><th className="p-3 border-b border-line-2">Waiting</th><th className="p-3 border-b border-line-2">Due</th><th className="p-3 border-b border-line-2" /></tr></thead>
-          <tbody>{rows.map((t) => { const d = dueLabel(t); const primary = t.kind === "Review" || t.kind === "Publish"; const label = t.kind === "Review" ? "Review" : t.kind === "Publish" ? "Publish" : t.kind === "Fix" ? "Retry" : "Open"; return (
+          <tbody>{rows.map((t) => { const d = dueLabel(t); const primary = t.kind === "Review" || t.kind === "Publish"; const label = t.kind === "Review" ? "Review" : t.kind === "Publish" ? "Publish" : t.kind === "Fix" ? "Retry" : "Open";
+            const needs = t.kind === "Publish" || t.kind === "Fix" ? "publish" : t.kind === "Review" ? "review" : null; const allowed = !needs || can(needs, t.page.path); const waiting = needs === "publish" ? "Waiting for a publisher" : "Waiting for a reviewer"; return (
             <tr key={t.page.path + t.kind} className="hover:bg-surface-2 cursor-pointer" onClick={() => router.push(builderHref(t.page.path))}>
               <td className="p-3 border-b border-line"><Pill status={t.page.status} label={t.kind} /> <b className="ml-1.5">{t.what}</b></td>
               <td className="p-3 border-b border-line"><span className="font-medium">{t.page.title}</span><div className="font-mono text-[11.5px] text-ink-3">{routeOf(t.page.path)}</div></td>
               <td className="p-3 border-b border-line">{t.from}</td>
               <td className="p-3 border-b border-line text-ink-3">{waitingLabel(t.sentAt)}</td>
               <td className="p-3 border-b border-line"><span className={`inline-block text-[12px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span></td>
-              <td className="p-3 border-b border-line text-right"><button className={`btn btn-sm ${primary ? "btn-primary" : ""}`} disabled={busy === t.page.path} onClick={(e) => act(e, t)}>{busy === t.page.path ? "Working…" : label}</button></td>
+              <td className="p-3 border-b border-line text-right">{allowed ? <button className={`btn btn-sm ${primary ? "btn-primary" : ""}`} disabled={busy === t.page.path} onClick={(e) => act(e, t)}>{busy === t.page.path ? "Working…" : label}</button> : <span className="inline-flex items-center gap-1.5 text-[12px] text-ink-3 whitespace-nowrap" title={`You don't have ${needs === "publish" ? "Publish" : "Review & approve"} here`}><span aria-hidden="true">🔒</span>{waiting}</span>}</td>
             </tr>); })}</tbody>
         </table>
       ) : (

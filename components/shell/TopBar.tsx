@@ -7,6 +7,8 @@ import { ucpApi } from "@/lib/api";
 import type { PageSummary } from "@/lib/api/types";
 import type { Notification, User, Asset, Template, Model } from "@/lib/ucp/types";
 import { Pill } from "@/components/ui/Pill";
+import { useSession } from "@/components/shell/Session";
+import { ROLES } from "@/lib/ucp/seed";
 
 const READ_KEY = "ucp-notif-read";
 const notifId = (n: Notification) => `${n.text}|${n.when}`;
@@ -88,18 +90,19 @@ const AVATAR = ["#00847F", "#376798", "#4D6474", "#DB0011", "#1B1C1F", "#83000A"
 const initials = (n: string) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((s) => s[0]?.toUpperCase()).join("") || "?";
 const colorOf = (n: string) => AVATAR[n.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR.length];
 function Account() {
-  const ref = useRef<HTMLDivElement>(null); const [open, setOpen] = useState(false); const [me, setMe] = useState<User | null>(null); const [toast, setToast] = useState<string | null>(null);
+  const router = useRouter(); const { user: me } = useSession();
+  const ref = useRef<HTMLDivElement>(null); const [open, setOpen] = useState(false); const [busy, setBusy] = useState(false); const [toast, setToast] = useState<string | null>(null);
   const close = useCallback(() => setOpen(false), []); useDismiss(open, close, ref);
-  useEffect(() => { ucpApi.me().then(setMe).catch(() => {}); }, []);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2200); return () => clearTimeout(t); }, [toast]);
-  const name = me?.name ?? "Jordan Mensah";
+  const name = me.name;
+  async function signOut() { setBusy(true); try { await ucpApi.logout(); setOpen(false); router.push("/login"); router.refresh(); } catch { setToast("Could not sign out. Try again."); setBusy(false); } }
   return (
     <div ref={ref} className="relative">
       <button aria-label={`Account: ${name}`} aria-expanded={open} onClick={() => setOpen(!open)} className="w-7 h-7 rounded-full grid place-items-center text-[11px] font-semibold text-white" style={{ background: colorOf(name) }}>{initials(name)}</button>
       {open && <div role="menu" className="absolute right-0 top-[38px] w-[260px] bg-surface text-ink border border-line rounded-xl shadow-2xl z-50 overflow-hidden">
-        <div className="px-4 py-3 border-b border-line"><b className="block text-[14px]">{name}</b><span className="block text-[12.5px] text-ink-3">{me?.email || `${me?.id ?? "jordan.mensah"}@hsbc.com`}</span>{me?.role && <span className="inline-block mt-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-surface-3 text-ink-2 capitalize">{me.role}{me.team ? ` · ${me.team}` : ""}</span>}</div>
+        <div className="px-4 py-3 border-b border-line"><b className="block text-[14px]">{name}</b><span className="block text-[12.5px] text-ink-3">{me.email || `${me.id}@hsbc.com`}</span><span className="inline-block mt-1.5 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-surface-3 text-ink-2">{ROLES[me.role]?.name ?? me.role}{me.team ? ` · ${me.team}` : ""}</span></div>
         <div className="px-4 py-2.5 text-[12px] text-ink-3 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-good" />Signed in with company SSO</div>
-        <div className="px-3 pb-3"><button role="menuitem" className="btn btn-sm w-full justify-center" onClick={() => { setOpen(false); setToast("Signed out (demo) — SSO session stays active"); }}>Sign out</button></div>
+        <div className="px-3 pb-3"><button role="menuitem" className="btn btn-sm w-full justify-center" disabled={busy} onClick={() => void signOut()}>{busy ? "Signing out…" : "Sign out"}</button></div>
       </div>}
       {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] shadow-xl z-50">{toast}</div>}
     </div>

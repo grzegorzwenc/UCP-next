@@ -1,0 +1,23 @@
+"use client";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+
+type Props = { section: string; error: Error & { digest?: string; requestId?: string }; reset: () => void };
+
+/** Route-level error boundary body: what broke, the request id when we have one, and two ways out. */
+export function ErrorState({ section, error, reset }: Props) {
+  const params = useParams<{ market?: string; env?: string }>();
+  const dash = `/${params?.market ?? "uk"}/${params?.env ?? "prod"}/dashboard`;
+  const requestId = error.requestId ?? (error.message.match(/request ([A-Za-z0-9-]+)/)?.[1]) ?? error.digest;
+  return (
+    <div className="p-7">
+      <div role="alert" className="max-w-[640px] mx-auto mt-10 bg-surface border border-line rounded-xl p-8">
+        <div className="w-10 h-10 rounded-full bg-crit-soft text-crit grid place-items-center text-[18px] font-bold mb-4" aria-hidden="true">!</div>
+        <h1 className="text-xl font-semibold">Something went wrong loading {section}</h1>
+        <p className="text-[13.5px] text-ink-2 mt-2 break-words">{error.message || "The page could not be loaded."}</p>
+        {requestId && <p className="text-[12px] text-ink-3 mt-2">Request id <span className="font-mono text-ink-2">{requestId}</span> · quote it if you contact support.</p>}
+        <div className="flex gap-2 mt-6"><button className="btn btn-primary" onClick={reset}>Try again</button><Link href={dash} className="btn">Go to dashboard</Link></div>
+      </div>
+    </div>
+  );
+}

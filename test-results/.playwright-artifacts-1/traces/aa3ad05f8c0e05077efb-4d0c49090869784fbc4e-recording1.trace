@@ -1,0 +1,18 @@
+{"version":9,"type":"context-options","origin":"library","browserName":"","playwrightVersion":"1.63.0","options":{},"platform":"darwin","wallTime":1790048388915,"monotonicTime":2198.083,"sdkLanguage":"javascript","title":"a11y.spec.ts:28 › keyboard and shell › side nav toggle exposes aria-expanded and collapses on tablet widths"}
+{"type":"before","callId":"call@11","startTime":2239.109,"class":"APIRequestContext","method":"fetch","params":{"url":"/api/ucp/login","method":"POST","jsonData":"{\"id\":\"jordan.mensah\"}"},"stepId":"pw:api@39"}
+{"type":"log","callId":"call@11","time":2247.545,"message":"→ POST http://localhost:3100/api/ucp/login"}
+{"type":"log","callId":"call@11","time":2247.57,"message":"  user-agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.8010.12 Safari/537.36"}
+{"type":"log","callId":"call@11","time":2247.581,"message":"  accept: */*"}
+{"type":"log","callId":"call@11","time":2247.586,"message":"  accept-encoding: gzip,deflate,br"}
+{"type":"log","callId":"call@11","time":2247.592,"message":"  content-type: application/json"}
+{"type":"log","callId":"call@11","time":2247.595,"message":"  content-length: 22"}
+{"type":"log","callId":"call@11","time":2255.014,"message":"← 200 OK"}
+{"type":"log","callId":"call@11","time":2255.024,"message":"  vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch"}
+{"type":"log","callId":"call@11","time":2255.028,"message":"  content-type: application/json"}
+{"type":"log","callId":"call@11","time":2255.044,"message":"  set-cookie: ucp-user=jordan.mensah; Path=/; Expires=Tue, 22 Sep 2026 15:39:48 GMT; Max-Age=43200; HttpOnly; SameSite=lax"}
+{"type":"log","callId":"call@11","time":2255.049,"message":"  x-request-id: 970cd9a7-94ab-4b07-9393-acf0e62496d2"}
+{"type":"log","callId":"call@11","time":2255.051,"message":"  date: Tue, 22 Sep 2026 03:39:48 GMT"}
+{"type":"log","callId":"call@11","time":2255.053,"message":"  connection: keep-alive"}
+{"type":"log","callId":"call@11","time":2255.055,"message":"  keep-alive: timeout=5"}
+{"type":"log","callId":"call@11","time":2255.057,"message":"  transfer-encoding: chunked"}
+{"type":"after","callId":"call@11","endTime":2256.414,"result":{"response":{"url":"http://localhost:3100/api/ucp/login","status":200,"statusText":"OK","headers":[{"name":"vary","value":"rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch"},{"name":"content-type","value":"application/json"},{"name":"set-cookie","value":"ucp-user=jordan.mensah; Path=/; Expires=Tue, 22 Sep 2026 15:39:48 GMT; Max-Age=43200; HttpOnly; SameSite=lax"},{"name":"x-request-id","value":"970cd9a7-94ab-4b07-9393-acf0e62496d2"},{"name":"Date","value":"Tue, 22 Sep 2026 03:39:48 GMT"},{"name":"Connection","value":"keep-alive"},{"name":"Keep-Alive","value":"timeout=5"},{"name":"Transfer-Encoding","value":"chunked"}],"serverAddr":{"ipAddress":"::1","port":3100},"timing":{"startTime":1790048388958,"domainLookupStart":0,"domainLookupEnd":7.604000000000269,"connectStart":7.604000000000269,"secureConnectionStart":-1,"connectEnd":8.125,"requestStart":8.125,"responseStart":13.757000000000062},"responseEndTiming":14.858999999999924,"fetchUid":"9d089b1f9c6e3f30b58373ce7ce8ae0e"}}}

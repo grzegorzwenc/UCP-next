@@ -3,7 +3,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PageSummary } from "@/lib/api/types";
-import { repoApi, ucpApi, ApiError } from "@/lib/api";
+import { repoApi, ucpApi } from "@/lib/api";
+import { errorText as errText } from "@/lib/api/errors";
+import { useSession } from "@/components/shell/Session";
 import type { Template } from "@/lib/ucp/types";
 import { MARKETS, market as marketOf } from "@/lib/markets";
 import { makeBlock } from "@/lib/blocks/registry";
@@ -18,7 +20,7 @@ type Modal =
   | { kind: "translate"; pages: PageSummary[] };
 const isFolder = (p: PageSummary) => p.isFolder;
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-const errText = (e: unknown) => (e instanceof ApiError ? `${e.problem.title}${e.problem.detail ? ": " + e.problem.detail : ""} · request ${e.requestId ?? "n/a"}` : String(e));
+const PAGE = 50;
 const parentOf = (p: string) => p.replace(/\/[^/]+$/, "");
 /** Default components for a template (same as the builder would create). */
 const componentsFor = (t: Template | undefined, title: string) => blocksToComponents((t?.blocks ?? []).map((b) => makeBlock(b, b === "mast" ? { heading: title } : {})));
@@ -40,12 +42,12 @@ function FolderSelect({ value, onChange, root, marketName, tree, rel, exclude = 
 }
 
 /* ---------------- row actions menu ---------------- */
-function RowMenu({ page, onAction }: { page: PageSummary; onAction: (a: "open" | "rename" | "move" | "duplicate" | "delete", p: PageSummary) => void }) {
+function RowMenu({ page, canEdit, onAction }: { page: PageSummary; canEdit: boolean; onAction: (a: "open" | "rename" | "move" | "duplicate" | "delete", p: PageSummary) => void }) {
   const [open, setOpen] = useState(false); const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { if (!open) return; const h = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); }; document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h); }, [open]);
   const item = (a: "open" | "rename" | "move" | "duplicate" | "delete", label: string, cls = "") => <button key={a} className={`block w-full text-left px-3 py-1.5 text-[13px] hover:bg-surface-2 ${cls}`} onClick={() => { setOpen(false); onAction(a, page); }}>{label}</button>;
   return <div ref={ref} className="relative inline-block"><button className="btn btn-sm btn-icon" aria-label={`Actions for ${page.title}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>⋯</button>
-    {open && <div role="menu" className="absolute right-0 top-full mt-1 bg-surface border border-line rounded-lg shadow-xl py-1 min-w-[160px] z-30">{item("open", page.isFolder ? "Open folder" : "Open in builder")}{item("rename", "Rename")}{item("move", "Move to…")}{!page.isFolder && item("duplicate", "Duplicate")}<div className="border-t border-line my-1" />{item("delete", "Delete", "text-crit")}</div>}</div>;
+    {open && <div role="menu" className="absolute right-0 top-full mt-1 bg-surface border border-line rounded-lg shadow-xl py-1 min-w-[160px] z-30">{item("open", page.isFolder ? "Open folder" : "Open in builder")}{canEdit ? <>{item("rename", "Rename")}{item("move", "Move to…")}{!page.isFolder && item("duplicate", "Duplicate")}<div className="border-t border-line my-1" />{item("delete", "Delete", "text-crit")}</> : <div className="px-3 py-1.5 text-[12px] text-ink-3">Read-only for you</div>}</div>}</div>;
 }
 
 /* ---------------- translate modal (port of the prototype's translate flow) ---------------- */
@@ -90,16 +92,21 @@ function TranslateModal({ pages, marketId, base, root, marketName, tree, rel, fo
 /* ---------------- explorer ---------------- */
 export function Explorer({ marketId, envId, root, marketName, flag, folder, items, tree, allPages, templates, openNew, newTemplate }: Props) {
   const router = useRouter();
+  const { can } = useSession();
   const base = `/${marketId}/${envId}`;
   const rel = (p: string) => p.replace(root, "") || "/";
   const [q, setQ] = useState("");
+  const [limit, setLimit] = useState(PAGE); const [seenKey, setSeenKey] = useState(q + "|" + folder.path); if (seenKey !== q + "|" + folder.path) { setSeenKey(q + "|" + folder.path); setLimit(PAGE); }
+  const canEditHere = can("edit", folder.path);
   const [modal, setModal] = useState<Modal | null>(openNew ? { kind: "new" } : null);
   const [title, setTitle] = useState(""); const [slug, setSlug] = useState(""); const [tpl, setTpl] = useState(newTemplate && templates.some((t) => t.id === newTemplate) ? newTemplate : templates.some((t) => t.id === "product") ? "product" : templates[0]?.id ?? "blank"); const [parent, setParent] = useState(folder.path); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
   const [sel, setSel] = useState<string[]>([]); const [toast, setToast] = useState<string | null>(null);
   const crumbs = useMemo(() => { const segs = rel(folder.path).split("/").filter(Boolean); return segs.map((s, i) => ({ name: s, path: root + "/" + segs.slice(0, i + 1).join("/") })); }, [folder.path, root]);
   const rows = q ? allPages.filter((p) => (p.title ?? "").toLowerCase().includes(q.toLowerCase()) || rel(p.path).includes(q.toLowerCase())) : items;
+  const shown = rows.slice(0, limit);
   const selected = rows.filter((r) => sel.includes(r.path));
-  const allChecked = rows.length > 0 && rows.every((r) => sel.includes(r.path));
+  const canEditSelected = selected.length > 0 && selected.every((r) => can("edit", r.path));
+  const allChecked = shown.length > 0 && shown.every((r) => sel.includes(r.path));
   const say = (s: string) => { setToast(s); setTimeout(() => setToast(null), 2600); };
   const tplName = (id?: string) => templates.find((t) => t.id === id)?.name ?? id;
   const openModal = (m: Modal) => { setErr(null); setTitle(""); setSlug(""); setModal(m); };
@@ -155,23 +162,24 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
       <div className="p-6 overflow-auto min-w-0 relative">
         <div className="text-[13px] text-ink-3 mb-2 flex gap-1.5 flex-wrap"><Link href={`${base}/pages`} className="hover:text-ink">{marketName}</Link>{crumbs.map((c, i) => <span key={c.path}><span className="text-ink-4"> / </span>{i === crumbs.length - 1 ? <b className="text-ink">{c.name}</b> : <Link href={`${base}/pages${rel(c.path)}`} className="hover:text-ink">{c.name}</Link>}</span>)}</div>
         <div className="flex items-end gap-4 mb-5"><div><h1 className="text-2xl font-semibold">{q ? `Search results for “${q}”` : folder.title}</h1><p className="text-[13px] text-ink-3 mt-1 font-mono">{q ? `${rows.length} pages match` : `${rel(folder.path)} · ${items.filter(isFolder).length} folders · ${items.filter((i) => !isFolder(i)).length} pages`}</p></div>
-          <div className="ml-auto flex gap-2"><button className="btn" onClick={() => { setParent(folder.path); openModal({ kind: "folder" }); }}>＋ New folder</button><button className="btn btn-primary" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}>＋ New page here</button></div></div>
+          <div className="ml-auto flex gap-2 items-center">{canEditHere ? <><button className="btn" onClick={() => { setParent(folder.path); openModal({ kind: "folder" }); }}>＋ New folder</button><button className="btn btn-primary" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}>＋ New page here</button></> : <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="You don't have Edit on this folder. Ask a site admin."><span aria-hidden="true">🔒</span>Read-only in this folder</span>}</div></div>
         <div className="flex gap-2 mb-3.5"><label className="flex items-center gap-2 bg-surface border border-line-2 rounded-lg px-2.5 py-1.5 min-w-[280px]"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13.5px]" placeholder="Find a page by title or URL" value={q} onChange={(e) => setQ(e.target.value)} /></label></div>
-        {rows.length ? <table className="w-full text-[13.5px]"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="py-2.5 px-3 border-b border-line-2 w-8"><input type="checkbox" aria-label="Select all" checked={allChecked} onChange={(e) => setSel(e.target.checked ? rows.map((r) => r.path) : [])} /></th><th className="py-2.5 px-3 border-b border-line-2 w-[36%]">Name</th><th className="py-2.5 px-3 border-b border-line-2">Status</th><th className="py-2.5 px-3 border-b border-line-2">URL</th><th className="py-2.5 px-3 border-b border-line-2">Template</th><th className="py-2.5 px-3 border-b border-line-2">Updated</th><th className="border-b border-line-2" /></tr></thead>
-          <tbody>{rows.map((n) => { const on = sel.includes(n.path); const src = n.meta?.["ucp:sourcePath"] as string | undefined; return <tr key={n.path} className={`${on ? "bg-accent-soft/40" : "hover:bg-surface-2"}`}>
+        {rows.length ? <table className="w-full text-[13.5px]"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="py-2.5 px-3 border-b border-line-2 w-8"><input type="checkbox" aria-label="Select all" checked={allChecked} onChange={(e) => setSel(e.target.checked ? shown.map((r) => r.path) : [])} /></th><th className="py-2.5 px-3 border-b border-line-2 w-[36%]">Name</th><th className="py-2.5 px-3 border-b border-line-2">Status</th><th className="py-2.5 px-3 border-b border-line-2">URL</th><th className="py-2.5 px-3 border-b border-line-2">Template</th><th className="py-2.5 px-3 border-b border-line-2">Updated</th><th className="border-b border-line-2" /></tr></thead>
+          <tbody>{shown.map((n) => { const on = sel.includes(n.path); const editable = can("edit", n.path); const src = n.meta?.["ucp:sourcePath"] as string | undefined; return <tr key={n.path} className={`${on ? "bg-accent-soft/40" : "hover:bg-surface-2"}`}>
             <td className={cell}><input type="checkbox" aria-label={`Select ${n.title}`} checked={on} onChange={(e) => setSel(e.target.checked ? [...sel, n.path] : sel.filter((x) => x !== n.path))} /></td>
             {isFolder(n) ? <>
               <td className={cell}><Link href={`${base}/pages${rel(n.path)}`} className="font-medium flex items-center gap-2"><span className="text-warn">▪</span>{n.title}</Link></td><td className={`${cell} text-ink-3`}>folder</td><td className={`${cell} font-mono text-xs text-ink-2`}>{rel(n.path)}</td><td className={`${cell} text-ink-3`}>—</td><td className={`${cell} text-ink-3`}>—</td>
-              <td className={`${cell} whitespace-nowrap text-right`}><Link className="btn btn-sm mr-1.5" href={`${base}/pages${rel(n.path)}`}>Open folder</Link><RowMenu page={n} onAction={onAction} /></td></>
+              <td className={`${cell} whitespace-nowrap text-right`}><Link className="btn btn-sm mr-1.5" href={`${base}/pages${rel(n.path)}`}>Open folder</Link><RowMenu page={n} canEdit={editable} onAction={onAction} /></td></>
             : <>
               <td className={cell}><Link href={`${base}/page${rel(n.path)}`} className="font-medium flex items-center gap-2"><span className="text-ink-3">▫</span>{n.title}{n.locale && n.locale !== "en-GB" && <span className="font-mono text-[11px] bg-surface-3 px-1.5 rounded">{n.locale}</span>}</Link>{src && <div className="text-[11.5px] text-ink-3 pl-5 mt-0.5">Source: <Link href={`${base}/page${rel(src)}`} className="font-mono hover:underline">{rel(src)}</Link></div>}</td><td className={cell}><Pill status={n.status} /></td><td className={`${cell} font-mono text-xs text-ink-2`}>{rel(n.path)}</td><td className={`${cell} text-ink-3`}>{tplName(n.template)}</td><td className={`${cell} text-ink-3`}>{n.lastModified?.slice(0, 10)}</td>
-              <td className={`${cell} whitespace-nowrap text-right`}><Link className="btn btn-sm mr-1.5" href={`${base}/page${rel(n.path)}`}>Edit page</Link><RowMenu page={n} onAction={onAction} /></td></>}
+              <td className={`${cell} whitespace-nowrap text-right`}><Link className="btn btn-sm mr-1.5" href={`${base}/page${rel(n.path)}`}>Edit page</Link><RowMenu page={n} canEdit={editable} onAction={onAction} /></td></>}
           </tr>; })}</tbody></table>
-          : <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">{q ? "No pages match." : <>This folder is empty. <button className="underline" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}>Create the first page</button>.</>}</div>}
+          : <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">{q ? "No pages match." : canEditHere ? <>This folder is empty. <button className="underline" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}>Create the first page</button>.</> : "This folder is empty."}</div>}
+        {rows.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-[12.5px] text-ink-3">Showing {shown.length} of {rows.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show {Math.min(PAGE, rows.length - shown.length)} more</button></div>}
         {selected.length > 0 && <div className="sticky bottom-4 mt-4 flex items-center gap-2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] shadow-xl w-fit mx-auto z-20"><b>{selected.length} selected</b><span className="text-white/40">·</span>
           <button className={barBtn} style={barStyle} disabled={!selected.some((p) => !p.isFolder)} onClick={() => setModal({ kind: "translate", pages: selected.filter((p) => !p.isFolder) })}>🌐 Translate</button>
-          <button className={barBtn} style={barStyle} onClick={() => { openModal({ kind: "move", pages: selected }); setParent(folder.path === root ? root : parentOf(folder.path)); }}>Move</button>
-          <button className={barBtn} style={barStyle} onClick={() => remove(selected)}>Delete</button>
+          {canEditSelected ? <><button className={barBtn} style={barStyle} onClick={() => { openModal({ kind: "move", pages: selected }); setParent(folder.path === root ? root : parentOf(folder.path)); }}>Move</button>
+          <button className={barBtn} style={barStyle} onClick={() => remove(selected)}>Delete</button></> : <span className="text-white/60 text-[12px]">Move and delete need Edit on every selected item</span>}
           <button className={barBtn} style={{ ...barStyle, borderColor: "transparent", opacity: .75 }} onClick={() => setSel([])}>Clear</button></div>}
       </div>
 

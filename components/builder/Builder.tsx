@@ -9,10 +9,18 @@ import { RenderBlock, SiteChrome, AssetsContext } from "@/lib/blocks/Render";
 import { AssetPicker } from "./AssetPicker";
 import { Pill } from "@/components/ui/Pill";
 import { proposeAi, AI_SUGGESTIONS, type AiProposal } from "@/lib/ai/mock";
+import { planFor, revertOp, AI_PAGE_SUGGESTIONS, type Plan, type Change } from "@/lib/ai/planner";
 import { useSession } from "@/components/shell/Session";
+import { InsightsPanel, VersionHistory, TranslateModal } from "@/components/builder";
+import { useRouter } from "next/navigation";
 import { permForStatus } from "@/lib/ucp/perms";
 
 type Props = { marketId: string; envId: string; marketName: string; flag: string; domain: string; locale: string; envName: string; root: string; page: PageView };
+type PageField = "description" | "title";
+/** One page-level AI task: prompt → plan → run → review. `results` keeps the snapshot around each op so it can be undone alone. */
+type AiResult = { before: Block[]; after: Block[]; changes: Change[]; undone: boolean; pageBefore?: string };
+type AiTask = { id: number; prompt: string; plan: Plan; stage: "understanding" | "plan" | "executing" | "done"; on: Record<string, boolean>; done: string[]; results: Record<string, AiResult> };
+const READ_ONLY = "Read-only: you don't have Edit on this folder. Ask a site admin to grant it.";
 const STEPS = [["Add blocks", "Click: open Components"], ["Fill in content", "Click: jump to next empty field"], ["Preview", "Click: toggle visitor view"], ["Send for review", "Click: send to a reviewer"], ["In review", "Click: approve (reviewers)"], ["Publish", "Click: put it live"], ["Published", "Live for customers"]];
 
 /**
@@ -34,7 +42,11 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [preview, setPreviewRaw] = useState(!canEdit); const setPreview = (v: boolean | ((p: boolean) => boolean)) => { if (!canEdit) return; setPreviewRaw(v); };
   const [left, setLeft] = useState(true); const [right, setRight] = useState(false);
-  const [rightTab, setRightTab] = useState<"block" | "page">("page");
+  const [rightTab, setRightTab] = useState<"block" | "page" | "ai" | "insights" | "history">("page");
+  const [translating, setTranslating] = useState(false); const router = useRouter();
+  const [description, setDescription] = useState(page.description ?? "");
+  const [aiTasks, setAiTasks] = useState<AiTask[]>([]); const [aiBar, setAiBar] = useState(false); const [aiDraft, setAiDraft] = useState("");
+  const [focus, setFocus] = useState(false);
   const [cfgSnapshot, setCfgSnapshot] = useState<Record<string, unknown> | null>(null);
   const [clipboard, setClipboard] = useState<Block | null>(null);
   const [dirty, setDirty] = useState(false); const [saving, setSaving] = useState<string>("Saved");
@@ -56,10 +68,55 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const duplicate = (b: Block) => mutate((bl) => { const i = bl.findIndex((x) => x.id === b.id); const c = bl.slice(); c.splice(i + 1, 0, { ...b, id: makeBlock(b.type).id, props: { ...b.props } }); return c; });
   const configure = (id: string) => { setSel(id); setMode("select"); setPop(null); setRightTab("block"); setRight(true); setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
   const closeConfigure = (keep: boolean) => { if (!keep && sel && cfgSnapshot) mutate((b) => b.map((x) => (x.id === sel ? { ...x, props: cfgSnapshot } : x))); setCfgSnapshot(null); setRight(false); };
+  /* Latest values for timers and async work (the AI run applies ops 300 ms apart and must see its own previous result). */
+  const blocksRef = useRef(blocks); const titleRef = useRef(title); const descRef = useRef(description); const taskSeq = useRef(0);
+  useEffect(() => { blocksRef.current = blocks; titleRef.current = title; descRef.current = description; });
+  const setPageField = (k: PageField, v: string) => { if (k === "title") setTitle(v); else setDescription(v); setDirty(true); setSaving("Unsaved"); };
+
+  /* ---- Agentic AI (page level): Understanding → Plan → Executing → Review → Done. Ops come from lib/ai/planner (deterministic, offline). ---- */
+  const patchTask = (id: number, fn: (t: AiTask) => AiTask) => setAiTasks((ts) => ts.map((t) => (t.id === id ? fn(t) : t)));
+  function startAiTask(prompt: string) {
+    const p = prompt.trim(); if (!p) return;
+    if (!canEdit) { say(READ_ONLY); return; }
+    const plan = planFor(p, blocksRef.current, { title: titleRef.current, template: page.template, status, locale, description: descRef.current });
+    const id = ++taskSeq.current;
+    setAiTasks((ts) => [...ts, { id, prompt: p, plan, stage: "understanding", on: Object.fromEntries(plan.ops.map((o) => [o.id, true])), done: [], results: {} }]);
+    setAiBar(false); setAiDraft(""); setSel(null); setPop(null); setPreviewRaw(false); setRightTab("ai"); setRight(true);
+    setTimeout(() => patchTask(id, (t) => (t.stage === "understanding" ? { ...t, stage: "plan" } : t)), 700);
+  }
+  function runAiTask(task: AiTask) {
+    const ops = task.plan.ops.filter((o) => task.on[o.id]);
+    patchTask(task.id, (t) => ({ ...t, stage: ops.length ? "executing" : "done", done: [], results: {} }));
+    ops.forEach((op, i) => setTimeout(() => {
+      const before = blocksRef.current; const after = op.apply(before); blocksRef.current = after; let pageBefore: string | undefined;
+      if (op.page) { pageBefore = op.page.key === "title" ? titleRef.current : descRef.current; setPageField(op.page.key, op.page.value); }
+      if (after !== before) mutate(() => after);
+      patchTask(task.id, (t) => ({ ...t, done: [...t.done, op.id], results: { ...t.results, [op.id]: { before, after, changes: op.describe(before, after), undone: false, pageBefore } } }));
+      if (i === ops.length - 1) { patchTask(task.id, (t) => ({ ...t, stage: "done" })); say("Done. Review the changes on the right, then Save."); ucpApi.logEvent(marketId, { type: "content", text: `AI: ${task.plan.title} (${ops.length} change${ops.length === 1 ? "" : "s"}) on ${titleRef.current}`, target: page.path }).catch(() => {}); }
+    }, 300 * (i + 1)));
+  }
+  function undoAiOp(task: AiTask, opId: string) {
+    const r = task.results[opId]; const op = task.plan.ops.find((o) => o.id === opId); if (!r || !op || r.undone) return;
+    if (op.page) setPageField(op.page.key, r.pageBefore ?? "");
+    if (r.after !== r.before) mutate((b) => revertOp(b, r.before, r.after));
+    patchTask(task.id, (t) => ({ ...t, results: { ...t.results, [opId]: { ...t.results[opId], undone: true } } }));
+  }
+  function redoAiOp(task: AiTask, opId: string) {
+    const r = task.results[opId]; const op = task.plan.ops.find((o) => o.id === opId); if (!r || !op || !r.undone) return;
+    const before = blocksRef.current; const after = op.apply(before); let pageBefore: string | undefined;
+    if (op.page) { pageBefore = op.page.key === "title" ? titleRef.current : descRef.current; setPageField(op.page.key, op.page.value); }
+    if (after !== before) mutate(() => after);
+    patchTask(task.id, (t) => ({ ...t, results: { ...t.results, [opId]: { before, after, changes: op.describe(before, after), undone: false, pageBefore } } }));
+  }
+  const undoAllAi = (task: AiTask) => { task.done.slice().reverse().forEach((id) => undoAiOp(task, id)); say("Changes undone"); };
+
+  /* ---- Focus mode (⌘⇧F): body.focus hides the top bar and side nav (CSS in globals.css); other parts of the shell can listen to ucp:focus. ---- */
+  const setFocusMode = (on: boolean) => { setFocus(on); document.body.classList.toggle("focus", on); window.dispatchEvent(new CustomEvent("ucp:focus", { detail: { on } })); };
+  useEffect(() => () => { document.body.classList.remove("focus"); }, []);
 
   async function save(extra: { status?: PageStatus } = {}) {
     setSaving("Saving…");
-    try { await repoApi.saveComponents(page.path, blocksToComponents(blocks)); await repoApi.updateContent(page.path, { title, status, ...extra }); setDirty(false); setSaving("Saved just now"); }
+    try { await repoApi.saveComponents(page.path, blocksToComponents(blocksRef.current)); await repoApi.updateContent(page.path, { title: titleRef.current, description: descRef.current, status, ...extra }); setDirty(false); setSaving("Saved just now"); }
     catch (e) { setSaving("Save failed"); say(e instanceof ApiError ? `${e.problem.title} · request ${e.requestId ?? "n/a"}` : String(e)); throw e; }
   }
   async function transition(next: PageStatus, msg: string) {
@@ -67,31 +124,38 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (next === "review" && missing) { say(`Fill in ${missing} required field${missing === 1 ? "" : "s"} first`); const b = blocks.find((x) => missingRequired(x).length); if (b) configure(b.id); return; }
     setStatus(next); try { await save({ status: next }); say(msg); } catch { setStatus(status); }
   }
-  useEffect(() => { const h = (e: KeyboardEvent) => { if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); save().catch(() => {}); } }; window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h); });
-  /* Command palette (⌘K) talks to the builder through window events. */
-  useEffect(() => {
-    const onAdd = (e: Event) => { const t = (e as CustomEvent<{ type: string }>).detail?.type; if (t && BLOCK_BY_TYPE[t]) add(t); };
-    const onAi = (e: Event) => { const prompt = (e as CustomEvent<{ prompt: string }>).detail?.prompt ?? ""; const target = sel ?? blocks[0]?.id; if (!target) { say("Add a block first, then ask AI"); return; } setSel(target); setMode("select"); setPop("ai"); setAiSeed(prompt); };
-    window.addEventListener("ucp:add-block", onAdd); window.addEventListener("ucp:ai", onAi);
-    return () => { window.removeEventListener("ucp:add-block", onAdd); window.removeEventListener("ucp:ai", onAi); };
-  });
   const [aiSeed, setAiSeed] = useState("");
   /* Pictures for the canvas: asset id → data URL. Re-read when a block points at an asset we do not know yet (e.g. just uploaded from the picker). */
   const [assetMap, setAssetMap] = useState<Record<string, { data?: string }>>({});
   const imageKey = blocks.map((b) => b.props.image).filter((x) => typeof x === "string" && x && !(x in assetMap)).join(",");
-  useEffect(() => { let on = true; ucpApi.assets(marketId).then((as) => { if (on) setAssetMap(Object.fromEntries(as.map((a) => [a.id, { data: a.data }]))); }).catch(() => {}); return () => { on = false; }; }, [marketId, imageKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { let on = true; ucpApi.assets(marketId).then((as) => { if (on) setAssetMap(Object.fromEntries(as.map((a) => [a.id, { data: a.data }]))); }).catch(() => {}); return () => { on = false; }; }, [marketId, imageKey]);
 
   /* ---- inline editing (only in Edit mode): click a text, Enter/✓ saves, Esc/✕ cancels ---- */
-  const [editing, setEditing] = useState<{ el: HTMLElement; key: string; original: string } | null>(null);
+  const [editing, setEditing] = useState<{ key: string; original: string } | null>(null); const editingEl = useRef<HTMLElement | null>(null); // the live element stays out of state (mutated in place)
   const [ctaPop, setCtaPop] = useState<{ id: string; labelKey: string; linkKey?: string } | null>(null);
   const scrollGuard = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); save().catch(() => {}); return; }
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "f") { e.preventDefault(); setFocusMode(!focus); return; }
+      if (e.key === "Escape") { if (aiBar) setAiBar(false); else if (focus && !editing && !pop && !ctaPop) setFocusMode(false); }
+    };
+    window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
+  });
+  /* Command palette (⌘K) talks to the builder through window events. ucp:ai is block-scoped while a block is selected, page-level otherwise. */
+  useEffect(() => {
+    const onAdd = (e: Event) => { const t = (e as CustomEvent<{ type: string }>).detail?.type; if (t && BLOCK_BY_TYPE[t]) add(t); };
+    const onAi = (e: Event) => { const prompt = (e as CustomEvent<{ prompt: string }>).detail?.prompt ?? ""; if (!canEdit) { say(READ_ONLY); return; } if (!sel) { if (prompt.trim()) startAiTask(prompt); else setAiBar(true); return; } setMode("select"); setPop("ai"); setAiSeed(prompt); };
+    window.addEventListener("ucp:add-block", onAdd); window.addEventListener("ucp:ai", onAi);
+    return () => { window.removeEventListener("ucp:add-block", onAdd); window.removeEventListener("ucp:ai", onAi); };
+  });
   function startInline(ie: HTMLElement) {
-    ie.contentEditable = "true"; ie.classList.add("editing"); ie.focus({ preventScroll: true }); setEditing({ el: ie, key: ie.dataset.inline!, original: ie.innerText });
+    ie.contentEditable = "true"; ie.classList.add("editing"); ie.focus({ preventScroll: true }); editingEl.current = ie; setEditing({ key: ie.dataset.inline!, original: ie.innerText });
     // the caret must never drag the 1:1 canvas sideways while typing
     const c = canvasRef.current; if (c) { const left = c.scrollLeft; const h = () => { if (c.scrollLeft !== left) c.scrollLeft = left; }; c.addEventListener("scroll", h); scrollGuard.current = () => c.removeEventListener("scroll", h); }
   }
   function commitInline(save: boolean) {
-    if (!editing) return; const { el, key, original } = editing; el.contentEditable = "false"; el.classList.remove("editing"); scrollGuard.current?.(); scrollGuard.current = null;
+    const el = editingEl.current; if (!editing || !el) return; const { key, original } = editing; editingEl.current = null; el.contentEditable = "false"; el.classList.remove("editing"); scrollGuard.current?.(); scrollGuard.current = null;
     if (!save) { el.innerText = original; setEditing(null); return; }
     const [id, f, r, c] = key.split("|"); const v = el.innerText.replace(/\n+$/, "").replace(/\|/g, "/");
     const b = blocks.find((x) => x.id === id); if (!b) { setEditing(null); return; }
@@ -150,7 +214,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         <div className="inline-flex border border-line-2 rounded-lg overflow-hidden">{(["desktop", "tablet", "mobile"] as const).map((d) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 text-[13px] ${device === d ? "bg-ink text-white" : "text-ink-3"}`} title={d}>{d === "desktop" ? "🖥" : d === "tablet" ? "▭" : "📱"}</button>)}</div>
         <div className="ml-auto flex items-center gap-2.5">
           <span className="text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1">{saving}</span>
-          <div className="flex gap-1 pl-2.5 border-l border-line"><button className={`btn btn-icon btn-sm ${left ? "on" : ""}`} onClick={() => setLeft(!left)} title="Components panel" aria-pressed={left}>▤</button><button className={`btn btn-icon btn-sm ${right ? "on" : ""}`} onClick={() => { if (right) closeConfigure(true); else { setRightTab(sel ? "block" : "page"); setRight(true); } }} title="Page settings panel" aria-pressed={right}>▥</button></div>
+          <div className="flex gap-1 pl-2.5 border-l border-line"><button className={`btn btn-icon btn-sm ${left ? "on" : ""}`} onClick={() => setLeft(!left)} title="Components panel" aria-pressed={left}>▤</button><button className={`btn btn-icon btn-sm ${right ? "on" : ""}`} onClick={() => { if (right) closeConfigure(true); else { setRightTab(sel ? "block" : "page"); setRight(true); } }} title="Page settings panel" aria-pressed={right}>▥</button><button className={`btn btn-sm ${focus ? "on" : ""}`} onClick={() => setFocusMode(!focus)} title="Focus mode: hide the navigation (⌘⇧F)" aria-pressed={focus}>Focus</button></div>
           <div className="flex gap-1 pl-2.5 border-l border-line">{canEdit ? <button className="btn btn-sm" onClick={() => { setPreview(!preview); select(null); }}>{preview ? "Edit" : "Preview"}</button> : <span className="text-xs text-ink-3 px-2" title="Ask a site admin for Edit on this folder">🔒 Read-only</span>}<button className="btn btn-sm" onClick={() => save().then(() => say("Saved")).catch(() => {})} disabled={!dirty || !canEdit}>Save</button>
             {(status === "draft" || status === "failed") && mayStatus("review") && <button className="btn btn-sm btn-primary" onClick={() => transition("review", "Sent for review")}>Send for review</button>}
             {status === "review" && (mayStatus("approved") ? <button className="btn btn-sm btn-primary" onClick={() => transition("approved", "Approved")}>Approve</button> : <span className="text-xs text-ink-3">Waiting for a reviewer</span>)}
@@ -190,7 +254,11 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             {ctaPop.linkKey && <label className="block text-xs text-ink-2 font-medium mt-2.5">URL<input className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink font-mono font-normal" value={String(selected.props[ctaPop.linkKey] ?? "")} onChange={(e) => setProp(selected.id, ctaPop.linkKey!, e.target.value)} placeholder="/borrowing/credit-cards/apply" /></label>}
             <div className="flex justify-end mt-3"><button className="btn btn-sm btn-primary" onClick={() => setCtaPop(null)}>Done</button></div>
           </div>}
+          {/* ✨ Ask AI: floating button → full-width bar at the bottom of the canvas. Read-only users get the hint instead. */}
+          {(!preview || !canEdit) && !aiBar && <button data-ui className="absolute right-6 bottom-6 z-[6] h-11 px-4 rounded-full bg-[#0F1013] text-white shadow-xl flex items-center gap-2 text-[13px] font-semibold hover:bg-black" onClick={() => (canEdit ? setAiBar(true) : say(READ_ONLY))} title="Ask AI to change this page (⌘K)" aria-expanded={aiBar}><span aria-hidden>✨</span>Ask AI</button>}
+          {aiBar && canEdit && <AiBar draft={aiDraft} setDraft={setAiDraft} onAsk={startAiTask} onSide={() => { setAiBar(false); setRightTab("ai"); setRight(true); }} onClose={() => setAiBar(false)} />}
         </div>
+        {focus && <button data-ui className="fixed top-3 right-3 z-[60] bg-[#0F1013] text-white text-[12px] font-medium px-3 py-1.5 rounded-full shadow-xl hover:bg-black" onClick={() => setFocusMode(false)}>Exit focus (Esc)</button>}
         {/* Left panel */}
         {left && !preview && <aside data-ui className="absolute left-0 top-0 bottom-0 w-[320px] bg-surface border-r border-line flex flex-col z-[5]">
           <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">Components</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => setLeft(false)} aria-label="Close">✕</button></div>
@@ -199,21 +267,26 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         </aside>}
         {/* Right panel: Configure (contextual) or Page settings */}
         {right && !preview && <aside data-ui className="absolute right-0 top-0 bottom-0 w-[340px] bg-surface border-l border-line flex flex-col z-[5]">
-          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">{rightTab === "block" ? "Configure" : "Page settings"}</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => closeConfigure(true)} aria-label="Close">✕</button></div>
-          <div className="flex border-b border-line">{(["block", "page"] as const).map((t) => <button key={t} onClick={() => setRightTab(t)} className={`flex-1 py-2.5 text-[12.5px] font-medium border-b-2 -mb-px ${rightTab === t ? "border-accent text-ink" : "border-transparent text-ink-3 hover:text-ink"}`}>{t === "block" ? "Component" : "Page"}</button>)}</div>
-          <div className="flex-1 overflow-auto p-3.5 text-[13px]">
+          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">{rightTab === "block" ? "Configure" : rightTab === "page" ? "Page settings" : rightTab === "ai" ? "✨ AI" : rightTab === "insights" ? "Page insights" : "Version history"}</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => closeConfigure(true)} aria-label="Close">✕</button></div>
+          <div className="flex border-b border-line">{(["block", "page", "ai", "insights", "history"] as const).map((t) => <button key={t} onClick={() => setRightTab(t)} className={`flex-1 py-2.5 text-[12px] font-medium border-b-2 -mb-px whitespace-nowrap ${rightTab === t ? "border-accent text-ink" : "border-transparent text-ink-3 hover:text-ink"}`}>{t === "block" ? "Component" : t === "page" ? "Page" : t === "ai" ? "AI" : t === "insights" ? "Insights" : "History"}</button>)}</div>
+          {rightTab === "insights" ? <div className="flex-1 overflow-auto p-3.5 text-[13px]"><InsightsPanel blocks={blocks} page={{ title, description, template: page.template, status, locale }} onFix={(apply, label) => { if (!canEdit) { say("Read-only: ask a site admin for Edit"); return; } mutate(apply); say(`Fixed: ${label}`); }} onSelectBlock={(id) => { select(id); const el = canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`); el?.scrollIntoView({ block: "center", behavior: "smooth" }); }} /></div>
+          : rightTab === "history" ? <div className="flex-1 overflow-auto p-3.5 text-[13px]"><VersionHistory marketId={marketId} path={page.path} currentBlocks={blocks.length} onRestored={() => { router.refresh(); say("Version restored · reloading"); setTimeout(() => window.location.reload(), 400); }} /></div>
+          : rightTab === "ai" ? <AiPanel tasks={aiTasks} draft={aiDraft} setDraft={setAiDraft} dirty={dirty} onAsk={startAiTask} onToggle={(t, id) => patchTask(t.id, (x) => ({ ...x, on: { ...x.on, [id]: !x.on[id] } }))} onRun={runAiTask} onUndo={undoAiOp} onRedo={redoAiOp} onUndoAll={undoAllAi} onSave={() => save().then(() => say("Saved")).catch(() => {})} /> : <div className="flex-1 overflow-auto p-3.5 text-[13px]">
             {rightTab === "page" ? <div className="flex flex-col gap-3">
-              <label className="text-xs text-ink-2 font-medium">Page title<input className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] font-normal text-ink" value={title} onChange={(e) => { setTitle(e.target.value); setDirty(true); setSaving("Unsaved"); }} /></label>
+              <label className="text-xs text-ink-2 font-medium">Page title<input className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] font-normal text-ink" value={title} onChange={(e) => setPageField("title", e.target.value)} /></label>
+              <label className="text-xs text-ink-2 font-medium">Meta description<textarea rows={3} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] font-normal text-ink" value={description} onChange={(e) => setPageField("description", e.target.value)} placeholder="One or two sentences shown in search results" /><small className={`font-normal ${description.length > 155 ? "text-crit" : "text-ink-3"}`}>{description.length}/155 characters</small></label>
               <div className="text-xs text-ink-2 font-medium">URL<div className="mt-1 font-mono text-xs bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">{domain}{rel}</div></div>
               <div className="text-xs text-ink-2 font-medium">Template<div className="mt-1 bg-surface-2 border border-line rounded-md px-2.5 py-1.5 font-normal text-ink-2">{TEMPLATES.find((t) => t.id === page.template)?.name ?? page.template}</div><small className="text-ink-3 font-normal">Fixed after creation</small></div>
               <div className="text-xs text-ink-2 font-medium">Repository path (JCR)<div className="mt-1 font-mono text-[11.5px] bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">{page.path}/jcr:content</div><small className="text-ink-3 font-normal">Components are stored under jcr:content/root as nodes with sling:resourceType</small></div>
               <div className="text-xs text-ink-3">Created {page.created?.slice(0, 10)} · Last modified {page.lastModified?.slice(0, 16).replace("T", " ")}</div>
+              <div className="border-t border-line pt-3 flex flex-col gap-2"><b className="text-xs text-ink-2">Languages</b><span className="text-[12px] text-ink-3">This page is {locale}. Create a translated copy in another locale.</span><button className="btn btn-sm justify-center" onClick={() => setTranslating(true)}>🌐 Translate this page…</button></div>
             </div>
             : !selected ? <div className="text-ink-3 p-2"><b className="block text-sm text-ink mb-1.5">Nothing selected</b>Click a block on the page, then ⚙ Configure.<div className="mt-3.5 flex flex-col gap-1.5">{blocks.slice(0, 8).map((k, ix) => <button key={k.id} className="btn btn-sm justify-start" onClick={() => configure(k.id)}>{ix + 1}. {BLOCK_BY_TYPE[k.type].name}</button>)}</div></div>
             : <ConfigForm block={selected} index={blocks.indexOf(selected)} count={blocks.length} marketId={marketId} setProp={(k, v) => setProp(selected.id, k, v)} />}
-          </div>
+          </div>}
           {rightTab === "block" && selected && <div className="flex justify-end gap-2 px-3.5 py-2.5 border-t border-line bg-surface"><button className="btn btn-sm" onClick={() => closeConfigure(false)}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => { closeConfigure(true); say("Component updated · Save the page when you're done"); }}>Save</button></div>}
         </aside>}
+        {translating && <TranslateModal marketId={marketId} path={page.path} title={title} onClose={() => setTranslating(false)} onDone={(created) => { say(`Created ${created.length} translation${created.length === 1 ? "" : "s"}`); router.refresh(); }} />}
         {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] shadow-xl z-50">{toast}</div>}
       </div>
     </div>
@@ -227,7 +300,8 @@ function ContextBar({ block: b, index, count, mode, pop, setPop, clipboard, aiSe
   const locked = !!b.props.locked; const editing = mode === "edit";
   const [prompt, setPrompt] = useState(""); const [proposal, setProposal] = useState<AiProposal | null>(null);
   const ask = (p: string) => { setPrompt(p); setProposal(proposeAi(p, b)); };
-  useEffect(() => { if (pop === "ai" && aiSeed) ask(aiSeed); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [pop, aiSeed]);
+  // A prompt from the palette (aiSeed) pre-fills and runs the popover once per seed: state adjusted during render, no effect needed.
+  const [seenSeed, setSeenSeed] = useState(""); if (pop === "ai" && aiSeed && aiSeed !== seenSeed) { setSeenSeed(aiSeed); setPrompt(aiSeed); setProposal(proposeAi(aiSeed, b)); }
   const items: [MoreAction, string, boolean?][] = [["duplicate", "Duplicate"], ["copy", "Copy"], ["paste", "Paste after", !clipboard], ["up", "Move up", index === 0], ["down", "Move down", index === count - 1], ["hide", b.props.hidden ? "Show" : "Hide"], ["lock", locked ? "Unlock" : "Lock"], ["usage", "View usage"], ["history", "Version history"], ["delete", "Delete"]];
   return <div data-ui className="absolute -top-5 left-3 z-[4]" onMouseDown={(e) => { e.stopPropagation(); if (!(e.target as HTMLElement).closest("input, textarea")) e.preventDefault(); }} onDoubleClick={(e) => e.stopPropagation()}>
     <div role="toolbar" aria-label={`${BLOCK_BY_TYPE[b.type].name} actions`} className="flex items-center gap-0.5 bg-[#0F1013] text-white rounded-lg p-1 shadow-xl">
@@ -252,11 +326,12 @@ function ContextBar({ block: b, index, count, mode, pop, setPop, clipboard, aiSe
 }
 
 /* ---- Configure panel: Content / Layout / Behaviour / Metadata ---- */
+type PropCtl = { P: Record<string, unknown>; setProp: (k: string, v: unknown) => void };
+function Seg({ P, setProp, k, opts }: PropCtl & { k: string; opts: string[] }) { return <div className="flex gap-1">{opts.map((o) => <button key={o} className={`btn btn-sm capitalize ${(P[k] ?? opts[0]) === o ? "on" : ""}`} onClick={() => setProp(k, o)}>{o}</button>)}</div>; }
+function Tog({ P, setProp, k, l }: PropCtl & { k: string; l: string }) { return <label className="flex items-center justify-between text-xs text-ink-2 font-medium">{l}<button className={`w-9 h-5 rounded-full relative ${P[k] ? "bg-good" : "bg-line-2"}`} aria-pressed={!!P[k]} onClick={() => setProp(k, !P[k])}><i className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${P[k] ? "left-4" : "left-0.5"}`} /></button></label>; }
 function Section({ t, children }: { t: string; children: React.ReactNode }) { return <div className="border-t border-line pt-3 mt-1"><h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold mb-2.5">{t}</h6><div className="flex flex-col gap-3">{children}</div></div>; }
 function ConfigForm({ block: selected, index, count, marketId, setProp }: { block: Block; index: number; count: number; marketId: string; setProp: (k: string, v: unknown) => void }) {
   const def = BLOCK_BY_TYPE[selected.type]; const P = selected.props;
-  const Seg = ({ k, opts }: { k: string; opts: string[] }) => <div className="flex gap-1">{opts.map((o) => <button key={o} className={`btn btn-sm capitalize ${(P[k] ?? opts[0]) === o ? "on" : ""}`} onClick={() => setProp(k, o)}>{o}</button>)}</div>;
-  const Tog = ({ k, l }: { k: string; l: string }) => <label className="flex items-center justify-between text-xs text-ink-2 font-medium">{l}<button className={`w-9 h-5 rounded-full relative ${P[k] ? "bg-good" : "bg-line-2"}`} aria-pressed={!!P[k]} onClick={() => setProp(k, !P[k])}><i className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${P[k] ? "left-4" : "left-0.5"}`} /></button></label>;
   return <div className="flex flex-col gap-3">
     <div><b className="text-sm">{def.name}</b><div className="text-[11px] text-ink-3">Block {index + 1} of {count} · {def.desc}</div></div>
     <Section t="Content">{def.fields.map((f) => { const v = selected.props[f.k]; const invalid = f.req && !v; return <div key={f.k}><label className="flex justify-between text-xs text-ink-2 font-medium mb-1">{f.l}{f.req && <small className="font-mono text-[10.5px] text-ink-4">required</small>}</label>
@@ -268,8 +343,8 @@ function ConfigForm({ block: selected, index, count, marketId, setProp }: { bloc
       : f.t === "asset" ? <AssetPicker marketId={marketId} value={String(v ?? "")} invalid={invalid} onChange={(id) => setProp(f.k, id)} />
       : <input className="w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] font-mono" value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} />}
       {invalid ? <div className="text-[11.5px] text-crit mt-1">Required before the page can be sent for review.</div> : f.hint && f.t !== "lines" ? <div className="text-[11.5px] text-ink-3 mt-1">{f.hint}</div> : null}</div>; })}</Section>
-    <Section t="Layout"><div><label className="block text-xs text-ink-2 font-medium mb-1">Width</label><Seg k="layout" opts={["full", "contained", "narrow"]} /></div><div><label className="block text-xs text-ink-2 font-medium mb-1">Spacing</label><Seg k="spacing" opts={["default", "compact", "roomy"]} /></div></Section>
-    <Section t="Behaviour"><Tog k="hidden" l="Hidden (not rendered on the live site)" /><Tog k="hideMobile" l="Hide on mobile" /><Tog k="locked" l="Locked (no edits until unlocked)" /><Tog k="personalise" l="Targeting enabled (Adobe Target segment)" /></Section>
+    <Section t="Layout"><div><label className="block text-xs text-ink-2 font-medium mb-1">Width</label><Seg P={P} setProp={setProp} k="layout" opts={["full", "contained", "narrow"]} /></div><div><label className="block text-xs text-ink-2 font-medium mb-1">Spacing</label><Seg P={P} setProp={setProp} k="spacing" opts={["default", "compact", "roomy"]} /></div></Section>
+    <Section t="Behaviour"><Tog P={P} setProp={setProp} k="hidden" l="Hidden (not rendered on the live site)" /><Tog P={P} setProp={setProp} k="hideMobile" l="Hide on mobile" /><Tog P={P} setProp={setProp} k="locked" l="Locked (no edits until unlocked)" /><Tog P={P} setProp={setProp} k="personalise" l="Targeting enabled (Adobe Target segment)" /></Section>
     <Section t="Metadata"><div className="text-xs text-ink-2 font-medium">Node<div className="mt-1 font-mono text-[11.5px] bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">jcr:content/root/{selected.id}</div></div><div className="text-xs text-ink-2 font-medium">sling:resourceType<div className="mt-1 font-mono text-[11.5px] bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2">hsbc/components/{selected.type}</div></div></Section>
   </div>;
 }
@@ -280,4 +355,66 @@ function ListEditor({ rows, hint, onChange }: { rows: string[][]; hint?: string;
   return <div className="flex flex-col gap-2">{rows.map((r, ri) => <div key={ri} className="border border-line bg-surface-2 p-2.5 rounded-md"><div className="flex justify-between items-center mb-1"><b className="text-[12.5px]">Item {ri + 1}</b><span className="flex gap-0.5"><button className="btn btn-quiet btn-sm" disabled={ri === 0} onClick={() => { const n = rows.slice(); [n[ri - 1], n[ri]] = [n[ri], n[ri - 1]]; onChange(n); }} aria-label="Move up">↑</button><button className="btn btn-quiet btn-sm" disabled={ri === rows.length - 1} onClick={() => { const n = rows.slice(); [n[ri + 1], n[ri]] = [n[ri], n[ri + 1]]; onChange(n); }} aria-label="Move down">↓</button><button className="btn btn-quiet btn-sm" onClick={() => onChange(rows.filter((_, i) => i !== ri))} aria-label="Remove">✕</button></span></div>
     {cols.map((c, ci) => <label key={ci} className="block mt-1.5 text-[11.5px] text-ink-3">{c}{c.toLowerCase().includes("text") || c.toLowerCase().includes("answer") ? <textarea rows={2} className="mt-0.5 w-full border border-line-2 rounded px-2 py-1 text-[13px] text-ink" value={r[ci] ?? ""} onChange={(e) => set(ri, ci, e.target.value)} /> : <input className="mt-0.5 w-full border border-line-2 rounded px-2 py-1 text-[13px] text-ink" value={r[ci] ?? ""} onChange={(e) => set(ri, ci, e.target.value)} />}</label>)}</div>)}
     <button className="btn btn-sm justify-center" onClick={() => onChange([...rows, cols.map(() => "")])}>＋ Add item</button></div>;
+}
+
+/* ---- ✨ Ask AI bar: full-width prompt at the bottom of the canvas (page level). Enter asks, Esc closes. ---- */
+function AiBar({ draft, setDraft, onAsk, onSide, onClose }: { draft: string; setDraft: (v: string) => void; onAsk: (p: string) => void; onSide: () => void; onClose: () => void }) {
+  return <div data-ui role="dialog" aria-label="Ask AI" className="absolute left-0 right-0 bottom-0 z-[6] bg-surface border-t border-line shadow-[0_-8px_30px_rgba(0,0,0,.12)] px-6 py-4" onMouseDown={(e) => e.stopPropagation()}>
+    <div className="max-w-[960px] mx-auto">
+      <div className="flex items-center gap-2 mb-2"><b className="text-[14px]">✨ Ask AI</b><span className="text-[12px] text-ink-3">Changes are planned first, then applied only when you run the plan. Nothing is saved until you Save the page.</span><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={onClose} aria-label="Close (Esc)">✕</button></div>
+      <form className="flex gap-2 items-start" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) onAsk(draft); }}>
+        <textarea autoFocus rows={2} className="flex-1 border border-line-2 rounded-lg px-3 py-2 text-[14px] resize-none" placeholder="What would you like to do with this page?" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } else if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (draft.trim()) onAsk(draft); } }} />
+        <div className="flex flex-col gap-1.5"><button type="submit" className="btn btn-primary" disabled={!draft.trim()}>Ask</button><button type="button" className="btn btn-sm" onClick={onSide} title="Open the AI panel on the right and keep typing there">Continue in side panel →</button></div>
+      </form>
+      <div className="flex flex-wrap gap-1.5 mt-2.5">{AI_PAGE_SUGGESTIONS.map((s) => <button key={s} type="button" className="text-[12.5px] px-2.5 py-1 rounded-full border border-line-2 bg-surface hover:border-ink hover:bg-surface-2" onClick={() => onAsk(s)}>{s}</button>)}</div>
+    </div>
+  </div>;
+}
+
+/* ---- AI side panel: history + thread of tasks (Understanding → Plan → Executing → Review → Done) + follow-up ---- */
+const STAGES = ["Understanding", "Plan", "Executing", "Review", "Done"] as const;
+type AiPanelProps = { tasks: AiTask[]; draft: string; setDraft: (v: string) => void; dirty: boolean; onAsk: (p: string) => void; onToggle: (t: AiTask, opId: string) => void; onRun: (t: AiTask) => void; onUndo: (t: AiTask, opId: string) => void; onRedo: (t: AiTask, opId: string) => void; onUndoAll: (t: AiTask) => void; onSave: () => void };
+const applied = (t: AiTask) => t.done.filter((id) => !t.results[id]?.undone).length;
+function Stage({ label, state, children }: { label: string; state: "done" | "on" | "todo"; children?: React.ReactNode }) {
+  return <div className={`flex gap-2.5 ${state === "todo" ? "opacity-40" : ""}`}>
+    <i className={`mt-0.5 w-5 h-5 flex-none rounded-full grid place-items-center not-italic text-[10px] font-bold ${state === "done" ? "bg-good text-white" : state === "on" ? "bg-accent text-white animate-pulse" : "border border-line-2 text-ink-3"}`}>{state === "done" ? "✓" : STAGES.indexOf(label as typeof STAGES[number]) + 1}</i>
+    <div className="min-w-0 flex-1"><div className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold">{label}</div>{children}</div>
+  </div>;
+}
+function AiPanel({ tasks, draft, setDraft, dirty, onAsk, onToggle, onRun, onUndo, onRedo, onUndoAll, onSave }: AiPanelProps) {
+  const ref = useRef<HTMLDivElement>(null); const key = tasks.map((t) => `${t.id}:${t.stage}:${t.done.length}`).join("|");
+  useEffect(() => { const el = ref.current; if (el) el.scrollTop = el.scrollHeight; }, [key]);
+  const history = tasks.slice(0, -1);
+  return <>
+    <div ref={ref} className="flex-1 overflow-auto p-3.5 text-[13px] flex flex-col gap-4">
+      {history.length > 0 && <div className="border border-line rounded-lg bg-surface-2 p-2.5"><div className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold mb-1">Earlier in this session</div>{history.map((t) => <div key={t.id} className="flex gap-2 text-[12px] py-0.5"><span className="truncate text-ink-2">{t.prompt}</span><span className="ml-auto flex-none text-ink-3">{applied(t)}/{t.plan.ops.length} applied</span></div>)}</div>}
+      {!tasks.length && <div className="p-6 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">Ask for a change to the whole page, e.g. “Improve this page”. You will see a plan before anything changes.</div>}
+      {tasks.map((t, ti) => { const last = ti === tasks.length - 1; const ops = t.plan.ops; const enabled = ops.filter((o) => t.on[o.id]); const n = applied(t); const st = (s: typeof STAGES[number]): "done" | "on" | "todo" => { const order = { understanding: 0, plan: 1, executing: 2, done: 4 }[t.stage]; const i = STAGES.indexOf(s); return i < order || t.stage === "done" ? "done" : i === order ? "on" : "todo"; };
+        return <div key={t.id} className={`flex flex-col gap-3 ${last ? "" : "opacity-80"}`}>
+          <div className="self-end max-w-[85%] bg-ink text-white rounded-xl rounded-br-sm px-3 py-2 text-[13px]"><span className="block text-[10px] uppercase tracking-[.08em] text-white/60">You</span>{t.prompt}</div>
+          <div className="border border-line rounded-xl p-3 flex flex-col gap-3 bg-surface">
+            <b className="text-[13.5px]">✨ {t.plan.title}</b>
+            <Stage label="Understanding" state={st("Understanding")}><p className="text-ink-2 mt-0.5">{t.plan.understanding}</p></Stage>
+            {t.stage !== "understanding" && <Stage label="Plan" state={st("Plan")}>
+              {t.plan.note && <p className="text-[12px] text-ink-3 mt-0.5 mb-1.5">{t.plan.note}</p>}
+              {ops.length ? <ul className="flex flex-col gap-1 mt-1">{ops.map((o) => <li key={o.id}><label className={`flex gap-2 items-start ${t.stage === "plan" ? "cursor-pointer" : ""}`}><input type="checkbox" className="mt-1 accent-[#DB0011]" checked={!!t.on[o.id]} disabled={t.stage !== "plan"} onChange={() => onToggle(t, o.id)} /><span className={t.on[o.id] ? "" : "line-through text-ink-3"}>{o.label}</span></label></li>)}</ul> : <p className="text-ink-3 mt-1">Nothing to change.</p>}
+              {t.stage === "plan" && <div className="flex gap-2 mt-2.5"><button className="btn btn-sm btn-primary" onClick={() => onRun(t)} disabled={!enabled.length && ops.length > 0}>{enabled.length ? `Run plan · ${enabled.length} change${enabled.length === 1 ? "" : "s"}` : "Nothing selected"}</button></div>}
+            </Stage>}
+            {(t.stage === "executing" || t.stage === "done") && <Stage label="Executing" state={st("Executing")}><ul className="flex flex-col gap-0.5 mt-1">{enabled.map((o) => { const d = t.done.includes(o.id); return <li key={o.id} className={`flex gap-2 ${d ? "text-ink" : "text-ink-3"}`}><span className={`w-4 flex-none ${d ? "text-good" : ""}`}>{d ? "✓" : "…"}</span><span>{o.label}</span></li>; })}</ul></Stage>}
+            {t.stage === "done" && <Stage label="Review" state="done">
+              <div className="flex flex-col gap-2 mt-1">{t.done.map((id) => { const o = ops.find((x) => x.id === id)!; const r = t.results[id]; if (!r) return null; return <div key={id} className={`border border-line rounded-md p-2 ${r.undone ? "opacity-60" : ""}`}>
+                <div className="flex items-start gap-2"><b className={`text-[12.5px] ${r.undone ? "line-through" : ""}`}>{o.label}</b>{r.undone ? <button className="btn btn-quiet btn-sm ml-auto flex-none" onClick={() => onRedo(t, id)}>Redo</button> : r.changes.length > 0 && <button className="btn btn-quiet btn-sm ml-auto flex-none" onClick={() => onUndo(t, id)}>Undo</button>}</div>
+                {r.changes.length > 0 && <div className="mt-1 divide-y divide-line max-h-48 overflow-auto">{r.changes.map((c, i) => <div key={i} className="py-1 text-[12px]"><span className="font-semibold">{c.block}</span>{c.field && <span className="text-ink-3"> · {c.field}</span>}{c.before !== undefined && c.after !== undefined ? <div className="break-words"><span className="line-through text-ink-3">{c.before || "(empty)"}</span> → <span>{c.after || "(empty)"}</span></div> : <div className={c.after ? "text-good" : "text-ink-3"}>{c.after ?? c.before}</div>}</div>)}</div>}
+              </div>; })}</div>
+              {n > 0 && <button className="btn btn-sm mt-2" onClick={() => onUndoAll(t)}>Undo all</button>}
+            </Stage>}
+            {t.stage === "done" && <Stage label="Done" state="done"><p className="mt-0.5">Applied {n} of {enabled.length} change{enabled.length === 1 ? "" : "s"}{n > 0 ? " · Save the page to keep them" : "."}</p>{n > 0 && <button className="btn btn-sm btn-primary mt-2" onClick={onSave} disabled={!dirty}>{dirty ? "Save page" : "Saved"}</button>}</Stage>}
+          </div>
+        </div>; })}
+    </div>
+    <form className="flex gap-1.5 px-3.5 py-2.5 border-t border-line bg-surface" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) onAsk(draft); }}>
+      <input className="flex-1 border border-line-2 rounded-md px-2.5 py-1.5 text-[13px]" placeholder={tasks.length ? "Ask a follow-up… e.g. make the banner light" : "What would you like to do with this page?"} value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Ask AI" />
+      <button className="btn btn-sm btn-primary" disabled={!draft.trim()}>Ask</button>
+    </form>
+  </>;
 }

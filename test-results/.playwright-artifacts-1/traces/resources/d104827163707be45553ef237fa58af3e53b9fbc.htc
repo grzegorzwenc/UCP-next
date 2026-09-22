@@ -1,0 +1,266 @@
+2:I["[project]/node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js [app-client] (ecmascript)",["/_next/static/chunks/node_modules_next_dist_20wefz_._.js"],"SegmentViewNode"]
+4:"$Sreact.fragment"
+16:I["[project]/node_modules/next/dist/client/components/layout-router.js [app-client] (ecmascript)",["/_next/static/chunks/node_modules_next_dist_20wefz_._.js"],"default"]
+18:I["[project]/node_modules/next/dist/client/components/render-from-template-context.js [app-client] (ecmascript)",["/_next/static/chunks/node_modules_next_dist_20wefz_._.js"],"default"]
+4c:I["[project]/node_modules/next/dist/client/components/layout-router.js [app-client] (ecmascript)",["/_next/static/chunks/node_modules_next_dist_20wefz_._.js"],"LoadingBoundaryProvider"]
+14b:I["[project]/app/(cms)/[market]/[env]/repo/error.tsx [app-client] (ecmascript)",["/_next/static/chunks/node_modules_next_dist_20wefz_._.js","/_next/static/chunks/_0j08iee._.js","/_next/static/chunks/node_modules_next_1cl1ox8._.js","/_next/static/chunks/_02ebz5j._.js"],"default"]
+15e:I["[project]/node_modules/next/dist/lib/framework/boundary-components.js [app-client] (ecmascript)",["/_next/static/chunks/node_modules_next_dist_20wefz_._.js"],"OutletBoundary"]
+160:"$Sreact.suspense"
+16e:I["[project]/node_modules/next/dist/lib/framework/boundary-components.js [app-client] (ecmascript)",["/_next/static/chunks/node_modules_next_dist_20wefz_._.js"],"ViewportBoundary"]
+178:I["[project]/node_modules/next/dist/lib/framework/boundary-components.js [app-client] (ecmascript)",["/_next/static/chunks/node_modules_next_dist_20wefz_._.js"],"MetadataBoundary"]
+:HL["/_next/static/chunks/%5Broot-of-the-server%5D__0m7lxu3._.css","style"]
+7:D"$11"
+7:D"$8"
+7:D"$13"
+1a:D"$1c"
+1a:D"$1b"
+1a:D"$1e"
+1a:D"$1d"
+1a:D"$1f"
+1a:[["$","title",null,{"children":"404: This page could not be found."},"$1d","$20",1],["$","div",null,{"style":{"fontFamily":"system-ui,\"Segoe UI\",Roboto,Helvetica,Arial,sans-serif,\"Apple Color Emoji\",\"Segoe UI Emoji\"","height":"100vh","textAlign":"center","display":"flex","flexDirection":"column","alignItems":"center","justifyContent":"center"},"children":["$","div",null,{"children":[["$","style",null,{"dangerouslySetInnerHTML":{"__html":"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}"}},"$1d","$23",1],["$","h1",null,{"className":"next-error-h1","style":{"display":"inline-block","margin":"0 20px 0 0","padding":"0 23px 0 0","fontSize":24,"fontWeight":500,"verticalAlign":"top","lineHeight":"49px"},"children":404},"$1d","$24",1],["$","div",null,{"style":{"display":"inline-block"},"children":["$","h2",null,{"style":{"fontSize":14,"fontWeight":400,"lineHeight":"49px","margin":0},"children":"This page could not be found."},"$1d","$26",1]},"$1d","$25",1]]},"$1d","$22",1]},"$1d","$21",1]]
+7:["$","html",null,{"lang":"en","className":"archivo_46ddef2-module__56w0Ba__variable ibm_plex_mono_6a49ad5e-module__fo1kJa__variable h-full antialiased","children":["$","body",null,{"className":"min-h-full","children":["$","$L16",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L18",null,{},null,"$17",1],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":["$","$L2","c-not-found",{"type":"not-found","pagePath":"__next_builtin__not-found.js","children":["$1a",[]]},null,"$19",0],"forbidden":"$undefined","unauthorized":"$undefined","segmentViewBoundaries":[["$","$L2",null,{"type":"boundary:not-found","pagePath":"__next_builtin__not-found.js@boundary"},null,"$27",1],"$undefined","$undefined",["$","$L2",null,{"type":"boundary:global-error","pagePath":"__next_builtin__global-error.js"},null,"$28",1]]},null,"$15",1]},"$8","$14",1]},"$8","$12",1]
+2d:D"$2f"
+2d:D"$2e"
+2d:D"$31"
+2d:D"$30"
+2d:D"$32"
+2d:[["$","title",null,{"children":"404: This page could not be found."},"$30","$33",1],["$","div",null,{"style":"$1a:1:props:style","children":["$","div",null,{"children":[["$","style",null,{"dangerouslySetInnerHTML":{"__html":"body{color:#000;background:#fff;margin:0}.next-error-h1{border-right:1px solid rgba(0,0,0,.3)}@media (prefers-color-scheme:dark){body{color:#fff;background:#000}.next-error-h1{border-right:1px solid rgba(255,255,255,.3)}}"}},"$30","$36",1],["$","h1",null,{"className":"next-error-h1","style":"$1a:1:props:children:props:children:1:props:style","children":404},"$30","$37",1],["$","div",null,{"style":"$1a:1:props:children:props:children:2:props:style","children":["$","h2",null,{"style":"$1a:1:props:children:props:children:2:props:children:props:style","children":"This page could not be found."},"$30","$39",1]},"$30","$38",1]]},"$30","$35",1]},"$30","$34",1]]
+42:D"$4a"
+42:D"$43"
+4e:D"$50"
+4e:D"$4f"
+4e:D"$52"
+4e:D"$51"
+4e:D"$54"
+57:D"$59"
+57:D"$58"
+57:D"$5b"
+57:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-7 w-[260px]"},"$58","$5a",1]
+5c:D"$5e"
+5c:D"$5d"
+5c:D"$60"
+5c:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-3.5 w-[380px]"},"$5d","$5f",1]
+62:D"$64"
+62:D"$63"
+62:D"$66"
+62:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-9 w-[110px]"},"$63","$65",1]
+67:D"$69"
+67:D"$68"
+67:D"$6b"
+67:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-9 w-[140px]"},"$68","$6a",1]
+6d:D"$6f"
+6d:D"$6e"
+6d:D"$71"
+6d:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-9 w-[280px]"},"$6e","$70",1]
+72:D"$74"
+72:D"$73"
+72:D"$76"
+72:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-9 w-[120px]"},"$73","$75",1]
+79:D"$7b"
+79:D"$7a"
+79:D"$7d"
+79:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-4"},"$7a","$7c",1]
+7e:D"$80"
+7e:D"$7f"
+7e:D"$82"
+7e:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[30%]"},"$7f","$81",1]
+83:D"$85"
+83:D"$84"
+83:D"$87"
+83:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-5 w-[70px] rounded-full"},"$84","$86",1]
+88:D"$8a"
+88:D"$89"
+88:D"$8c"
+88:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[20%]"},"$89","$8b",1]
+8d:D"$8f"
+8d:D"$8e"
+8d:D"$91"
+8d:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[14%] ml-auto"},"$8e","$90",1]
+93:D"$95"
+93:D"$94"
+93:D"$97"
+93:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-4"},"$94","$96",1]
+98:D"$9a"
+98:D"$99"
+98:D"$9c"
+98:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[30%]"},"$99","$9b",1]
+9d:D"$9f"
+9d:D"$9e"
+9d:D"$a1"
+9d:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-5 w-[70px] rounded-full"},"$9e","$a0",1]
+a2:D"$a4"
+a2:D"$a3"
+a2:D"$a6"
+a2:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[20%]"},"$a3","$a5",1]
+a7:D"$a9"
+a7:D"$a8"
+a7:D"$ab"
+a7:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[14%] ml-auto"},"$a8","$aa",1]
+ad:D"$af"
+ad:D"$ae"
+ad:D"$b1"
+ad:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-4"},"$ae","$b0",1]
+b2:D"$b4"
+b2:D"$b3"
+b2:D"$b6"
+b2:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[30%]"},"$b3","$b5",1]
+b7:D"$b9"
+b7:D"$b8"
+b7:D"$bb"
+b7:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-5 w-[70px] rounded-full"},"$b8","$ba",1]
+bc:D"$be"
+bc:D"$bd"
+bc:D"$c0"
+bc:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[20%]"},"$bd","$bf",1]
+c1:D"$c3"
+c1:D"$c2"
+c1:D"$c5"
+c1:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[14%] ml-auto"},"$c2","$c4",1]
+c7:D"$c9"
+c7:D"$c8"
+c7:D"$cb"
+c7:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-4"},"$c8","$ca",1]
+cc:D"$ce"
+cc:D"$cd"
+cc:D"$d0"
+cc:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[30%]"},"$cd","$cf",1]
+d1:D"$d3"
+d1:D"$d2"
+d1:D"$d5"
+d1:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-5 w-[70px] rounded-full"},"$d2","$d4",1]
+d6:D"$d8"
+d6:D"$d7"
+d6:D"$da"
+d6:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[20%]"},"$d7","$d9",1]
+db:D"$dd"
+db:D"$dc"
+db:D"$df"
+db:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[14%] ml-auto"},"$dc","$de",1]
+e1:D"$e3"
+e1:D"$e2"
+e1:D"$e5"
+e1:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-4"},"$e2","$e4",1]
+e6:D"$e8"
+e6:D"$e7"
+e6:D"$ea"
+e6:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[30%]"},"$e7","$e9",1]
+eb:D"$ed"
+eb:D"$ec"
+eb:D"$ef"
+eb:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-5 w-[70px] rounded-full"},"$ec","$ee",1]
+f0:D"$f2"
+f0:D"$f1"
+f0:D"$f4"
+f0:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[20%]"},"$f1","$f3",1]
+f5:D"$f7"
+f5:D"$f6"
+f5:D"$f9"
+f5:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[14%] ml-auto"},"$f6","$f8",1]
+fb:D"$fd"
+fb:D"$fc"
+fb:D"$ff"
+fb:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-4"},"$fc","$fe",1]
+100:D"$102"
+100:D"$101"
+100:D"$104"
+100:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[30%]"},"$101","$103",1]
+105:D"$107"
+105:D"$106"
+105:D"$109"
+105:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-5 w-[70px] rounded-full"},"$106","$108",1]
+10a:D"$10c"
+10a:D"$10b"
+10a:D"$10e"
+10a:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[20%]"},"$10b","$10d",1]
+10f:D"$111"
+10f:D"$110"
+10f:D"$113"
+10f:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[14%] ml-auto"},"$110","$112",1]
+115:D"$117"
+115:D"$116"
+115:D"$119"
+115:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-4"},"$116","$118",1]
+11a:D"$11c"
+11a:D"$11b"
+11a:D"$11e"
+11a:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[30%]"},"$11b","$11d",1]
+11f:D"$121"
+11f:D"$120"
+11f:D"$123"
+11f:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-5 w-[70px] rounded-full"},"$120","$122",1]
+124:D"$126"
+124:D"$125"
+124:D"$128"
+124:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[20%]"},"$125","$127",1]
+129:D"$12b"
+129:D"$12a"
+129:D"$12d"
+129:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[14%] ml-auto"},"$12a","$12c",1]
+12f:D"$131"
+12f:D"$130"
+12f:D"$133"
+12f:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-4"},"$130","$132",1]
+134:D"$136"
+134:D"$135"
+134:D"$138"
+134:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[30%]"},"$135","$137",1]
+139:D"$13b"
+139:D"$13a"
+139:D"$13d"
+139:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-5 w-[70px] rounded-full"},"$13a","$13c",1]
+13e:D"$140"
+13e:D"$13f"
+13e:D"$142"
+13e:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[20%]"},"$13f","$141",1]
+143:D"$145"
+143:D"$144"
+143:D"$147"
+143:["$","div",null,{"aria-hidden":"true","className":"bg-surface-3 animate-pulse rounded-md h-4 w-[14%] ml-auto"},"$144","$146",1]
+4e:["$","div","l",{"className":"p-7","role":"status","aria-live":"polite","aria-label":"Loading the repository","children":[["$","div",null,{"className":"flex items-end gap-4 mb-6","children":[["$","div",null,{"className":"grid gap-2","children":["$57","$5c"]},"$51","$56",1],["$","div",null,{"className":"ml-auto flex gap-2","children":["$62","$67"]},"$51","$61",1]]},"$51","$55",1],["$","div",null,{"className":"flex gap-2 mb-4","children":["$6d","$72"]},"$51","$6c",1],["$","div",null,{"className":"bg-surface border border-line","children":[["$","div","0",{"className":"flex items-center gap-4 p-3 border-b border-line last:border-0","children":["$79","$7e","$83","$88","$8d"]},"$51","$78",0],["$","div","1",{"className":"flex items-center gap-4 p-3 border-b border-line last:border-0","children":["$93","$98","$9d","$a2","$a7"]},"$51","$92",0],["$","div","2",{"className":"flex items-center gap-4 p-3 border-b border-line last:border-0","children":["$ad","$b2","$b7","$bc","$c1"]},"$51","$ac",0],["$","div","3",{"className":"flex items-center gap-4 p-3 border-b border-line last:border-0","children":["$c7","$cc","$d1","$d6","$db"]},"$51","$c6",0],["$","div","4",{"className":"flex items-center gap-4 p-3 border-b border-line last:border-0","children":["$e1","$e6","$eb","$f0","$f5"]},"$51","$e0",0],["$","div","5",{"className":"flex items-center gap-4 p-3 border-b border-line last:border-0","children":["$fb","$100","$105","$10a","$10f"]},"$51","$fa",0],["$","div","6",{"className":"flex items-center gap-4 p-3 border-b border-line last:border-0","children":["$115","$11a","$11f","$124","$129"]},"$51","$114",0],["$","div","7",{"className":"flex items-center gap-4 p-3 border-b border-line last:border-0","children":["$12f","$134","$139","$13e","$143"]},"$51","$12e",0]]},"$51","$77",1],["$","span",null,{"className":"sr-only","children":["Loading ","the repository","â€¦"]},"$51","$148",1]]},"$51","$53",1]
+153:D"$157"
+153:D"$154"
+159:D"$15b"
+159:D"$15a"
+159:D"$15d"
+159:["$","$L15e",null,{"children":["$","$160",null,{"name":"Next.MetadataOutlet","children":"$@161"},"$15a","$15f",1]},"$15a","$15c",1]
+162:X
+164:D"$167"
+164:D"$165"
+164:D"$168"
+164:null
+169:D"$16b"
+169:D"$16a"
+169:D"$16d"
+16f:D"$171"
+16f:D"$170"
+169:["$","$L16e","52690c60v",{"children":"$L16f"},"$16a","$16c",1]
+172:D"$174"
+172:D"$173"
+172:D"$176"
+17a:D"$17c"
+17a:D"$17b"
+172:["$","div","52690c60m",{"hidden":true,"children":["$","$L178",null,{"children":["$","$160",null,{"name":"Next.Metadata","children":"$L17a"},"$173","$179",1]},"$173","$177",1]},"$173","$175",1]
+0:{"f":[[["",{"children":["(cms)",{"children":[["market","uk","d",["api","login"]],{"children":[["env","prod","d",[]],{"children":["repo",{"children":["__PAGE__",{},"$undefined","$undefined",4096]},"$undefined","$undefined",4100]},"$undefined","$undefined",4104]},"$undefined","$undefined",4104]},"$undefined","$undefined",4104]},"$undefined","$undefined",4120],[["$","$L2","layout",{"type":"layout","pagePath":"layout.tsx","children":["$","$4","c",{"children":[[["$","link","0",{"rel":"stylesheet","href":"/_next/static/chunks/%5Broot-of-the-server%5D__0m7lxu3._.css","precedence":"next_static/chunks/[root-of-the-server]__0m7lxu3._.css","crossOrigin":"$undefined","nonce":"$undefined"},null,"$5",0],["$","script","script-0",{"src":"/_next/static/chunks/node_modules_next_dist_20wefz_._.js","async":true,"nonce":"$undefined"},null,"$6",0]],"$7"]},null,"$3",1]},null,"$1",0],{"children":[["$","$4","c",{"children":[null,["$","$L16",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L18",null,{},null,"$2b",1],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":["$","$L2","c-not-found",{"type":"not-found","pagePath":"__next_builtin__not-found.js","children":["$2d",[]]},null,"$2c",0],"forbidden":"$undefined","unauthorized":"$undefined","segmentViewBoundaries":[["$","$L2",null,{"type":"boundary:not-found","pagePath":"__next_builtin__not-found.js@boundary"},null,"$3a",1],"$undefined","$undefined","$undefined"]},null,"$2a",1]]},null,"$29",0],{"children":[["$","$4","c",{"children":[null,["$","$L16",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L18",null,{},null,"$3d",1],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined","segmentViewBoundaries":["$undefined","$undefined","$undefined","$undefined"]},null,"$3c",1]]},null,"$3b",0],{"children":[["$","$L2","layout",{"type":"layout","pagePath":"(cms)/[market]/[env]/layout.tsx","children":["$","$4","c",{"children":[[["$","script","script-0",{"src":"/_next/static/chunks/_0j08iee._.js","async":true,"nonce":"$undefined"},null,"$40",0],["$","script","script-1",{"src":"/_next/static/chunks/node_modules_next_1cl1ox8._.js","async":true,"nonce":"$undefined"},null,"$41",0]],"$L42"]},null,"$3f",1]},null,"$3e",0],{"children":[["$","$L4c",null,{"loading":[["$","$L2","c-loading",{"type":"loading","pagePath":"(cms)/[market]/[env]/repo/loading.tsx","children":"$4e"},null,"$4d",0],[],null],"children":["$","$4","c",{"children":[null,["$","$L16",null,{"parallelRouterKey":"children","error":"$14b","errorStyles":["$","$L2",null,{"type":"error","pagePath":"(cms)/[market]/[env]/repo/error.tsx","children":[]},null,"$14c",0],"errorScripts":[["$","script","script-0",{"src":"/_next/static/chunks/_02ebz5j._.js","async":true,"nonce":"$undefined"},null,"$14d",0]],"template":["$","$L18",null,{},null,"$14e",1],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined","segmentViewBoundaries":["$undefined",["$","$L2",null,{"type":"boundary:loading","pagePath":"(cms)/[market]/[env]/repo/loading.tsx@boundary"},null,"$14f",1],["$","$L2",null,{"type":"boundary:error","pagePath":"(cms)/[market]/[env]/repo/error.tsx@boundary"},null,"$150",1],"$undefined"]},null,"$14a",1]]},null,"$149",0]},null,"$4b",2],{"children":[["$","$4","c",{"children":[["$","$L2","c-page",{"type":"page","pagePath":"(cms)/[market]/[env]/repo/page.tsx","children":"$L153"},null,"$152",1],[["$","script","script-0",{"src":"/_next/static/chunks/components_0_461l2._.js","async":true,"nonce":"$undefined"},null,"$158",0]],"$159"]},null,"$151",0],{},null,false,null]},null,false,"$162"]},null,false,null]},null,false,"$162"]},null,false,"$162"]},null,false,null],["$","$4","h",{"children":["$164","$169","$172"]},null,"$163",0],false]],"q":"","i":true,"S":false,"h":null,"r":"$undefined","b":"development"}
+162:C
+16f:D"$17d"
+16f:[["$","meta","0",{"charSet":"utf-8"},"$15a","$17e",0],["$","meta","1",{"name":"viewport","content":"width=device-width, initial-scale=1"},"$15a","$17f",0]]
+186:I["[project]/node_modules/next/dist/lib/metadata/generate/icon-mark.js [app-client] (ecmascript)",["/_next/static/chunks/node_modules_next_dist_20wefz_._.js"],"IconMark"]
+161:D"$180"
+161:null
+17a:D"$181"
+17a:[["$","title","0",{"children":"HSBC Content Management"},"$15a","$182",0],["$","meta","1",{"name":"description","content":"UCP authoring on the ContentLIBRE Management API"},"$15a","$183",0],["$","link","2",{"rel":"icon","href":"/favicon.ico?favicon.2vob68tjqpejf.ico","sizes":"256x256","type":"image/x-icon"},"$15a","$184",0],["$","$L186","3",{},"$15a","$185",0]]
+1a4:I["[project]/components/repo/RepoTree.tsx [app-client] (ecmascript)",["/_next/static/chunks/node_modules_next_dist_20wefz_._.js","/_next/static/chunks/_0j08iee._.js","/_next/static/chunks/node_modules_next_1cl1ox8._.js","/_next/static/chunks/components_0_461l2._.js"],"RepoTree"]
+1a7:I["[project]/components/shell/Session.tsx [app-client] (ecmascript)",["/_next/static/chunks/node_modules_next_dist_20wefz_._.js","/_next/static/chunks/_0j08iee._.js","/_next/static/chunks/node_modules_next_1cl1ox8._.js"],"SessionProvider"]
+1aa:I["[project]/components/shell/TopBar.tsx [app-client] (ecmascript)",["/_next/static/chunks/node_modules_next_dist_20wefz_._.js","/_next/static/chunks/_0j08iee._.js","/_next/static/chunks/node_modules_next_1cl1ox8._.js"],"TopBar"]
+1ac:I["[project]/components/shell/Palette.tsx [app-client] (ecmascript)",["/_next/static/chunks/node_modules_next_dist_20wefz_._.js","/_next/static/chunks/_0j08iee._.js","/_next/static/chunks/node_modules_next_1cl1ox8._.js"],"Palette"]
+1af:I["[project]/components/shell/SideNav.tsx [app-client] (ecmascript)",["/_next/static/chunks/node_modules_next_dist_20wefz_._.js","/_next/static/chunks/_0j08iee._.js","/_next/static/chunks/node_modules_next_1cl1ox8._.js"],"SideNav"]
+153:D"$18a"
+153:D"$18c"
+153:D"$18d"
+42:D"$191"
+42:D"$193"
+42:D"$194"
+153:D"$197"
+153:["$","div",null,{"className":"p-7","children":[["$","div",null,{"className":"flex items-end justify-between gap-4 mb-5","children":[["$","div",null,{"children":[["$","h1",null,{"className":"text-2xl font-semibold","children":"Repository (JCR)"},"$154","$19a",1],["$","p",null,{"className":"text-ink-3 text-[13px] mt-1","children":["Raw node tree behind the CMS. Backend: ",["$","b",null,{"className":"font-mono text-ink","children":"mock"},"$154","$19c",1],". Pages are ",["$","code",null,{"children":"cq:Page"},"$154","$19d",1],", content sits in ",["$","code",null,{"children":"jcr:content"},"$154","$19e",1],", components under ",["$","code",null,{"children":"jcr:content/root"},"$154","$19f",1],"."]},"$154","$19b",1]]},"$154","$199",1],["$","form",null,{"className":"flex gap-2","children":[["$","input",null,{"name":"path","defaultValue":"/content/uk","className":"border border-line px-3 py-2 text-[13px] font-mono w-[420px]","aria-label":"Repository path"},"$154","$1a1",1],["$","button",null,{"className":"btn btn-sm","children":"Go"},"$154","$1a2",1]]},"$154","$1a0",1]]},"$154","$198",1],["$","$L1a4",null,{"root":{"path":"/content/uk","name":"uk","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"HSBC UK","sling:resourceType":"hsbc/components/site"},"children":"$undefined"},{"path":"/content/uk/home","name":"home","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/home/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Home","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/hub","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"published","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-06T13:53:00Z","cq:lastModifiedBy":"jordan.mensah"},"children":[{"path":"/content/uk/home/jcr:content/root","name":"root","primaryType":"nt:unstructured","properties":{"sling:resourceType":"hsbc/components/container"},"children":[{"path":"/content/uk/home/jcr:content/root/mast_4xtxq9a","name":"mast_4xtxq9a","primaryType":"nt:unstructured","properties":{"sling:resourceType":"hsbc/components/mast","heading":"Home","intro":"One sentence that explains what this page is for.","cta":"","link":"#","image":"hero-cards","ucp:id":"4xtxq9a"},"children":"$undefined"},{"path":"/content/uk/home/jcr:content/root/contentmaster_80vi7q5","name":"contentmaster_80vi7q5","primaryType":"nt:unstructured","properties":{"sling:resourceType":"hsbc/components/contentmaster","heading":"What is a rewards credit card?","body":"Rewards cards earn you points as you use them. Then you can spend your points on shopping, travel and much more.","ucp:id":"80vi7q5"},"children":"$undefined"},{"path":"/content/uk/home/jcr:content/root/linktiles_2c8apv2","name":"linktiles_2c8apv2","primaryType":"nt:unstructured","properties":{"sling:resourceType":"hsbc/components/linktiles","heading":"Not the right type of card?","items":"Purchase credit cards | Buy now and spread the cost of all your purchases, large or small. | /credit-cards/purchase\nBalance transfer credit cards | Give yourself some breathing room with our balance transfer options. | /credit-cards/balance-transfer\nCredit-builder credit cards | Build your credit score when you spend and repay on time. | /credit-cards/credit-builder","ucp:id":"2c8apv2"},"children":"$undefined"},{"path":"/content/uk/home/jcr:content/root/banner_eyssskz","name":"banner_eyssskz","primaryType":"nt:unstructured","properties":{"sling:resourceType":"hsbc/components/banner","heading":"Ready to get started?","text":"It takes about five minutes to apply online.","cta":"Apply now","link":"#","style":"dark","ucp:id":"eyssskz"},"children":"$undefined"}]}]}]},{"path":"/content/uk/banking","name":"banking","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/banking/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Banking","sling:resourceType":"hsbc/components/folder","cq:template":"/conf/hsbc/settings/wcm/templates/folder"},"children":"$undefined"},{"path":"/content/uk/banking/current-accounts","name":"current-accounts","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/banking/current-accounts/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Current accounts","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/hub","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"published","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-04T11:45:00Z","cq:lastModifiedBy":"jordan.mensah"},"children":[{"path":"/content/uk/banking/current-accounts/jcr:content/root","name":"root","primaryType":"nt:unstructured","properties":{"sling:resourceType":"hsbc/components/container"},"children":"$undefined"}]}]},{"path":"/content/uk/banking/savings","name":"savings","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/banking/savings/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Savings","sling:resourceType":"hsbc/components/folder","cq:template":"/conf/hsbc/settings/wcm/templates/folder"},"children":"$undefined"},{"path":"/content/uk/banking/savings/cash-isa","name":"cash-isa","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/banking/savings/cash-isa/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"ucp:sentBy":"rachel.hughes","ucp:sentAt":"2027-09-19T17:10:00Z","jcr:title":"Cash ISA","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/rates","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"approved","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-01T08:12:00Z","cq:lastModifiedBy":"sunita.patel"},"children":"$undefined"}]},{"path":"/content/uk/banking/savings/fixed-rate-bonds","name":"fixed-rate-bonds","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/banking/savings/fixed-rate-bonds/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Fixed rate bonds","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/rates","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"draft","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-12T10:35:00Z","cq:lastModifiedBy":"jordan.mensah"},"children":"$undefined"}]},{"path":"/content/uk/banking/savings/easy-access","name":"easy-access","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/banking/savings/easy-access/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Easy access saver","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/rates","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"published","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-05T12:40:00Z","cq:lastModifiedBy":"jordan.mensah"},"children":"$undefined"}]}]}]},{"path":"/content/uk/borrowing","name":"borrowing","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/borrowing/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Borrowing","sling:resourceType":"hsbc/components/folder","cq:template":"/conf/hsbc/settings/wcm/templates/folder"},"children":"$undefined"},{"path":"/content/uk/borrowing/credit-cards","name":"credit-cards","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/borrowing/credit-cards/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Credit cards","sling:resourceType":"hsbc/components/folder","cq:template":"/conf/hsbc/settings/wcm/templates/folder"},"children":"$undefined"},{"path":"/content/uk/borrowing/credit-cards/overview","name":"overview","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/borrowing/credit-cards/overview/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Credit cards","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/hub","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"published","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-16T14:39:00Z","cq:lastModifiedBy":"elin.llewelyn"},"children":"$undefined"}]},{"path":"/content/uk/borrowing/credit-cards/rewards-credit-cards","name":"rewards-credit-cards","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/borrowing/credit-cards/rewards-credit-cards/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"ucp:sentBy":"anna.kowalczyk","ucp:sentAt":"2027-09-20T08:20:00Z","jcr:title":"Rewards credit cards","jcr:description":"","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/product","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"review","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2026-09-22T03:39:27.357Z","cq:lastModifiedBy":"jordan.mensah"},"children":"$undefined"}]},{"path":"/content/uk/borrowing/credit-cards/purchase","name":"purchase","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/borrowing/credit-cards/purchase/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Purchase credit cards","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/product","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"published","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-06T13:11:00Z","cq:lastModifiedBy":"anna.kowalczyk"},"children":"$undefined"}]},{"path":"/content/uk/borrowing/credit-cards/balance-transfer","name":"balance-transfer","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/borrowing/credit-cards/balance-transfer/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Balance transfer credit cards","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/product","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"published","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-15T13:56:00Z","cq:lastModifiedBy":"anna.kowalczyk"},"children":"$undefined"}]},{"path":"/content/uk/borrowing/credit-cards/credit-builder","name":"credit-builder","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/borrowing/credit-cards/credit-builder/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Credit-builder credit cards","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/product","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"draft","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-12T10:35:00Z","cq:lastModifiedBy":"jordan.mensah"},"children":"$undefined"}]}]},{"path":"/content/uk/borrowing/mortgages","name":"mortgages","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/borrowing/mortgages/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Mortgages","sling:resourceType":"hsbc/components/folder","cq:template":"/conf/hsbc/settings/wcm/templates/folder"},"children":"$undefined"},{"path":"/content/uk/borrowing/mortgages/overview","name":"overview","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/borrowing/mortgages/overview/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Mortgages","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/hub","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"published","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-14T12:43:00Z","cq:lastModifiedBy":"jordan.mensah"},"children":"$undefined"}]},{"path":"/content/uk/borrowing/mortgages/rates","name":"rates","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/borrowing/mortgages/rates/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Mortgage rates","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/rates","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"failed","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-12T10:59:00Z","cq:lastModifiedBy":"elin.llewelyn"},"children":"$undefined"}]}]},{"path":"/content/uk/borrowing/loans","name":"loans","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/borrowing/loans/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Loans","sling:resourceType":"hsbc/components/folder","cq:template":"/conf/hsbc/settings/wcm/templates/folder"},"children":"$undefined"},{"path":"/content/uk/borrowing/loans/overview","name":"overview","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/borrowing/loans/overview/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Personal loans","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/hub","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"published","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-18T16:35:00Z","cq:lastModifiedBy":"jordan.mensah"},"children":"$undefined"}]}]}]},{"path":"/content/uk/investing","name":"investing","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/investing/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Investing","sling:resourceType":"hsbc/components/folder","cq:template":"/conf/hsbc/settings/wcm/templates/folder"},"children":"$undefined"},{"path":"/content/uk/investing/overview","name":"overview","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/investing/overview/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Investing","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/hub","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"published","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-04T11:45:00Z","cq:lastModifiedBy":"jordan.mensah"},"children":[{"path":"/content/uk/investing/overview/jcr:content/root","name":"root","primaryType":"nt:unstructured","properties":{"sling:resourceType":"hsbc/components/container"},"children":"$undefined"}]}]},{"path":"/content/uk/investing/ready-made","name":"ready-made","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/investing/ready-made/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"ucp:sentBy":"sunita.patel","ucp:sentAt":"2027-09-18T11:15:00Z","jcr:title":"Ready-made investments","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/product","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"review","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-12T10:23:00Z","cq:lastModifiedBy":"jordan.mensah"},"children":[{"path":"/content/uk/investing/ready-made/jcr:content/root","name":"root","primaryType":"nt:unstructured","properties":{"sling:resourceType":"hsbc/components/container"},"children":"$undefined"}]}]}]},{"path":"/content/uk/insurance","name":"insurance","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/insurance/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Insurance","sling:resourceType":"hsbc/components/folder","cq:template":"/conf/hsbc/settings/wcm/templates/folder"},"children":"$undefined"},{"path":"/content/uk/insurance/home-insurance","name":"home-insurance","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/insurance/home-insurance/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Home insurance","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/product","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"published","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-18T16:41:00Z","cq:lastModifiedBy":"anna.kowalczyk"},"children":[{"path":"/content/uk/insurance/home-insurance/jcr:content/root","name":"root","primaryType":"nt:unstructured","properties":{"sling:resourceType":"hsbc/components/container"},"children":"$undefined"}]}]}]},{"path":"/content/uk/campaigns","name":"campaigns","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/campaigns/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Campaigns","sling:resourceType":"hsbc/components/folder","cq:template":"/conf/hsbc/settings/wcm/templates/folder"},"children":"$undefined"},{"path":"/content/uk/campaigns/autumn-rates","name":"autumn-rates","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/campaigns/autumn-rates/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"ucp:sentBy":"michael.osei","ucp:publishAt":"2027-10-01T06:00:00Z","jcr:title":"Autumn rates campaign","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/campaign","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"scheduled","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-11T09:16:00Z","cq:lastModifiedBy":"anna.kowalczyk"},"children":[{"path":"/content/uk/campaigns/autumn-rates/jcr:content/root","name":"root","primaryType":"nt:unstructured","properties":{"sling:resourceType":"hsbc/components/container"},"children":"$undefined"}]}]}]},{"path":"/content/uk/help","name":"help","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/help/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Help","sling:resourceType":"hsbc/components/folder","cq:template":"/conf/hsbc/settings/wcm/templates/folder"},"children":"$undefined"},{"path":"/content/uk/help/contact","name":"contact","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/help/contact/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Contact us","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/hub","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"published","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-09T16:08:00Z","cq:lastModifiedBy":"jordan.mensah"},"children":[{"path":"/content/uk/help/contact/jcr:content/root","name":"root","primaryType":"nt:unstructured","properties":{"sling:resourceType":"hsbc/components/container"},"children":"$undefined"}]}]},{"path":"/content/uk/help/branch-finder","name":"branch-finder","primaryType":"cq:Page","properties":{},"children":[{"path":"/content/uk/help/branch-finder/jcr:content","name":"jcr:content","primaryType":"cq:PageContent","properties":{"jcr:title":"Branch finder","jcr:description":"$undefined","navTitle":"$undefined","hideInNav":"$undefined","cq:template":"/conf/hsbc/settings/wcm/templates/hub","jcr:language":"en-GB","sling:resourceType":"hsbc/components/page","ucp:status":"published","jcr:created":"2027-08-20T09:00:00Z","cq:lastModified":"2027-09-02T09:19:00Z","cq:lastModifiedBy":"elin.llewelyn"},"children":[{"path":"/content/uk/help/branch-finder/jcr:content/root","name":"root","primaryType":"nt:unstructured","properties":{"sling:resourceType":"hsbc/components/container"},"children":"$undefined"}]}]}]}]},"base":"/uk/prod","marketRoot":"/content/uk"},"$154","$1a3",1]]},"$154","$196",1]
+42:D"$1a6"
+42:["$","$L1a7",null,{"user":{"id":"jordan.mensah","path":"/home/users/jordan.mensah","name":"Jordan Mensah","email":"jordan.mensah@hsbc.com","role":"publisher","team":"Savings & Mortgages","perms":{"root":{"read":true,"edit":true,"review":true,"publish":true}}},"marketRoot":"/content/uk","children":["$","div",null,{"className":"cms-shell h-screen min-w-[768px] grid grid-rows-[52px_1fr]","children":[["$","$L1aa",null,{"marketId":"uk","envId":"prod"},"$43","$1a9",1],["$","$L1ac",null,{"marketId":"uk","envId":"prod"},"$43","$1ab",1],["$","div",null,{"className":"grid grid-cols-[auto_1fr] min-h-0","children":[["$","$L1af",null,{"marketId":"uk","envId":"prod"},"$43","$1ae",1],["$","main",null,{"className":"overflow-auto min-w-0","children":["$","$L16",null,{"parallelRouterKey":"children","error":"$undefined","errorStyles":"$undefined","errorScripts":"$undefined","template":["$","$L18",null,{},null,"$1b2",1],"templateStyles":"$undefined","templateScripts":"$undefined","notFound":"$undefined","forbidden":"$undefined","unauthorized":"$undefined","segmentViewBoundaries":["$undefined","$undefined","$undefined","$undefined"]},null,"$1b1",1]},"$43","$1b0",1]]},"$43","$1ad",1]]},"$43","$1a8",1]},"$43","$1a5",1]

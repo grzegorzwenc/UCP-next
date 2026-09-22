@@ -2,7 +2,9 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { repoApi, ApiError } from "@/lib/api";
+import { repoApi } from "@/lib/api";
+import { errorText as errText } from "@/lib/api/errors";
+import { useSession } from "@/components/shell/Session";
 import type { Model, ModelField } from "@/lib/ucp/types";
 import { FIELD_TYPES } from "@/lib/ucp/seed";
 import { PATHS } from "@/lib/ucp/paths";
@@ -17,13 +19,13 @@ type Props = { base: string; marketName: string; marketRoot: string; locales: st
 
 export const camel = (s: string) => { const w = s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").trim().split(/\s+/).filter(Boolean); return w.map((x, i) => (i ? x[0].toUpperCase() + x.slice(1) : x)).join(""); };
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-const errText = (e: unknown) => (e instanceof ApiError ? `${e.problem.title} · request ${e.requestId ?? "?"}` : String(e));
 const Ico = ({ core, big }: { core: boolean; big?: boolean }) => <span className={`grid place-items-center rounded-md flex-none ${big ? "w-10 h-10" : "w-6 h-6"} ${core ? "bg-accent-soft text-accent" : "bg-info-soft text-info"}`}><svg viewBox="0 0 24 24" className={big ? "w-5 h-5" : "w-3.5 h-3.5"} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d={core ? "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z" : "M4 5h16v14H4zM4 10h16M9 10v9"} /></svg></span>;
 const inp = "border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink bg-surface w-full";
 const Toggle = ({ on, onClick, title, disabled }: { on: boolean; onClick: () => void; title: string; disabled?: boolean }) => <button type="button" role="switch" aria-checked={on} title={title} disabled={disabled} onClick={onClick} className={`w-7 h-7 rounded-md border grid place-items-center text-[13px] font-bold ${on ? "bg-good text-white border-good" : "bg-surface-3 border-line-2 text-transparent"} disabled:opacity-60`}>✓</button>;
 
 export function Models(p: Props) {
-  const router = useRouter();
+  const router = useRouter(); const { user, can } = useSession();
+  const canManage = user.role === "admin" || can("manage", p.marketRoot);
   const [q, setQ] = useState(""); const [toast, setToast] = useState(""); const [busy, setBusy] = useState(false); const [newOpen, setNewOpen] = useState(false);
   const md = p.models.find((m) => m.id === p.selectedId) ?? p.models[0];
   const groups = [...new Set(p.models.map((m) => m.group))];
@@ -33,7 +35,7 @@ export function Models(p: Props) {
 
   /** Persist a new field list on the model node; bumps the version when `bump` is set. */
   const save = async (fields: ModelField[], text: string, bump = true) => {
-    if (!md || md.locked) return; setBusy(true);
+    if (!md || md.locked || !canManage) return; setBusy(true);
     try { const version = bump ? md.version + 1 : md.version; await repoApi.setProps(md.path ?? `${PATHS.models}/${md.id}`, { "ucp:fields": JSON.stringify(fields), "ucp:version": version }, { text: `${text} (v${version})`, target: "models" }); router.refresh(); return true; }
     catch (e) { say(errText(e)); return false; } finally { setBusy(false); }
   };
@@ -41,16 +43,16 @@ export function Models(p: Props) {
   const toggle = (i: number, k: "req" | "loc") => { const fs = md.fields.map((f, j) => (j === i ? { ...f, [k]: !f[k] } : f)); save(fs, `${fs[i][k] ? "set" : "unset"} “${fs[i].l}” ${k === "req" ? "required" : "localised"} on model ${md.name}`); };
   const move = (i: number, d: number) => { const j = i + d; if (j < 0 || j >= md.fields.length) return; const fs = [...md.fields]; [fs[i], fs[j]] = [fs[j], fs[i]]; save(fs, `reordered fields of model ${md.name}`, false); };
   const remove = async (i: number) => { const f = md.fields[i]; if (!confirm(`Remove field “${f.l}” from ${md.name}?`)) return; if (await save(md.fields.filter((_, j) => j !== i), `removed field “${f.l}” from model ${md.name}`)) say("Field removed"); };
-  const del = async () => { if (!md || md.locked) return; if (!confirm("Delete this model? Content using it will keep its data but lose validation.")) return; setBusy(true); try { await repoApi.deleteNode(md.path ?? `${PATHS.models}/${md.id}`, { text: `deleted model ${md.name}`, target: "models" }); say("Model deleted"); router.push(`${p.base}/models`); router.refresh(); } catch (e) { say(errText(e)); } finally { setBusy(false); } };
+  const del = async () => { if (!md || md.locked || !canManage) return; if (!confirm("Delete this model? Content using it will keep its data but lose validation.")) return; setBusy(true); try { await repoApi.deleteNode(md.path ?? `${PATHS.models}/${md.id}`, { text: `deleted model ${md.name}`, target: "models" }); say("Model deleted"); router.push(`${p.base}/models`); router.refresh(); } catch (e) { say(errText(e)); } finally { setBusy(false); } };
   const create = async (name: string, first?: ModelField) => { const id = slugify(name); if (!id) return; if (p.models.some((m) => m.id === id)) { say(`A model with id “${id}” already exists`); return; } setBusy(true); try { await repoApi.createNode(`${PATHS.models}/${id}`, "nt:unstructured", { "jcr:title": name.trim(), "ucp:group": "Core", "ucp:version": 1, "ucp:source": "Custom", "ucp:fields": JSON.stringify(first ? [first] : []) }, { text: `created model ${name.trim()}`, target: "models" }); setNewOpen(false); say(`Model “${name.trim()}” created`); router.push(link(id, "fields")); router.refresh(); } catch (e) { say(errText(e)); } finally { setBusy(false); } };
 
   if (!md) return <div className="p-7"><div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">No models yet.</div></div>;
-  const isBlock = md.id.startsWith("block-"); const locked = !!md.locked;
+  const isBlock = md.id.startsWith("block-"); const locked = !!md.locked || !canManage;
   const TABS: [ModelTab, string][] = [["fields", "Fields"], ["diagram", isBlock ? "Rendered preview" : "Diagram"], ["form", "Form preview"], ["config", "Config"]];
   return (
     <div className="p-7">
       <div className="flex items-end gap-4 mb-5"><div><h1 className="text-2xl font-semibold">Content models</h1><p className="text-ink-3 text-[13px] mt-1">The structure behind every page, content item and block</p></div>
-        <div className="ml-auto flex gap-2"><button className="btn btn-primary" onClick={() => setNewOpen(true)}>＋ New model</button></div></div>
+        <div className="ml-auto flex gap-2 items-center">{canManage ? <button className="btn btn-primary" onClick={() => setNewOpen(true)}>＋ New model</button> : <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="Only site admins (Manage) can change content models."><span aria-hidden="true">🔒</span>Read-only · ask a site admin to change models</span>}</div></div>
       <div className="grid grid-cols-[280px_1fr] gap-4 items-start">
         <aside className="bg-surface border border-line rounded-lg p-2.5 sticky top-0">
           <label className="flex items-center gap-2 border border-line-2 rounded-md px-2.5 py-1.5 mb-2"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px] bg-transparent" placeholder="Find a model" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a model" /></label>
@@ -61,9 +63,10 @@ export function Models(p: Props) {
           </div>; })}
         </aside>
         <section className="bg-surface border border-line rounded-lg p-5 min-w-0">
-          <div className="flex items-center gap-3 mb-3 flex-wrap"><Ico core={!isBlock} big /><div className="min-w-0"><h2 className="text-[22px] font-semibold leading-tight">{md.name}</h2><p className="text-[13px] text-ink-3 flex items-center gap-2 flex-wrap mt-0.5"><span className="font-mono">/v1/models/{md.id}</span>·{locked ? <Pill status="draft" label="Read-only · from the Sling component dialog" /> : <Pill status="published" label={`v${md.version} · editable`} />}·<span>{md.source}</span></p></div>
+          <div className="flex items-center gap-3 mb-3 flex-wrap"><Ico core={!isBlock} big /><div className="min-w-0"><h2 className="text-[22px] font-semibold leading-tight">{md.name}</h2><p className="text-[13px] text-ink-3 flex items-center gap-2 flex-wrap mt-0.5"><span className="font-mono">/v1/models/{md.id}</span>·{md.locked ? <Pill status="draft" label="Read-only · from the Sling component dialog" /> : !canManage ? <Pill status="draft" label={`v${md.version} · read-only for you`} /> : <Pill status="published" label={`v${md.version} · editable`} />}·<span>{md.source}</span></p></div>
             <div className="ml-auto flex gap-2"><Link className="btn btn-sm" href={`${p.base}/api?tab=models&model=${md.id}`}>View JSON schema</Link>{!locked && <button className="btn btn-sm" disabled={busy} onClick={del}>Delete model</button>}</div></div>
-          {locked && <div className="bg-info-soft text-info px-3 py-2 rounded-md text-[12.5px] mb-3">This block type is translated from the Sling component dialog. Fields are read-only here; change the source dialog to update them.</div>}
+          {!md.locked && !canManage && <div className="bg-info-soft text-info px-3 py-2 rounded-md text-[12.5px] mb-3">Only site admins can change content models. You can read every field and the schema here.</div>}
+          {md.locked && <div className="bg-info-soft text-info px-3 py-2 rounded-md text-[12.5px] mb-3">This block type is translated from the Sling component dialog. Fields are read-only here; change the source dialog to update them.</div>}
           <div className="flex gap-1 border-b border-line mb-4">{TABS.map(([t, l]) => <Link key={t} href={link(md.id, t)} className={`px-3 py-2 text-[13.5px] -mb-px border-b-2 ${p.tab === t ? "border-accent text-ink font-semibold" : "border-transparent text-ink-3 hover:text-ink"}`}>{l}</Link>)}</div>
 
           {p.tab === "diagram" && (isBlock ? <BlockPreview type={md.id.slice(6)} /> : <Diagram models={p.models.filter((m) => !m.id.startsWith("block-"))} selected={md.id} link={(id) => link(id, "diagram")} />)}
@@ -84,7 +87,7 @@ export function Models(p: Props) {
           </>}
         </section>
       </div>
-      {newOpen && <NewModel busy={busy} onClose={() => setNewOpen(false)} onCreate={create} />}
+      {newOpen && canManage && <NewModel busy={busy} onClose={() => setNewOpen(false)} onCreate={create} />}
       {toast && <div role="status" className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] z-50">{toast}</div>}
     </div>
   );
