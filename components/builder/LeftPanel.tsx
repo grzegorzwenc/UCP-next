@@ -19,8 +19,8 @@ export function LeftPanel({ tab, setTab, phone, width = 320, onResizeStart, bloc
   return (
     <aside data-ui style={phone ? undefined : { width }} className={phone ? "absolute inset-x-0 top-0 bottom-12 bg-surface flex flex-col z-[5]" : "absolute left-[52px] top-0 bottom-0 max-w-[calc(100%-52px)] bg-surface border-r border-line flex flex-col z-[5] shadow-xl md:shadow-none"}>
       {!phone && onResizeStart && <div role="separator" aria-orientation="vertical" aria-label="Resize panel" title="Drag to resize" onMouseDown={onResizeStart} className="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize hover:bg-accent/30 active:bg-accent/40 z-10" />}
-      <div className="flex items-center px-2 pt-2 border-b border-line">
-        {(["add", "outline"] as const).map((t) => <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t} className={`px-3 py-2 text-[13px] font-medium border-b-2 -mb-px ${tab === t ? "border-accent text-ink" : "border-transparent text-ink-3 hover:text-ink"}`}>{t === "add" ? "＋ Add" : `Outline · ${blocks.length}`}</button>)}
+      <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line">
+        <b className="text-[13.5px]">{tab === "add" ? "Add a component" : `Page outline · ${blocks.length} block${blocks.length === 1 ? "" : "s"}`}</b>
         <button type="button" className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={onClose} aria-label="Close panel">✕</button>
       </div>
       {tab === "add" ? <>
@@ -44,7 +44,7 @@ export function LeftPanel({ tab, setTab, phone, width = 320, onResizeStart, bloc
             <button type="button" onClick={() => onSelect(b.id)} className="min-w-0 text-left"><b className={`block text-[13px] truncate ${on ? "text-accent-hover" : "text-ink"}`}>{def.name}{b.props.hidden ? <small className="ml-1.5 font-normal text-ink-3">hidden</small> : null}{b.props.locked ? <small className="ml-1.5 font-normal text-ink-3">🔒</small> : null}{missing ? <small className="ml-1.5 font-normal text-crit">{missing} required</small> : null}</b><small className="block text-[11.5px] text-ink-3 truncate">{snippet ?? def.desc}</small></button>
             {canEdit && <span className="flex opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"><button type="button" className="w-6 h-6 rounded text-ink-3 hover:bg-surface-3 disabled:opacity-30" disabled={i === 0} onClick={() => onMove(b.id, -1)} aria-label="Move up">↑</button><button type="button" className="w-6 h-6 rounded text-ink-3 hover:bg-surface-3 disabled:opacity-30" disabled={i === blocks.length - 1} onClick={() => onMove(b.id, 1)} aria-label="Move down">↓</button><button type="button" className="w-6 h-6 rounded text-ink-3 hover:bg-crit-soft hover:text-crit" onClick={() => onRemove(b.id)} aria-label="Remove">✕</button></span>}
           </li>; })}</ol>
-        : <div className="p-6 text-center text-ink-3 text-[13px]">No blocks yet. Add the first one from the Add tab.</div>}
+        : <div className="p-6 text-center text-ink-3 text-[13px]">No blocks yet. <button type="button" className="underline text-ink" onClick={() => setTab("add")}>Add the first one</button>.</div>}
       </div>}
     </aside>
   );
