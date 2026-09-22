@@ -81,8 +81,6 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
       </div>
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <label className="flex items-center gap-2 bg-surface border border-line-2 rounded-md px-2.5 py-1.5 min-w-[260px]"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px]" placeholder="Search tasks, pages, people" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search tasks" /></label>
-        <div role="group" aria-label="Task type" className="inline-flex border border-line-2 rounded-lg overflow-hidden bg-surface">{["", ...KINDS].map((k) => { const n = k ? tasks.filter((t) => t.kind === k).length : tasks.length; return <button key={k || "all"} type="button" aria-pressed={kind === k} onClick={() => setKind(k)} className={`px-3 h-8 text-[12.5px] font-medium border-r border-line-2 last:border-r-0 ${kind === k ? "bg-ink text-white" : "text-ink-2 hover:bg-surface-2"}`}>{k || "All"} <span className={`ml-1 tabular-nums ${kind === k ? "text-white/70" : "text-ink-4"}`}>{n}</span></button>; })}</div>
-        {(q || kind || when || sort !== "due" || dir !== "asc") && <button className="btn btn-sm" onClick={() => { setQ(""); setKind(""); setWhen(""); setSort("due"); setDir("asc"); }}>Clear</button>}
         <span className="ml-auto text-[12.5px] text-ink-3">{rows.length} of {tasks.length}</span>
       </div>
       {rows.length ? (
