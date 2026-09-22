@@ -1,5 +1,6 @@
 "use client";
 import { ViewToggle } from "@/components/ui/ViewToggle";
+import { FolderList } from "@/components/ui/FolderList";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -61,17 +62,15 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
   const createFolder = () => { const name = folderName.trim(); if (!name) return; run("folder", async () => { await repoApi.createNode(`/content/dam/${marketId}/${name}`, "sling:Folder", { "jcr:title": name }, { text: `created asset folder ${name}`, target: "assets" }); setNewFolder(false); setFolderName(""); say(`Created folder ${name}`); go(`?folder=${encodeURIComponent(name)}`); }); };
 
   const onDrop = (e: React.DragEvent) => { e.preventDefault(); setDrag(false); const files = Array.from(e.dataTransfer.files ?? []); if (files.length) upload(files, folder || "Uploads"); };
-  const treeItem = (on: boolean, label: string, n: number, onClick: () => void, icon: string) => <button key={label} onClick={onClick} className={`w-full flex items-center gap-2 text-left text-[13px] px-2 py-1.5 rounded-md hover:bg-surface-2 ${on ? "bg-surface-3 font-medium" : ""}`}><span className="text-ink-4 w-4 text-center">{icon}</span><span className="truncate">{label}</span><span className="ml-auto text-[11.5px] text-ink-3 font-mono">{n}</span></button>;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] grid-rows-[auto_1fr] md:grid-rows-1 h-full min-h-0">
       <aside className="bg-surface border-r border-line p-3 overflow-auto">
-        <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mb-2">{flag} Asset library</h6>
-        {treeItem(!folder && !view, "All assets", assets.length, () => go(""), "▣")}
-        <div className="pl-3">{folders.map((f) => treeItem(folder === f, f, assets.filter((x) => x.folder === f).length, () => go(`?folder=${encodeURIComponent(f)}`), "▪"))}</div>
+        <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mb-2">Asset library</h6>
+        <FolderList root={{ label: `${flag} All assets`, count: assets.length, active: !folder && !view, onClick: () => go("") }} items={folders.map((f) => ({ key: f, label: f, count: assets.filter((x) => x.folder === f).length, active: folder === f, onClick: () => go(`?folder=${encodeURIComponent(f)}`) }))} />
         {canEdit && <button className="btn btn-quiet btn-sm mt-2.5 ml-1" onClick={() => setNewFolder(true)}>＋ New folder</button>}
         <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mt-5 mb-2">Smart views</h6>
-        <div className="pl-3">{treeItem(view === "unused", "Not used on any page", unusedCount, () => go("?view=unused"), "▫")}{treeItem(view === "noalt", "Images missing alt text", noAlt.length, () => go("?view=noalt"), "▫")}</div>
+        <FolderList root={{ label: "Needs attention", count: unusedCount + noAlt.length }} items={[{ key: "unused", label: "Not used on any page", count: unusedCount, active: view === "unused", onClick: () => go("?view=unused"), icon: "page" }, { key: "noalt", label: "Images missing alt text", count: noAlt.length, active: view === "noalt", onClick: () => go("?view=noalt"), icon: "page" }]} />
       </aside>
 
       <div className={`p-7 overflow-auto min-h-0 relative ${drag ? "outline outline-2 outline-dashed outline-accent -outline-offset-8" : ""}`} onDragOver={(e) => { if (canEdit && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDrag(true); } }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false); }} onDrop={onDrop}>

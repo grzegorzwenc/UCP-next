@@ -112,6 +112,8 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 /* Focus mode (builder ⌘⇧F): body.focus hides the top bar and side nav so the canvas fills the window. Toggled in components/builder/Builder.tsx. */
 body.focus .cms-shell { grid-template-rows: 1fr; }
 body.focus .cms-shell > header, body.focus .cms-shell nav[aria-label="Main"] { display: none; }
+/* with the nav gone, main must own the whole row (otherwise it lands in the collapsed `auto` column) */
+body.focus .cms-shell > div { grid-template-columns: 1fr; }
 
 /* ---- Page renditions: what the builder shows for the tablet and mobile breakpoints of hsbc.co.uk ---- */
 .site.tablet .cblk { padding: 18px 20px; } .site.tablet .s-mast { margin: -18px -20px 0; padding: 28px 28px; }

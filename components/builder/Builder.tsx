@@ -30,7 +30,7 @@ const AI_EXAMPLES: { title: string; items: [string, string, string][] }[] = [
 ];
 const LEFT_RAIL: ["add" | "outline", string, string][] = [["add", "Add a component", "M12 5v14M5 12h14"], ["outline", "Page outline", "M4 6h16M4 12h16M4 18h10M18 16l2 2 3-3"]];
 const RAIL: [ "block" | "page" | "ai" | "insights" | "history", string, string][] = [["block", "Component settings", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"], ["page", "Page settings", "M6 3h8l5 5v13H6zM14 3v5h5M9 13h6M9 17h6"], ["ai", "AI assistant", "M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 15l.6 1.6L7.2 17l-1.6.6L5 19.2l-.6-1.6L2.8 17l1.6-.4z"], ["insights", "Page insights", "M12 3a9 9 0 1 0 9 9M12 3v9l6.4-6.4M12 12l4 4"], ["history", "Version history", "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"]];
-const STEPS = [["Add blocks", "Click: open Components"], ["Fill in content", "Click: jump to next empty field"], ["Preview", "Click: toggle visitor view"], ["Send for review", "Click: send to a reviewer"], ["In review", "Click: approve (reviewers)"], ["Publish", "Click: put it live"], ["Published", "Live for customers"]];
+const STEPS = [["Add blocks", "Click: open Components"], ["Fill in content", "Click: jump to next empty field"], ["Preview", "Click: see it exactly as visitors will (full screen)"], ["Send for review", "Click: send to a reviewer"], ["In review", "Click: approve (reviewers)"], ["Publish", "Click: put it live"], ["Published", "Live for customers"]];
 
 /**
  * Interaction model (three levels):
@@ -134,19 +134,20 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const undoAllAi = (task: AiTask) => { task.done.slice().reverse().forEach((id) => undoAiOp(task, id)); say("Changes undone"); };
 
   /* ---- Focus mode (⌘⇧F): body.focus hides the top bar and side nav (CSS in globals.css); other parts of the shell can listen to ucp:focus. ---- */
-  const panelsBeforeFocus = useRef<{ left: boolean; right: boolean } | null>(null);
+  const panelsBeforeFocus = useRef<{ left: boolean; right: boolean; preview: boolean } | null>(null);
+  const [fsHint, setFsHint] = useState(false);
+  const leaveFocusState = () => { setFocus(false); document.body.classList.remove("focus"); window.dispatchEvent(new CustomEvent("ucp:focus", { detail: { on: false } })); const b = panelsBeforeFocus.current; if (b) { setLeftRaw(b.left); setRight(b.right); setPreviewRaw(b.preview); panelsBeforeFocus.current = null; } };
   const setFocusMode = (on: boolean) => {
-    // Full screen shows the page alone: panels close (and come back when you leave), the canvas is centred.
-    if (on) { panelsBeforeFocus.current = { left, right }; setLeftRaw(false); setRight(false); setPop(null); }
-    else if (panelsBeforeFocus.current) { setLeftRaw(panelsBeforeFocus.current.left); setRight(panelsBeforeFocus.current.right); panelsBeforeFocus.current = null; }
-    setFocus(on); document.body.classList.toggle("focus", on); window.dispatchEvent(new CustomEvent("ucp:focus", { detail: { on } }));
+    // Full screen = the page exactly as visitors see it: no toolbar, no block outlines, no panels. Esc brings the authoring layout back.
+    if (on) { panelsBeforeFocus.current = { left, right, preview }; setLeftRaw(false); setRight(false); setPop(null); if (editing) commitInline(true); select(null); setPreviewRaw(true); setFocus(true); document.body.classList.add("focus"); window.dispatchEvent(new CustomEvent("ucp:focus", { detail: { on: true } })); setFsHint(true); setTimeout(() => setFsHint(false), 3500); }
+    else leaveFocusState();
     // Real full screen: the browser chrome goes away too. Fails silently where the API is blocked (then only the CMS chrome hides).
     if (on && !document.fullscreenElement) document.documentElement.requestFullscreen?.().catch(() => {});
     if (!on && document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
   };
   useEffect(() => {
     // Leaving full screen with the browser's own Esc / gesture must also leave focus mode.
-    const onFs = () => { if (!document.fullscreenElement && document.body.classList.contains("focus")) { setFocus(false); document.body.classList.remove("focus"); window.dispatchEvent(new CustomEvent("ucp:focus", { detail: { on: false } })); } };
+    const onFs = () => { if (!document.fullscreenElement && document.body.classList.contains("focus")) leaveFocusState(); };
     document.addEventListener("fullscreenchange", onFs);
     return () => { document.removeEventListener("fullscreenchange", onFs); document.body.classList.remove("focus"); if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {}); };
   }, []);
@@ -227,12 +228,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (e.key === "Enter" && !e.shiftKey && !editing.key.includes("|p|")) { e.preventDefault(); commitInline(true); say("Saved"); }
   }
 
-  const nextTxt = cur === 0 ? "Add your first block from Components" : cur === 1 ? `Fill in ${missing} required field${missing === 1 ? "" : "s"}` : cur === 2 ? "Check the preview, then send for review" : cur === 4 ? "Waiting for a reviewer" : cur === 5 ? "Approved. Publish when ready" : `Live on ${domain}`;
+  const nextTxt = cur === 0 ? "Add your first block from Components" : cur === 1 ? `Fill in ${missing} required field${missing === 1 ? "" : "s"}` : cur === 2 ? "Check it in full screen, then send for review" : cur === 4 ? "Waiting for a reviewer" : cur === 5 ? "Approved. Publish when ready" : `Live on ${domain}`;
   const flowClick = (i: number) => {
+    if (i === 2) { setFocusMode(true); return; }
     if (i <= 2 && cur >= 4) { if (confirm("Reopen this page as a draft?")) transition("draft", "Back to draft"); return; }
     if (i === 0) { setPreview(false); setLeft(true); return; }
     if (i === 1) { setPreview(false); const b = blocks.find((x) => missingRequired(x).length) || blocks[0]; if (b) enterEdit(b.id); return; }
-    if (i === 2) { setPreview((p) => !p); select(null); return; }
     if (i === 3) { if (status === "draft" || status === "failed") transition("review", "Sent for review"); return; }
     if (i === 4) { if (status === "review") transition("approved", "Approved"); return; }
     if (i === 5) { if (status === "approved" || status === "scheduled") transition("published", `Published to ${envName}`); return; }
@@ -242,13 +243,13 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const siteW = device === "desktop" ? 1200 : device === "tablet" ? 768 : 390;
   const [avail, setAvail] = useState(0);
   useEffect(() => { const c = canvasRef.current; if (!c) return; const ro = new ResizeObserver(() => setAvail(c.clientWidth)); ro.observe(c); setAvail(c.clientWidth); return () => ro.disconnect(); }, []);
-  const padL = focus || preview ? 24 : left && !narrow ? leftW + 68 : phone ? 12 : narrow ? 56 : 68, padR = focus || preview ? 24 : right && !narrow ? rightW + 68 : phone ? 12 : narrow ? 56 : 68;
+  const padL = focus ? 0 : preview ? 24 : left && !narrow ? leftW + 68 : phone ? 12 : narrow ? 56 : 68, padR = focus ? 0 : preview ? 24 : right && !narrow ? rightW + 68 : phone ? 12 : narrow ? 56 : 68;
   const hint = !canEdit ? "Read-only: you don't have Edit on this folder. Ask a site admin to grant it." : preview ? "Preview: exactly what visitors will see" : mode === "edit" ? "Edit mode: click any highlighted text to change it. Enter saves, Esc cancels." : sel ? "Use the toolbar on the block: ✎ Edit text in place · ⚙ Configure everything · ✨ AI · ⋯ More" : "Hover to see block names. Click a block to select it, double-click to edit its text.";
 
   return (
-    <div className={`h-full grid ${focus ? "grid-rows-[54px_1fr]" : "grid-rows-[54px_48px_1fr]"} min-w-0 overflow-hidden`}>
-      {/* Toolbar (docked) */}
-      <div className="flex items-center gap-3 px-2.5 bg-surface border-b border-line overflow-x-auto overflow-y-hidden">
+    <div className={`h-full grid ${focus ? "grid-rows-[1fr]" : "grid-rows-[54px_48px_1fr]"} min-w-0 overflow-hidden`}>
+      {/* Toolbar (docked; gone in full screen) */}
+      {!focus && <div className="flex items-center gap-3 px-2.5 bg-surface border-b border-line overflow-x-auto overflow-y-hidden">
         {!focus && <Link href={`/${marketId}/${envId}/pages${rel.replace(/\/[^/]+$/, "")}`} className="btn btn-quiet btn-sm">‹ Pages</Link>}
         <div className="min-w-0 flex-1"><b className="block text-[14.5px] truncate">{title}</b><span className="hidden sm:block text-[11.5px] text-ink-3 truncate font-mono">{flag} {locale} · {domain}{rel}</span></div>
         <Pill status={status} />
@@ -256,13 +257,13 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         <div className="ml-auto flex items-center gap-2.5">
           <span className="hidden sm:inline text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1">{saving}</span>
           <div className="hidden md:flex gap-1 pl-2.5 border-l border-line"><button className={`btn btn-icon btn-sm ${left ? "on" : ""}`} onClick={() => setLeft(!left)} title="Components panel" aria-pressed={left}>▤</button><button className={`btn btn-icon btn-sm ${right ? "on" : ""}`} onClick={() => { if (right) closeConfigure(true); else { setRightTab(sel ? "block" : "page"); setRight(true); } }} title="Page settings panel" aria-pressed={right}>▥</button><button className={`btn btn-sm ${focus ? "on" : ""}`} onClick={() => setFocusMode(!focus)} title="Focus mode: hide the navigation (⌘⇧F)" aria-pressed={focus}>⛶ Full screen</button></div>
-          <div className="flex gap-1 pl-2.5 border-l border-line">{canEdit ? <button className="btn btn-sm" onClick={() => { setPreview(!preview); select(null); }}>{preview ? "Edit" : "Preview"}</button> : <span className="text-xs text-ink-3 px-2" title="Ask a site admin for Edit on this folder">🔒 Read-only</span>}<button className="btn btn-sm" onClick={() => save().then(() => say("Saved")).catch(() => {})} disabled={!dirty || !canEdit}>Save</button>
+          <div className="flex gap-1 pl-2.5 border-l border-line">{!canEdit && <span className="text-xs text-ink-3 px-2" title="Ask a site admin for Edit on this folder">🔒 Read-only</span>}<button className="btn btn-sm" onClick={() => save().then(() => say("Saved")).catch(() => {})} disabled={!dirty || !canEdit}>Save</button>
             {(status === "draft" || status === "failed") && mayStatus("review") && <button className="btn btn-sm btn-primary" onClick={() => transition("review", "Sent for review")}>Send for review</button>}
             {status === "review" && (mayStatus("approved") ? <button className="btn btn-sm btn-primary" onClick={() => transition("approved", "Approved")}>Approve</button> : <span className="text-xs text-ink-3">Waiting for a reviewer</span>)}
             {(status === "approved" || status === "scheduled") && (mayStatus("published") ? <button className="btn btn-sm btn-primary" onClick={() => transition("published", `Published to ${envName}`)}>Publish</button> : <span className="text-xs text-ink-3">Waiting for a publisher</span>)}
             {status === "published" && mayStatus("draft") && <button className="btn btn-sm" onClick={() => transition("draft", "New draft")}>New draft</button>}</div>
         </div>
-      </div>
+      </div>}
       {/* Flow stepper (hidden in full screen) */}
       {!focus && <div className="flex items-center px-4 bg-surface border-b border-line overflow-hidden" role="list" aria-label="Page progress">
         <div className="flex-1 min-w-0 flex items-center overflow-x-auto h-12">
@@ -276,7 +277,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
       <div className="relative min-h-0 overflow-hidden bg-bg">
         <div className={`absolute inset-0 flex flex-col ${preview ? "preview" : ""}`}>
           {!focus && <div className="flex items-center gap-3 px-6 py-2 text-[12.5px] text-ink-3 border-b border-line bg-surface-2" style={{ paddingLeft: padL, paddingRight: padR }}><span className="mr-auto truncate" title={hint}>{hint}</span><span className="border border-line-2 rounded px-2 py-0.5 bg-surface whitespace-nowrap">1:1 · {device === "desktop" ? 1200 : device === "tablet" ? 768 : 390} px</span></div>}
-          <div ref={canvasRef} className="flex-1 overflow-auto p-6 pb-24" style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey}>
+          <div ref={canvasRef} className={focus ? "flex-1 overflow-auto p-0 bg-white" : "flex-1 overflow-auto p-6 pb-24"} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey}>
             {(() => { const fit = narrow && avail ? Math.min(1, (avail - padL - padR) / siteW) : 1; return <div style={fit < 1 ? { transform: "scale(" + fit + ")", transformOrigin: "top left", width: siteW, marginBottom: -(1 - fit) * 600 } : undefined}>
             <AssetsContext.Provider value={assetMap}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
               {blocks.length ? blocks.map((b, i) => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""}`} tabIndex={0}>
@@ -333,6 +334,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           </div>}
           {rightTab === "block" && selected && <div className="flex justify-end gap-2 px-3.5 py-2.5 border-t border-line bg-surface"><button className="btn btn-sm" onClick={() => closeConfigure(false)}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => { closeConfigure(true); say("Component updated · Save the page when you're done"); }}>Save</button></div>}
         </aside>}
+        {focus && <div aria-live="polite" className={`fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-[#0F1013]/85 text-white text-[12px] px-3 py-1.5 rounded-full transition-opacity duration-700 ${fsHint ? "opacity-100" : "opacity-0 pointer-events-none"}`}>Viewing as visitors see it · press Esc to go back to editing</div>}
         {translating && <TranslateModal marketId={marketId} path={page.path} title={title} onClose={() => setTranslating(false)} onDone={(created) => { say(`Created ${created.length} translation${created.length === 1 ? "" : "s"}`); router.refresh(); }} />}
         {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] shadow-xl z-50">{toast}</div>}
       </div>

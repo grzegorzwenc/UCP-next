@@ -1,5 +1,6 @@
 "use client";
 import { ViewToggle } from "@/components/ui/ViewToggle";
+import { FolderList } from "@/components/ui/FolderList";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -47,9 +48,8 @@ export function TemplateLibrary({ marketId, envId, marketName, flag, templates, 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] grid-rows-[auto_1fr] md:grid-rows-1 h-full min-h-0">
       <aside className="bg-surface border-r border-line p-3 overflow-auto">
-        <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold mx-2 mb-2">{flag} Template library</h6>
-        <Link href={href("")} className={`flex items-center gap-1.5 px-2 py-1 rounded text-[13.5px] ${!folder ? "bg-accent-soft text-accent-hover font-semibold" : "text-ink-2 hover:bg-surface-3"}`}><span>▦</span><span className="flex-1">All templates</span><span className="text-[11px] text-ink-3 font-mono">{templates.length}</span></Link>
-        {folders.map((f) => <Link key={f} href={href(f)} className={`flex items-center gap-1.5 pl-5 pr-2 py-1 rounded text-[13.5px] ${folder === f ? "bg-accent-soft text-accent-hover font-semibold" : "text-ink-2 hover:bg-surface-3"}`}><span className="text-warn">▪</span><span className="flex-1 truncate">{f}</span><span className="text-[11px] text-ink-3 font-mono">{templates.filter((t) => tplFolderOf(t) === f).length}</span></Link>)}
+        <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold mx-2 mb-2">Template library</h6>
+        <FolderList root={{ label: `${flag} All templates`, count: templates.length, active: !folder, href: href("") }} items={folders.map((f) => ({ key: f, label: f, count: templates.filter((t) => tplFolderOf(t) === f).length, active: folder === f, href: href(f) }))} />
         {canManage && <button className="btn btn-quiet btn-sm mt-2.5 mx-1" onClick={() => { setName(""); setErr(null); setModal({ kind: "folder" }); }}>＋ New folder</button>}
       </aside>
       <div className="p-6 overflow-auto min-w-0">
