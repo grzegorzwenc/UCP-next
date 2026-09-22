@@ -8,16 +8,17 @@ import { RenderBlock } from "@/lib/blocks/Render";
  * Left panel of the builder: "Add" (component library with live thumbnails, one click adds) and
  * "Outline" (the blocks already on the page: jump, reorder, remove). No jargon, one action per row.
  */
-type Props = { tab: "add" | "outline"; setTab: (t: "add" | "outline") => void; phone?: boolean; blocks: Block[]; sel: string | null; canEdit: boolean; onAdd: (type: string) => void; onSelect: (id: string) => void; onMove: (id: string, d: number) => void; onRemove: (id: string) => void; onClose: () => void };
+type Props = { tab: "add" | "outline"; setTab: (t: "add" | "outline") => void; phone?: boolean; width?: number; onResizeStart?: (e: React.MouseEvent) => void; blocks: Block[]; sel: string | null; canEdit: boolean; onAdd: (type: string) => void; onSelect: (id: string) => void; onMove: (id: string, d: number) => void; onRemove: (id: string) => void; onClose: () => void };
 const SNIPPET_KEYS = ["heading", "intro", "body", "text", "note", "question"];
 
-export function LeftPanel({ tab, setTab, phone, blocks, sel, canEdit, onAdd, onSelect, onMove, onRemove, onClose }: Props) {
+export function LeftPanel({ tab, setTab, phone, width = 320, onResizeStart, blocks, sel, canEdit, onAdd, onSelect, onMove, onRemove, onClose }: Props) {
   const [q, setQ] = useState("");
   const filtered = BLOCKS.filter((b) => !q || b.name.toLowerCase().includes(q.toLowerCase()) || b.desc.toLowerCase().includes(q.toLowerCase()));
   // Stable ids: the same markup on the server and in the browser (random ids would trip hydration).
   const samples = useMemo(() => Object.fromEntries(BLOCKS.map((b) => [b.type, { ...makeBlock(b.type), id: `sample_${b.type}` }])) as Record<string, Block>, []);
   return (
-    <aside data-ui className={phone ? "absolute inset-x-0 top-0 bottom-12 bg-surface flex flex-col z-[5]" : "absolute left-11 top-0 bottom-0 w-[320px] max-w-[calc(100%-44px)] bg-surface border-r border-line flex flex-col z-[5] shadow-xl md:shadow-none"}>
+    <aside data-ui style={phone ? undefined : { width }} className={phone ? "absolute inset-x-0 top-0 bottom-12 bg-surface flex flex-col z-[5]" : "absolute left-11 top-0 bottom-0 max-w-[calc(100%-44px)] bg-surface border-r border-line flex flex-col z-[5] shadow-xl md:shadow-none"}>
+      {!phone && onResizeStart && <div role="separator" aria-orientation="vertical" aria-label="Resize panel" title="Drag to resize" onMouseDown={onResizeStart} className="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize hover:bg-accent/30 active:bg-accent/40 z-10" />}
       <div className="flex items-center px-2 pt-2 border-b border-line">
         {(["add", "outline"] as const).map((t) => <button key={t} type="button" onClick={() => setTab(t)} aria-pressed={tab === t} className={`px-3 py-2 text-[13px] font-medium border-b-2 -mb-px ${tab === t ? "border-accent text-ink" : "border-transparent text-ink-3 hover:text-ink"}`}>{t === "add" ? "＋ Add" : `Outline · ${blocks.length}`}</button>)}
         <button type="button" className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={onClose} aria-label="Close panel">✕</button>
