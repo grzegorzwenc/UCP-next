@@ -12,7 +12,8 @@ import { proposeAi, AI_SUGGESTIONS, type AiProposal } from "@/lib/ai/mock";
 import { planFor, revertOp, AI_PAGE_SUGGESTIONS, type Plan, type Change } from "@/lib/ai/planner";
 import { useSession } from "@/components/shell/Session";
 import { useShellMode } from "@/components/shell/SideNav";
-import { InsightsPanel, VersionHistory, TranslateModal } from "@/components/builder";
+import { InsightsPanel, VersionHistory, TranslateModal, pageInsights } from "@/components/builder";
+import { LeftPanel } from "./LeftPanel";
 import { useRouter } from "next/navigation";
 import { permForStatus } from "@/lib/ucp/perms";
 
@@ -22,6 +23,13 @@ type PageField = "description" | "title";
 type AiResult = { before: Block[]; after: Block[]; changes: Change[]; undone: boolean; pageBefore?: string };
 type AiTask = { id: number; prompt: string; plan: Plan; stage: "understanding" | "plan" | "executing" | "done"; on: Record<string, boolean>; done: string[]; results: Record<string, AiResult> };
 const READ_ONLY = "Read-only: you don't have Edit on this folder. Ask a site admin to grant it.";
+const AI_EXAMPLES: { title: string; items: [string, string, string][] }[] = [
+  { title: "Improve what is here", items: [["Improve this page", "Improve this page", "Tighter copy, clearer buttons, missing sections added"], ["Make it read better on a phone", "Create mobile version", "Shorter headings, heavy blocks hidden on mobile"]] },
+  { title: "Create something new", items: [["Add a promotional section", "Create a promotional section for the new Premier Banking offer", "Banner + text block with the offer you name"], ["Design a landing page", "Design a landing page for Premier Banking", "A full campaign layout when the page is empty"]] },
+  { title: "Check and fix", items: [["Check accessibility", "Check accessibility", "Alt text, heading order, descriptive link labels"], ["Optimise for search", "Optimise SEO", "Meta description, H1, FAQ suggestions"], ["Translate to Welsh", "Translate this page", "Draft copy in cy-GB for a translator to review"]] },
+];
+const LEFT_RAIL: ["add" | "outline", string, string][] = [["add", "Add a component", "M12 5v14M5 12h14"], ["outline", "Page outline", "M4 6h16M4 12h16M4 18h10M18 16l2 2 3-3"]];
+const RAIL: [ "block" | "page" | "ai" | "insights" | "history", string, string][] = [["block", "Component settings", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"], ["page", "Page settings", "M6 3h8l5 5v13H6zM14 3v5h5M9 13h6M9 17h6"], ["ai", "AI assistant", "M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 15l.6 1.6L7.2 17l-1.6.6L5 19.2l-.6-1.6L2.8 17l1.6-.4z"], ["insights", "Page insights", "M12 3a9 9 0 1 0 9 9M12 3v9l6.4-6.4M12 12l4 4"], ["history", "Version history", "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"]];
 const STEPS = [["Add blocks", "Click: open Components"], ["Fill in content", "Click: jump to next empty field"], ["Preview", "Click: toggle visitor view"], ["Send for review", "Click: send to a reviewer"], ["In review", "Click: approve (reviewers)"], ["Publish", "Click: put it live"], ["Published", "Live for customers"]];
 
 /**
@@ -43,9 +51,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [preview, setPreviewRaw] = useState(!canEdit); const setPreview = (v: boolean | ((p: boolean) => boolean)) => { if (!canEdit) return; setPreviewRaw(v); };
   const { phone, tablet } = useShellMode(); const narrow = phone || tablet;
-  const [left, setLeftRaw] = useState(true); const [right, setRight] = useState(false);
+  const [left, setLeftRaw] = useState(true); const [right, setRight] = useState(false); const [leftTab, setLeftTab] = useState<"add" | "outline">("add");
   const setLeft = (v: boolean) => setLeftRaw(v);
-  useEffect(() => { if (phone) setLeftRaw(false); }, [phone]);
+  // On a phone or tablet start with the matching rendition so the 1:1 page fits the screen; desktop stays 1200 px.
+  useEffect(() => { if (phone) { setLeftRaw(false); setDevice("mobile"); } else if (tablet) setDevice("tablet"); }, [phone, tablet]);
   const [rightTab, setRightTab] = useState<"block" | "page" | "ai" | "insights" | "history">("page");
   const [translating, setTranslating] = useState(false); const router = useRouter();
   const [description, setDescription] = useState(page.description ?? "");
@@ -55,7 +64,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [clipboard, setClipboard] = useState<Block | null>(null);
   const [dirty, setDirty] = useState(false); const [saving, setSaving] = useState<string>("Saved");
   const [toast, setToast] = useState<string | null>(null);
-  const [q, setQ] = useState("");
+
   const canvasRef = useRef<HTMLDivElement>(null);
   const rel = page.path.replace(root, "");
   const selected = blocks.find((b) => b.id === sel);
@@ -218,9 +227,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (i === 4) { if (status === "review") transition("approved", "Approved"); return; }
     if (i === 5) { if (status === "approved" || status === "scheduled") transition("published", `Published to ${envName}`); return; }
   };
-  const filtered = BLOCKS.filter((b) => !q || b.name.toLowerCase().includes(q.toLowerCase()));
+  const insightBadge = useMemo(() => pageInsights(blocks, { title, description, template: page.template, status, locale }).groups.flatMap((g) => g.items).filter((i) => i.level === "crit").length, [blocks, title, description, page.template, status, locale]);
   // On phones and tablets the panels float over the canvas instead of reserving space, so the 1:1 page keeps its width.
-  const padL = focus ? 24 : left && !preview && !narrow ? 344 : narrow ? 12 : 24, padR = focus ? 24 : right && !preview && !narrow ? 364 : narrow ? 12 : 24;
+  const siteW = device === "desktop" ? 1200 : device === "tablet" ? 768 : 390;
+  const [avail, setAvail] = useState(0);
+  useEffect(() => { const c = canvasRef.current; if (!c) return; const ro = new ResizeObserver(() => setAvail(c.clientWidth)); ro.observe(c); setAvail(c.clientWidth); return () => ro.disconnect(); }, []);
+  const padL = focus || preview ? 24 : left && !narrow ? 388 : phone ? 12 : narrow ? 56 : 68, padR = focus || preview ? 24 : right && !narrow ? 408 : phone ? 12 : narrow ? 56 : 68;
   const hint = !canEdit ? "Read-only: you don't have Edit on this folder. Ask a site admin to grant it." : preview ? "Preview: exactly what visitors will see" : mode === "edit" ? "Edit mode: click any highlighted text to change it. Enter saves, Esc cancels." : sel ? "Use the toolbar on the block: ✎ Edit text in place · ⚙ Configure everything · ✨ AI · ⋯ More" : "Hover to see block names. Click a block to select it, double-click to edit its text.";
 
   return (
@@ -253,8 +265,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
       {/* Body */}
       <div className="relative min-h-0 overflow-hidden bg-bg">
         <div className={`absolute inset-0 flex flex-col ${preview ? "preview" : ""}`}>
-          <div className="flex items-center gap-3 px-6 py-2 text-[12.5px] text-ink-3 border-b border-line bg-surface-2" style={{ paddingLeft: padL, paddingRight: padR }}><span className="mr-auto">{hint}</span><span className="border border-line-2 rounded px-2 py-0.5 bg-surface">1:1 · {device === "desktop" ? 1200 : device === "tablet" ? 768 : 390} px</span></div>
+          <div className="flex items-center gap-3 px-6 py-2 text-[12.5px] text-ink-3 border-b border-line bg-surface-2" style={{ paddingLeft: padL, paddingRight: padR }}><span className="mr-auto truncate" title={hint}>{hint}</span><span className="border border-line-2 rounded px-2 py-0.5 bg-surface whitespace-nowrap">1:1 · {device === "desktop" ? 1200 : device === "tablet" ? 768 : 390} px</span></div>
           <div ref={canvasRef} className="flex-1 overflow-auto p-6 pb-24" style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey}>
+            {(() => { const fit = narrow && avail ? Math.min(1, (avail - padL - padR) / siteW) : 1; return <div style={fit < 1 ? { transform: "scale(" + fit + ")", transformOrigin: "top left", width: siteW, marginBottom: -(1 - fit) * 600 } : undefined}>
             <AssetsContext.Provider value={assetMap}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
               {blocks.length ? blocks.map((b, i) => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""}`} tabIndex={0}>
                 <span className="tag">{def.name}{b.props.locked ? " · 🔒 locked" : ""}{b.props.hidden ? " · hidden" : ""}</span>
@@ -264,7 +277,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
                   onAi={(p) => { mutate((bl) => bl.map((x) => (x.id === b.id ? { ...x, props: { ...x.props, ...p.props } } : x))); say("AI changes applied"); }} />}
                 <RenderBlock b={b} /></div>; })
               : <div className="m-7 p-11 border-2 border-dashed border-line-2 rounded-xl text-center text-ink-2 text-[15px]">How do you want to start this page?<small className="block text-[13px] text-ink-3 mt-1.5">Pick a layout, or add components one by one from the left.</small><div className="grid grid-cols-3 gap-3 mt-4 text-left">{TEMPLATES.filter((t) => t.blocks.length).slice(0, 3).map((t) => <button key={t.id} className="border border-line-2 bg-surface p-3.5 text-left hover:border-ink" onClick={() => mutate(() => t.blocks.map((x) => makeBlock(x, x === "mast" ? { heading: title } : {})))}><b className="block text-[13.5px]">{t.name}</b><small className="text-ink-3">{t.desc}</small></button>)}</div></div>}
-            </SiteChrome></AssetsContext.Provider>
+            </SiteChrome></AssetsContext.Provider></div>; })()}
           </div>
           {editing && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 flex gap-1 bg-[#0F1013] rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}><span className="px-2 py-1.5 text-white/70">Editing text</span><button className="px-3 py-1.5 rounded bg-good font-semibold" onClick={() => { commitInline(true); say("Saved"); }}>✓ Save</button><button className="px-3 py-1.5 rounded hover:bg-white/15" onClick={() => commitInline(false)}>✕ Cancel</button></div>}
           {ctaPop && selected && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 w-[420px] bg-surface border border-line rounded-xl shadow-2xl z-20 p-3.5 text-[13px]" onMouseDown={(e) => { e.stopPropagation(); if (!(e.target as HTMLElement).closest("input, textarea")) e.preventDefault(); }}>
@@ -274,20 +287,27 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             <div className="flex justify-end mt-3"><button className="btn btn-sm btn-primary" onClick={() => setCtaPop(null)}>Done</button></div>
           </div>}
           {/* ✨ Ask AI: floating button → full-width bar at the bottom of the canvas. Read-only users get the hint instead. */}
-          {(!preview || !canEdit) && !aiBar && <button data-ui className="absolute right-6 bottom-6 z-[6] h-11 px-4 rounded-full bg-[#0F1013] text-white shadow-xl flex items-center gap-2 text-[13px] font-semibold hover:bg-black" onClick={() => (canEdit ? setAiBar(true) : say(READ_ONLY))} title="Ask AI to change this page (⌘K)" aria-expanded={aiBar}><span aria-hidden>✨</span>Ask AI</button>}
+          {(!preview || !canEdit) && !aiBar && !(right && rightTab === "ai") && <button data-ui className={`absolute right-4 ${phone ? "bottom-16" : "bottom-6"} z-[6] h-11 px-4 rounded-full bg-[#0F1013] text-white shadow-xl flex items-center gap-2 text-[13px] font-semibold hover:bg-black`} onClick={() => (canEdit ? setAiBar(true) : say(READ_ONLY))} title="Ask AI to change this page (⌘K)" aria-expanded={aiBar}><span aria-hidden>✨</span>Ask AI</button>}
           {aiBar && canEdit && <AiBar draft={aiDraft} setDraft={setAiDraft} onAsk={startAiTask} onSide={() => { setAiBar(false); setRightTab("ai"); setRight(true); }} onClose={() => setAiBar(false)} />}
         </div>
         {focus && <button data-ui className="fixed top-3 right-3 z-[60] bg-[#0F1013] text-white text-[12px] font-medium px-3 py-1.5 rounded-full shadow-xl hover:bg-black" onClick={() => setFocusMode(false)}>Exit full screen (Esc)</button>}
-        {/* Left panel */}
-        {left && !preview && <aside data-ui className="absolute left-0 top-0 bottom-0 w-[320px] max-w-full bg-surface border-r border-line flex flex-col z-[5] shadow-xl md:shadow-none">
-          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">Components</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => setLeft(false)} aria-label="Close">✕</button></div>
-          <div className="p-3 border-b border-line"><input className="w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px]" placeholder="Find a component" value={q} onChange={(e) => setQ(e.target.value)} /></div>
-          <div className="flex-1 overflow-auto p-3">{GROUPS.map((g) => { const items = filtered.filter((b) => b.group === g); if (!items.length) return null; return <div key={g}><h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold mt-3 mb-1.5 first:mt-0">{g}</h6>{items.map((b) => <div key={b.type} className="border border-line rounded-xl p-2.5 mb-2.5 bg-surface hover:border-ink-3 hover:shadow-md"><div className="flex justify-between items-center mb-1"><b className="text-[13.5px]">{b.name}</b><span className="text-[10.5px] uppercase tracking-[.06em] text-ink-3 font-semibold">{b.group}</span></div><small className="block text-ink-3 text-xs mb-2">{b.desc}</small><button className="btn btn-sm w-full justify-center hover:bg-accent hover:text-white hover:border-accent" onClick={() => add(b.type)}>＋ Add to page</button></div>)}</div>; })}</div>
-        </aside>}
+        {/* Left panel: Add / Outline */}
+        {!preview && !focus && !phone && <nav data-ui aria-label="Left panels" className="absolute left-0 top-0 bottom-0 w-11 bg-surface border-r border-line flex flex-col items-center py-2 gap-1 z-[6]">
+          {LEFT_RAIL.map(([t, label, path]) => { const on = left && leftTab === t; return <button key={t} type="button" title={label} aria-label={label} aria-pressed={on} onClick={() => { if (on) setLeftRaw(false); else { setLeftTab(t); setLeftRaw(true); } }} className={`relative w-9 h-9 rounded-lg grid place-items-center ${on ? "bg-accent text-white" : "text-ink-2 hover:bg-surface-3"}`}><svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={path} /></svg>{t === "outline" && blocks.length > 0 && <span className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold grid place-items-center ${on ? "bg-white text-accent" : "bg-surface-3 text-ink-2"}`}>{blocks.length}</span>}</button>; })}
+        </nav>}
+        {left && !preview && <LeftPanel tab={leftTab} setTab={setLeftTab} phone={phone} blocks={blocks} sel={sel} canEdit={canEdit} onAdd={add} onSelect={(id) => { select(id); canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }} onMove={move} onRemove={remove} onClose={() => setLeft(false)} />}
         {/* Right panel: Configure (contextual) or Page settings */}
-        {right && !preview && <aside data-ui className="absolute right-0 top-0 bottom-0 w-[340px] max-w-full bg-surface border-l border-line flex flex-col z-[5] shadow-xl md:shadow-none">
-          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">{rightTab === "block" ? "Configure" : rightTab === "page" ? "Page settings" : rightTab === "ai" ? "✨ AI" : rightTab === "insights" ? "Page insights" : "Version history"}</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => closeConfigure(true)} aria-label="Close">✕</button></div>
-          <div className="flex border-b border-line">{(["block", "page", "ai", "insights", "history"] as const).map((t) => <button key={t} onClick={() => setRightTab(t)} className={`flex-1 py-2.5 text-[12px] font-medium border-b-2 -mb-px whitespace-nowrap ${rightTab === t ? "border-accent text-ink" : "border-transparent text-ink-3 hover:text-ink"}`}>{t === "block" ? "Component" : t === "page" ? "Page" : t === "ai" ? "AI" : t === "insights" ? "Insights" : "History"}</button>)}</div>
+        {!preview && !focus && <nav data-ui aria-label="Panels" className={phone ? "absolute left-0 right-0 bottom-0 h-12 bg-surface border-t border-line flex flex-row items-center justify-around px-2 z-[6]" : "absolute right-0 top-0 bottom-0 w-11 bg-surface border-l border-line flex flex-col items-center py-2 gap-1 z-[6]"}>
+          {phone && LEFT_RAIL.map(([t, label, path]) => { const on = left && leftTab === t; return <button key={t} type="button" title={label} aria-label={label} aria-pressed={on} onClick={() => { if (on) setLeftRaw(false); else { setLeftTab(t); setLeftRaw(true); setRight(false); } }} className={`w-9 h-9 rounded-lg grid place-items-center ${on ? "bg-accent text-white" : "text-ink-2 hover:bg-surface-3"}`}><svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={path} /></svg></button>; })}
+          {phone && <span className="w-px h-6 bg-line" aria-hidden />}
+          {RAIL.map(([t, label, path]) => { const on = right && rightTab === t; const badge = t === "insights" ? insightBadge : t === "ai" ? aiTasks.filter((x) => x.stage !== "done").length : 0;
+            return <button key={t} type="button" title={label} aria-label={label} aria-pressed={on} onClick={() => { if (on) { closeConfigure(true); return; } if (phone) setLeftRaw(false); if (t === "block" && sel) configure(sel); else { setRightTab(t); setRight(true); } }} className={`relative w-9 h-9 rounded-lg grid place-items-center ${on ? "bg-accent text-white" : "text-ink-2 hover:bg-surface-3"}`}>
+              <svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={path} /></svg>
+              {badge > 0 && <span className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold grid place-items-center ${on ? "bg-white text-accent" : "bg-accent text-white"}`}>{badge}</span>}
+            </button>; })}
+        </nav>}
+        {right && !preview && <aside data-ui className={phone ? "absolute inset-x-0 top-0 bottom-12 bg-surface flex flex-col z-[5]" : "absolute right-11 top-0 bottom-0 w-[340px] max-w-[calc(100%-44px)] bg-surface border-l border-line flex flex-col z-[5] shadow-xl md:shadow-none"}>
+          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">{rightTab === "block" ? (selected ? `Configure · ${BLOCK_BY_TYPE[selected.type].name}` : "Configure") : rightTab === "page" ? "Page settings" : rightTab === "ai" ? "✨ AI assistant" : rightTab === "insights" ? "Page insights" : "Version history"}</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => closeConfigure(true)} aria-label="Close">✕</button></div>
           {rightTab === "insights" ? <div className="flex-1 overflow-auto p-3.5 text-[13px]"><InsightsPanel blocks={blocks} page={{ title, description, template: page.template, status, locale }} onFix={(apply, label) => { if (!canEdit) { say("Read-only: ask a site admin for Edit"); return; } mutate(apply); say(`Fixed: ${label}`); }} onSelectBlock={(id) => { select(id); const el = canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`); el?.scrollIntoView({ block: "center", behavior: "smooth" }); }} /></div>
           : rightTab === "history" ? <div className="flex-1 overflow-auto p-3.5 text-[13px]"><VersionHistory marketId={marketId} path={page.path} currentBlocks={blocks.length} onRestored={() => { router.refresh(); say("Version restored · reloading"); setTimeout(() => window.location.reload(), 400); }} /></div>
           : rightTab === "ai" ? <AiPanel tasks={aiTasks} draft={aiDraft} setDraft={setAiDraft} dirty={dirty} onAsk={startAiTask} onToggle={(t, id) => patchTask(t.id, (x) => ({ ...x, on: { ...x.on, [id]: !x.on[id] } }))} onRun={runAiTask} onUndo={undoAiOp} onRedo={redoAiOp} onUndoAll={undoAllAi} onSave={() => save().then(() => say("Saved")).catch(() => {})} /> : <div className="flex-1 overflow-auto p-3.5 text-[13px]">
@@ -407,17 +427,28 @@ function AiPanel({ tasks, draft, setDraft, dirty, onAsk, onToggle, onRun, onUndo
   return <>
     <div ref={ref} className="flex-1 overflow-auto p-3.5 text-[13px] flex flex-col gap-4">
       {history.length > 0 && <div className="border border-line rounded-lg bg-surface-2 p-2.5"><div className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold mb-1">Earlier in this session</div>{history.map((t) => <div key={t.id} className="flex gap-2 text-[12px] py-0.5"><span className="truncate text-ink-2">{t.prompt}</span><span className="ml-auto flex-none text-ink-3">{applied(t)}/{t.plan.ops.length} applied</span></div>)}</div>}
-      {!tasks.length && <div className="p-6 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">Ask for a change to the whole page, e.g. “Improve this page”. You will see a plan before anything changes.</div>}
+      {!tasks.length && <div className="flex flex-col gap-3">
+        <div className="rounded-xl bg-[#0F1013] text-white p-4">
+          <b className="block text-[14px]">✨ Your AI assistant for this page</b>
+          <p className="text-[12.5px] text-white/75 mt-1">Tell it what you want in plain words. It shows a plan first, changes nothing until you run it, and every change can be undone.</p>
+          <ol className="mt-3 grid grid-cols-4 gap-1 text-[10.5px] text-white/80">{[["1", "Ask"], ["2", "See the plan"], ["3", "Run it"], ["4", "Review · undo"]].map(([n, l]) => <li key={n} className="flex flex-col items-center gap-1 text-center"><span className="w-6 h-6 rounded-full bg-white/15 grid place-items-center font-bold">{n}</span>{l}</li>)}</ol>
+        </div>
+        {AI_EXAMPLES.map((g) => <div key={g.title}>
+          <div className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold mb-1.5">{g.title}</div>
+          <div className="flex flex-col gap-1.5">{g.items.map(([label, prompt, hint]) => <button key={label} type="button" onClick={() => onAsk(prompt)} className="text-left border border-line rounded-lg px-3 py-2 hover:border-ink hover:bg-surface-2"><b className="block text-[13px]">{label}</b><small className="block text-[11.5px] text-ink-3">{hint}</small></button>)}</div>
+        </div>)}
+        <p className="text-[11.5px] text-ink-3">Tip: with a block selected, the ✨ AI button on that block changes only that block.</p>
+      </div>}
       {tasks.map((t, ti) => { const last = ti === tasks.length - 1; const ops = t.plan.ops; const enabled = ops.filter((o) => t.on[o.id]); const n = applied(t); const st = (s: typeof STAGES[number]): "done" | "on" | "todo" => { const order = { understanding: 0, plan: 1, executing: 2, done: 4 }[t.stage]; const i = STAGES.indexOf(s); return i < order || t.stage === "done" ? "done" : i === order ? "on" : "todo"; };
         return <div key={t.id} className={`flex flex-col gap-3 ${last ? "" : "opacity-80"}`}>
           <div className="self-end max-w-[85%] bg-ink text-white rounded-xl rounded-br-sm px-3 py-2 text-[13px]"><span className="block text-[10px] uppercase tracking-[.08em] text-white/60">You</span>{t.prompt}</div>
           <div className="border border-line rounded-xl p-3 flex flex-col gap-3 bg-surface">
             <b className="text-[13.5px]">✨ {t.plan.title}</b>
-            <Stage label="Understanding" state={st("Understanding")}><p className="text-ink-2 mt-0.5">{t.plan.understanding}</p></Stage>
+            <Stage label="Understanding" state={st("Understanding")}><p className="text-ink-2 mt-0.5">{t.plan.understanding}</p>{t.stage === "understanding" && <p className="text-[11.5px] text-ink-3 mt-1">Reading the page and working out what could be better…</p>}</Stage>
             {t.stage !== "understanding" && <Stage label="Plan" state={st("Plan")}>
               {t.plan.note && <p className="text-[12px] text-ink-3 mt-0.5 mb-1.5">{t.plan.note}</p>}
               {ops.length ? <ul className="flex flex-col gap-1 mt-1">{ops.map((o) => <li key={o.id}><label className={`flex gap-2 items-start ${t.stage === "plan" ? "cursor-pointer" : ""}`}><input type="checkbox" className="mt-1 accent-[#DB0011]" checked={!!t.on[o.id]} disabled={t.stage !== "plan"} onChange={() => onToggle(t, o.id)} /><span className={t.on[o.id] ? "" : "line-through text-ink-3"}>{o.label}</span></label></li>)}</ul> : <p className="text-ink-3 mt-1">Nothing to change.</p>}
-              {t.stage === "plan" && <div className="flex gap-2 mt-2.5"><button className="btn btn-sm btn-primary" onClick={() => onRun(t)} disabled={!enabled.length && ops.length > 0}>{enabled.length ? `Run plan · ${enabled.length} change${enabled.length === 1 ? "" : "s"}` : "Nothing selected"}</button></div>}
+              {t.stage === "plan" && <div className="mt-2.5"><p className="text-[11.5px] text-ink-3 mb-2">Untick anything you don’t want. Nothing changes until you run the plan.</p><div className="flex gap-2"><button className="btn btn-sm btn-primary" onClick={() => onRun(t)} disabled={!enabled.length && ops.length > 0}>{enabled.length ? `Run plan · ${enabled.length} change${enabled.length === 1 ? "" : "s"}` : "Nothing selected"}</button></div></div>}
             </Stage>}
             {(t.stage === "executing" || t.stage === "done") && <Stage label="Executing" state={st("Executing")}><ul className="flex flex-col gap-0.5 mt-1">{enabled.map((o) => { const d = t.done.includes(o.id); return <li key={o.id} className={`flex gap-2 ${d ? "text-ink" : "text-ink-3"}`}><span className={`w-4 flex-none ${d ? "text-good" : ""}`}>{d ? "✓" : "…"}</span><span>{o.label}</span></li>; })}</ul></Stage>}
             {t.stage === "done" && <Stage label="Review" state="done">
@@ -427,13 +458,15 @@ function AiPanel({ tasks, draft, setDraft, dirty, onAsk, onToggle, onRun, onUndo
               </div>; })}</div>
               {n > 0 && <button className="btn btn-sm mt-2" onClick={() => onUndoAll(t)}>Undo all</button>}
             </Stage>}
-            {t.stage === "done" && <Stage label="Done" state="done"><p className="mt-0.5">Applied {n} of {enabled.length} change{enabled.length === 1 ? "" : "s"}{n > 0 ? " · Save the page to keep them" : "."}</p>{n > 0 && <button className="btn btn-sm btn-primary mt-2" onClick={onSave} disabled={!dirty}>{dirty ? "Save page" : "Saved"}</button>}</Stage>}
+            {t.stage === "done" && <Stage label="Done" state="done"><p className="mt-0.5">Applied {n} of {enabled.length} change{enabled.length === 1 ? "" : "s"}{n > 0 ? " · Save the page to keep them" : "."}</p>{n > 0 && <p className="text-[11.5px] text-ink-3 mt-1">Changed something you didn’t mean to? Use Undo next to that change, or Undo all.</p>}{n > 0 && <button className="btn btn-sm btn-primary mt-2" onClick={onSave} disabled={!dirty}>{dirty ? "Save page" : "Saved"}</button>}</Stage>}
           </div>
         </div>; })}
     </div>
-    <form className="flex gap-1.5 px-3.5 py-2.5 border-t border-line bg-surface" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) onAsk(draft); }}>
-      <input className="flex-1 border border-line-2 rounded-md px-2.5 py-1.5 text-[13px]" placeholder={tasks.length ? "Ask a follow-up… e.g. make the banner light" : "What would you like to do with this page?"} value={draft} onChange={(e) => setDraft(e.target.value)} aria-label="Ask AI" />
-      <button className="btn btn-sm btn-primary" disabled={!draft.trim()}>Ask</button>
+    <form className="px-3.5 py-3 border-t border-line bg-surface" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) onAsk(draft); }}>
+      <div className="border border-line-2 rounded-xl bg-surface focus-within:border-ink focus-within:shadow-[0_0_0_3px_var(--accent-soft)]">
+        <textarea rows={3} className="w-full resize-none bg-transparent px-3 pt-2.5 pb-1 text-[14px] leading-snug outline-none" placeholder={tasks.length ? "Ask a follow-up… e.g. “make the banner light” or “add an FAQ about fees”" : "What would you like to do with this page?\ne.g. “Make the intro shorter and add a call to action”"} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (draft.trim()) onAsk(draft); } }} aria-label="Ask AI" />
+        <div className="flex items-center gap-2 px-2 pb-2"><span className="text-[11px] text-ink-3">Enter to ask · Shift+Enter for a new line</span><button className="btn btn-sm btn-primary ml-auto" disabled={!draft.trim()}>✨ Ask</button></div>
+      </div>
     </form>
   </>;
 }
