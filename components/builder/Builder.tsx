@@ -356,6 +356,10 @@ function ContextBar({ block: b, index, count, mode, pop, setPop, clipboard, aiSe
       <Btn title={editing ? "Finish editing text" : "Edit text, images and buttons in place"} on={editing} onClick={onEdit} disabled={locked}>{editing ? "✓ Done" : "✎ Edit"}</Btn>
       <Btn title="All properties, layout and behaviour" onClick={onConfigure}>⚙ Configure</Btn>
       <Btn title="Ask AI to change this block" on={pop === "ai"} onClick={() => { setPop(pop === "ai" ? null : "ai"); setProposal(null); }} disabled={locked}>✨ AI</Btn>
+      <span className="w-px h-5 bg-white/20 mx-0.5" aria-hidden />
+      <Btn title="Move up" onClick={() => onMore("up")} disabled={index === 0 || locked}><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 19V5M5 12l7-7 7 7" /></svg></Btn>
+      <Btn title="Move down" onClick={() => onMore("down")} disabled={index === count - 1 || locked}><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 5v14M5 12l7 7 7-7" /></svg></Btn>
+      <Btn title="Delete block" onClick={() => onMore("delete")} disabled={locked}><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg></Btn>
       <Btn title="More actions" on={pop === "more"} onClick={() => setPop(pop === "more" ? null : "more")}>⋯</Btn>
     </div>
     {pop === "more" && <div role="menu" className="absolute left-0 top-full mt-1 w-44 bg-surface border border-line rounded-lg shadow-2xl py-1 text-[13px] text-ink">{items.map(([a, l, dis]) => <button key={a} role="menuitem" disabled={dis} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); onMore(a); }} className={`w-full text-left px-3 py-1.5 hover:bg-surface-3 disabled:opacity-40 ${a === "delete" ? "text-accent border-t border-line mt-1" : ""}`}>{l}</button>)}</div>}
