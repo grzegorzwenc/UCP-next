@@ -85,7 +85,7 @@ export function Users({ users: initialUsers, folders, log, pageTitles, base, roo
       <div className="ml-auto flex gap-2"><button className="btn btn-primary" disabled={!isAdmin} title={isAdmin ? undefined : "Only site admins can invite users"} onClick={() => { setErr(null); setInvite(true); }}>＋ Invite user</button></div></div>
     {!isAdmin && <div role="note" className="mb-4 flex items-center gap-2.5 text-[13px] text-ink-2 bg-info-soft border border-info/30 px-3.5 py-2.5 rounded-lg"><span aria-hidden="true">🔒</span>Only site admins can change users and permissions. Ask {adminName}.</div>}
     {err && <div className="mb-4 text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded" role="alert">{err}</div>}
-    <div className="grid grid-cols-[300px_1fr] gap-4 items-start">
+    <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-4 items-start">
       <div className="bg-surface border border-line rounded-lg p-2.5">
         <label className="flex items-center gap-2 border border-line-2 rounded-md px-2.5 py-1.5 mx-1 mb-2 text-[13px]"><SearchIcon /><input aria-label="Find a person" className="flex-1 outline-none bg-transparent" placeholder="Find a person" value={q} onChange={(e) => setQ(e.target.value)} /></label>
         {list.length === 0 && <div className="p-4 text-center text-ink-3 text-[13px]">No one matches “{q}”.</div>}

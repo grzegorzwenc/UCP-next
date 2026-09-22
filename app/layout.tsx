@@ -6,7 +6,7 @@ const archivo = Archivo({ subsets: ["latin"], weight: ["300", "400", "500", "600
 const plexMono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-plex-mono" });
 
 export const metadata: Metadata = {
-  title: "HSBC Content Management",
+  title: "HSBC Unified Content Management",
   description: "UCP authoring on the ContentLIBRE Management API",
 };
 

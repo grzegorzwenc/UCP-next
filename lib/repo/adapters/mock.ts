@@ -18,7 +18,7 @@ import { sessionUserId } from "@/lib/server/session";
  *   /var/audit/ucp/<market>/<id>   audit events (append-only)
  * Same node shapes the Sling adapter produces, so switching backends changes nothing above the port.
  */
-const g = globalThis as unknown as { __ucpRepo_v5?: RepoNode };
+const g = globalThis as unknown as { __ucpRepo_v6?: RepoNode };
 
 const node = (path: string, primaryType: string, properties: NodeProps = {}, children?: RepoNode[]): RepoNode => ({ path, name: path.split("/").pop() || "", primaryType, properties, children });
 function page(parent: string, name: string, title: string, status: PageView["status"], template: string, blocks?: ReturnType<typeof makeBlock>[], extra: NodeProps = {}): RepoNode {
@@ -90,7 +90,7 @@ function seed(): RepoNode {
   ])))])]);
   return node("/", "rep:root", {}, [content, home, conf, varNode]);
 }
-const tree = () => (g.__ucpRepo_v5 ??= seed());
+const tree = () => (g.__ucpRepo_v6 ??= seed());
 function find(n: RepoNode, path: string): RepoNode | undefined { if (n.path === path) return n; if (path !== "/" && !path.startsWith(n.path === "/" ? "/" : n.path + "/")) return undefined; for (const c of n.children ?? []) { const f = find(c, path); if (f) return f; } }
 const parentPath = (p: string) => p.replace(/\/[^/]+$/, "") || "/";
 const content = (n: RepoNode) => n.children?.find((c) => c.name === "jcr:content");

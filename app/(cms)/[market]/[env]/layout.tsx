@@ -10,7 +10,7 @@ export default async function CmsLayout({ children, params }: LayoutProps<"/[mar
   const user = await me();
   return (
     <SessionProvider user={user} marketRoot={market(mid).root}>
-      <div className="cms-shell h-screen min-w-[768px] grid grid-rows-[52px_1fr]">
+      <div className="cms-shell h-dvh grid grid-rows-[52px_1fr]">
         <TopBar marketId={mid} envId={env} />
         <Palette marketId={mid} envId={env} />
         <div className="grid grid-cols-[auto_1fr] min-h-0">

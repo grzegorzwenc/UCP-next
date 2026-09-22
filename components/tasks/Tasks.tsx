@@ -72,7 +72,7 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
         <span className="ml-auto text-[12.5px] text-ink-3">{rows.length} shown</span>
       </div>
       {rows.length ? (
-        <table className="w-full text-[13.5px] bg-surface border border-line">
+        <div className="overflow-auto"><table className="w-full text-[13.5px] bg-surface border border-line min-w-[640px]">
           <thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="p-3 border-b border-line-2">Task</th><th className="p-3 border-b border-line-2">Page</th><th className="p-3 border-b border-line-2">Sent by</th><th className="p-3 border-b border-line-2">Waiting</th><th className="p-3 border-b border-line-2">Due</th><th className="p-3 border-b border-line-2" /></tr></thead>
           <tbody>{rows.map((t) => { const d = dueLabel(t); const primary = t.kind === "Review" || t.kind === "Publish"; const label = t.kind === "Review" ? "Review" : t.kind === "Publish" ? "Publish" : t.kind === "Fix" ? "Retry" : "Open";
             const needs = t.kind === "Publish" || t.kind === "Fix" ? "publish" : t.kind === "Review" ? "review" : null; const allowed = !needs || can(needs, t.page.path); const waiting = needs === "publish" ? "Waiting for a publisher" : "Waiting for a reviewer"; return (
@@ -84,7 +84,7 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
               <td className="p-3 border-b border-line"><span className={`inline-block text-[12px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span></td>
               <td className="p-3 border-b border-line text-right">{allowed ? <button className={`btn btn-sm ${primary ? "btn-primary" : ""}`} disabled={busy === t.page.path} onClick={(e) => act(e, t)}>{busy === t.page.path ? "Working…" : label}</button> : <span className="inline-flex items-center gap-1.5 text-[12px] text-ink-3 whitespace-nowrap" title={`You don't have ${needs === "publish" ? "Publish" : "Review & approve"} here`}><span aria-hidden="true">🔒</span>{waiting}</span>}</td>
             </tr>); })}</tbody>
-        </table>
+        </table></div>
       ) : (
         <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">No tasks match. {q || kind ? <button className="underline text-ink" onClick={() => { setQ(""); setKind(""); }}>Clear filters</button> : "Nothing is waiting on you."}</div>
       )}

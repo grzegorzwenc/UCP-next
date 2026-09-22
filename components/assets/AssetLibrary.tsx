@@ -58,7 +58,7 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
   const treeItem = (on: boolean, label: string, n: number, onClick: () => void, icon: string) => <button key={label} onClick={onClick} className={`w-full flex items-center gap-2 text-left text-[13px] px-2 py-1.5 rounded-md hover:bg-surface-2 ${on ? "bg-surface-3 font-medium" : ""}`}><span className="text-ink-4 w-4 text-center">{icon}</span><span className="truncate">{label}</span><span className="ml-auto text-[11.5px] text-ink-3 font-mono">{n}</span></button>;
 
   return (
-    <div className="grid grid-cols-[260px_1fr] h-full min-h-0">
+    <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] grid-rows-[auto_1fr] md:grid-rows-1 h-full min-h-0">
       <aside className="bg-surface border-r border-line p-3 overflow-auto">
         <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mb-2">{flag} Asset library</h6>
         {treeItem(!folder && !view, "All assets", assets.length, () => go(""), "▣")}
@@ -83,9 +83,9 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
 
         <div className="grid grid-cols-[1fr_320px] gap-5 items-start">
           {mode === "list"
-            ? <div><table className="w-full text-[13.5px] bg-surface border border-line"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="p-3 border-b border-line-2">Name</th><th className="p-3 border-b border-line-2">Type</th><th className="p-3 border-b border-line-2">Size</th><th className="p-3 border-b border-line-2">Folder</th><th className="p-3 border-b border-line-2">Used on</th></tr></thead>
+            ? <div><div className="overflow-auto"><table className="w-full text-[13.5px] bg-surface border border-line min-w-[640px]"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="p-3 border-b border-line-2">Name</th><th className="p-3 border-b border-line-2">Type</th><th className="p-3 border-b border-line-2">Size</th><th className="p-3 border-b border-line-2">Folder</th><th className="p-3 border-b border-line-2">Used on</th></tr></thead>
               <tbody>{list.length ? shown.map((x) => <tr key={x.id} onClick={() => setSel(x.id)} className={`cursor-pointer hover:bg-surface-2 ${a && x.id === a.id ? "bg-accent-soft" : ""}`}><td className="p-3 border-b border-line font-medium flex items-center gap-2.5"><Thumb a={x} className="w-9 h-7 shrink-0" />{x.name}</td><td className="p-3 border-b border-line text-ink-3">{x.type}</td><td className="p-3 border-b border-line font-mono text-xs">{x.size}</td><td className="p-3 border-b border-line text-ink-3">{x.folder}</td><td className="p-3 border-b border-line text-ink-3">{usedOn(x.id).length} pages</td></tr>)
-                : <tr><td colSpan={5} className="p-10 text-center text-ink-3">No files here yet.{canEdit && " Upload some or drag them in."}</td></tr>}</tbody></table>
+                : <tr><td colSpan={5} className="p-10 text-center text-ink-3">No files here yet.{canEdit && " Upload some or drag them in."}</td></tr>}</tbody></table></div>
             {list.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-[12.5px] text-ink-3">Showing {shown.length} of {list.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show more</button></div>}</div>
             : <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">{list.length ? shown.map((x) => <button key={x.id} onClick={() => setSel(x.id)} className={`text-left bg-surface border rounded-lg p-2 hover:border-ink-4 ${a && x.id === a.id ? "border-accent ring-2 ring-accent-soft" : "border-line"}`}><Thumb a={x} className="w-full h-[96px]" /><b className="block text-[12.5px] mt-2 truncate" title={x.name}>{x.name}</b><small className="text-ink-3 text-[11.5px]">{x.size}</small></button>)
               : <div className="col-span-full p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">No files here yet.{canEdit && " Upload some or drag them in."}</div>}

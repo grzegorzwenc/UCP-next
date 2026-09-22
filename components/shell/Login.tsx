@@ -2,44 +2,43 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { User } from "@/lib/ucp/types";
-import { ROLES } from "@/lib/ucp/seed";
+import { ROLES, SSO_USER } from "@/lib/ucp/seed";
 import { ucpApi } from "@/lib/api";
 import { Avatar } from "@/components/ui/Avatar";
 import { errorText } from "@/lib/api/errors";
 
-/** SSO stand-in: pick who you are (or type your work email) and you are signed in with that user's permissions. */
-export function Login({ users, next }: { users: User[]; next: string }) {
+/**
+ * Sign-in. "Sign in with company SSO" is the real path (today it signs in the platform super admin;
+ * swap `ucpApi.login(SSO_USER)` for the SSO redirect when the identity provider is connected).
+ * Demo accounts (other roles) are only listed on /login?demo=1 so permission scenarios can still be shown.
+ */
+export function Login({ users, next, demo }: { users: User[]; next: string; demo?: boolean }) {
   const router = useRouter();
-  const [email, setEmail] = useState(""); const [busy, setBusy] = useState<string | null>(null); const [err, setErr] = useState<string | null>(null);
-  const byEmail = users.find((u) => u.email.toLowerCase() === email.trim().toLowerCase() || u.id === email.trim().toLowerCase());
+  const [busy, setBusy] = useState<string | null>(null); const [err, setErr] = useState<string | null>(null);
+  const sso = users.find((u) => u.id === SSO_USER) ?? users.find((u) => u.role === "admin") ?? users[0];
   async function signIn(u: User) {
     setBusy(u.id); setErr(null);
     try { await ucpApi.login(u.id); router.push(next); router.refresh(); }
     catch (e) { setErr(errorText(e)); setBusy(null); }
   }
   return (
-    <main className="min-h-screen bg-bg grid place-items-center p-6">
-      <div className="w-[min(560px,100%)]">
-        <div className="bg-surface border border-line rounded-xl shadow-sm p-8">
-          <img src="/hsbc-logo.svg" alt="HSBC" className="h-7 mb-6" />
-          <h1 className="text-2xl font-semibold">HSBC Content Management</h1>
-          <p className="text-[13.5px] text-ink-3 mt-1">Sign in with your company account</p>
+    <main className="min-h-dvh bg-[#0F1013] text-white flex flex-col items-center justify-center px-4 py-10" style={{ backgroundImage: "radial-gradient(1200px 600px at 50% -10%, rgba(219,0,17,.18), transparent 60%)" }}>
+      <div className="w-[min(440px,100%)] flex flex-col items-center text-center">
+        <img src="/hsbc-logo-white.svg" alt="HSBC" className="h-12 mb-8" />
+        <h1 className="text-[28px] font-semibold leading-tight">Unified Content Management</h1>
+        <p className="text-[14px] text-white/60 mt-2">One place to author and publish for every HSBC market</p>
 
-          <form className="mt-6" onSubmit={(e) => { e.preventDefault(); if (byEmail) void signIn(byEmail); else setErr("No account matches that email. Pick a person below instead."); }}>
-            <label className="text-xs text-ink-3 block">Work email
-              <input type="email" autoComplete="username" className="mt-1 w-full border border-line-2 rounded-md px-3 py-2 text-[14px] text-ink" placeholder="firstname.lastname@hsbc.com" value={email} onChange={(e) => { setEmail(e.target.value); setErr(null); }} /></label>
-            <button type="submit" className="btn btn-primary w-full justify-center mt-3" disabled={!email.trim() || !!busy}>{busy && byEmail && busy === byEmail.id ? "Signing in…" : "Sign in"}</button>
-          </form>
-
-          <div className="flex items-center gap-3 my-6 text-[11.5px] uppercase tracking-[.08em] text-ink-3"><span className="flex-1 h-px bg-line" />Choose who you are (SSO stand-in)<span className="flex-1 h-px bg-line" /></div>
-          <ul className="grid gap-1.5">{users.map((u) => (
-            <li key={u.id}><button type="button" onClick={() => void signIn(u)} disabled={!!busy} className="w-full flex items-center gap-3 text-left border border-line rounded-lg px-3 py-2.5 hover:border-ink-4 hover:bg-surface-2 disabled:opacity-60">
-              <Avatar name={u.name} size={34} /><span className="flex-1 min-w-0"><span className="block text-[14px] font-medium text-ink truncate">{u.name}</span><small className="block text-ink-3 text-[12px] truncate">{ROLES[u.role]?.name ?? u.role} · {u.team}</small></span>
-              <span className="btn btn-sm">{busy === u.id ? "Signing in…" : "Sign in"}</span></button></li>))}</ul>
-          {err && <div role="alert" className="mt-4 text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</div>}
-        </div>
-        <p className="text-center text-[12.5px] text-ink-3 mt-5">Nothing here reaches customers until you publish.</p>
+        <button type="button" onClick={() => sso && void signIn(sso)} disabled={!!busy || !sso} className="mt-10 w-full h-12 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold text-[15px] inline-flex items-center justify-center gap-2.5 disabled:opacity-60 transition-colors">
+          <svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l8 3v6c0 4.5-3.5 7.5-8 9-4.5-1.5-8-4.5-8-9V6zM9 12l2 2 4-4" /></svg>
+          {busy === sso?.id ? "Signing in…" : "Sign in with company SSO"}
+        </button>
+        {demo && <ul className="mt-8 w-full grid gap-1.5 text-left" aria-label="Demo accounts">{users.filter((u) => u.id !== SSO_USER).map((u) => (
+          <li key={u.id}><button type="button" onClick={() => void signIn(u)} disabled={!!busy} className="w-full flex items-center gap-3 border border-white/12 bg-white/[.04] hover:bg-white/[.09] rounded-lg px-3 py-2.5 disabled:opacity-60">
+            <Avatar name={u.name} size={32} /><span className="flex-1 min-w-0"><span className="block text-[13.5px] font-medium truncate">{u.name}</span><small className="block text-white/50 text-[11.5px] truncate">{ROLES[u.role]?.name ?? u.role} · {u.team}</small></span>
+            <span className="text-[12px] text-white/60">{busy === u.id ? "Signing in…" : "Sign in →"}</span></button></li>))}</ul>}
+        {err && <div role="alert" className="mt-4 w-full text-[12.5px] bg-crit/20 border border-crit/40 text-white px-3 py-2 rounded">{err}</div>}
       </div>
+      <p className="text-[12px] text-white/35 mt-12">Nothing here reaches customers until you publish. © HSBC Group</p>
     </main>
   );
 }

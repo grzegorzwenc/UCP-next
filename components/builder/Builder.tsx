@@ -11,6 +11,7 @@ import { Pill } from "@/components/ui/Pill";
 import { proposeAi, AI_SUGGESTIONS, type AiProposal } from "@/lib/ai/mock";
 import { planFor, revertOp, AI_PAGE_SUGGESTIONS, type Plan, type Change } from "@/lib/ai/planner";
 import { useSession } from "@/components/shell/Session";
+import { useShellMode } from "@/components/shell/SideNav";
 import { InsightsPanel, VersionHistory, TranslateModal } from "@/components/builder";
 import { useRouter } from "next/navigation";
 import { permForStatus } from "@/lib/ucp/perms";
@@ -41,7 +42,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [pop, setPop] = useState<"ai" | "more" | null>(null);
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
   const [preview, setPreviewRaw] = useState(!canEdit); const setPreview = (v: boolean | ((p: boolean) => boolean)) => { if (!canEdit) return; setPreviewRaw(v); };
-  const [left, setLeft] = useState(true); const [right, setRight] = useState(false);
+  const { phone, tablet } = useShellMode(); const narrow = phone || tablet;
+  const [left, setLeftRaw] = useState(true); const [right, setRight] = useState(false);
+  const setLeft = (v: boolean) => setLeftRaw(v);
+  useEffect(() => { if (phone) setLeftRaw(false); }, [phone]);
   const [rightTab, setRightTab] = useState<"block" | "page" | "ai" | "insights" | "history">("page");
   const [translating, setTranslating] = useState(false); const router = useRouter();
   const [description, setDescription] = useState(page.description ?? "");
@@ -201,13 +205,14 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (i === 5) { if (status === "approved" || status === "scheduled") transition("published", `Published to ${envName}`); return; }
   };
   const filtered = BLOCKS.filter((b) => !q || b.name.toLowerCase().includes(q.toLowerCase()));
-  const padL = left && !preview ? 344 : 24, padR = right && !preview ? 364 : 24;
+  // On phones and tablets the panels float over the canvas instead of reserving space, so the 1:1 page keeps its width.
+  const padL = left && !preview && !narrow ? 344 : narrow ? 12 : 24, padR = right && !preview && !narrow ? 364 : narrow ? 12 : 24;
   const hint = !canEdit ? "Read-only: you don't have Edit on this folder. Ask a site admin to grant it." : preview ? "Preview: exactly what visitors will see" : mode === "edit" ? "Edit mode: click any highlighted text to change it. Enter saves, Esc cancels." : sel ? "Use the toolbar on the block: ✎ Edit text in place · ⚙ Configure everything · ✨ AI · ⋯ More" : "Hover to see block names. Click a block to select it, double-click to edit its text.";
 
   return (
     <div className="h-full grid grid-rows-[54px_48px_1fr] min-w-0 overflow-hidden">
       {/* Toolbar (docked) */}
-      <div className="flex items-center gap-3 px-2.5 bg-surface border-b border-line overflow-hidden">
+      <div className="flex items-center gap-3 px-2.5 bg-surface border-b border-line overflow-x-auto overflow-y-hidden">
         <Link href={`/${marketId}/${envId}/pages${rel.replace(/\/[^/]+$/, "")}`} className="btn btn-quiet btn-sm">‹ Pages</Link>
         <div className="min-w-0 flex-1"><b className="block text-[14.5px] truncate">{title}</b><span className="block text-[11.5px] text-ink-3 truncate font-mono">{flag} {locale} · {domain}{rel}</span></div>
         <Pill status={status} />
@@ -260,13 +265,13 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         </div>
         {focus && <button data-ui className="fixed top-3 right-3 z-[60] bg-[#0F1013] text-white text-[12px] font-medium px-3 py-1.5 rounded-full shadow-xl hover:bg-black" onClick={() => setFocusMode(false)}>Exit focus (Esc)</button>}
         {/* Left panel */}
-        {left && !preview && <aside data-ui className="absolute left-0 top-0 bottom-0 w-[320px] bg-surface border-r border-line flex flex-col z-[5]">
+        {left && !preview && <aside data-ui className="absolute left-0 top-0 bottom-0 w-[320px] max-w-full bg-surface border-r border-line flex flex-col z-[5] shadow-xl md:shadow-none">
           <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">Components</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => setLeft(false)} aria-label="Close">✕</button></div>
           <div className="p-3 border-b border-line"><input className="w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px]" placeholder="Find a component" value={q} onChange={(e) => setQ(e.target.value)} /></div>
           <div className="flex-1 overflow-auto p-3">{GROUPS.map((g) => { const items = filtered.filter((b) => b.group === g); if (!items.length) return null; return <div key={g}><h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold mt-3 mb-1.5 first:mt-0">{g}</h6>{items.map((b) => <div key={b.type} className="border border-line rounded-xl p-2.5 mb-2.5 bg-surface hover:border-ink-3 hover:shadow-md"><div className="flex justify-between items-center mb-1"><b className="text-[13.5px]">{b.name}</b><span className="text-[10.5px] uppercase tracking-[.06em] text-ink-3 font-semibold">{b.group}</span></div><small className="block text-ink-3 text-xs mb-2">{b.desc}</small><button className="btn btn-sm w-full justify-center hover:bg-accent hover:text-white hover:border-accent" onClick={() => add(b.type)}>＋ Add to page</button></div>)}</div>; })}</div>
         </aside>}
         {/* Right panel: Configure (contextual) or Page settings */}
-        {right && !preview && <aside data-ui className="absolute right-0 top-0 bottom-0 w-[340px] bg-surface border-l border-line flex flex-col z-[5]">
+        {right && !preview && <aside data-ui className="absolute right-0 top-0 bottom-0 w-[340px] max-w-full bg-surface border-l border-line flex flex-col z-[5] shadow-xl md:shadow-none">
           <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">{rightTab === "block" ? "Configure" : rightTab === "page" ? "Page settings" : rightTab === "ai" ? "✨ AI" : rightTab === "insights" ? "Page insights" : "Version history"}</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => closeConfigure(true)} aria-label="Close">✕</button></div>
           <div className="flex border-b border-line">{(["block", "page", "ai", "insights", "history"] as const).map((t) => <button key={t} onClick={() => setRightTab(t)} className={`flex-1 py-2.5 text-[12px] font-medium border-b-2 -mb-px whitespace-nowrap ${rightTab === t ? "border-accent text-ink" : "border-transparent text-ink-3 hover:text-ink"}`}>{t === "block" ? "Component" : t === "page" ? "Page" : t === "ai" ? "AI" : t === "insights" ? "Insights" : "History"}</button>)}</div>
           {rightTab === "insights" ? <div className="flex-1 overflow-auto p-3.5 text-[13px]"><InsightsPanel blocks={blocks} page={{ title, description, template: page.template, status, locale }} onFix={(apply, label) => { if (!canEdit) { say("Read-only: ask a site admin for Edit"); return; } mutate(apply); say(`Fixed: ${label}`); }} onSelectBlock={(id) => { select(id); const el = canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`); el?.scrollIntoView({ block: "center", behavior: "smooth" }); }} /></div>

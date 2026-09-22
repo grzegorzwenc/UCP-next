@@ -17,7 +17,7 @@ export function SectionSkeleton({ section, rows = 8, tiles = false, sidebar = fa
   );
   if (!sidebar) return body;
   return (
-    <div className="grid grid-cols-[260px_1fr] h-full min-h-0">
+    <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] h-full min-h-0">
       <aside className="bg-surface border-r border-line p-3 grid content-start gap-2"><Skeleton className="h-3 w-[120px] mx-2 mb-1" />{Array.from({ length: 7 }, (_, i) => <Skeleton key={i} className="h-6" />)}</aside>
       <div className="overflow-auto min-w-0">{body}</div>
     </div>

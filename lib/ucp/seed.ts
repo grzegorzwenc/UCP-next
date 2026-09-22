@@ -12,6 +12,7 @@ export const ROLES: Record<Role, { name: string; perms: Partial<Record<PermKey, 
 export const PERM_COLS: [PermKey, string, string][] = [["read", "Read", "See pages and content"], ["edit", "Edit", "Change drafts"], ["review", "Review & approve", "Approve for publishing"], ["publish", "Publish", "Push to production"], ["manage", "Manage", "Permissions and settings"]];
 
 export const SEED_USERS: { id: string; name: string; email: string; role: Role; team: string; perms: Perms }[] = [
+  { id: "super.admin", name: "Super admin", email: "ucp-admin@hsbc.com", role: "admin", team: "UCP platform team", perms: { root: { read: true, edit: true, review: true, publish: true, manage: true } } },
   { id: "jordan.mensah", name: "Jordan Mensah", email: "jordan.mensah@hsbc.com", role: "publisher", team: "Savings & Mortgages", perms: { root: { read: true, edit: true, review: true, publish: true } } },
   { id: "anna.kowalczyk", name: "Anna Kowalczyk", email: "anna.kowalczyk@hsbc.com", role: "author", team: "Cards", perms: { root: { read: true }, borrowing: { read: true, edit: true } } },
   { id: "rachel.hughes", name: "Rachel Hughes", email: "rachel.hughes@hsbc.com", role: "reviewer", team: "Compliance", perms: { root: { read: true, edit: true, review: true } } },
@@ -21,6 +22,8 @@ export const SEED_USERS: { id: string; name: string; email: string; role: Role; 
   { id: "tunde.boateng", name: "Tunde Boateng", email: "tunde.boateng@hsbc.com", role: "viewer", team: "Marketing", perms: { root: { read: true } } },
 ];
 export const ME = "jordan.mensah";
+/** Who the "Sign in with company SSO" button signs in as until real SSO is wired: the platform super admin. */
+export const SSO_USER = "super.admin";
 
 export const ASSET_FOLDERS = ["Products", "Campaigns", "Brand", "Documents", "Uploads"];
 export const SEED_ASSETS: Omit<Asset, "path">[] = [
