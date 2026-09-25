@@ -7,7 +7,7 @@ import type { ResolvedEntities } from "@/lib/ucp/tokens";
 import { bindingsOf } from "@/lib/ucp/tokens";
 import { byOrder } from "@/lib/ucp/schema";
 import { RepoError } from "@/lib/repo";
-import { BLOCK_MODELS, ME, SEED_USERS } from "@/lib/ucp/seed";
+import { ME, SEED_USERS } from "@/lib/ucp/seed";
 import { allPages } from "@/lib/server/pages";
 import { sessionUserId } from "@/lib/server/session";
 import { can } from "@/lib/ucp/perms";
@@ -51,7 +51,8 @@ export async function me(): Promise<User> { const id = (await sessionUserId()) ?
 /* ---------------- models (/conf/hsbc/models/<id>) + block types from the registry ---------------- */
 const toModel = (n: RepoNode): Model => { const fields = json<ModelField[]>(n.properties["ucp:fields"], []); const pub = n.properties["ucp:publishedFields"] !== undefined ? json<ModelField[]>(n.properties["ucp:publishedFields"], []) : undefined; const pv = num(n.properties["ucp:publishedVersion"]);
   return { id: n.name, path: n.path, name: str(n.properties["jcr:title"], n.name), displayName: str(n.properties["ucp:displayName"]) || undefined, description: str(n.properties["jcr:description"]) || undefined, icon: str(n.properties["ucp:icon"]) || undefined, group: str(n.properties["ucp:group"], "Core"), source: str(n.properties["ucp:source"], "Core"), status: (str(n.properties["ucp:status"]) as Model["status"]) || (pv ? "published" : "draft"), version: num(n.properties["ucp:version"]) ?? 1, publishedVersion: pv, fields, publishedFields: pub, lastModified: str(n.properties["cq:lastModified"]) || str(n.properties["jcr:created"]) || undefined, lastModifiedBy: str(n.properties["cq:lastModifiedBy"]) || undefined, order: num(n.properties["ucp:order"]) }; };
-export async function listModels(): Promise<Model[]> { const m = await kids(PATHS.models, 1); return [...m.map(toModel), ...BLOCK_MODELS]; }
+/** Content models: the few core models authors build content from. Page blocks are defined by the block registry, not listed here. */
+export async function listModels(): Promise<Model[]> { const m = await kids(PATHS.models, 1); return m.map(toModel); }
 export async function getModel(id: string): Promise<Model | undefined> { return (await listModels()).find((m) => m.id === id); }
 
 /** Which pages use a model. Block types: pages whose components include that block. Core models: derived from the blocks that carry that content. */

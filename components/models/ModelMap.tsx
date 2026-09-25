@@ -8,7 +8,7 @@ export type Relation = { from: string; to: string; key: string; label: string; m
 /** Where a Reference field points. Older seed fields carry no referenceModel, so a few well-known keys are mapped by name. */
 export const targetOf = (f: ModelField): string | null => {
   if (f.t !== "Reference") return null;
-  return f.validation?.referenceModel ?? (f.k === "relatedProducts" || f.k === "product" ? "product" : f.k === "landingPage" ? "page" : null);
+  return f.validation?.referenceModel ?? (f.k === "product" ? "product" : f.k === "landingPage" ? "page" : null);
 };
 export function relationsOf(models: Model[]): Relation[] {
   const ids = new Set(models.map((m) => m.id)); const out: Relation[] = [];

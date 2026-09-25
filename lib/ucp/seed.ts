@@ -1,5 +1,5 @@
 import type { Asset, FormDef, Model, ModelField, Role, PermKey, Perms, Template } from "./types";
-import { BLOCKS, TEMPLATES } from "@/lib/blocks/registry";
+import { TEMPLATES } from "@/lib/blocks/registry";
 
 /** Demo data shared by the mock repository seed and by UI defaults. Safe to import on the client (no secrets, no server-only). */
 export const ROLES: Record<Role, { name: string; perms: Partial<Record<PermKey, boolean>> }> = {
@@ -53,14 +53,11 @@ export const FIELD_TYPES = ["Text", "Long text", "Rich text", "Number", "Decimal
 const f = (k: string, l: string, t: string, req = false, loc = false): ModelField => ({ k, l, t, req, loc });
 export const SEED_MODELS: Omit<Model, "path" | "status">[] = [
   { id: "page", name: "Page", description: "Every web page: title, template, status and its blocks.", group: "Core", version: 2, source: "Core", fields: [f("title", "Title", "Text", true, true), f("slug", "URL slug", "Text", true), f("template", "Template", "Reference", true), f("metaDescription", "Meta description", "Text", false, true), f("owner", "Owner", "Reference"), f("status", "Status", "Enum", true), f("publishAt", "Publish at", "Date"), f("locales", "Locales", "Multi-select"), f("blocks", "Blocks", "Blocks", true, true)] },
-  { id: "product", name: "Product", description: "A bank product shown in tiles and product pages.", group: "Core", version: 4, source: "Core", fields: [f("title", "Title", "Text", true, true), f("description", "Description", "Rich text", false, true), f("image", "Image", "Asset"), f("cta", "Call to action", "Group", false, true), f("relatedProducts", "Related products", "Reference"), f("category", "Category", "Enum", true), f("marketAvailability", "Market availability", "Multi-select")] },
+  { id: "product", name: "Product", description: "A bank product shown in tiles and product pages.", group: "Core", version: 4, source: "Core", fields: [f("title", "Title", "Text", true, true), f("description", "Description", "Rich text", false, true), f("image", "Image", "Asset"), f("cta", "Call to action", "Group", false, true), f("category", "Category", "Enum", true), f("marketAvailability", "Market availability", "Multi-select")] },
   { id: "rate", name: "Rate", description: "An interest rate line for a product and term.", group: "Core", version: 3, source: "Core", fields: [f("product", "Product", "Reference", true), f("term", "Term", "Text", true, true), f("aer", "AER", "Decimal", true), f("gross", "Gross", "Decimal"), f("validFrom", "Valid from", "Date", true)] },
   { id: "campaign", name: "Campaign", description: "A time-boxed marketing campaign with a landing page.", group: "Core", version: 2, source: "Core", fields: [f("name", "Name", "Text", true), f("startDate", "Start date", "Date", true), f("endDate", "End date", "Date", true), f("offer", "Offer", "Rich text", false, true), f("landingPage", "Landing page", "Reference"), f("markets", "Markets", "Multi-select")] },
   { id: "faq-item", name: "FAQ item", description: "One question and its answer, reusable across pages.", group: "Core", version: 1, source: "Core", fields: [f("question", "Question", "Text", true, true), f("answer", "Answer", "Rich text", true, true)] },
 ];
-/** Block-type models are derived from the component registry (read-only: the source of truth is the Sling component dialog). */
-const T: Record<string, string> = { text: "Text", textarea: "Rich text", lines: "List", select: "Enum", bool: "Boolean", asset: "Asset", form: "Form reference" };
-export const BLOCK_MODELS: Model[] = BLOCKS.map((c) => ({ id: "block-" + c.type, name: c.name, group: "Block types", status: "published" as const, version: 1, publishedVersion: 1, source: "Translated from the Sling component dialog", locked: true, fields: c.fields.map((x) => f(x.k, x.l, T[x.t] ?? x.t, !!x.req, x.t === "text" || x.t === "textarea" || x.t === "lines")) }));
 
 export const TEMPLATE_FOLDERS = ["Global (all markets)", "Campaigns", "Archived"];
 export const SEED_TEMPLATES: Omit<Template, "path">[] = TEMPLATES.map((t) => ({ ...t, folder: t.id === "campaign" ? "Campaigns" : "Global (all markets)" }));
