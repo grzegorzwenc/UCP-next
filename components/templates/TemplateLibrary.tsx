@@ -11,6 +11,8 @@ import { repoApi } from "@/lib/api";
 import { errorText as errText } from "@/lib/api/errors";
 import { useSession } from "@/components/shell/Session";
 import { TemplatePreview } from "./TemplatePreview";
+import { BLOCK_BY_TYPE } from "@/lib/blocks/registry";
+import { Menu } from "@/components/ui/Menu";
 
 type Props = { marketId: string; envId: string; marketName: string; flag: string; templates: Template[]; used: Record<string, number>; folder: string; view: "grid" | "list"; q: string };
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -61,12 +63,16 @@ export function TemplateLibrary({ marketId, envId, marketName, flag, templates, 
         {!list.length ? <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">No templates here.{canManage && <> <button className="underline" onClick={() => openTemplateModal(folder || "Global (all markets)")}>Create the first one</button>.</>}</div>
           : view === "list" ? <div className="overflow-auto"><table className="w-full text-[13.5px] bg-surface border border-line min-w-[640px]"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="p-3 border-b border-line-2">Template</th><th className="p-3 border-b border-line-2">Blocks</th><th className="p-3 border-b border-line-2">Folder</th><th className="p-3 border-b border-line-2">Used by</th><th className="border-b border-line-2" /></tr></thead>
             <tbody>{list.map((t) => <tr key={t.id} className="hover:bg-surface-2"><td className="p-3 border-b border-line"><Link href={`${base}/templates/${t.id}`} className="font-medium">▫ {t.name}</Link><div className="text-xs text-ink-3">{t.desc}</div></td><td className="p-3 border-b border-line">{t.blocks.length}</td><td className="p-3 border-b border-line text-ink-3">{tplFolderOf(t)}</td><td className="p-3 border-b border-line text-ink-3">{used[t.id] ?? 0} pages</td><td className="p-3 border-b border-line whitespace-nowrap"><Link className="btn btn-sm btn-primary mr-1.5" href={`${base}/pages?new=1&template=${t.id}`}>Use</Link><Link className="btn btn-sm mr-1.5" href={`${base}/templates/${t.id}`}>{canManage ? "Edit" : "View"}</Link>{canManage && t.id !== "blank" && <button className="btn btn-sm btn-quiet" onClick={() => duplicate(t)}>Duplicate</button>}</td></tr>)}</tbody></table></div>
-          : <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" }}>{list.map((t) => { const u = used[t.id] ?? 0; return <div key={t.id} className="bg-surface border border-line flex flex-col hover:border-ink-3 hover:shadow-lg transition-shadow">
-            <Link href={`${base}/templates/${t.id}`} aria-label={`Edit template ${t.name}`}><TemplatePreview blocks={t.blocks} scale={0.3} height={200} /></Link>
-            <div className="p-3.5 flex flex-col gap-1.5 flex-1"><div className="flex items-center gap-2"><b className="text-[15px]">{t.name}</b><span className="ml-auto text-[11.5px] text-ink-3 font-mono">{t.blocks.length} block{t.blocks.length === 1 ? "" : "s"}</span></div>
-              <small className="text-ink-3 text-[12.5px] leading-snug">{t.desc}</small>
-              <div className="text-[12px] text-ink-3 mt-auto pt-1">{tplFolderOf(t)} · used by {u} page{u === 1 ? "" : "s"}</div>
-              <div className="flex gap-1.5 flex-wrap mt-1"><Link className="btn btn-sm btn-primary" href={`${base}/pages?new=1&template=${t.id}`}>Use template</Link><Link className="btn btn-sm" href={`${base}/templates/${t.id}`}>{canManage ? "Edit" : "View"}</Link>{canManage && t.id !== "blank" && <button className="btn btn-sm btn-quiet" onClick={() => duplicate(t)}>Duplicate</button>}</div></div>
+          : <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))" }}>{list.map((t) => { const u = used[t.id] ?? 0; const names = t.blocks.map((b) => BLOCK_BY_TYPE[b]?.name ?? b); const edit = `${base}/templates/${t.id}`;
+            return <div key={t.id} className="group bg-surface border border-line rounded-xl overflow-hidden flex flex-col hover:border-ink-4 hover:shadow-md transition-shadow">
+            <Link href={edit} aria-label={`${canManage ? "Edit" : "View"} template ${t.name}`} className="block border-b border-line"><TemplatePreview blocks={t.blocks} height={170} /></Link>
+            <div className="p-3.5 flex flex-col gap-2 flex-1 min-w-0">
+              <div className="flex items-start gap-2 min-w-0"><Link href={edit} className="font-semibold text-[14.5px] leading-tight truncate hover:underline" title={t.name}>{t.name}</Link><span className="ml-auto flex-none text-[11px] text-ink-3 bg-surface-3 rounded-full px-2 py-0.5 tabular-nums">{t.blocks.length} block{t.blocks.length === 1 ? "" : "s"}</span></div>
+              <p className="text-ink-3 text-[12.5px] leading-snug line-clamp-2" title={t.desc || names.join(" · ")}>{t.desc || names.join(" · ") || "No blocks yet"}</p>
+              <div className="flex items-center gap-1.5 text-[12px] text-ink-3 mt-auto pt-1 min-w-0"><span className="truncate">{tplFolderOf(t)}</span><span aria-hidden>·</span><span className="flex-none">{u ? `used by ${u} page${u === 1 ? "" : "s"}` : "not used yet"}</span></div>
+              <div className="flex items-center gap-1.5 pt-2 border-t border-line"><Link className="btn btn-sm btn-primary" href={`${base}/pages?new=1&template=${t.id}`}>Use template</Link><Link className="btn btn-sm" href={edit}>{canManage ? "Edit" : "View"}</Link>
+                {canManage && t.id !== "blank" && <span className="ml-auto"><Menu label="⋯" ariaLabel={`More actions for ${t.name}`} buttonClassName="btn btn-sm btn-icon" items={[{ id: "dup", label: "Duplicate", onSelect: () => duplicate(t) }]} /></span>}</div>
+            </div>
           </div>; })}</div>}
       </div>
       {modal && canManage && <div className="fixed inset-0 bg-black/45 grid place-items-center z-50" onClick={(e) => { if (e.target === e.currentTarget) setModal(null); }}>
