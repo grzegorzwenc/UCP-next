@@ -2,7 +2,8 @@ import "server-only";
 import { repo } from "@/lib/repo";
 import type { RepoNode, PageSummary, NodeProps } from "@/lib/repo";
 import { PATHS } from "@/lib/ucp/paths";
-import type { Asset, AssetType, AuditEvent, AuditType, FormDef, Model, ModelField, Notification, Perms, Role, Task, TaskKind, Template, User } from "@/lib/ucp/types";
+import type { Asset, AssetType, AuditEvent, AuditType, FormDef, Model, ModelField, ModelVersion, Notification, Perms, Role, Task, TaskKind, Template, User } from "@/lib/ucp/types";
+import { RepoError } from "@/lib/repo";
 import { BLOCK_MODELS, ME, SEED_USERS } from "@/lib/ucp/seed";
 import { allPages } from "@/lib/server/pages";
 import { sessionUserId } from "@/lib/server/session";
@@ -45,7 +46,8 @@ export async function userName(id: string): Promise<string> { if (id === "system
 export async function me(): Promise<User> { const id = (await sessionUserId()) ?? (await repo().identity().catch(() => ({ id: ME }))).id; return (await getUser(id)) ?? { id, path: `${PATHS.users}/${id}`, name: await userName(id), email: "", role: "author", team: "", perms: { root: { read: true } } }; }
 
 /* ---------------- models (/conf/hsbc/models/<id>) + block types from the registry ---------------- */
-const toModel = (n: RepoNode): Model => ({ id: n.name, path: n.path, name: str(n.properties["jcr:title"], n.name), group: str(n.properties["ucp:group"], "Core"), version: num(n.properties["ucp:version"]) ?? 1, source: str(n.properties["ucp:source"], "Core"), fields: json<ModelField[]>(n.properties["ucp:fields"], []) });
+const toModel = (n: RepoNode): Model => { const fields = json<ModelField[]>(n.properties["ucp:fields"], []); const pub = n.properties["ucp:publishedFields"] !== undefined ? json<ModelField[]>(n.properties["ucp:publishedFields"], []) : undefined; const pv = num(n.properties["ucp:publishedVersion"]);
+  return { id: n.name, path: n.path, name: str(n.properties["jcr:title"], n.name), displayName: str(n.properties["ucp:displayName"]) || undefined, description: str(n.properties["jcr:description"]) || undefined, icon: str(n.properties["ucp:icon"]) || undefined, group: str(n.properties["ucp:group"], "Core"), source: str(n.properties["ucp:source"], "Core"), status: (str(n.properties["ucp:status"]) as Model["status"]) || (pv ? "published" : "draft"), version: num(n.properties["ucp:version"]) ?? 1, publishedVersion: pv, fields, publishedFields: pub, lastModified: str(n.properties["cq:lastModified"]) || str(n.properties["jcr:created"]) || undefined, lastModifiedBy: str(n.properties["cq:lastModifiedBy"]) || undefined }; };
 export async function listModels(): Promise<Model[]> { const m = await kids(PATHS.models, 1); return [...m.map(toModel), ...BLOCK_MODELS]; }
 export async function getModel(id: string): Promise<Model | undefined> { return (await listModels()).find((m) => m.id === id); }
 
@@ -125,3 +127,44 @@ export async function restoreVersion(path: string, id: string): Promise<void> {
   const n = await repo().getNode(`${VER(path)}/${id}`, 0); if (!n) throw new Error("Version not found");
   await repo().saveComponents(path, json(n.properties["ucp:components"], [])); const title = str(n.properties["ucp:title"]); if (title) await repo().updateContent(path, { title });
 }
+
+/* ---------------- content model lifecycle: draft → publish, versions under <model>/ucp:versions ---------------- */
+const MVER = (id: string) => `${PATHS.models}/${id}/ucp:versions`;
+export async function listModelVersions(id: string): Promise<ModelVersion[]> { const v = await kids(MVER(id), 1); return v.map((n) => ({ id: n.name, version: num(n.properties["ucp:version"]) ?? 0, time: str(n.properties["ucp:time"]), who: str(n.properties["ucp:who"]), note: str(n.properties["ucp:note"]), published: n.properties["ucp:published"] === true || n.properties["ucp:published"] === "true", fields: json<ModelField[]>(n.properties["ucp:fields"], []) })).sort((a, b) => b.version - a.version || b.time.localeCompare(a.time)); }
+async function snapshotModel(id: string, m: Model, note: string, who: string, published: boolean) {
+  const time = new Date().toISOString(); const vid = `v${m.version}-${time.replace(/[^0-9]/g, "").slice(8, 14)}`;
+  await repo().createNode(`${MVER(id)}/${vid}`, "nt:unstructured", { "ucp:version": m.version, "ucp:time": time, "ucp:who": who, "ucp:note": note, "ucp:published": published, "ucp:fields": JSON.stringify(m.fields) }).catch(() => {});
+}
+/** Save the draft: fields and/or metadata. Bumps the draft version and marks a published model as "modified". */
+export async function saveModelDraft(id: string, patch: { name?: string; displayName?: string; description?: string; icon?: string; group?: string; fields?: ModelField[] }, who: string): Promise<Model> {
+  const cur = (await listModels()).find((m) => m.id === id); if (!cur || cur.locked) throw new RepoError(cur ? 403 : 404, cur ? "Block-type models are read-only" : "Model not found", id);
+  const props: NodeProps = { "cq:lastModified": new Date().toISOString(), "cq:lastModifiedBy": who };
+  if (patch.name !== undefined) props["jcr:title"] = patch.name; if (patch.displayName !== undefined) props["ucp:displayName"] = patch.displayName; if (patch.description !== undefined) props["jcr:description"] = patch.description; if (patch.icon !== undefined) props["ucp:icon"] = patch.icon; if (patch.group !== undefined) props["ucp:group"] = patch.group;
+  if (patch.fields) { props["ucp:fields"] = JSON.stringify(patch.fields); props["ucp:version"] = cur.publishedVersion && cur.version === cur.publishedVersion ? cur.version + 1 : cur.version; }
+  props["ucp:status"] = cur.publishedVersion ? "modified" : "draft";
+  await repo().setProps(`${PATHS.models}/${id}`, props);
+  const next = (await listModels()).find((m) => m.id === id)!; if (patch.fields) await snapshotModel(id, next, "draft saved", who, false); return next;
+}
+/** Publish the draft: the published schema becomes the current fields; a published version snapshot is kept. */
+export async function publishModel(id: string, who: string): Promise<Model> {
+  const cur = (await listModels()).find((m) => m.id === id); if (!cur || cur.locked) throw new RepoError(cur ? 403 : 404, cur ? "Block-type models are read-only" : "Model not found", id);
+  await repo().setProps(`${PATHS.models}/${id}`, { "ucp:publishedFields": JSON.stringify(cur.fields), "ucp:publishedVersion": cur.version, "ucp:status": "published", "cq:lastModified": new Date().toISOString(), "cq:lastModifiedBy": who });
+  const next = (await listModels()).find((m) => m.id === id)!; await snapshotModel(id, next, `published v${next.version}`, who, true); return next;
+}
+/** Restore a version into the draft (never touches the published schema). */
+export async function restoreModelVersion(id: string, versionId: string, who: string): Promise<Model> {
+  const v = (await listModelVersions(id)).find((x) => x.id === versionId); if (!v) throw new RepoError(404, "Version not found", versionId);
+  const cur = (await listModels()).find((m) => m.id === id)!;
+  return saveModelDraft(id, { fields: v.fields }, who).then(async () => { await repo().setProps(`${PATHS.models}/${id}`, { "ucp:version": cur.version + 1 }); return (await listModels()).find((m) => m.id === id)!; });
+}
+export async function createModel(input: { id: string; name: string; displayName?: string; description?: string; icon?: string; group?: string; fields?: ModelField[] }, who: string): Promise<Model> {
+  const id = slug(input.id || input.name); if (!id) throw new RepoError(400, "A model needs a name"); if (await repo().getNode(`${PATHS.models}/${id}`, 0)) throw new RepoError(409, "A model with this ID already exists", id);
+  const n = await repo().createNode(`${PATHS.models}/${id}`, "nt:unstructured", { "jcr:title": input.name, "ucp:displayName": input.displayName, "jcr:description": input.description, "ucp:icon": input.icon, "ucp:group": input.group || "Core", "ucp:source": "Custom", "ucp:status": "draft", "ucp:version": 1, "ucp:fields": JSON.stringify(input.fields ?? []), "cq:lastModified": new Date().toISOString(), "cq:lastModifiedBy": who });
+  return toModel({ ...n, properties: n.properties });
+}
+export async function duplicateModel(id: string, who: string): Promise<Model> {
+  const cur = (await listModels()).find((m) => m.id === id); if (!cur) throw new RepoError(404, "Model not found", id);
+  let nid = `${id}-copy`; let i = 2; while (await repo().getNode(`${PATHS.models}/${nid}`, 0)) nid = `${id}-copy-${i++}`;
+  return createModel({ id: nid, name: `${cur.name} (copy)`, displayName: cur.displayName, description: cur.description, icon: cur.icon, group: cur.locked ? "Core" : cur.group, fields: cur.fields }, who);
+}
+export async function deleteModel(id: string): Promise<void> { const cur = (await listModels()).find((m) => m.id === id); if (!cur || cur.locked) throw new RepoError(cur ? 403 : 404, cur ? "Block-type models cannot be deleted" : "Model not found", id); await repo().deleteNode(`${PATHS.models}/${id}`); }

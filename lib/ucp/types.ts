@@ -10,9 +10,17 @@ export type PermKey = "read" | "edit" | "review" | "publish" | "manage";
 export type Perms = Record<string, Partial<Record<PermKey, boolean>>>; // folder name ("root" = whole site) → grants
 export type User = { id: string; path: string; name: string; email: string; role: Role; team: string; perms: Perms };
 
-export type FieldType = "Text" | "Rich text" | "Number" | "Decimal" | "Boolean" | "Date" | "Enum" | "Multi-select" | "Asset" | "Reference" | "Group" | "List" | "Form reference" | "Blocks";
-export type ModelField = { k: string; l: string; t: FieldType | string; req: boolean; loc: boolean };
-export type Model = { id: string; path?: string; name: string; group: "Core" | "Block types" | string; version: number; source: string; locked?: boolean; fields: ModelField[] };
+export type FieldType = "Text" | "Long text" | "Rich text" | "Number" | "Decimal" | "Boolean" | "Date" | "Date & time" | "Select" | "Multi-select" | "Reference" | "Asset" | "Image" | "URL" | "JSON" | "Enum" | "Group" | "List" | "Form reference" | "Blocks";
+export type FieldValidation = { min?: number; max?: number; minLength?: number; maxLength?: number; pattern?: string; options?: string[]; referenceModel?: string; unique?: boolean };
+export type ModelField = { k: string; l: string; t: FieldType | string; req: boolean; loc: boolean; desc?: string; default?: string; hidden?: boolean; validation?: FieldValidation };
+export type ModelStatus = "draft" | "published" | "modified";
+export type Model = {
+  id: string; path?: string; name: string; displayName?: string; description?: string; icon?: string; group: "Core" | "Block types" | string; source: string; locked?: boolean;
+  status: ModelStatus; version: number; publishedVersion?: number; fields: ModelField[]; publishedFields?: ModelField[];
+  lastModified?: string; lastModifiedBy?: string;
+};
+export type ModelVersion = { id: string; version: number; time: string; who: string; note: string; published: boolean; fields: ModelField[] };
+export type ModelDiff = { added: ModelField[]; removed: ModelField[]; changed: { before: ModelField; after: ModelField; what: string[] }[]; breaking: string[] };
 
 export type Template = { id: string; path: string; name: string; desc: string; blocks: string[]; folder: string };
 export type FormDef = { id: string; name: string; version: number };

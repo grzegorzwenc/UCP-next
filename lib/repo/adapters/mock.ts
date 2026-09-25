@@ -18,7 +18,7 @@ import { sessionUserId } from "@/lib/server/session";
  *   /var/audit/ucp/<market>/<id>   audit events (append-only)
  * Same node shapes the Sling adapter produces, so switching backends changes nothing above the port.
  */
-const g = globalThis as unknown as { __ucpRepo_v8?: RepoNode };
+const g = globalThis as unknown as { __ucpRepo_v9?: RepoNode };
 
 const node = (path: string, primaryType: string, properties: NodeProps = {}, children?: RepoNode[]): RepoNode => ({ path, name: path.split("/").pop() || "", primaryType, properties, children });
 function page(parent: string, name: string, title: string, status: PageView["status"], template: string, blocks?: ReturnType<typeof makeBlock>[], extra: NodeProps = {}): RepoNode {
@@ -70,7 +70,7 @@ function seed(): RepoNode {
   ]);
   const home = node("/home", "rep:AuthorizableFolder", {}, [node("/home/users", "rep:AuthorizableFolder", {}, SEED_USERS.map((u) => node(`${PATHS.users}/${u.id}`, "rep:User", { "rep:principalName": u.id, "profile/givenName": u.name.split(" ")[0], "profile/familyName": u.name.split(" ").slice(1).join(" "), "profile/email": u.email, "ucp:name": u.name, "ucp:role": u.role, "ucp:team": u.team, "ucp:perms": JSON.stringify(u.perms) })))]);
   const conf = node("/conf", "sling:Folder", {}, [node("/conf/hsbc", "sling:Folder", {}, [
-    node(PATHS.models, "sling:Folder", {}, SEED_MODELS.map((m) => node(`${PATHS.models}/${m.id}`, "nt:unstructured", { "jcr:title": m.name, "ucp:group": m.group, "ucp:version": m.version, "ucp:source": m.source, "ucp:fields": JSON.stringify(m.fields) }))),
+    node(PATHS.models, "sling:Folder", {}, SEED_MODELS.map((m) => node(`${PATHS.models}/${m.id}`, "nt:unstructured", { "jcr:title": m.name, "jcr:description": m.description, "ucp:group": m.group, "ucp:version": m.version, "ucp:publishedVersion": m.version, "ucp:status": "published", "ucp:source": m.source, "ucp:fields": JSON.stringify(m.fields), "ucp:publishedFields": JSON.stringify(m.fields), "cq:lastModified": "2027-09-10T09:30:00Z", "cq:lastModifiedBy": "priya.kaur" }))),
     node("/conf/hsbc/settings", "sling:Folder", {}, [node("/conf/hsbc/settings/wcm", "sling:Folder", {}, [node(PATHS.templates, "sling:Folder", {}, SEED_TEMPLATES.map((t) => node(`${PATHS.templates}/${t.id}`, "cq:Template", { "jcr:title": t.name, "jcr:description": t.desc, "ucp:blocks": t.blocks.join(","), "ucp:folder": t.folder })))])]),
     node(PATHS.forms, "sling:Folder", {}, FORMS.map((f) => node(`${PATHS.forms}/${f.id}`, "nt:unstructured", { "jcr:title": f.name, "ucp:version": f.version }))),
   ])]);
@@ -92,7 +92,7 @@ function seed(): RepoNode {
   for (const n of walk(content)) if (["credit-builder", "fixed-rate-bonds"].includes(n.name)) { const c = n.children?.find((x) => x.name === "jcr:content"); if (c) c.properties["cq:lastModifiedBy"] = "content.author"; }
   return node("/", "rep:root", {}, [content, home, conf, varNode]);
 }
-const tree = () => (g.__ucpRepo_v8 ??= seed());
+const tree = () => (g.__ucpRepo_v9 ??= seed());
 function find(n: RepoNode, path: string): RepoNode | undefined { if (n.path === path) return n; if (path !== "/" && !path.startsWith(n.path === "/" ? "/" : n.path + "/")) return undefined; for (const c of n.children ?? []) { const f = find(c, path); if (f) return f; } }
 const parentPath = (p: string) => p.replace(/\/[^/]+$/, "") || "/";
 const content = (n: RepoNode) => n.children?.find((c) => c.name === "jcr:content");

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { listTasks, notifications, listAssets, listUsers, createAsset, logEvent, readLog, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion } from "@/lib/server/ucp";
+import { listTasks, notifications, listAssets, listUsers, createAsset, logEvent, readLog, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel } from "@/lib/server/ucp";
 import { SESSION_COOKIE } from "@/lib/server/session";
 import { PATHS } from "@/lib/ucp/paths";
 import { CY } from "@/lib/ucp/seed";
@@ -26,6 +26,18 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
   const ok = (b: unknown, status = 200) => NextResponse.json(b, { status, headers: { "X-Request-Id": rid } });
   try {
     if (o === "tasks") return ok(await listTasks(mid));
+    /* ---- content models: every mutation needs a site admin (checked here, not only hidden in the UI) ---- */
+    if (o.startsWith("models")) {
+      const u = await me(); const admin = u.role === "admin" || !!u.perms.root?.manage; const id = q.get("id") ?? "";
+      if (o === "models/versions" && req.method === "GET") return ok(await listModelVersions(id));
+      if (!admin && req.method !== "GET") return problem(new RepoError(403, "Only site admins can change content models", `Signed in as ${u.name}`));
+      if (o === "models/save" && req.method === "POST") { const m = await saveModelDraft(id, await req.json(), u.id); await logEvent(mid, { type: "content", text: `saved draft v${m.version} of model ${m.name}`, target: "models", requestId: rid }); return ok(m); }
+      if (o === "models/publish" && req.method === "POST") { const m = await publishModel(id, u.id); await logEvent(mid, { type: "publishing", text: `published model ${m.name} v${m.version}`, target: "models", requestId: rid }); return ok(m); }
+      if (o === "models/restore" && req.method === "POST") { const { versionId } = await req.json(); const m = await restoreModelVersion(id, versionId, u.id); await logEvent(mid, { type: "content", text: `restored version ${versionId} into the draft of model ${m.name}`, target: "models", requestId: rid }); return ok(m); }
+      if (o === "models/create" && req.method === "POST") { const m = await createModel(await req.json(), u.id); await logEvent(mid, { type: "content", text: `created model ${m.name}`, target: "models", requestId: rid }); return ok(m, 201); }
+      if (o === "models/duplicate" && req.method === "POST") { const m = await duplicateModel(id, u.id); await logEvent(mid, { type: "content", text: `duplicated model ${id} as ${m.id}`, target: "models", requestId: rid }); return ok(m, 201); }
+      if (o === "models/delete" && req.method === "POST") { await deleteModel(id); await logEvent(mid, { type: "content", text: `deleted model ${id}`, target: "models", requestId: rid }); return ok({ ok: true }); }
+    }
     if (o === "login" && req.method === "POST") { const { id } = await req.json(); const u = (await listUsers()).find((x) => x.id === id); if (!u) return problem(new RepoError(401, "Unknown user", id)); const res = ok({ ok: true, user: u }); res.cookies.set(SESSION_COOKIE, u.id, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 12 }); await logEvent(mid, { type: "system", who: u.id, text: "signed in (SSO stand-in)", target: `user:${u.id}`, requestId: rid }); return res; }
     if (o === "logout" && req.method === "POST") { const res = ok({ ok: true }); res.cookies.set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 }); return res; }
     if (o === "versions" && req.method === "GET") return ok(await listVersions(q.get("path") ?? ""));

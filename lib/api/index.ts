@@ -1,5 +1,5 @@
 import type { PageView, PageSummary, CreatePageInput, PageContentPatch, ComponentNode, Identity, Problem, RepoNode, NodeProps } from "./types";
-import type { Task, Notification, Asset, AuditEvent, User, Template, Model } from "@/lib/ucp/types";
+import type { Task, Notification, Asset, AuditEvent, User, Template, Model, ModelField, ModelVersion } from "@/lib/ucp/types";
 import { ApiError } from "./types";
 export * from "./types";
 
@@ -47,5 +47,13 @@ export const ucpApi = {
   logout: () => U<{ ok: true }>("logout", { method: "POST", body: "{}" }),
   versions: (path: string) => U<{ id: string; time: string; who: string; note: string; title: string; status: string; blocks: number }[]>("versions", { query: { path } }),
   restoreVersion: (market: string, path: string, id: string) => U<{ ok: true }>("versions/restore", { method: "POST", query: { market, path }, body: JSON.stringify({ id }) }),
+  /* content models (admin-only mutations; the server refuses others with 403) */
+  modelVersions: (id: string) => U<ModelVersion[]>("models/versions", { query: { id } }),
+  saveModel: (market: string, id: string, patch: { name?: string; displayName?: string; description?: string; icon?: string; group?: string; fields?: ModelField[] }) => U<Model>("models/save", { method: "POST", query: { market, id }, body: JSON.stringify(patch) }),
+  publishModel: (market: string, id: string) => U<Model>("models/publish", { method: "POST", query: { market, id }, body: "{}" }),
+  restoreModelVersion: (market: string, id: string, versionId: string) => U<Model>("models/restore", { method: "POST", query: { market, id }, body: JSON.stringify({ versionId }) }),
+  createModel: (market: string, input: { id?: string; name: string; displayName?: string; description?: string; icon?: string; group?: string; fields?: ModelField[] }) => U<Model>("models/create", { method: "POST", query: { market }, body: JSON.stringify(input) }),
+  duplicateModel: (market: string, id: string) => U<Model>("models/duplicate", { method: "POST", query: { market, id }, body: "{}" }),
+  deleteModel: (market: string, id: string) => U<{ ok: true }>("models/delete", { method: "POST", query: { market, id }, body: "{}" }),
   translate: (market: string, body: { pages: string[]; langs: string[]; review?: boolean; dest?: string; mode?: "ai" | "vendor" }) => U<{ created: string[] }>("translate", { method: "POST", query: { market }, body: JSON.stringify(body) }),
 };

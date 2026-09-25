@@ -13,3 +13,18 @@ export function modelConfig(md: Model, locales: string[]) {
   if (md.id.startsWith("block-")) { const t = md.id.slice(6); return { component: t, source: { dialog: `/apps/hsbc/components/${t}/cq:dialog`, format: "dialog XML (D2 pending)" }, translation: "automatic", placement: { allowedIn: TEMPLATES.filter((x) => x.blocks.includes(t)).map((x) => x.id), policy: "template placement policy (replaces parsys)" }, fields: md.fields.map((f) => ({ key: f.k, dialogProperty: "./" + f.k, type: f.t, required: !!f.req, localised: !!f.loc })), render: `sling:resourceType=hsbc/components/${t}`, api: `/v1/components/${t}/schema` }; }
   return { model: md.id, version: md.version, tenant: { scope: "market", note: "tenant model to be confirmed (D1)" }, storage: `JCR · /conf/hsbc/models/${md.id}`, api: { list: `/v1/content/${md.id}`, item: `/v1/content/${md.id}/{id}`, schema: `/v1/models/${md.id}` }, workflow: "Draft → Review → Publish", localisation: { locales, fallback: locales[0] }, fields: md.fields.map((f) => ({ key: f.k, type: f.t, required: !!f.req, localised: !!f.loc })) };
 }
+
+import type { ModelField, ModelDiff } from "./types";
+/** What changes between two schemas; "breaking" = things that can invalidate existing content or API clients. */
+export function diffFields(before: ModelField[], after: ModelField[]): ModelDiff {
+  const b = new Map(before.map((f) => [f.k, f])); const a = new Map(after.map((f) => [f.k, f]));
+  const added = after.filter((f) => !b.has(f.k)); const removed = before.filter((f) => !a.has(f.k));
+  const changed: ModelDiff["changed"] = [];
+  for (const f of after) { const o = b.get(f.k); if (!o) continue; const what: string[] = [];
+    if (o.t !== f.t) what.push(`type ${o.t} → ${f.t}`); if (o.l !== f.l) what.push(`label “${o.l}” → “${f.l}”`); if (!!o.req !== !!f.req) what.push(f.req ? "now required" : "no longer required"); if (!!o.loc !== !!f.loc) what.push(f.loc ? "now localised" : "no longer localised"); if ((o.desc ?? "") !== (f.desc ?? "")) what.push("description"); if ((o.default ?? "") !== (f.default ?? "")) what.push("default value"); if (JSON.stringify(o.validation ?? {}) !== JSON.stringify(f.validation ?? {})) what.push("validation"); if (!!o.hidden !== !!f.hidden) what.push(f.hidden ? "hidden" : "visible");
+    if (what.length) changed.push({ before: o, after: f, what }); }
+  const breaking: string[] = [];
+  removed.forEach((f) => breaking.push(`Field “${f.l}” (${f.k}) is removed: existing content loses this value and API clients reading it will break.`));
+  changed.forEach((c) => { if (c.before.t !== c.after.t) breaking.push(`“${c.after.l}” changes type from ${c.before.t} to ${c.after.t}: existing values may not convert.`); if (!c.before.req && c.after.req) breaking.push(`“${c.after.l}” becomes required: existing items without it will fail validation.`); const v = c.after.validation; if (v && (v.maxLength !== undefined || v.max !== undefined || v.pattern)) breaking.push(`“${c.after.l}” gets stricter validation: existing values may no longer pass.`); });
+  return { added, removed, changed, breaking };
+}
