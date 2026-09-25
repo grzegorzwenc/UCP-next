@@ -5,6 +5,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Entity, Model } from "@/lib/ucp/types";
 import { useSession } from "@/components/shell/Session";
 import { FolderList, type FolderItem } from "@/components/ui/FolderList";
+import { MoveDialog } from "@/components/ui/MoveDialog";
+import { Menu } from "@/components/ui/Menu";
+import { ucpApi } from "@/lib/api";
+import { errorText } from "@/lib/api/errors";
 import { Avatar } from "@/components/ui/Avatar";
 import { StatusPill, UnsavedModal } from "@/components/models/ModelDialogs";
 import { Dot, ModelIcon, When, Toast, Crumbs } from "@/components/models/bits";
@@ -44,13 +48,28 @@ export function Entities(p: EntitiesProps) {
   const byModel = useMemo(() => { const o: Record<string, Entity[]> = {}; for (const e of p.entities) (o[e.model] ??= []).push(e); return o; }, [p.entities]);
   const models = useMemo(() => [...p.models].sort((a, b) => a.name.localeCompare(b.name)), [p.models]);
 
+  /* ---- moving: drag in the tree or "Move to…"; another model folder re-types the entity and re-links its pages ---- */
+  const [moving, setMoving] = useState<Entity | null>(null);
+  const byPath = (path: string) => p.entities.find((e) => e.path === path);
+  const lostFields = (e: Entity, to: string) => { const t = p.models.find((m) => m.id === to); return t ? Object.keys(e.values).filter((k) => e.values[k] !== "" && e.values[k] !== undefined && !t.fields.some((f) => f.k === k)) : []; };
+  const moveMsg = (e: Entity, to: string) => { const t = p.models.find((m) => m.id === to)?.name ?? to; const lost = lostFields(e, to); const used = (p.usage[e.path] ?? []).length;
+    return `Move “${e.title}” to ${t}?${lost.length ? `\n\n${t} has no field for: ${lost.join(", ")}. The values are kept but not shown.` : ""}${used ? `\n\nIt is used on ${used} page${used === 1 ? "" : "s"}; they will point to its new place.` : ""}`; };
+  const afterMove = (r: { entity: Entity; rebound: number }, from: Entity) => { say(r.entity.model !== from.model ? `Moved “${r.entity.title}” to ${p.models.find((m) => m.id === r.entity.model)?.name ?? r.entity.model}${r.rebound ? ` · ${r.rebound} page${r.rebound === 1 ? "" : "s"} re-linked` : ""}` : "Order saved"); if (ent?.path === from.path) router.push(entityLink(p.base, r.entity.model, r.entity.id)); router.refresh(); };
+  const moveEntity = async (path: string, model: string, before?: string) => { const e = byPath(path); if (!e || (e.model === model && !before)) return; if (dirty && ent?.path === path) { say("Save or discard your changes first"); return; }
+    if (e.model !== model && !confirm(moveMsg(e, model))) return;
+    setBusy("move"); try { afterMove(await ucpApi.moveEntity(p.marketId, path, { model, before }), e); } catch (err) { say(errorText(err)); } finally { setBusy(""); } };
+  const canDrop = (path: string) => !!byPath(path);
+
   /* ---- tree: all entities → one folder per content model → entities ---- */
   const ql = q.trim().toLowerCase();
   const items: FolderItem[] = models.map((m): FolderItem | null => {
     const all = byModel[m.id] ?? []; const shown = ql ? all.filter((e) => e.title.toLowerCase().includes(ql) || e.id.includes(ql)) : all;
     if (ql && !shown.length) return null;
     return { key: m.id, label: m.name, count: all.length, active: m.id === md?.id && !ent, open: !!ql || m.id === md?.id, title: `${m.name} · ${all.length} entit${all.length === 1 ? "y" : "ies"}`, onClick: () => go(entitiesLink(p.base, m.id)),
-      children: shown.map((e): FolderItem => ({ key: e.path, label: e.title, icon: "page", active: !!ent && ent.path === e.path, title: `${e.title} · ${e.status}`, onClick: () => go(entityLink(p.base, m.id, e.id)), right: <span className="flex items-center pr-2 flex-none"><Dot status={e.status} /></span> })) };
+      onDrop: canEdit ? (path) => moveEntity(path, m.id) : undefined, accepts: canDrop,
+      children: shown.map((e): FolderItem => { const on = !!ent && ent.path === e.path; return { key: e.path, label: e.title, icon: "page", active: on, title: canEdit ? `${e.title} · ${e.status} · drag to move` : `${e.title} · ${e.status}`, onClick: () => go(entityLink(p.base, m.id, e.id)),
+        dragId: canEdit ? e.path : undefined, onDrop: canEdit ? (path) => moveEntity(path, m.id, e.path) : undefined, accepts: canDrop,
+        right: <span className="flex items-center gap-1 pr-1.5 flex-none"><Dot status={e.status} />{canEdit && <span className={on ? "" : "opacity-0 group-hover:opacity-100 focus-within:opacity-100"}><Menu label="⋯" ariaLabel={`Actions for ${e.title}`} buttonClassName="w-6 h-6 rounded grid place-items-center text-ink-3 hover:bg-surface-3 text-[14px] leading-none" items={[{ id: "open", label: "Open", onSelect: () => go(entityLink(p.base, m.id, e.id)) }, { id: "move", label: "Move to…", onSelect: () => setMoving(e) }]} /></span>}</span> }; }) };
   }).filter((x): x is FolderItem => !!x);
 
   const onCreated = (m: Model, e: Entity) => { setCreating(false); say(`Created “${e.title}” (draft). Fill in the content, then save.`); router.push(entityLink(p.base, m.id, e.id)); router.refresh(); };
@@ -63,7 +82,7 @@ export function Entities(p: EntitiesProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] grid-rows-[auto_1fr] md:grid-rows-1 h-full min-h-0">
       <aside className="bg-surface border-b md:border-b-0 md:border-r border-line p-3 md:overflow-auto">
-        <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mb-2">Content entities</h6>
+        <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mb-2">Content entities</h6>{canEdit && <p className="text-[11.5px] text-ink-4 px-2 -mt-1 mb-2">Drag an entity to reorder it or move it to another folder.</p>}
         <label className="flex items-center gap-2 border border-line-2 rounded-md px-2.5 py-1.5 mb-2 bg-surface"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px] bg-transparent min-w-0" placeholder="Find an entity" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find an entity" /></label>
         <FolderList key={ql ? `q:${ql}` : `sel:${md?.id ?? ""}`} root={{ label: "All entities", count: p.entities.length, active: !md, onClick: () => go(entitiesLink(p.base)) }} items={items} extra={ql && !items.length ? <div className="text-[12.5px] text-ink-4 px-2 py-1">Nothing matches “{q}”</div> : undefined} />
         {canEdit && <button className="btn btn-quiet btn-sm mt-2.5 ml-1" onClick={() => setCreating(true)}>＋ Create entity</button>}
@@ -71,6 +90,9 @@ export function Entities(p: EntitiesProps) {
       <div className="overflow-auto min-w-0 min-h-0">{body}</div>
       {creating && canEdit && <NewEntityModal marketId={p.marketId} models={models} initial={md} onClose={() => setCreating(false)} onDone={onCreated} />}
       {pending && <UnsavedModal what={ent ? `“${ent.title}”` : "this entity"} busy={busy === "guard"} onStay={() => setPending(null)} onDiscard={() => { const h = pending; setPending(null); setDirty(false); router.push(h); }} onSave={async () => { setBusy("guard"); const ok = await saveRef.current?.(); setBusy(""); if (ok) { const h = pending; setPending(null); setDirty(false); router.push(h); } }} />}
+      {moving && <MoveDialog title={`Move ${moving.title}`} what={moving.title} current={moving.model} targets={models.map((m) => ({ id: m.id, label: m.name, hint: `${(byModel[m.id] ?? []).length} entities` }))} onClose={() => setMoving(null)}
+        note={(to) => { const lost = lostFields(moving, to); const used = (p.usage[moving.path] ?? []).length; return <div className="mt-3 grid gap-1.5 text-[12.5px]">{lost.length > 0 && <p className="bg-warn-soft text-ink px-3 py-2 rounded">This model has no field for <b>{lost.join(", ")}</b>. The values are kept but not shown.</p>}{used > 0 && <p className="bg-info-soft text-ink px-3 py-2 rounded">Used on {used} page{used === 1 ? "" : "s"}. {used === 1 ? "It" : "They"} will point to the new place automatically.</p>}</div>; }}
+        onMove={async (to) => { if (dirty && ent?.path === moving.path) throw new Error("Save or discard your changes first"); const r = await ucpApi.moveEntity(p.marketId, moving.path, { model: to }); const from = moving; setMoving(null); afterMove(r, from); }} />}
       {toast && <Toast text={toast} />}
     </div>
   );

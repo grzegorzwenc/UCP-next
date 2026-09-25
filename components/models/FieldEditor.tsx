@@ -60,7 +60,7 @@ export function FieldPanel({ models, taken, initial, onClose, onSubmit }: PanelP
   const v0 = initial?.validation ?? {};
   const [minLength, setMinLength] = useState(v0.minLength?.toString() ?? ""); const [maxLength, setMaxLength] = useState(v0.maxLength?.toString() ?? ""); const [pattern, setPattern] = useState(v0.pattern ?? "");
   const [min, setMin] = useState(v0.min?.toString() ?? ""); const [max, setMax] = useState(v0.max?.toString() ?? "");
-  const [options, setOptions] = useState<string[]>(v0.options?.length ? v0.options : [""]); const [refModel, setRefModel] = useState(v0.referenceModel ?? ""); const [unique, setUnique] = useState(!!v0.unique);
+  const [options, setOptions] = useState<string[]>(v0.options?.length ? v0.options : [""]); const [refModel, setRefModel] = useState(v0.referenceModel ?? ""); const [multiple, setMultiple] = useState(!!v0.multiple); const [unique, setUnique] = useState(!!v0.unique);
   const [tried, setTried] = useState(false);
   const kErr = keyError(key, taken); const lErr = label.trim() ? "" : "A label is required";
   const num = (s: string) => (s.trim() === "" || isNaN(Number(s)) ? undefined : Number(s));
@@ -74,7 +74,7 @@ export function FieldPanel({ models, taken, initial, onClose, onSubmit }: PanelP
     if (TEXT_TYPES.includes(type)) { if (num(minLength) !== undefined) val.minLength = num(minLength); if (num(maxLength) !== undefined) val.maxLength = num(maxLength); if (pattern.trim()) val.pattern = pattern.trim(); }
     if (NUMBER_TYPES.includes(type)) { if (num(min) !== undefined) val.min = num(min); if (num(max) !== undefined) val.max = num(max); }
     if (OPTION_TYPES.includes(type)) val.options = options.map((o) => o.trim()).filter(Boolean);
-    if (type === "Reference") val.referenceModel = refModel; if (UNIQUE_TYPES.includes(type) && unique) val.unique = true;
+    if (type === "Reference") { val.referenceModel = refModel; if (multiple) val.multiple = true; } if (UNIQUE_TYPES.includes(type) && unique) val.unique = true;
     const f: ModelField = { k: key, l: label.trim(), t: type, req, loc }; if (desc.trim()) f.desc = desc.trim(); if (def.trim()) f.default = def.trim(); if (hidden) f.hidden = true; if (Object.keys(val).length) f.validation = val;
     onSubmit(f); };
   const editing = !!initial; const title = editing ? `Edit field “${initial.l}”` : type ? `Add ${type} field` : "Add field";
@@ -102,6 +102,7 @@ export function FieldPanel({ models, taken, initial, onClose, onSubmit }: PanelP
         {NUMBER_TYPES.includes(type) && <div className="grid grid-cols-3 gap-3"><label className={fieldLbl}>Minimum<input type="number" step={type === "Decimal" ? "any" : 1} className={inputCls} value={min} onChange={(e) => setMin(e.target.value)} /></label><label className={fieldLbl}>Maximum<input type="number" step={type === "Decimal" ? "any" : 1} className={inputCls} value={max} onChange={(e) => setMax(e.target.value)} /></label></div>}
         {OPTION_TYPES.includes(type) && <div><span className={fieldLbl}>Options <span className="text-ink-4">one per row, in the order authors see them</span></span><div className="grid gap-1.5 mt-1 max-w-[420px]">{options.map((o, i) => <div key={i} className="flex gap-1.5"><input className={`${inputCls} mt-0`} value={o} onChange={(e) => setOptions(options.map((x, j) => (j === i ? e.target.value : x)))} placeholder={`Option ${i + 1}`} aria-label={`Option ${i + 1}`} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setOptions([...options.slice(0, i + 1), "", ...options.slice(i + 1)]); } }} /><button type="button" className="btn btn-sm btn-icon" aria-label={`Remove option ${i + 1}`} disabled={options.length === 1} onClick={() => setOptions(options.filter((_, j) => j !== i))}>×</button></div>)}<button type="button" className="btn btn-sm w-fit" onClick={() => setOptions([...options, ""])}>＋ Add option</button></div>{showErr(optErr)}</div>}
         {type === "Reference" && <label className={`${fieldLbl} max-w-[420px]`}>Target model<select className={inputCls} value={refModel} onChange={(e) => setRefModel(e.target.value)} aria-invalid={tried && !!refErr}><option value="">Choose a model…</option>{refTargets.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.id})</option>)}</select>{showErr(refErr)}</label>}
+        {type === "Reference" && <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" className="accent-[var(--accent)]" checked={multiple} onChange={(e) => setMultiple(e.target.checked)} />Allow several items <span className="text-ink-4 text-[12px]">(a list of links instead of one)</span></label>}
         {UNIQUE_TYPES.includes(type) && <label className="flex items-center gap-2 text-[13px] text-ink mt-3"><input type="checkbox" checked={unique} onChange={(e) => setUnique(e.target.checked)} />Values must be unique across items of this model</label>}
         {!TEXT_TYPES.includes(type) && !NUMBER_TYPES.includes(type) && !OPTION_TYPES.includes(type) && type !== "Reference" && <div className="text-[12.5px] text-ink-3">No validation options for {type} fields.</div>}
         {rangeErr && <small className="block text-crit mt-2">{rangeErr}</small>}

@@ -28,3 +28,6 @@ export function diffFields(before: ModelField[], after: ModelField[]): ModelDiff
   changed.forEach((c) => { if (c.before.t !== c.after.t) breaking.push(`“${c.after.l}” changes type from ${c.before.t} to ${c.after.t}: existing values may not convert.`); if (!c.before.req && c.after.req) breaking.push(`“${c.after.l}” becomes required: existing items without it will fail validation.`); const v = c.after.validation; if (v && (v.maxLength !== undefined || v.max !== undefined || v.pattern)) breaking.push(`“${c.after.l}” gets stricter validation: existing values may no longer pass.`); });
   return { added, removed, changed, breaking };
 }
+
+/** Tree position: items with an explicit order come first in that order, the rest alphabetically. */
+export const byOrder = <T extends { order?: number; title?: string; name?: string }>(a: T, b: T) => (a.order ?? 1e9) - (b.order ?? 1e9) || String(a.title ?? a.name ?? "").localeCompare(String(b.title ?? b.name ?? ""));

@@ -5,6 +5,7 @@ import { PATHS } from "@/lib/ucp/paths";
 import type { Asset, AssetType, AuditEvent, AuditType, Bindings, Entity, EntityValues, FormDef, Model, ModelField, ModelVersion, Notification, Perms, ReviewerOption, Role, Task, TaskKind, Template, User } from "@/lib/ucp/types";
 import type { ResolvedEntities } from "@/lib/ucp/tokens";
 import { bindingsOf } from "@/lib/ucp/tokens";
+import { byOrder } from "@/lib/ucp/schema";
 import { RepoError } from "@/lib/repo";
 import { BLOCK_MODELS, ME, SEED_USERS } from "@/lib/ucp/seed";
 import { allPages } from "@/lib/server/pages";
@@ -49,7 +50,7 @@ export async function me(): Promise<User> { const id = (await sessionUserId()) ?
 
 /* ---------------- models (/conf/hsbc/models/<id>) + block types from the registry ---------------- */
 const toModel = (n: RepoNode): Model => { const fields = json<ModelField[]>(n.properties["ucp:fields"], []); const pub = n.properties["ucp:publishedFields"] !== undefined ? json<ModelField[]>(n.properties["ucp:publishedFields"], []) : undefined; const pv = num(n.properties["ucp:publishedVersion"]);
-  return { id: n.name, path: n.path, name: str(n.properties["jcr:title"], n.name), displayName: str(n.properties["ucp:displayName"]) || undefined, description: str(n.properties["jcr:description"]) || undefined, icon: str(n.properties["ucp:icon"]) || undefined, group: str(n.properties["ucp:group"], "Core"), source: str(n.properties["ucp:source"], "Core"), status: (str(n.properties["ucp:status"]) as Model["status"]) || (pv ? "published" : "draft"), version: num(n.properties["ucp:version"]) ?? 1, publishedVersion: pv, fields, publishedFields: pub, lastModified: str(n.properties["cq:lastModified"]) || str(n.properties["jcr:created"]) || undefined, lastModifiedBy: str(n.properties["cq:lastModifiedBy"]) || undefined }; };
+  return { id: n.name, path: n.path, name: str(n.properties["jcr:title"], n.name), displayName: str(n.properties["ucp:displayName"]) || undefined, description: str(n.properties["jcr:description"]) || undefined, icon: str(n.properties["ucp:icon"]) || undefined, group: str(n.properties["ucp:group"], "Core"), source: str(n.properties["ucp:source"], "Core"), status: (str(n.properties["ucp:status"]) as Model["status"]) || (pv ? "published" : "draft"), version: num(n.properties["ucp:version"]) ?? 1, publishedVersion: pv, fields, publishedFields: pub, lastModified: str(n.properties["cq:lastModified"]) || str(n.properties["jcr:created"]) || undefined, lastModifiedBy: str(n.properties["cq:lastModifiedBy"]) || undefined, order: num(n.properties["ucp:order"]) }; };
 export async function listModels(): Promise<Model[]> { const m = await kids(PATHS.models, 1); return [...m.map(toModel), ...BLOCK_MODELS]; }
 export async function getModel(id: string): Promise<Model | undefined> { return (await listModels()).find((m) => m.id === id); }
 
@@ -173,11 +174,23 @@ export async function duplicateModel(id: string, who: string): Promise<Model> {
 }
 export async function deleteModel(id: string): Promise<void> { const cur = (await listModels()).find((m) => m.id === id); if (!cur || cur.locked) throw new RepoError(cur ? 403 : 404, cur ? "Block-type models cannot be deleted" : "Model not found", id); await repo().deleteNode(`${PATHS.models}/${id}`); }
 
+/** Renumber a folder so `id` lands before `before` (or last). Returns the new id order. */
+function placeIn(ids: string[], id: string, before?: string): string[] { const r = ids.filter((x) => x !== id); const at = before ? r.indexOf(before) : -1; r.splice(at < 0 ? r.length : at, 0, id); return r; }
+/** Move a model to another category and/or position. Organising only: the schema, version and status stay as they are. */
+export async function moveModel(id: string, to: { group?: string; before?: string }, who: string): Promise<Model> {
+  const all = await listModels(); const cur = all.find((m) => m.id === id); if (!cur || cur.locked) throw new RepoError(cur ? 403 : 404, cur ? "Block-type models cannot be moved" : "Model not found", id);
+  const group = (to.group ?? cur.group).trim() || cur.group; if (group === "Block types") throw new RepoError(400, "“Block types” is reserved for page blocks");
+  const siblings = all.filter((m) => !m.locked && m.group === group && m.id !== id).sort(byOrder).map((m) => m.id);
+  const order = placeIn(siblings, id, to.before && siblings.includes(to.before) ? to.before : undefined);
+  for (const [i, mid] of order.entries()) await repo().setProps(`${PATHS.models}/${mid}`, mid === id ? { "ucp:group": group, "ucp:order": i, "cq:lastModified": new Date().toISOString(), "cq:lastModifiedBy": who } : { "ucp:order": i });
+  return (await listModels()).find((m) => m.id === id)!;
+}
+
 /* ---------------- content entities: /content/entities/<market>/<model>/<entity> ---------------- */
-const toEntity = (n: RepoNode): Entity => { const pub = n.properties["ucp:publishedValues"]; return { id: n.name, path: n.path, model: n.path.split("/").slice(-2, -1)[0], title: str(n.properties["jcr:title"], n.name), status: (str(n.properties["ucp:status"]) as Entity["status"]) || "draft", values: json<EntityValues>(n.properties["ucp:values"], {}), publishedValues: pub !== undefined ? json<EntityValues>(pub, {}) : undefined, lastModified: str(n.properties["cq:lastModified"]) || str(n.properties["jcr:created"]) || undefined, lastModifiedBy: str(n.properties["cq:lastModifiedBy"]) || undefined }; };
+const toEntity = (n: RepoNode): Entity => { const pub = n.properties["ucp:publishedValues"]; return { id: n.name, path: n.path, model: n.path.split("/").slice(-2, -1)[0], title: str(n.properties["jcr:title"], n.name), status: (str(n.properties["ucp:status"]) as Entity["status"]) || "draft", values: json<EntityValues>(n.properties["ucp:values"], {}), publishedValues: pub !== undefined ? json<EntityValues>(pub, {}) : undefined, lastModified: str(n.properties["cq:lastModified"]) || str(n.properties["jcr:created"]) || undefined, lastModifiedBy: str(n.properties["cq:lastModifiedBy"]) || undefined, order: num(n.properties["ucp:order"]) }; };
 export async function listEntities(marketId: string, model?: string): Promise<Entity[]> {
   const models = model ? [model] : (await kids(PATHS.entities(marketId), 1)).map((n) => n.name);
-  const out: Entity[] = []; for (const m of models) out.push(...(await kids(`${PATHS.entities(marketId)}/${m}`, 1)).map(toEntity)); return out.sort((a, b) => a.title.localeCompare(b.title));
+  const out: Entity[] = []; for (const m of models) out.push(...(await kids(`${PATHS.entities(marketId)}/${m}`, 1)).map(toEntity)); return out.sort(byOrder);
 }
 export async function getEntity(path: string): Promise<Entity | undefined> { const n = await repo().getNode(path, 0).catch(() => undefined); return n ? toEntity(n) : undefined; }
 export async function createEntity(marketId: string, model: string, title: string, values: EntityValues, who: string): Promise<Entity> {
@@ -193,6 +206,24 @@ export async function saveEntity(path: string, patch: { title?: string; values?:
   await repo().setProps(path, props); return (await getEntity(path))!;
 }
 export async function publishEntity(path: string, who: string): Promise<Entity> { const cur = await getEntity(path); if (!cur) throw new RepoError(404, "Entity not found", path); await repo().setProps(path, { "ucp:publishedValues": JSON.stringify(cur.values), "ucp:status": "published", "cq:lastModified": new Date().toISOString(), "cq:lastModifiedBy": who }); return (await getEntity(path))!; }
+/** Move an entity to another model folder and/or position. Pages that bind it are re-pointed to the new path; values are kept as they are. */
+export async function moveEntity(marketId: string, path: string, to: { model?: string; before?: string }, who: string): Promise<{ entity: Entity; rebound: number; missing: string[] }> {
+  const cur = await getEntity(path); if (!cur) throw new RepoError(404, "Entity not found", path);
+  const model = to.model || cur.model; let dest = path; let rebound = 0; let missing: string[] = [];
+  if (model !== cur.model) {
+    const md = await getModel(model); if (!md || md.locked) throw new RepoError(400, "Pick a content model to move it to", model);
+    missing = Object.keys(cur.values).filter((k) => !md.fields.some((f) => f.k === k));
+    const base = `${PATHS.entities(marketId)}/${model}`; if (!(await repo().getNode(base, 0))) await repo().createNode(base, "sling:Folder", { "jcr:title": model });
+    let id = cur.id; let i = 2; while (await repo().getNode(`${base}/${id}`, 0)) id = `${cur.id}-${i++}`;
+    dest = `${base}/${id}`; await repo().moveNode(path, dest);
+    await repo().setProps(dest, { "ucp:model": model, "cq:lastModified": new Date().toISOString(), "cq:lastModifiedBy": who });
+    for (const p of (await entityUsage(marketId))[path] ?? []) { const b = bindingsOf(p.meta); for (const k of Object.keys(b)) if (b[k] === path) b[k] = dest; await repo().setProps(`${p.path}/jcr:content`, { "ucp:bindings": JSON.stringify(b) }); rebound++; }
+  }
+  const siblings = (await listEntities(marketId, model)).filter((e) => e.path !== dest).map((e) => e.path);
+  const order = placeIn(siblings, dest, to.before && siblings.includes(to.before) ? to.before : undefined);
+  for (const [i, ep] of order.entries()) await repo().setProps(ep, { "ucp:order": i });
+  return { entity: (await getEntity(dest))!, rebound, missing };
+}
 export async function deleteEntity(path: string): Promise<void> { await repo().deleteNode(path); }
 /** Which pages bind which entity (via ucp:bindings on jcr:content). */
 export async function entityUsage(marketId: string, all?: PageSummary[]): Promise<Record<string, PageSummary[]>> {

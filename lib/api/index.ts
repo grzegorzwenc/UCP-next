@@ -55,6 +55,7 @@ export const ucpApi = {
   restoreModelVersion: (market: string, id: string, versionId: string) => U<Model>("models/restore", { method: "POST", query: { market, id }, body: JSON.stringify({ versionId }) }),
   createModel: (market: string, input: { id?: string; name: string; displayName?: string; description?: string; icon?: string; group?: string; fields?: ModelField[] }) => U<Model>("models/create", { method: "POST", query: { market }, body: JSON.stringify(input) }),
   duplicateModel: (market: string, id: string) => U<Model>("models/duplicate", { method: "POST", query: { market, id }, body: "{}" }),
+  moveModel: (market: string, id: string, to: { group?: string; before?: string }) => U<Model>("models/move", { method: "POST", query: { market, id }, body: JSON.stringify(to) }),
   deleteModel: (market: string, id: string) => U<{ ok: true }>("models/delete", { method: "POST", query: { market, id }, body: "{}" }),
   /* content entities */
   entities: (market: string, model?: string) => U<Entity[]>("entities", { query: { market, model } }),
@@ -62,6 +63,7 @@ export const ucpApi = {
   createEntity: (market: string, model: string, title: string, values: EntityValues = {}) => U<Entity>("entities/create", { method: "POST", query: { market }, body: JSON.stringify({ model, title, values }) }),
   saveEntity: (market: string, path: string, patch: { title?: string; values?: EntityValues }) => U<Entity>("entities/save", { method: "POST", query: { market, path }, body: JSON.stringify(patch) }),
   publishEntity: (market: string, path: string) => U<Entity>("entities/publish", { method: "POST", query: { market, path }, body: "{}" }),
+  moveEntity: (market: string, path: string, to: { model?: string; before?: string }) => U<{ entity: Entity; rebound: number; missing: string[] }>("entities/move", { method: "POST", query: { market, path }, body: JSON.stringify(to) }),
   deleteEntity: (market: string, path: string) => U<{ ok: true }>("entities/delete", { method: "POST", query: { market, path }, body: "{}" }),
   resolveBindings: (market: string, bindings: Bindings, published = false) => U<ResolvedEntities>("entities/resolve", { method: "POST", query: { market, published }, body: JSON.stringify(bindings) }),
   saveBindings: (market: string, path: string, bindings: Bindings) => U<Bindings>("bindings", { method: "POST", query: { market, path }, body: JSON.stringify(bindings) }),

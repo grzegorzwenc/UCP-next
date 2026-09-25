@@ -15,7 +15,7 @@ import { aliasOf, detailLink, entitiesLink, entityLink, whoName, type UsedPage }
 
 type Props = { base: string; marketId: string; marketRoot: string; model: Model; entity: Entity; entities: Entity[]; models: Model[]; usedOn: UsedPage[]; names: Record<string, string>; viewerId: string; canEdit: boolean;
   go: (href: string) => void; say: (t: string) => void; setDirty: (d: boolean) => void; saveRef: React.MutableRefObject<(() => Promise<boolean>) | null> };
-type Kind = "text" | "url" | "area" | "number" | "bool" | "date" | "datetime" | "select" | "multi" | "list" | "asset" | "ref" | "json";
+type Kind = "text" | "url" | "area" | "number" | "bool" | "date" | "datetime" | "select" | "multi" | "list" | "asset" | "ref" | "refs" | "json";
 
 /** Which input a field gets. Unknown types (e.g. Group) fall back to JSON for structured values, text otherwise. */
 function kindOf(f: ModelField, v: unknown): Kind {
@@ -24,7 +24,7 @@ function kindOf(f: ModelField, v: unknown): Kind {
     case "Text": return "text"; case "URL": return "url"; case "Long text": case "Rich text": return "area";
     case "Number": case "Decimal": return "number"; case "Boolean": return "bool"; case "Date": return "date"; case "Date & time": return "datetime";
     case "Select": case "Enum": return opts ? "select" : "text"; case "Multi-select": return opts ? "multi" : "list";
-    case "Asset": case "Image": return "asset"; case "Reference": return "ref"; case "JSON": return "json";
+    case "Asset": case "Image": return "asset"; case "Reference": return f.validation?.multiple ? "refs" : "ref"; case "JSON": return "json";
     default: return v !== null && typeof v === "object" ? "json" : "text";
   }
 }
@@ -64,6 +64,8 @@ function Field({ f, kind, v, raw, err, marketId, refOptions, onValue, onRaw }: F
   else if (kind === "list") { const arr = Array.isArray(v) ? (v as unknown[]).map(String) : s ? [s] : []; control = <><input {...aria} className={cls} defaultValue={arr.join(", ")} onChange={(e) => onValue(e.target.value.split(",").map((x) => x.trim()).filter(Boolean))} /><p className="text-[11.5px] text-ink-4 mt-1">Separate values with commas.</p></>; }
   else if (kind === "asset") control = <div className="mt-1"><AssetPicker marketId={marketId} value={s} onChange={(a) => onValue(a || undefined)} invalid={!!err} /></div>;
   else if (kind === "ref") control = <select {...aria} className={`${cls} max-w-[420px]`} value={s} onChange={(e) => onValue(e.target.value || undefined)}><option value="">— None —</option>{refOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}{s && !refOptions.some((o) => o.value === s) && <option value={s}>{s} (not found)</option>}</select>;
+  else if (kind === "refs") { const arr = Array.isArray(v) ? (v as unknown[]).map(String) : s ? [s] : []; const toggle = (x: string) => onValue(arr.includes(x) ? arr.filter((y) => y !== x) : [...arr, x]);
+    control = <div className="mt-1 grid gap-1 max-w-[420px] border border-line-2 rounded-md p-2 max-h-[200px] overflow-auto" role="group" aria-labelledby={id}>{refOptions.length ? refOptions.map((o) => <label key={o.value} className="flex items-center gap-2 text-[13px] px-1 py-0.5 rounded hover:bg-surface-2"><input type="checkbox" className="accent-[var(--accent)]" checked={arr.includes(o.value)} onChange={() => toggle(o.value)} />{o.label}</label>) : <span className="text-[12.5px] text-ink-4 px-1">Nothing to pick yet.</span>}</div>; }
   else if (kind === "json") control = <textarea {...aria} rows={5} spellCheck={false} className={`${cls} font-mono text-[12.5px]`} value={raw ?? ""} onChange={(e) => onRaw(e.target.value)} placeholder='{ "key": "value" }' />;
   else control = <input {...aria} type={kind === "url" ? "url" : "text"} className={cls} value={s} onChange={(e) => onValue(e.target.value)} />;
   const count = (kind === "text" || kind === "area") && val.maxLength !== undefined ? <span className={`ml-auto font-mono text-[11px] ${s.length > val.maxLength ? "text-crit" : "text-ink-4"}`}>{s.length}/{val.maxLength}</span> : null;
@@ -135,7 +137,7 @@ export function EntityEditor({ base, marketId, marketRoot, model, entity, entiti
       <form className="bg-surface border border-line rounded-xl p-5" onSubmit={(e) => { e.preventDefault(); if (dirty) save(); }}>
         <fieldset disabled={!canEdit || !!busy} className="grid gap-4 min-w-0">
           <legend className="sr-only">{model.name} content</legend>
-          {schema.length ? schema.map((f) => <Field key={f.k} f={f} kind={kinds[f.k]} v={values[f.k]} raw={raw[f.k]} err={errors[f.k] ?? ""} marketId={marketId} refOptions={kinds[f.k] === "ref" ? refOptions(f) : []} onValue={(v) => setVal(f.k, v)} onRaw={(s) => setJson(f.k, s)} />)
+          {schema.length ? schema.map((f) => <Field key={f.k} f={f} kind={kinds[f.k]} v={values[f.k]} raw={raw[f.k]} err={errors[f.k] ?? ""} marketId={marketId} refOptions={kinds[f.k] === "ref" || kinds[f.k] === "refs" ? refOptions(f) : []} onValue={(v) => setVal(f.k, v)} onRaw={(s) => setJson(f.k, s)} />)
             : <p className="text-[13px] text-ink-3">This model has no fields authors can fill in yet.</p>}
         </fieldset>
       </form>
