@@ -10,7 +10,7 @@ const SECTIONS: [string, RegExp][] = [
   ["tasks", /My tasks/],
   ["api", /API & delivery/],
   ["users", /Users/],
-  ["audit", /Audit log/],
+  ["audit", /My activity/], // jordan.mensah is not a site admin: only their own actions
   ["repo", /Repository \(JCR\)/],
 ];
 
@@ -23,4 +23,14 @@ test.describe("sections", () => {
       await expect(page.getByRole("heading", { level: 1 }).first()).toHaveText(h1);
     });
   }
+});
+
+test("audit log: site admins see everyone, others only themselves", async ({ page }) => {
+  await login(page, "super.admin");
+  const all = await (await page.request.get("/api/ucp/log?market=uk")).json() as { who: string }[];
+  expect(new Set(all.map((e) => e.who)).size).toBeGreaterThan(1);
+  await page.goto(`${BASE}/audit`); await expect(page.getByRole("heading", { level: 1 }).first()).toHaveText(/Audit log/);
+  await login(page, "jordan.mensah");
+  const own = await (await page.request.get("/api/ucp/log?market=uk")).json() as { who: string }[];
+  expect(own.every((e) => e.who === "jordan.mensah")).toBe(true);
 });
