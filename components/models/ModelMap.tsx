@@ -58,7 +58,9 @@ function edgePath(a: Pt, ma: Model, b: Pt, mb: Model, bend: number): { d: string
 type Props = {
   models: Model[]; selected?: string; onOpen: (id: string) => void;
   /** Which models may get a new link from here (admins; in the editor only the model being edited). */
-  canConnect?: (from: string) => boolean; onConnect?: (from: string, to: string) => void; onRemove?: (r: Relation) => void;
+  canConnect?: (from: string) => boolean; onConnect?: (from: string, to: string) => void;
+  /** Whether `from` may be connected to `to` (they must share a field); used to mark valid drop targets while dragging. */
+  canLink?: (from: string, to: string) => boolean; onRemove?: (r: Relation) => void;
   /** localStorage key for positions the user dragged boxes to. */
   storageKey?: string;
 };
@@ -68,7 +70,7 @@ type Props = {
  * model to connect them (master → connected model); clicking the handle then a model does the same.
  * Boxes can be dragged to tidy the picture (kept per browser). Click a box to open the model, click an arrow to inspect or remove it.
  */
-export function ModelMap({ models, selected, onOpen, canConnect, onConnect, onRemove, storageKey = "ucp-model-map" }: Props) {
+export function ModelMap({ models, selected, onOpen, canConnect, onConnect, canLink, onRemove, storageKey = "ucp-model-map" }: Props) {
   const rels = useMemo(() => relationsOf(models), [models]);
   const key = `${storageKey}:tree`; const stored = useStoredPositions(key);
   const [moving, setMoving] = useState<{ id: string; p: Pt } | null>(null); // box being dragged right now
@@ -111,13 +113,14 @@ export function ModelMap({ models, selected, onOpen, canConnect, onConnect, onRe
 
   const pairs = new Map<string, number>(); // spread parallel links between the same two models
   const sel = edge ? rels.find((r) => `${r.from}.${r.key}` === edge) : undefined;
-  const hover = link?.moved ? hit({ x: link.x, y: link.y }) : undefined; const hoverOk = hover && hover !== link?.from ? hover : undefined;
+  const hover = link?.moved ? hit({ x: link.x, y: link.y }) : undefined; const src = link?.from ?? pick ?? null; const valid = (id: string) => !!src && id !== src && (canLink?.(src, id) ?? true);
+  const hoverOk = hover && valid(hover) ? hover : undefined; const hoverBad = hover && hover !== src && !valid(hover) ? hover : undefined;
   const busy = !!link || !!pick;
 
   return <div>
     <div className="flex flex-wrap items-center gap-2 mb-2">
       {Object.keys(stored).length > 0 && <button type="button" className="btn btn-sm btn-quiet" onClick={() => persist({})}>Reset positions</button>}
-      <span className="text-[12.5px] text-ink-3 ml-1">{onConnect ? <>Drag <b className="text-accent">＋</b> from one model onto another to connect them. Click a line to remove it.</> : "Click a model to open it."}</span>
+      <span className="text-[12.5px] text-ink-3 ml-1">{onConnect ? <>Drag <b className="text-accent">＋</b> from one model onto another to connect them. Only models that share a field (same key and type) can be connected. Click a line to remove it.</> : "Click a model to open it."}</span>
     </div>
     {pick && <div role="status" className="flex items-center gap-2 text-[13px] bg-info-soft border border-line rounded-md px-3 py-2 mb-2">Click the model to connect <b>{byId.get(pick)?.name}</b> to.<button type="button" className="btn btn-sm ml-auto" onClick={() => setPick(null)}>Cancel</button></div>}
     <div className="border border-line rounded-lg bg-surface-2 overflow-auto" style={{ backgroundImage: "radial-gradient(#D7D8DC 1px, transparent 1px)", backgroundSize: "18px 18px" }}>
@@ -129,24 +132,25 @@ export function ModelMap({ models, selected, onOpen, canConnect, onConnect, onRe
         {rels.map((r) => {
           const a = byId.get(r.from)!, b = byId.get(r.to)!; const pk = [r.from, r.to].sort().join("|"); const n = pairs.get(pk) ?? 0; pairs.set(pk, n + 1);
           const g = edgePath(pos[r.from], a, pos[r.to], b, n * 16); const id = `${r.from}.${r.key}`; const on = edge === id || (!!selected && (r.from === selected || r.to === selected));
-          const strong = edge === id; const txt = r.label;
+          const strong = edge === id; const bad = !!canLink && !canLink(r.from, r.to); const txt = bad ? `⚠ ${r.label}` : r.label;
           return <g key={id} role="button" tabIndex={0} aria-label={`${a.name} to ${b.name}: ${txt}`} style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setEdge(edge === id ? null : id); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEdge(edge === id ? null : id); } }} onPointerDown={(e) => e.stopPropagation()}>
             <path d={g.d} fill="none" stroke="transparent" strokeWidth={14} />
-            <path d={g.d} fill="none" stroke={on ? "#DB0011" : "#8A8F99"} strokeWidth={strong ? 2.6 : on ? 1.8 : 1.4} markerEnd={`url(#${on ? "mm-arrow-on" : "mm-arrow"})`} />
-            <rect x={g.lx - txt.length * 3.1 - 6} y={g.ly - 11} width={txt.length * 6.2 + 12} height={16} rx={8} fill="#fff" stroke={on ? "#DB0011" : "#D7D8DC"} />
-            <text x={g.lx} y={g.ly + 1} textAnchor="middle" fontSize={10.5} fill={on ? "#AF000D" : "#40434C"}>{txt}</text>
+            <path d={g.d} fill="none" stroke={bad ? "#B7791F" : on ? "#DB0011" : "#8A8F99"} strokeWidth={strong ? 2.6 : on ? 1.8 : 1.4} strokeDasharray={bad ? "5 4" : undefined} markerEnd={`url(#${on ? "mm-arrow-on" : "mm-arrow"})`} />
+            <rect x={g.lx - txt.length * 3.1 - 6} y={g.ly - 11} width={txt.length * 6.2 + 12} height={16} rx={8} fill={bad ? "#FFF6E5" : "#fff"} stroke={bad ? "#B7791F" : on ? "#DB0011" : "#D7D8DC"} />
+            <text x={g.lx} y={g.ly + 1} textAnchor="middle" fontSize={10.5} fill={bad ? "#8A5A00" : on ? "#AF000D" : "#40434C"}>{txt}</text>
           </g>;
         })}
         {link?.moved && (() => { const s = pos[link.from]; return <path d={`M${s.x + BW - 16},${s.y + HEAD / 2} L${link.x},${link.y}`} stroke="#DB0011" strokeWidth={2} strokeDasharray="6 4" fill="none" markerEnd="url(#mm-arrow-on)" pointerEvents="none" />; })()}
         {models.map((m) => {
-          const q = pos[m.id]; const on = m.id === selected; const target = hoverOk === m.id || (!!pick && busy && pick !== m.id); const h = bh(m); const canLink = connectable(m.id);
+          const q = pos[m.id]; const on = m.id === selected; const target = busy && valid(m.id); const blocked = busy && !!src && m.id !== src && !valid(m.id); const h = bh(m); const canLink = connectable(m.id);
           return <g key={m.id} role="link" tabIndex={0} aria-label={pick ? `Link ${byId.get(pick)?.name} to ${m.name}` : `Open ${m.name}`} style={{ cursor: pick ? "crosshair" : "grab" }}
             onPointerDown={(e) => onBoxDown(e, m.id)} onKeyDown={(e) => { if (e.key === "Enter") { if (pick) { if (pick !== m.id) finishConnect(pick, m.id); } else onOpen(m.id); } }}>
             <rect x={q.x + 2} y={q.y + 3} width={BW} height={h} rx={6} fill="#0F10131A" />
-            <rect x={q.x} y={q.y} width={BW} height={h} rx={6} fill="#fff" stroke={hoverOk === m.id || on ? "#DB0011" : "#D7D8DC"} strokeWidth={hoverOk === m.id ? 2.5 : on ? 2 : 1} strokeDasharray={target && hoverOk !== m.id ? "4 3" : undefined} />
+            <rect x={q.x} y={q.y} width={BW} height={h} rx={6} fill="#fff" stroke={hoverOk === m.id ? "#0F8A7E" : hoverBad === m.id ? "#9DA1AC" : on ? "#DB0011" : "#D7D8DC"} strokeWidth={hoverOk === m.id ? 2.5 : on ? 2 : 1} strokeDasharray={target && hoverOk !== m.id ? "4 3" : undefined} opacity={blocked ? 0.45 : 1} />
             <path d={`M${q.x},${q.y + 6} a6,6 0 0 1 6,-6 h${BW - 12} a6,6 0 0 1 6,6 v${HEAD - 6} h-${BW} z`} fill={on ? "#DB0011" : "#17181C"} />
             <text x={q.x + 10} y={q.y + 19.5} fontSize={13} fontWeight={600} fill="#fff">{m.name.length > 20 ? `${m.name.slice(0, 19)}…` : m.name} <tspan fontWeight={400} fontSize={11} fill="#ffffffb3">v{m.version}</tspan></text>
             {m.fields.slice(0, SHOWN).map((f, i) => { const ref = !!targetOf(f); return <text key={f.k} x={q.x + 10} y={q.y + HEAD + 18 + i * ROW} fontSize={11.5} fill={ref ? "#AF000D" : "#40434C"}>{ref ? "⇄ " : f.req ? "● " : "○ "}{f.l.length > 18 ? `${f.l.slice(0, 17)}…` : f.l}<tspan fill="#9DA1AC" fontFamily="var(--font-mono)" fontSize={10.5}> {f.t}</tspan></text>; })}
+            {blocked && <text x={q.x + BW / 2} y={q.y + h + 16} textAnchor="middle" fontSize={11} fill="#6B6F7A">No fields in common</text>}
             {m.fields.length > SHOWN && <text x={q.x + 10} y={q.y + HEAD + 18 + SHOWN * ROW} fontSize={11} fill="#9DA1AC">+{m.fields.length - SHOWN} more</text>}
             {canLink && <g role="button" tabIndex={0} aria-label={`Link ${m.name} to another model`} style={{ cursor: "crosshair" }} onPointerDown={(e) => onHandleDown(e, m.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setPick(m.id); } }}>
               <title>Drag onto another model to link them</title>
@@ -157,7 +161,7 @@ export function ModelMap({ models, selected, onOpen, canConnect, onConnect, onRe
       </svg>
     </div>
     {sel ? <div className="flex flex-wrap items-center gap-2 mt-2 bg-surface border border-line rounded-lg px-3 py-2 text-[13px]">
-      <span><b>{byId.get(sel.from)?.name}</b> → <b>{byId.get(sel.to)?.name}</b></span>
+      <span><b>{byId.get(sel.from)?.name}</b> → <b>{byId.get(sel.to)?.name}</b>{canLink && !canLink(sel.from, sel.to) && <span className="ml-2 text-warn">⚠ These models have no fields in common. Remove this connection.</span>}</span>
       <span className="ml-auto flex gap-2"><button type="button" className="btn btn-sm" onClick={() => setEdge(null)}>Close</button>{onRemove && connectable(sel.from) && <button type="button" className="btn btn-sm text-crit" onClick={() => { setEdge(null); onRemove(sel); }}>Remove connection</button>}</span></div> : null}
   </div>;
 }

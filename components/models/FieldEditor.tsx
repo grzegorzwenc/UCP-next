@@ -5,6 +5,7 @@ import { FIELD_TYPES } from "@/lib/ucp/seed";
 import { Menu } from "@/components/ui/Menu";
 import { Pill } from "@/components/ui/Pill";
 import { ModalShell, Err, inputCls } from "./ModalShell";
+import { sharedFields } from "@/lib/ucp/schema";
 import { TYPE_META, TEXT_TYPES, NUMBER_TYPES, OPTION_TYPES, UNIQUE_TYPES, camel, keyError, validationSummary, isBlockModel } from "./fieldMeta";
 
 export const TypeChip = ({ t }: { t: string }) => <span className="inline-flex items-center gap-1 bg-surface-3 border border-line rounded px-1.5 py-0.5 text-[12px] whitespace-nowrap"><span className="font-mono text-[10.5px] text-ink-3">{TYPE_META[t]?.icon ?? "·"}</span>{t}</span>;
@@ -51,8 +52,8 @@ export function FieldList({ fields, onChange, onEdit, onAdd }: { fields: ModelFi
 }
 
 /* ---------------- add / edit field panel ---------------- */
-type PanelProps = { models: Model[]; taken: string[]; initial?: ModelField; onClose: () => void; onSubmit: (f: ModelField) => void };
-export function FieldPanel({ models, taken, initial, onClose, onSubmit }: PanelProps) {
+type PanelProps = { models: Model[]; own?: { id: string; fields: ModelField[] }; taken: string[]; initial?: ModelField; onClose: () => void; onSubmit: (f: ModelField) => void };
+export function FieldPanel({ models, own, taken, initial, onClose, onSubmit }: PanelProps) {
   const [type, setType] = useState<string>(initial?.t ?? "");
   const [label, setLabel] = useState(initial?.l ?? ""); const [key, setKey] = useState(initial?.k ?? ""); const [keyTouched, setKeyTouched] = useState(!!initial);
   const [req, setReq] = useState(!!initial?.req); const [loc, setLoc] = useState(!!initial?.loc); const [hidden, setHidden] = useState(!!initial?.hidden);
@@ -78,7 +79,8 @@ export function FieldPanel({ models, taken, initial, onClose, onSubmit }: PanelP
     const f: ModelField = { k: key, l: label.trim(), t: type, req, loc }; if (desc.trim()) f.desc = desc.trim(); if (def.trim()) f.default = def.trim(); if (hidden) f.hidden = true; if (Object.keys(val).length) f.validation = val;
     onSubmit(f); };
   const editing = !!initial; const title = editing ? `Edit field “${initial.l}”` : type ? `Add ${type} field` : "Add field";
-  const refTargets = models.filter((m) => !isBlockModel(m));
+  const refTargets = models.filter((m) => !isBlockModel(m) && m.id !== own?.id);
+  const linkable = (m: Model) => !own || sharedFields(own, m).length > 0 || initial?.validation?.referenceModel === m.id;
   const fieldLbl = "text-xs text-ink-3 block"; const showErr = (s: string) => (tried && s ? <small className="block text-crit mt-1">{s}</small> : null);
 
   if (!type) return <ModalShell title={title} subtitle="Step 1 of 2 · pick a type" width={760} onClose={onClose} footer={<button type="button" className="btn" onClick={onClose}>Cancel</button>}>
@@ -101,7 +103,7 @@ export function FieldPanel({ models, taken, initial, onClose, onSubmit }: PanelP
         {TEXT_TYPES.includes(type) && <div className="grid grid-cols-3 gap-3"><label className={fieldLbl}>Min length<input type="number" min={0} className={inputCls} value={minLength} onChange={(e) => setMinLength(e.target.value)} /></label><label className={fieldLbl}>Max length<input type="number" min={0} className={inputCls} value={maxLength} onChange={(e) => setMaxLength(e.target.value)} placeholder="e.g. 100" /></label><label className={fieldLbl}>Pattern <span className="text-ink-4">regular expression</span><input className={`${inputCls} font-mono`} value={pattern} onChange={(e) => setPattern(e.target.value)} placeholder={type === "URL" ? "^https://" : "^[A-Z]"} spellCheck={false} aria-invalid={!!patErr} />{patErr && <small className="block text-crit mt-1">{patErr}</small>}</label></div>}
         {NUMBER_TYPES.includes(type) && <div className="grid grid-cols-3 gap-3"><label className={fieldLbl}>Minimum<input type="number" step={type === "Decimal" ? "any" : 1} className={inputCls} value={min} onChange={(e) => setMin(e.target.value)} /></label><label className={fieldLbl}>Maximum<input type="number" step={type === "Decimal" ? "any" : 1} className={inputCls} value={max} onChange={(e) => setMax(e.target.value)} /></label></div>}
         {OPTION_TYPES.includes(type) && <div><span className={fieldLbl}>Options <span className="text-ink-4">one per row, in the order authors see them</span></span><div className="grid gap-1.5 mt-1 max-w-[420px]">{options.map((o, i) => <div key={i} className="flex gap-1.5"><input className={`${inputCls} mt-0`} value={o} onChange={(e) => setOptions(options.map((x, j) => (j === i ? e.target.value : x)))} placeholder={`Option ${i + 1}`} aria-label={`Option ${i + 1}`} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); setOptions([...options.slice(0, i + 1), "", ...options.slice(i + 1)]); } }} /><button type="button" className="btn btn-sm btn-icon" aria-label={`Remove option ${i + 1}`} disabled={options.length === 1} onClick={() => setOptions(options.filter((_, j) => j !== i))}>×</button></div>)}<button type="button" className="btn btn-sm w-fit" onClick={() => setOptions([...options, ""])}>＋ Add option</button></div>{showErr(optErr)}</div>}
-        {type === "Reference" && <label className={`${fieldLbl} max-w-[420px]`}>Target model<select className={inputCls} value={refModel} onChange={(e) => setRefModel(e.target.value)} aria-invalid={tried && !!refErr}><option value="">Choose a model…</option>{refTargets.map((m) => <option key={m.id} value={m.id}>{m.name} ({m.id})</option>)}</select>{showErr(refErr)}</label>}
+        {type === "Reference" && <label className={`${fieldLbl} max-w-[420px]`}>Target model<select className={inputCls} value={refModel} onChange={(e) => setRefModel(e.target.value)} aria-invalid={tried && !!refErr}><option value="">Choose a model…</option>{refTargets.map((m) => <option key={m.id} value={m.id} disabled={!linkable(m)}>{m.name} ({m.id}){linkable(m) ? "" : " · no fields in common"}</option>)}</select>{showErr(refErr)}</label>}
         {type === "Reference" && <label className="flex items-center gap-2 text-[13px]"><input type="checkbox" className="accent-[var(--accent)]" checked={multiple} onChange={(e) => setMultiple(e.target.checked)} />Allow several items <span className="text-ink-4 text-[12px]">(a list of links instead of one)</span></label>}
         {UNIQUE_TYPES.includes(type) && <label className="flex items-center gap-2 text-[13px] text-ink mt-3"><input type="checkbox" checked={unique} onChange={(e) => setUnique(e.target.checked)} />Values must be unique across items of this model</label>}
         {!TEXT_TYPES.includes(type) && !NUMBER_TYPES.includes(type) && !OPTION_TYPES.includes(type) && type !== "Reference" && <div className="text-[12.5px] text-ink-3">No validation options for {type} fields.</div>}

@@ -31,3 +31,6 @@ export function diffFields(before: ModelField[], after: ModelField[]): ModelDiff
 
 /** Tree position: items with an explicit order come first in that order, the rest alphabetically. */
 export const byOrder = <T extends { order?: number; title?: string; name?: string }>(a: T, b: T) => (a.order ?? 1e9) - (b.order ?? 1e9) || String(a.title ?? a.name ?? "").localeCompare(String(b.title ?? b.name ?? ""));
+
+/** Fields two models have in common (same key and same type). Models can only be connected when they share at least one. */
+export const sharedFields = (a: Pick<Model, "fields">, b: Pick<Model, "fields">): string[] => a.fields.filter((f) => f.t !== "Reference" && b.fields.some((g) => g.k === f.k && g.t === f.t)).map((f) => f.k);

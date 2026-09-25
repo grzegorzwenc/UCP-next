@@ -5,7 +5,7 @@ import { PATHS } from "@/lib/ucp/paths";
 import type { Asset, AssetType, AuditEvent, AuditType, Bindings, Entity, EntityValues, FormDef, Model, ModelField, ModelVersion, Notification, Perms, ReviewerOption, Role, Task, TaskKind, Template, User } from "@/lib/ucp/types";
 import type { ResolvedEntities } from "@/lib/ucp/tokens";
 import { bindingsOf } from "@/lib/ucp/tokens";
-import { byOrder } from "@/lib/ucp/schema";
+import { byOrder, sharedFields } from "@/lib/ucp/schema";
 import { RepoError } from "@/lib/repo";
 import { ME, SEED_USERS } from "@/lib/ucp/seed";
 import { allPages } from "@/lib/server/pages";
@@ -144,6 +144,10 @@ async function snapshotModel(id: string, m: Model, note: string, who: string, pu
 /** Save the draft: fields and/or metadata. Bumps the draft version and marks a published model as "modified". */
 export async function saveModelDraft(id: string, patch: { name?: string; displayName?: string; description?: string; icon?: string; group?: string; fields?: ModelField[] }, who: string): Promise<Model> {
   const cur = (await listModels()).find((m) => m.id === id); if (!cur || cur.locked) throw new RepoError(cur ? 403 : 404, cur ? "Block-type models are read-only" : "Model not found", id);
+  if (patch.fields) { const all = await listModels(); const own = { fields: patch.fields };
+    for (const f of patch.fields) { const to = f.validation?.referenceModel; if (!to || cur.fields.some((o) => o.k === f.k && o.validation?.referenceModel === to)) continue;
+      const target = to === id ? own : all.find((m) => m.id === to); if (!target) throw new RepoError(400, "The connected model does not exist", to);
+      if (to !== id && !sharedFields(own, target).length) throw new RepoError(400, `${cur.name} and ${all.find((m) => m.id === to)?.name ?? to} have no fields in common`, "Models can only be connected when they share at least one field (same key and type)."); } }
   const props: NodeProps = { "cq:lastModified": new Date().toISOString(), "cq:lastModifiedBy": who };
   if (patch.name !== undefined) props["jcr:title"] = patch.name; if (patch.displayName !== undefined) props["ucp:displayName"] = patch.displayName; if (patch.description !== undefined) props["jcr:description"] = patch.description; if (patch.icon !== undefined) props["ucp:icon"] = patch.icon; if (patch.group !== undefined) props["ucp:group"] = patch.group;
   if (patch.fields) { props["ucp:fields"] = JSON.stringify(patch.fields); props["ucp:version"] = cur.publishedVersion && cur.version === cur.publishedVersion ? cur.version + 1 : cur.version; }
