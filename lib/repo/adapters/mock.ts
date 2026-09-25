@@ -18,7 +18,7 @@ import { sessionUserId } from "@/lib/server/session";
  *   /var/audit/ucp/<market>/<id>   audit events (append-only)
  * Same node shapes the Sling adapter produces, so switching backends changes nothing above the port.
  */
-const g = globalThis as unknown as { __ucpRepo_v9?: RepoNode };
+const g = globalThis as unknown as { __ucpRepo_v11?: RepoNode };
 
 const node = (path: string, primaryType: string, properties: NodeProps = {}, children?: RepoNode[]): RepoNode => ({ path, name: path.split("/").pop() || "", primaryType, properties, children });
 function page(parent: string, name: string, title: string, status: PageView["status"], template: string, blocks?: ReturnType<typeof makeBlock>[], extra: NodeProps = {}): RepoNode {
@@ -36,14 +36,14 @@ function seedUk(r: string): RepoNode[] {
   return [
     node(`${r}/jcr:content`, "cq:PageContent", { "jcr:title": "HSBC UK", "sling:resourceType": "hsbc/components/site" }),
     page(r, "home", "Home", "published", "hub"),
-    folder(r, "banking", "Banking", (p) => [page(p, "current-accounts", "Current accounts", "published", "hub"), folder(p, "savings", "Savings", (q) => [page(q, "cash-isa", "Cash ISA", "approved", "rates", undefined, { "ucp:sentBy": "rachel.hughes", "ucp:sentAt": "2027-09-19T17:10:00Z" }), page(q, "fixed-rate-bonds", "Fixed rate bonds", "draft", "rates"), page(q, "easy-access", "Easy access saver", "published", "rates")])]),
+    folder(r, "banking", "Banking", (p) => [page(p, "current-accounts", "Current accounts", "published", "hub"), folder(p, "savings", "Savings", (q) => [page(q, "cash-isa", "Cash ISA", "approved", "rates", undefined, { "ucp:sentBy": "rachel.hughes", "ucp:sentAt": "2027-09-19T17:10:00Z" }), page(q, "fixed-rate-bonds", "Fixed rate bonds", "draft", "rates"), page(q, "easy-access", "Easy access saver", "published", "rates", [makeBlock("mast", { heading: "{{product.title}}", intro: "{{product.description}}", cta: "{{product.cta}}", image: "hero-savings" }), makeBlock("facts"), makeBlock("rates"), makeBlock("faq"), makeBlock("disclaimer")], { "ucp:bindings": JSON.stringify({ product: "/content/entities/uk/product/hsbc-savings-account" }) })])]),
     folder(r, "borrowing", "Borrowing", (p) => [
       folder(p, "credit-cards", "Credit cards", (q) => [page(q, "overview", "Credit cards", "published", "hub"),
-        page(q, "rewards-credit-cards", "Rewards credit cards", "review", "product", [makeBlock("mast", { heading: "Rewards credit cards", intro: "Discover our range of rewards cards", image: "hero-cards" }), makeBlock("contentmaster"), makeBlock("icontiles"), makeBlock("mastertiles"), makeBlock("banner", { heading: "Need help choosing a credit card?", text: "Discover our range of credit cards and find the one most suitable for you.", cta: "Compare cards", style: "light" }), makeBlock("linktiles"), makeBlock("footnotes")], { "ucp:sentBy": "anna.kowalczyk", "ucp:sentAt": "2027-09-20T08:20:00Z" }),
+        page(q, "rewards-credit-cards", "Rewards credit cards", "review", "product", [makeBlock("mast", { heading: "Rewards credit cards", intro: "Discover our range of rewards cards", image: "hero-cards" }), makeBlock("contentmaster"), makeBlock("icontiles"), makeBlock("mastertiles"), makeBlock("banner", { heading: "Need help choosing a credit card?", text: "Discover our range of credit cards and find the one most suitable for you.", cta: "Compare cards", style: "light" }), makeBlock("linktiles"), makeBlock("footnotes")], { "ucp:sentBy": "anna.kowalczyk", "ucp:sentAt": "2027-09-20T08:20:00Z", "ucp:assignee": "rachel.hughes" }),
         page(q, "purchase", "Purchase credit cards", "published", "product"), page(q, "balance-transfer", "Balance transfer credit cards", "published", "product"), page(q, "credit-builder", "Credit-builder credit cards", "draft", "product")]),
       folder(p, "mortgages", "Mortgages", (q) => [page(q, "overview", "Mortgages", "published", "hub", [makeBlock("mast", { heading: "Mortgages", intro: "Find a mortgage that fits your plans", image: "hero-mortgage" }), makeBlock("contentmaster"), makeBlock("linktiles"), makeBlock("banner")]), page(q, "rates", "Mortgage rates", "failed", "rates")]),
       folder(p, "loans", "Loans", (q) => [page(q, "overview", "Personal loans", "published", "hub")])]),
-    folder(r, "investing", "Investing", (p) => [page(p, "overview", "Investing", "published", "hub"), page(p, "ready-made", "Ready-made investments", "review", "product", undefined, { "ucp:sentBy": "sunita.patel", "ucp:sentAt": "2027-09-18T11:15:00Z" })]),
+    folder(r, "investing", "Investing", (p) => [page(p, "overview", "Investing", "published", "hub"), page(p, "ready-made", "Ready-made investments", "review", "product", undefined, { "ucp:sentBy": "sunita.patel", "ucp:sentAt": "2027-09-18T11:15:00Z", "ucp:assignee": "rachel.hughes" })]),
     folder(r, "insurance", "Insurance", (p) => [page(p, "home-insurance", "Home insurance", "published", "product", [makeBlock("mast", { heading: "Home insurance", intro: "Cover for your home and what's in it", image: "hero-home" }), makeBlock("contentmaster"), makeBlock("icontiles"), makeBlock("faq"), makeBlock("footnotes")])]),
     folder(r, "campaigns", "Campaigns", (p) => [page(p, "autumn-rates", "Autumn rates campaign", "scheduled", "campaign", [makeBlock("mast", { heading: "Autumn rates campaign", intro: "Limited-time rates on savings", image: "campaign-autumn" }), makeBlock("text"), makeBlock("banner"), makeBlock("form"), makeBlock("disclaimer")], { "ucp:sentBy": "michael.osei", "ucp:publishAt": "2027-10-01T06:00:00Z" })]),
     folder(r, "help", "Help", (p) => [page(p, "contact", "Contact us", "published", "hub"), page(p, "branch-finder", "Branch finder", "published", "hub")]),
@@ -68,6 +68,12 @@ function seed(): RepoNode {
     ...MARKETS.map((m) => node(m.root, "cq:Page", {}, m.id === "uk" ? seedUk(m.root) : seedMarket(m))),
     node("/content/dam", "sling:Folder", {}, MARKETS.map((m) => node(`${PATHS.dam(m.id)}`, "sling:Folder", { "jcr:title": `${m.name} assets` }, ASSET_FOLDERS.map((fo) => node(`${PATHS.dam(m.id)}/${fo}`, "sling:Folder", { "jcr:title": fo }, m.id === "uk" ? SEED_ASSETS.filter((a) => a.folder === fo).map((a) => node(`${PATHS.dam(m.id)}/${fo}/${a.name}`, "dam:Asset", { "jcr:title": a.name, "ucp:id": a.id, "dam:type": a.type, "dam:size": a.size, "dam:width": a.width, "dam:height": a.height, "dam:folder": a.folder, "jcr:created": "2027-09-01T10:00:00Z", "jcr:createdBy": "anna.taylor" })) : []))))),
   ]);
+  const ent = (id: string, title: string, values: Record<string, unknown>) => node(`${PATHS.entities("uk")}/product/${id}`, "nt:unstructured", { "jcr:title": title, "ucp:model": "product", "ucp:status": "published", "ucp:values": JSON.stringify(values), "ucp:publishedValues": JSON.stringify(values), "cq:lastModified": "2027-09-12T10:00:00Z", "cq:lastModifiedBy": "priya.kaur" });
+  content.children!.push(node("/content/entities", "sling:Folder", {}, [node(PATHS.entities("uk"), "sling:Folder", {}, [node(`${PATHS.entities("uk")}/product`, "sling:Folder", { "jcr:title": "Product" }, [
+    ent("hsbc-current-account", "HSBC Current Account", { title: "HSBC Current Account", description: "An everyday account with a contactless debit card and the HSBC UK app.", image: "hero-home", category: "Current accounts", cta: "Open an account" }),
+    ent("hsbc-savings-account", "HSBC Savings Account", { title: "Flexible Saver", description: "Save as much as you like and take money out when you need it.", image: "hero-savings", category: "Savings", cta: "Start saving" }),
+    ent("hsbc-credit-card", "HSBC Credit Card", { title: "Rewards Credit Card", description: "Earn reward points on eligible purchases, with 26.9% APR representative (variable).", image: "hero-cards", category: "Credit cards", cta: "Apply now" }),
+  ])])]));
   const home = node("/home", "rep:AuthorizableFolder", {}, [node("/home/users", "rep:AuthorizableFolder", {}, SEED_USERS.map((u) => node(`${PATHS.users}/${u.id}`, "rep:User", { "rep:principalName": u.id, "profile/givenName": u.name.split(" ")[0], "profile/familyName": u.name.split(" ").slice(1).join(" "), "profile/email": u.email, "ucp:name": u.name, "ucp:role": u.role, "ucp:team": u.team, "ucp:perms": JSON.stringify(u.perms) })))]);
   const conf = node("/conf", "sling:Folder", {}, [node("/conf/hsbc", "sling:Folder", {}, [
     node(PATHS.models, "sling:Folder", {}, SEED_MODELS.map((m) => node(`${PATHS.models}/${m.id}`, "nt:unstructured", { "jcr:title": m.name, "jcr:description": m.description, "ucp:group": m.group, "ucp:version": m.version, "ucp:publishedVersion": m.version, "ucp:status": "published", "ucp:source": m.source, "ucp:fields": JSON.stringify(m.fields), "ucp:publishedFields": JSON.stringify(m.fields), "cq:lastModified": "2027-09-10T09:30:00Z", "cq:lastModifiedBy": "priya.kaur" }))),
@@ -92,7 +98,7 @@ function seed(): RepoNode {
   for (const n of walk(content)) if (["credit-builder", "fixed-rate-bonds"].includes(n.name)) { const c = n.children?.find((x) => x.name === "jcr:content"); if (c) c.properties["cq:lastModifiedBy"] = "content.author"; }
   return node("/", "rep:root", {}, [content, home, conf, varNode]);
 }
-const tree = () => (g.__ucpRepo_v9 ??= seed());
+const tree = () => (g.__ucpRepo_v11 ??= seed());
 function find(n: RepoNode, path: string): RepoNode | undefined { if (n.path === path) return n; if (path !== "/" && !path.startsWith(n.path === "/" ? "/" : n.path + "/")) return undefined; for (const c of n.children ?? []) { const f = find(c, path); if (f) return f; } }
 const parentPath = (p: string) => p.replace(/\/[^/]+$/, "") || "/";
 const content = (n: RepoNode) => n.children?.find((c) => c.name === "jcr:content");

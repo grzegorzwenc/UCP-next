@@ -1,5 +1,6 @@
 import type { PageView, PageSummary, CreatePageInput, PageContentPatch, ComponentNode, Identity, Problem, RepoNode, NodeProps } from "./types";
-import type { Task, Notification, Asset, AuditEvent, User, Template, Model, ModelField, ModelVersion } from "@/lib/ucp/types";
+import type { Task, Notification, Asset, AuditEvent, User, Template, Model, ModelField, ModelVersion, Entity, EntityValues, Bindings, ReviewerOption } from "@/lib/ucp/types";
+import type { ResolvedEntities } from "@/lib/ucp/tokens";
 import { ApiError } from "./types";
 export * from "./types";
 
@@ -55,5 +56,18 @@ export const ucpApi = {
   createModel: (market: string, input: { id?: string; name: string; displayName?: string; description?: string; icon?: string; group?: string; fields?: ModelField[] }) => U<Model>("models/create", { method: "POST", query: { market }, body: JSON.stringify(input) }),
   duplicateModel: (market: string, id: string) => U<Model>("models/duplicate", { method: "POST", query: { market, id }, body: "{}" }),
   deleteModel: (market: string, id: string) => U<{ ok: true }>("models/delete", { method: "POST", query: { market, id }, body: "{}" }),
+  /* content entities */
+  entities: (market: string, model?: string) => U<Entity[]>("entities", { query: { market, model } }),
+  entity: (market: string, path: string) => U<Entity>("entities/get", { query: { market, path } }),
+  createEntity: (market: string, model: string, title: string, values: EntityValues = {}) => U<Entity>("entities/create", { method: "POST", query: { market }, body: JSON.stringify({ model, title, values }) }),
+  saveEntity: (market: string, path: string, patch: { title?: string; values?: EntityValues }) => U<Entity>("entities/save", { method: "POST", query: { market, path }, body: JSON.stringify(patch) }),
+  publishEntity: (market: string, path: string) => U<Entity>("entities/publish", { method: "POST", query: { market, path }, body: "{}" }),
+  deleteEntity: (market: string, path: string) => U<{ ok: true }>("entities/delete", { method: "POST", query: { market, path }, body: "{}" }),
+  resolveBindings: (market: string, bindings: Bindings, published = false) => U<ResolvedEntities>("entities/resolve", { method: "POST", query: { market, published }, body: JSON.stringify(bindings) }),
+  saveBindings: (market: string, path: string, bindings: Bindings) => U<Bindings>("bindings", { method: "POST", query: { market, path }, body: JSON.stringify(bindings) }),
+  /* review assignment */
+  reviewers: (market: string, path: string) => U<ReviewerOption[]>("reviewers", { query: { market, path } }),
+  sendForReview: (market: string, path: string, body: { assignee?: string; auto?: boolean; note?: string }) => U<{ assignee: string; assigneeName: string; auto: boolean }>("review/send", { method: "POST", query: { market, path }, body: JSON.stringify(body) }),
+  reassignReview: (market: string, path: string, body: { assignee?: string; auto?: boolean }) => U<{ assignee: string; assigneeName: string }>("review/assign", { method: "POST", query: { market, path }, body: JSON.stringify(body) }),
   translate: (market: string, body: { pages: string[]; langs: string[]; review?: boolean; dest?: string; mode?: "ai" | "vendor" }) => U<{ created: string[] }>("translate", { method: "POST", query: { market }, body: JSON.stringify(body) }),
 };

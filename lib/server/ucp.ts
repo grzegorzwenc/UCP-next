@@ -2,7 +2,9 @@ import "server-only";
 import { repo } from "@/lib/repo";
 import type { RepoNode, PageSummary, NodeProps } from "@/lib/repo";
 import { PATHS } from "@/lib/ucp/paths";
-import type { Asset, AssetType, AuditEvent, AuditType, FormDef, Model, ModelField, ModelVersion, Notification, Perms, Role, Task, TaskKind, Template, User } from "@/lib/ucp/types";
+import type { Asset, AssetType, AuditEvent, AuditType, Bindings, Entity, EntityValues, FormDef, Model, ModelField, ModelVersion, Notification, Perms, ReviewerOption, Role, Task, TaskKind, Template, User } from "@/lib/ucp/types";
+import type { ResolvedEntities } from "@/lib/ucp/tokens";
+import { bindingsOf } from "@/lib/ucp/tokens";
 import { RepoError } from "@/lib/repo";
 import { BLOCK_MODELS, ME, SEED_USERS } from "@/lib/ucp/seed";
 import { allPages } from "@/lib/server/pages";
@@ -82,13 +84,13 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
   const pages = (all ?? await allPages(PATHS.content(marketId))).filter((p) => !p.isFolder); const user = await me(); const meId = user.id; const now = new Date();
   const admin = user.role === "admin" || !!user.perms.root?.manage; const root = marketOf(marketId).root;
   /* Visibility: admins see every task; everyone else only what they can act on or what they started. */
-  const mine = (p: PageSummary, kind: TaskKind) => admin || str(p.meta?.["ucp:sentBy"]) === meId || (p.lastModifiedBy ?? ME) === meId || (kind === "Review" && can(user, "review", p.path, root)) || ((kind === "Publish" || kind === "Fix" || kind === "Check") && can(user, "publish", p.path, root));
+  const mine = (p: PageSummary, kind: TaskKind) => admin || str(p.meta?.["ucp:sentBy"]) === meId || (p.lastModifiedBy ?? ME) === meId || (kind === "Review" && (str(p.meta?.["ucp:assignee"]) ? str(p.meta?.["ucp:assignee"]) === meId : can(user, "review", p.path, root))) || ((kind === "Publish" || kind === "Fix" || kind === "Check") && can(user, "publish", p.path, root));
   const dueOf = (p: PageSummary) => { const d = p.meta?.["ucp:due"]; if (typeof d === "string" && d) return new Date(d); const off = (hash(p.path) % 9) - 2; const x = new Date(now); x.setDate(x.getDate() + off); return x; };
   const mk = async (p: PageSummary, kind: TaskKind, what: string, from: string): Promise<Task> => { const due = dueOf(p); const overdueDays = Math.floor((now.setHours(0, 0, 0, 0) - new Date(due).setHours(0, 0, 0, 0)) / 86400000); return { kind, what, from, sentAt: str(p.meta?.["ucp:sentAt"]) || p.lastModified, due: due.toISOString(), overdueDays, page: { path: p.path, title: p.title, status: p.status, template: p.template } }; };
   const sender = async (p: PageSummary, fallback: string) => { const s = str(p.meta?.["ucp:sentBy"]); return s ? await userName(s) : fallback; };
   const out: Task[] = [];
   for (const p of pages) {
-    if (p.status === "review") out.push(await mk(p, "Review", "Review and approve", await sender(p, await userName(p.lastModifiedBy ?? ME))));
+    if (p.status === "review") { const t = await mk(p, "Review", "Review and approve", await sender(p, await userName(p.lastModifiedBy ?? ME))); const a = str(p.meta?.["ucp:assignee"]); if (a) { t.assignee = a; t.assigneeName = await userName(a); } out.push(t); }
     else if (p.status === "approved") out.push(await mk(p, "Publish", "Publish approved page", `${await sender(p, "Rachel Hughes")} (approved)`));
     else if (p.status === "failed") out.push(await mk(p, "Fix", "Fix failed publish", "System"));
     else if (p.status === "scheduled") out.push(await mk(p, "Check", "Check scheduled publish", await sender(p, "Michael Osei")));
@@ -99,7 +101,7 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
 export async function notifications(marketId: string): Promise<Notification[]> {
   const [tasks, log, meId] = await Promise.all([listTasks(marketId), readLog(marketId, 20), me().then((u) => u.id)]);
   const rel = (iso: string) => { const d = new Date(iso); const diff = Math.round((Date.now() - d.getTime()) / 60000); return diff < 60 ? `${Math.max(diff, 0)} min ago` : diff < 1440 ? `${Math.round(diff / 60)} h ago` : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
-  const t = tasks.slice(0, 4).map((x) => ({ text: `${x.from} ${x.kind === "Review" ? "asked you to review" : x.kind === "Publish" ? "approved" : x.kind === "Fix" ? "reported a failed publish of" : "is waiting on"} ${x.page.title}`, when: x.overdueDays > 0 ? `${x.overdueDays} day${x.overdueDays === 1 ? "" : "s"} overdue` : x.overdueDays === 0 ? "Due today" : `Due ${new Date(x.due).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`, target: x.page.path, level: x.overdueDays > 0 ? "crit" : x.overdueDays === 0 ? "warn" : "" }));
+  const t = tasks.filter((x) => x.kind !== "Review" || !x.assignee || x.assignee === meId).sort((a, b) => Number(b.assignee === meId) - Number(a.assignee === meId) || (b.sentAt ?? "").localeCompare(a.sentAt ?? "")).slice(0, 4).map((x) => ({ text: `${x.from} ${x.kind === "Review" ? (x.assignee === meId ? "assigned you to review" : "asked for a review of") : x.kind === "Publish" ? "approved" : x.kind === "Fix" ? "reported a failed publish of" : "is waiting on"} ${x.page.title}`, when: x.overdueDays > 0 ? `${x.overdueDays} day${x.overdueDays === 1 ? "" : "s"} overdue` : x.overdueDays === 0 ? "Due today" : `Due ${new Date(x.due).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`, target: x.page.path, level: x.overdueDays > 0 ? "crit" : x.overdueDays === 0 ? "warn" : "" }));
   const l: Notification[] = []; for (const e of log.filter((e) => e.who !== meId).slice(0, 3)) l.push({ text: `${await userName(e.who)} ${e.text}`, when: rel(e.time), target: e.target, level: e.level });
   return [...t, ...l];
 }
@@ -109,6 +111,8 @@ export async function pageDeliveryJson(marketId: string, path: string, host: str
   const v = await repo().getPage(path); if (!v) return undefined;
   const [assets, forms, templates] = await Promise.all([listAssets(marketId), listForms(), listTemplates()]);
   const route = path.replace(PATHS.content(marketId), "") || "/";
+  const ents = await resolveBindings(bindingsOf(v.meta), true); const { resolveTokens } = await import("@/lib/ucp/tokens");
+  v.components = v.components.map((c) => ({ ...c, props: Object.fromEntries(Object.entries(c.props).map(([k, val]) => [k, typeof val === "string" ? resolveTokens(val, ents) : val])) }));
   const blocks = v.components.map((c) => { const props: NodeProps = {}; for (const [k, val] of Object.entries(c.props)) { if (k === "ucp:id") continue; if (k === "image" && typeof val === "string") { const a = assets.find((x) => x.id === val); props[k] = a ? { id: a.id, name: a.name, url: `/v1/assets/${a.id}/original`, renditions: { hero: `/v1/assets/${a.id}/hero`, card: `/v1/assets/${a.id}/card` } } : null; } else if (k === "form" && typeof val === "string") { const f = forms.find((x) => x.id === val); props[k] = f ? { id: f.id, name: f.name, version: f.version, embed: `forms://${marketId}/${f.id}/v${f.version}` } : null; } else if (typeof val === "string" && val.includes("|") && val.includes("\n")) props[k] = val.split("\n").map((r) => r.split("|").map((x) => x.trim())); else props[k] = val; } return { id: c.props["ucp:id"] ?? c.name, type: c.resourceType.split("/").pop(), resourceType: c.resourceType, props }; });
   return { id: v.path, route, market: marketId.toUpperCase(), language: v.locale ?? "en-GB", title: v.title, status: v.status, template: v.template, templateName: templates.find((t) => t.id === v.template)?.name, updatedAt: v.lastModified, updatedBy: v.lastModifiedBy, blocks, meta: { canonical: `https://${host}${route}`, index: true, description: v.description ?? "" }, _links: { self: `/v1/pages${route}`, preview: `/v1/preview/pages${route}`, schema: "/v1/models/page", repository: v.path } };
 }
@@ -168,3 +172,43 @@ export async function duplicateModel(id: string, who: string): Promise<Model> {
   return createModel({ id: nid, name: `${cur.name} (copy)`, displayName: cur.displayName, description: cur.description, icon: cur.icon, group: cur.locked ? "Core" : cur.group, fields: cur.fields }, who);
 }
 export async function deleteModel(id: string): Promise<void> { const cur = (await listModels()).find((m) => m.id === id); if (!cur || cur.locked) throw new RepoError(cur ? 403 : 404, cur ? "Block-type models cannot be deleted" : "Model not found", id); await repo().deleteNode(`${PATHS.models}/${id}`); }
+
+/* ---------------- content entities: /content/entities/<market>/<model>/<entity> ---------------- */
+const toEntity = (n: RepoNode): Entity => { const pub = n.properties["ucp:publishedValues"]; return { id: n.name, path: n.path, model: n.path.split("/").slice(-2, -1)[0], title: str(n.properties["jcr:title"], n.name), status: (str(n.properties["ucp:status"]) as Entity["status"]) || "draft", values: json<EntityValues>(n.properties["ucp:values"], {}), publishedValues: pub !== undefined ? json<EntityValues>(pub, {}) : undefined, lastModified: str(n.properties["cq:lastModified"]) || str(n.properties["jcr:created"]) || undefined, lastModifiedBy: str(n.properties["cq:lastModifiedBy"]) || undefined }; };
+export async function listEntities(marketId: string, model?: string): Promise<Entity[]> {
+  const models = model ? [model] : (await kids(PATHS.entities(marketId), 1)).map((n) => n.name);
+  const out: Entity[] = []; for (const m of models) out.push(...(await kids(`${PATHS.entities(marketId)}/${m}`, 1)).map(toEntity)); return out.sort((a, b) => a.title.localeCompare(b.title));
+}
+export async function getEntity(path: string): Promise<Entity | undefined> { const n = await repo().getNode(path, 0).catch(() => undefined); return n ? toEntity(n) : undefined; }
+export async function createEntity(marketId: string, model: string, title: string, values: EntityValues, who: string): Promise<Entity> {
+  const base = `${PATHS.entities(marketId)}/${model}`; if (!(await repo().getNode(base, 0))) await repo().createNode(base, "sling:Folder", { "jcr:title": model });
+  let id = slug(title) || "item"; let i = 2; while (await repo().getNode(`${base}/${id}`, 0)) id = `${slug(title)}-${i++}`;
+  const n = await repo().createNode(`${base}/${id}`, "nt:unstructured", { "jcr:title": title, "ucp:model": model, "ucp:status": "draft", "ucp:values": JSON.stringify(values), "cq:lastModified": new Date().toISOString(), "cq:lastModifiedBy": who });
+  return toEntity(n);
+}
+export async function saveEntity(path: string, patch: { title?: string; values?: EntityValues }, who: string): Promise<Entity> {
+  const cur = await getEntity(path); if (!cur) throw new RepoError(404, "Entity not found", path);
+  const props: NodeProps = { "cq:lastModified": new Date().toISOString(), "cq:lastModifiedBy": who, "ucp:status": cur.publishedValues ? "modified" : "draft" };
+  if (patch.title !== undefined) props["jcr:title"] = patch.title; if (patch.values) props["ucp:values"] = JSON.stringify(patch.values);
+  await repo().setProps(path, props); return (await getEntity(path))!;
+}
+export async function publishEntity(path: string, who: string): Promise<Entity> { const cur = await getEntity(path); if (!cur) throw new RepoError(404, "Entity not found", path); await repo().setProps(path, { "ucp:publishedValues": JSON.stringify(cur.values), "ucp:status": "published", "cq:lastModified": new Date().toISOString(), "cq:lastModifiedBy": who }); return (await getEntity(path))!; }
+export async function deleteEntity(path: string): Promise<void> { await repo().deleteNode(path); }
+/** Which pages bind which entity (via ucp:bindings on jcr:content). */
+export async function entityUsage(marketId: string, all?: PageSummary[]): Promise<Record<string, PageSummary[]>> {
+  const pages = (all ?? await allPages(PATHS.content(marketId))).filter((p) => !p.isFolder); const out: Record<string, PageSummary[]> = {};
+  for (const p of pages) for (const path of Object.values(bindingsOf(p.meta))) (out[path] ??= []).push(p); return out;
+}
+/** Resolve a page's bindings to entity values. `published` = what visitors see (published values), otherwise the latest draft. */
+export async function resolveBindings(b: Bindings, published = false): Promise<ResolvedEntities> {
+  const out: ResolvedEntities = {}; for (const [alias, path] of Object.entries(b)) { const e = await getEntity(path); if (e) out[alias] = { title: e.title, path, values: published ? (e.publishedValues ?? e.values) : e.values }; } return out;
+}
+
+/* ---------------- review assignment ---------------- */
+export async function reviewerOptions(marketId: string, pagePath: string): Promise<ReviewerOption[]> {
+  const [users, pages] = await Promise.all([listUsers(), allPages(PATHS.content(marketId))]); const root = marketOf(marketId).root;
+  const active = (id: string) => pages.filter((p) => p.status === "review" && str(p.meta?.["ucp:assignee"]) === id).length;
+  return users.filter((u) => can(u, "review", pagePath, root)).map((u) => ({ id: u.id, name: u.name, team: u.team, activeReviews: active(u.id) })).sort((a, b) => a.activeReviews - b.activeReviews || a.name.localeCompare(b.name));
+}
+/** Pick the reviewer with the fewest active reviews (never the sender when someone else is available). */
+export async function autoAssignee(marketId: string, pagePath: string, senderId: string): Promise<ReviewerOption | undefined> { const opts = await reviewerOptions(marketId, pagePath); return opts.find((o) => o.id !== senderId) ?? opts[0]; }

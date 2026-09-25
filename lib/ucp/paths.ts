@@ -7,4 +7,6 @@ export const PATHS = {
   templates: "/conf/hsbc/settings/wcm/templates",
   forms: "/conf/hsbc/forms",
   audit: (marketId: string) => `/var/audit/ucp/${marketId}`,
+  /** Content entities: concrete content items built from a content model, per market. */
+  entities: (marketId: string) => `/content/entities/${marketId}`,
 };

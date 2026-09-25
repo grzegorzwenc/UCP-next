@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { listTasks, notifications, listAssets, listUsers, createAsset, logEvent, readLog, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel } from "@/lib/server/ucp";
+import { listTasks, notifications, listAssets, listUsers, createAsset, logEvent, readLog, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
+import { can } from "@/lib/ucp/perms";
 import { SESSION_COOKIE } from "@/lib/server/session";
 import { PATHS } from "@/lib/ucp/paths";
 import { CY } from "@/lib/ucp/seed";
@@ -26,6 +27,44 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
   const ok = (b: unknown, status = 200) => NextResponse.json(b, { status, headers: { "X-Request-Id": rid } });
   try {
     if (o === "tasks") return ok(await listTasks(mid));
+    /* ---- content entities: reading is open; writing needs Edit on the market (authors create content, admins define models) ---- */
+    if (o.startsWith("entities")) {
+      const u = await me(); const mk = market(mid); const path = q.get("path") ?? "";
+      if (o === "entities" && req.method === "GET") return ok(await listEntities(mid, q.get("model") ?? undefined));
+      if (o === "entities/get" && req.method === "GET") { const e = await getEntity(path); return e ? ok({ ...e, usedOn: ((await entityUsage(mid))[path] ?? []).map((p) => p.path) }) : problem(new RepoError(404, "Entity not found", path)); }
+      if (o === "entities/resolve" && req.method === "POST") return ok(await resolveBindings(await req.json(), q.get("published") === "true"));
+      if (req.method !== "GET" && !can(u, "edit", mk.root, mk.root)) return problem(new RepoError(403, "You don't have Edit on this market", `Signed in as ${u.name}`));
+      if (o === "entities/create" && req.method === "POST") { const b = await req.json(); const e = await createEntity(mid, b.model, b.title, b.values ?? {}, u.id); await logEvent(mid, { type: "content", text: `created ${b.model} entity “${e.title}”`, target: e.path, requestId: rid }); return ok(e, 201); }
+      if (o === "entities/save" && req.method === "POST") { const e = await saveEntity(path, await req.json(), u.id); await logEvent(mid, { type: "content", text: `saved ${e.model} entity “${e.title}”`, target: e.path, requestId: rid }); return ok(e); }
+      if (o === "entities/publish" && req.method === "POST") { const e = await publishEntity(path, u.id); const n = ((await entityUsage(mid))[path] ?? []).length; await logEvent(mid, { type: "publishing", text: `published ${e.model} entity “${e.title}”${n ? ` (updates ${n} page${n === 1 ? "" : "s"})` : ""}`, target: e.path, requestId: rid }); return ok(e); }
+      if (o === "entities/delete" && req.method === "POST") { const used = (await entityUsage(mid))[path] ?? []; if (used.length) return problem(new RepoError(409, `Used on ${used.length} page${used.length === 1 ? "" : "s"}`, "Remove it from those pages first")); await deleteEntity(path); await logEvent(mid, { type: "content", text: `deleted entity ${path.split("/").pop()}`, target: "models", requestId: rid }); return ok({ ok: true }); }
+    }
+    /* ---- page bindings ({{alias.field}}) ---- */
+    if (o === "bindings" && req.method === "POST") { const u = await me(); const mk = market(mid); const path = q.get("path") ?? ""; if (!can(u, "edit", path, mk.root)) return problem(new RepoError(403, "You don't have Edit on this page", `Signed in as ${u.name}`)); const b = await req.json(); await repo().setProps(`${path}/jcr:content`, { "ucp:bindings": JSON.stringify(b) }); await logEvent(mid, { type: "content", text: `linked ${Object.keys(b).length} content entit${Object.keys(b).length === 1 ? "y" : "ies"} to ${path.split("/").pop()}`, target: path, requestId: rid }); return ok(b); }
+    /* ---- review assignment ---- */
+    if (o === "reviewers" && req.method === "GET") return ok(await reviewerOptions(mid, q.get("path") ?? ""));
+    if (o === "review/send" && req.method === "POST") {
+      const u = await me(); const mk = market(mid); const path = q.get("path") ?? ""; const { assignee, auto, note } = await req.json() as { assignee?: string; auto?: boolean; note?: string };
+      if (!can(u, "edit", path, mk.root)) return problem(new RepoError(403, "You don't have Edit on this page", `Signed in as ${u.name}`));
+      const pick = auto || !assignee ? await autoAssignee(mid, path, u.id) : (await reviewerOptions(mid, path)).find((o) => o.id === assignee);
+      if (!pick) return problem(new RepoError(400, "Nobody can review this page", "Ask a site admin to grant Review & approve on this folder"));
+      const r = repo(); const before = await r.getPage(path); if (!before) return problem(new RepoError(404, "Page not found", path));
+      const due = new Date(); due.setDate(due.getDate() + 3);
+      await r.updateContent(path, { status: "review" }); await r.setProps(`${path}/jcr:content`, { "ucp:sentBy": u.id, "ucp:sentAt": new Date().toISOString(), "ucp:due": due.toISOString(), "ucp:assignee": pick.id, "ucp:assignedBy": u.id, "ucp:reviewNote": note || null });
+      await logEvent(mid, { type: "content", text: `sent ${before.title} for review to ${pick.name}${auto || !assignee ? " (assigned automatically)" : ""}`, target: path, requestId: rid });
+      return ok({ assignee: pick.id, assigneeName: pick.name, auto: !!(auto || !assignee) });
+    }
+    if (o === "review/assign" && req.method === "POST") {
+      const u = await me(); if (!(u.role === "admin" || u.perms.root?.manage)) return problem(new RepoError(403, "Only site admins can change the reviewer", `Signed in as ${u.name}`));
+      const path = q.get("path") ?? ""; const { assignee, auto } = await req.json() as { assignee?: string; auto?: boolean };
+      const pick = auto || !assignee ? await autoAssignee(mid, path, u.id) : (await reviewerOptions(mid, path)).find((o) => o.id === assignee);
+      if (!pick) return problem(new RepoError(400, "That person cannot review this page"));
+      const pg = await repo().getPage(path); if (!pg || pg.status !== "review") return problem(new RepoError(409, "The page is not in review"));
+      const prev = typeof pg.meta?.["ucp:assignee"] === "string" ? await userName(String(pg.meta["ucp:assignee"])) : "nobody";
+      await repo().setProps(`${path}/jcr:content`, { "ucp:assignee": pick.id, "ucp:assignedBy": u.id, "ucp:sentAt": new Date().toISOString() });
+      await logEvent(mid, { type: "content", text: `reassigned the review of ${pg.title} from ${prev} to ${pick.name}`, target: path, requestId: rid });
+      return ok({ assignee: pick.id, assigneeName: pick.name });
+    }
     /* ---- content models: every mutation needs a site admin (checked here, not only hidden in the UI) ---- */
     if (o.startsWith("models")) {
       const u = await me(); const admin = u.role === "admin" || !!u.perms.root?.manage; const id = q.get("id") ?? "";
