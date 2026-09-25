@@ -68,12 +68,12 @@ export function UnsavedModal({ busy, onStay, onDiscard, onSave, what = "this Con
 
 /* ---------------- create wizard ---------------- */
 type Step = 0 | 1 | 2;
-export function CreateWizard({ models, marketId, onClose, onDone }: { models: Model[]; marketId: string; onClose: () => void; onDone: (m: Model, published: boolean) => void }) {
+export function CreateWizard({ models, marketId, folders, onClose, onDone }: { models: Model[]; marketId: string; folders?: string[]; onClose: () => void; onDone: (m: Model, published: boolean) => void }) {
   const [step, setStep] = useState<Step>(0);
   const [meta, setMeta] = useState<ModelMeta>({ id: "", name: "", displayName: "", description: "", icon: "", group: "Core" });
   const [fields, setFields] = useState<ModelField[]>([]); const [panel, setPanel] = useState<{ index: number | null } | null>(null);
   const [busy, setBusy] = useState<"" | "draft" | "publish">(""); const [err, setErr] = useState<string | null>(null);
-  const groups = [...new Set(models.filter((m) => !isBlockModel(m)).map((m) => m.group))];
+  const groups = [...new Set([...(folders ?? []), ...models.filter((m) => !isBlockModel(m)).map((m) => m.group)])];
   const idErr = !meta.name.trim() ? "" : !meta.id ? "The name must contain letters or digits" : models.some((m) => m.id === meta.id) ? "A model with this ID already exists" : "";
   const step1ok = !!meta.name.trim() && !!meta.id && !idErr;
   const STEPS = ["Model information", "Define fields", "Review"];

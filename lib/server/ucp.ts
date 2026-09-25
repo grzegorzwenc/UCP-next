@@ -188,16 +188,16 @@ export async function moveModel(id: string, to: { group?: string; before?: strin
 }
 
 /* ---------------- content entities: /content/entities/<market>/<model>/<entity> ---------------- */
-const toEntity = (n: RepoNode): Entity => { const pub = n.properties["ucp:publishedValues"]; return { id: n.name, path: n.path, model: n.path.split("/").slice(-2, -1)[0], title: str(n.properties["jcr:title"], n.name), status: (str(n.properties["ucp:status"]) as Entity["status"]) || "draft", values: json<EntityValues>(n.properties["ucp:values"], {}), publishedValues: pub !== undefined ? json<EntityValues>(pub, {}) : undefined, lastModified: str(n.properties["cq:lastModified"]) || str(n.properties["jcr:created"]) || undefined, lastModifiedBy: str(n.properties["cq:lastModifiedBy"]) || undefined, order: num(n.properties["ucp:order"]) }; };
+const toEntity = (n: RepoNode): Entity => { const pub = n.properties["ucp:publishedValues"]; return { id: n.name, path: n.path, model: n.path.split("/").slice(-2, -1)[0], title: str(n.properties["jcr:title"], n.name), status: (str(n.properties["ucp:status"]) as Entity["status"]) || "draft", values: json<EntityValues>(n.properties["ucp:values"], {}), publishedValues: pub !== undefined ? json<EntityValues>(pub, {}) : undefined, lastModified: str(n.properties["cq:lastModified"]) || str(n.properties["jcr:created"]) || undefined, lastModifiedBy: str(n.properties["cq:lastModifiedBy"]) || undefined, order: num(n.properties["ucp:order"]), folder: str(n.properties["ucp:folder"]) || undefined }; };
 export async function listEntities(marketId: string, model?: string): Promise<Entity[]> {
   const models = model ? [model] : (await kids(PATHS.entities(marketId), 1)).map((n) => n.name);
   const out: Entity[] = []; for (const m of models) out.push(...(await kids(`${PATHS.entities(marketId)}/${m}`, 1)).map(toEntity)); return out.sort(byOrder);
 }
 export async function getEntity(path: string): Promise<Entity | undefined> { const n = await repo().getNode(path, 0).catch(() => undefined); return n ? toEntity(n) : undefined; }
-export async function createEntity(marketId: string, model: string, title: string, values: EntityValues, who: string): Promise<Entity> {
+export async function createEntity(marketId: string, model: string, title: string, values: EntityValues, who: string, folder = ""): Promise<Entity> {
   const base = `${PATHS.entities(marketId)}/${model}`; if (!(await repo().getNode(base, 0))) await repo().createNode(base, "sling:Folder", { "jcr:title": model });
   let id = slug(title) || "item"; let i = 2; while (await repo().getNode(`${base}/${id}`, 0)) id = `${slug(title)}-${i++}`;
-  const n = await repo().createNode(`${base}/${id}`, "nt:unstructured", { "jcr:title": title, "ucp:model": model, "ucp:status": "draft", "ucp:values": JSON.stringify(values), "cq:lastModified": new Date().toISOString(), "cq:lastModifiedBy": who });
+  const n = await repo().createNode(`${base}/${id}`, "nt:unstructured", { "jcr:title": title, "ucp:model": model, "ucp:status": "draft", "ucp:values": JSON.stringify(values), "ucp:folder": folder, "cq:lastModified": new Date().toISOString(), "cq:lastModifiedBy": who });
   return toEntity(n);
 }
 export async function saveEntity(path: string, patch: { title?: string; values?: EntityValues }, who: string): Promise<Entity> {
@@ -208,7 +208,7 @@ export async function saveEntity(path: string, patch: { title?: string; values?:
 }
 export async function publishEntity(path: string, who: string): Promise<Entity> { const cur = await getEntity(path); if (!cur) throw new RepoError(404, "Entity not found", path); await repo().setProps(path, { "ucp:publishedValues": JSON.stringify(cur.values), "ucp:status": "published", "cq:lastModified": new Date().toISOString(), "cq:lastModifiedBy": who }); return (await getEntity(path))!; }
 /** Move an entity to another model folder and/or position. Pages that bind it are re-pointed to the new path; values are kept as they are. */
-export async function moveEntity(marketId: string, path: string, to: { model?: string; before?: string }, who: string): Promise<{ entity: Entity; rebound: number; missing: string[] }> {
+export async function moveEntity(marketId: string, path: string, to: { model?: string; before?: string; folder?: string }, who: string): Promise<{ entity: Entity; rebound: number; missing: string[] }> {
   const cur = await getEntity(path); if (!cur) throw new RepoError(404, "Entity not found", path);
   const model = to.model || cur.model; let dest = path; let rebound = 0; let missing: string[] = [];
   if (model !== cur.model) {
@@ -220,10 +220,53 @@ export async function moveEntity(marketId: string, path: string, to: { model?: s
     await repo().setProps(dest, { "ucp:model": model, "cq:lastModified": new Date().toISOString(), "cq:lastModifiedBy": who });
     for (const p of (await entityUsage(marketId))[path] ?? []) { const b = bindingsOf(p.meta); for (const k of Object.keys(b)) if (b[k] === path) b[k] = dest; await repo().setProps(`${p.path}/jcr:content`, { "ucp:bindings": JSON.stringify(b) }); rebound++; }
   }
-  const siblings = (await listEntities(marketId, model)).filter((e) => e.path !== dest).map((e) => e.path);
+  const folder = to.folder !== undefined ? to.folder : model !== cur.model ? "" : cur.folder ?? "";
+  if (folder && !(await listEntityFolders(marketId))[model]?.includes(folder)) throw new RepoError(400, "That folder does not exist", folder);
+  await repo().setProps(dest, { "ucp:folder": folder });
+  const siblings = (await listEntities(marketId, model)).filter((e) => e.path !== dest && (e.folder ?? "") === folder).map((e) => e.path);
   const order = placeIn(siblings, dest, to.before && siblings.includes(to.before) ? to.before : undefined);
   for (const [i, ep] of order.entries()) await repo().setProps(ep, { "ucp:order": i });
   return { entity: (await getEntity(dest))!, rebound, missing };
+}
+/* ---------------- folders: content-model categories and entity folders (stored as JSON lists on the parent node) ---------------- */
+const clean = (n: string) => n.replace(/\s+/g, " ").trim().slice(0, 60);
+const readList = async (path: string): Promise<string[]> => { const n = await repo().getNode(path, 0).catch(() => undefined); return n ? json<string[]>(n.properties["ucp:folders"], []) : []; };
+/** Model folders: saved folders plus every category a model already uses. */
+export async function listModelFolders(): Promise<string[]> { const saved = await readList(PATHS.models); const used = (await listModels()).map((m) => m.group); return [...new Set(["Core", ...saved, ...used])]; }
+export async function createModelFolder(name: string): Promise<string[]> {
+  const n = clean(name); if (!n) throw new RepoError(400, "Give the folder a name"); const all = await listModelFolders(); if (all.some((x) => x.toLowerCase() === n.toLowerCase())) throw new RepoError(409, "A folder with this name already exists", n);
+  await repo().setProps(PATHS.models, { "ucp:folders": JSON.stringify([...(await readList(PATHS.models)), n]) }); return listModelFolders();
+}
+export async function renameModelFolder(from: string, to: string, who: string): Promise<string[]> {
+  const n = clean(to); if (!n) throw new RepoError(400, "Give the folder a name"); if (n !== from && (await listModelFolders()).some((x) => x.toLowerCase() === n.toLowerCase())) throw new RepoError(409, "A folder with this name already exists", n);
+  await repo().setProps(PATHS.models, { "ucp:folders": JSON.stringify([...new Set((await readList(PATHS.models)).map((x) => (x === from ? n : x)).concat(n))]) });
+  for (const m of (await listModels()).filter((m) => m.group === from)) await repo().setProps(`${PATHS.models}/${m.id}`, { "ucp:group": n, "cq:lastModified": new Date().toISOString(), "cq:lastModifiedBy": who });
+  return listModelFolders();
+}
+export async function deleteModelFolder(name: string): Promise<string[]> {
+  const inside = (await listModels()).filter((m) => m.group === name).length; if (inside) throw new RepoError(409, `The folder still has ${inside} model${inside === 1 ? "" : "s"}`, "Move them to another folder first");
+  await repo().setProps(PATHS.models, { "ucp:folders": JSON.stringify((await readList(PATHS.models)).filter((x) => x !== name)) }); return listModelFolders();
+}
+/** Entity folders per model: { product: ["Savings", "Cards"] }. */
+export async function listEntityFolders(marketId: string): Promise<Record<string, string[]>> {
+  const out: Record<string, string[]> = {}; for (const n of await kids(PATHS.entities(marketId), 1)) { const l = json<string[]>(n.properties["ucp:folders"], []); if (l.length) out[n.name] = l; } return out;
+}
+async function entityModelNode(marketId: string, model: string) { const base = `${PATHS.entities(marketId)}/${model}`; if (!(await repo().getNode(base, 0))) await repo().createNode(base, "sling:Folder", { "jcr:title": model }); return base; }
+export async function createEntityFolder(marketId: string, model: string, name: string): Promise<string[]> {
+  if (!(await getModel(model))) throw new RepoError(404, "Model not found", model);
+  const n = clean(name); if (!n) throw new RepoError(400, "Give the folder a name"); const base = await entityModelNode(marketId, model); const cur = await readList(base);
+  if (cur.some((x) => x.toLowerCase() === n.toLowerCase())) throw new RepoError(409, "A folder with this name already exists", n);
+  await repo().setProps(base, { "ucp:folders": JSON.stringify([...cur, n]) }); return [...cur, n];
+}
+export async function renameEntityFolder(marketId: string, model: string, from: string, to: string): Promise<string[]> {
+  const n = clean(to); if (!n) throw new RepoError(400, "Give the folder a name"); const base = await entityModelNode(marketId, model); const cur = await readList(base);
+  if (n !== from && cur.some((x) => x.toLowerCase() === n.toLowerCase())) throw new RepoError(409, "A folder with this name already exists", n);
+  const next = cur.map((x) => (x === from ? n : x)); await repo().setProps(base, { "ucp:folders": JSON.stringify(next) });
+  for (const e of (await listEntities(marketId, model)).filter((e) => e.folder === from)) await repo().setProps(e.path, { "ucp:folder": n }); return next;
+}
+export async function deleteEntityFolder(marketId: string, model: string, name: string): Promise<string[]> {
+  const inside = (await listEntities(marketId, model)).filter((e) => e.folder === name).length; if (inside) throw new RepoError(409, `The folder still has ${inside} entit${inside === 1 ? "y" : "ies"}`, "Move them out first");
+  const base = await entityModelNode(marketId, model); const next = (await readList(base)).filter((x) => x !== name); await repo().setProps(base, { "ucp:folders": JSON.stringify(next) }); return next;
 }
 export async function deleteEntity(path: string): Promise<void> { await repo().deleteNode(path); }
 /** Which pages bind which entity (via ucp:bindings on jcr:content). */

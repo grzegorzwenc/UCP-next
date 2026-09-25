@@ -27,7 +27,7 @@ function ModelCard({ m, onPick }: { m: Model; onPick: () => void }) {
  * "＋ Create entity" wizard: 1) select a content model, 2) give the entity a title. Creates a draft and hands it back
  * so the caller opens it in the entity editor, where the fields are filled in. With `initial` it starts on step 2.
  */
-export function NewEntityModal({ marketId, models, initial, onClose, onDone }: { marketId: string; models: Model[]; initial?: Model; onClose: () => void; onDone: (m: Model, e: Entity) => void }) {
+export function NewEntityModal({ marketId, models, initial, folder = "", onClose, onDone }: { marketId: string; models: Model[]; initial?: Model; folder?: string; onClose: () => void; onDone: (m: Model, e: Entity) => void }) {
   const usable = (m?: Model) => (m && m.status !== "draft" ? m : undefined);
   const [model, setModel] = useState<Model | undefined>(usable(initial));
   const [title, setTitle] = useState(""); const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
@@ -35,7 +35,7 @@ export function NewEntityModal({ marketId, models, initial, onClose, onDone }: {
   const submit = async () => {
     if (!model) return; if (!title.trim()) { setErr("Give the entity a title"); return; }
     setBusy(true); setErr(null);
-    try { onDone(model, await ucpApi.createEntity(marketId, model.id, title.trim(), {})); } catch (e) { setErr(errorText(e)); } finally { setBusy(false); }
+    try { onDone(model, await ucpApi.createEntity(marketId, model.id, title.trim(), {}, model.id === initial?.id ? folder : "")); } catch (e) { setErr(errorText(e)); } finally { setBusy(false); }
   };
 
   if (!model) return <ModalShell title="Create entity" subtitle="Step 1 of 2 · Select content model" width={720} onClose={onClose}

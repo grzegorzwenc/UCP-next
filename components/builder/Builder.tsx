@@ -300,7 +300,15 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   // On phones and tablets the panels float over the canvas instead of reserving space, so the 1:1 page keeps its width.
   const siteW = device === "desktop" ? 1200 : device === "tablet" ? 768 : 390;
   const [avail, setAvail] = useState(0);
-  useEffect(() => { const c = canvasRef.current; if (!c) return; const ro = new ResizeObserver(() => setAvail(c.clientWidth)); ro.observe(c); setAvail(c.clientWidth); return () => ro.disconnect(); }, []);
+  /* The page is drawn at its real width (1200 / 768 / 390 px) and scaled down to fit the canvas, so the canvas never scrolls sideways. */
+  const siteRef = useRef<HTMLDivElement>(null); const [siteH, setSiteH] = useState(0);
+  useEffect(() => { const w = watched.current; const c = canvasRef.current, el = siteRef.current; if (c === w.canvas && el === w.site) return;
+    w.ro.forEach((r) => r.disconnect()); w.ro = []; w.canvas = c; w.site = el;
+    if (c) { const r = new ResizeObserver(() => setAvail(c.clientWidth)); r.observe(c); w.ro.push(r); }
+    if (el) { const r = new ResizeObserver(() => setSiteH(el.offsetHeight)); r.observe(el); w.ro.push(r); } });
+  useEffect(() => () => { watched.current.ro.forEach((r) => r.disconnect()); }, []);
+  /* Watch the canvas and the page for size changes. They can mount after the first render, so re-attach whenever the element changes. */
+  const watched = useRef<{ canvas: HTMLElement | null; site: HTMLElement | null; ro: ResizeObserver[] }>({ canvas: null, site: null, ro: [] });
   const padL = focus ? 0 : preview ? 24 : left && !narrow ? leftW + 76 : phone ? 12 : narrow ? 64 : 76, padR = focus ? 0 : preview ? 24 : right && !narrow ? rightW + 76 : phone ? 12 : narrow ? 64 : 76;
   const hint = !canEdit ? "Read-only: you don't have Edit on this folder. Ask a site admin to grant it." : locked ? (status === "review" ? "In review · read-only until a reviewer approves or you click Edit to reopen it" : status === "published" ? `Published · live on ${domain}${rel} · click Edit to start a new draft` : "Approved · read-only until it is published · click Edit to reopen it") : preview ? "Preview: exactly what visitors will see" : mode === "edit" ? "Edit mode: click any highlighted text to change it. Enter saves, Esc cancels." : sel ? "Use the toolbar on the block: ✎ Edit text in place · ⚙ Configure everything · ✨ AI · ⋯ More" : "Hover to see block names. Click a block to select it, double-click to edit its text.";
 
@@ -325,19 +333,19 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
       </div>}
       {/* Flow stepper (hidden in preview) */}
       {!focus && <div className="flex items-center px-4 bg-surface border-b border-line overflow-hidden" role="list" aria-label="Page progress">
-        <div className="flex-1 min-w-0 flex items-center overflow-x-auto h-12">
-          {STEPS.map((s, i) => { const done = i < cur || (cur === 6 && i === 6); const on = i === cur && cur !== 6; return <div key={s[0]} role="listitem" className="flex items-center flex-none">
-            <button onClick={() => flowClick(i)} className={`flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-surface-3 text-[12.5px] ${on ? "text-ink font-semibold" : "text-ink-3"}`} title={s[1]}><i className={`w-6 h-6 rounded-full border-2 grid place-items-center not-italic text-[11px] font-bold ${done ? "bg-good border-good text-white" : on ? "bg-accent border-accent text-white shadow-[0_0_0_3px_var(--accent-soft)]" : "border-line-2"}`}>{done ? "✓" : i + 1}</i><span className="leading-tight">{s[0]}{on && <small className="block text-[10.5px] text-ink-3 font-normal">{s[1]}</small>}</span></button>
-            {i < STEPS.length - 1 && <span className={`w-7 h-0.5 mx-1 ${i < cur ? "bg-good" : "bg-line"}`} />}</div>; })}
+        <div className="flex-1 min-w-0 flex items-center overflow-hidden h-12">
+          {STEPS.map((s, i) => { const done = i < cur || (cur === 6 && i === 6); const on = i === cur && cur !== 6; return <div key={s[0]} role="listitem" className={`flex items-center ${i < STEPS.length - 1 ? "flex-auto" : "flex-none"}`}>
+            <button onClick={() => flowClick(i)} className={`flex items-center gap-2 px-1.5 py-1 rounded-lg hover:bg-surface-3 text-[12.5px] flex-none ${on ? "text-ink font-semibold" : "text-ink-3"}`} title={`${s[0]} · ${s[1]}`}><i className={`flex-none w-6 h-6 rounded-full border-2 grid place-items-center not-italic text-[11px] font-bold ${done ? "bg-good border-good text-white" : on ? "bg-accent border-accent text-white shadow-[0_0_0_3px_var(--accent-soft)]" : "border-line-2"}`}>{done ? "✓" : i + 1}</i><span className={`leading-tight whitespace-nowrap ${on ? "" : "hidden 2xl:inline"}`}>{s[0]}{on && <small className="hidden 2xl:block text-[10.5px] text-ink-3 font-normal">{s[1]}</small>}</span></button>
+            {i < STEPS.length - 1 && <span className={`flex-1 min-w-2 max-w-10 h-0.5 mx-1 ${i < cur ? "bg-good" : "bg-line"}`} />}</div>; })}
         </div>
-        <div className="flex-none max-w-[38%] flex items-center gap-2 pl-3.5 border-l border-line text-[12.5px] text-ink-3 whitespace-nowrap overflow-hidden"><span className="text-[10.5px] tracking-[.08em] uppercase text-accent font-bold">Next</span><b className="text-ink truncate">{nextTxt}</b></div>
+        <div className="hidden lg:flex flex-none max-w-[34%] items-center gap-2 pl-3.5 border-l border-line text-[12.5px] text-ink-3 whitespace-nowrap overflow-hidden"><span className="text-[10.5px] tracking-[.08em] uppercase text-accent font-bold">Next</span><b className="text-ink truncate">{nextTxt}</b></div>
       </div>}
       {/* Body */}
       <div className="relative min-h-0 overflow-hidden bg-bg">
         <div className={`absolute inset-0 flex flex-col ${preview ? "preview" : ""}`}>
           {!focus && <div className="flex items-center gap-3 px-6 py-2 text-[12.5px] text-ink-3 border-b border-line bg-surface-2" style={{ paddingLeft: padL, paddingRight: padR }}><span className="mr-auto truncate" title={hint}>{hint}</span><span className="border border-line-2 rounded px-2 py-0.5 bg-surface whitespace-nowrap">1:1 · {device === "desktop" ? 1200 : device === "tablet" ? 768 : 390} px</span></div>}
           <div ref={canvasRef} className={focus ? "flex-1 overflow-auto p-0 bg-white" : "flex-1 overflow-auto p-6 pb-24"} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey}>
-            {(() => { const fit = narrow && avail ? Math.min(1, (avail - padL - padR) / siteW) : 1; return <div style={fit < 1 ? { transform: "scale(" + fit + ")", transformOrigin: "top left", width: siteW, marginBottom: -(1 - fit) * 600 } : undefined}>
+            {(() => { const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / siteW)) : 1; return <div style={fit < 1 ? { width: siteW * fit, height: siteH ? siteH * fit : undefined, margin: "0 auto" } : undefined}><div ref={siteRef} style={fit < 1 ? { transform: "scale(" + fit + ")", transformOrigin: "top left", width: siteW } : undefined}>
             <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
               {blocks.length ? blocks.map((b, i) => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""}`} tabIndex={0}>
                 <span className="tag">{def.name}{b.props.locked ? " · 🔒 locked" : ""}{b.props.hidden ? " · hidden" : ""}</span>
@@ -347,7 +355,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
                   onAi={(p) => { mutate((bl) => bl.map((x) => (x.id === b.id ? { ...x, props: { ...x.props, ...p.props } } : x))); say("AI changes applied"); }} />}
                 <RenderBlock b={b} /></div>; })
               : <div className="m-7 p-11 border-2 border-dashed border-line-2 rounded-xl text-center text-ink-2 text-[15px]">How do you want to start this page?<small className="block text-[13px] text-ink-3 mt-1.5">Pick a layout, or add components one by one from the left.</small><div className="grid grid-cols-3 gap-3 mt-4 text-left">{TEMPLATES.filter((t) => t.blocks.length).slice(0, 3).map((t) => <button key={t.id} className="border border-line-2 bg-surface p-3.5 text-left hover:border-ink" onClick={() => mutate(() => t.blocks.map((x) => makeBlock(x, x === "mast" ? { heading: title } : {})))}><b className="block text-[13.5px]">{t.name}</b><small className="text-ink-3">{t.desc}</small></button>)}</div></div>}
-            </SiteChrome></InlineEditContext.Provider></EntitiesContext.Provider></AssetsContext.Provider></div>; })()}
+            </SiteChrome></InlineEditContext.Provider></EntitiesContext.Provider></AssetsContext.Provider></div></div>; })()}
           </div>
           {editing && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 flex gap-1 bg-[#0F1013] rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}><span className="px-2 py-1.5 text-white/70">Editing text</span><button className="px-3 py-1.5 rounded bg-good font-semibold" onClick={() => { commitInline(true); say("Saved"); }}>✓ Save</button><button className="px-3 py-1.5 rounded hover:bg-white/15" onClick={() => commitInline(false)}>✕ Cancel</button></div>}
           {ctaPop && selected && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 w-[420px] bg-surface border border-line rounded-xl shadow-2xl z-20 p-3.5 text-[13px]" onMouseDown={(e) => { e.stopPropagation(); if (!(e.target as HTMLElement).closest("input, textarea")) e.preventDefault(); }}>

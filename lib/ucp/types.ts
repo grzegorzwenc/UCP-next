@@ -33,7 +33,7 @@ export type Task = { kind: TaskKind; what: string; from: string; sentAt?: string
 
 /** A concrete content item built from a content model (e.g. Product → "HSBC Savings Account"). */
 export type EntityValues = Record<string, unknown>;
-export type Entity = { id: string; path: string; model: string; title: string; status: "draft" | "published" | "modified"; values: EntityValues; publishedValues?: EntityValues; lastModified?: string; lastModifiedBy?: string; usedOn?: string[]; order?: number };
+export type Entity = { id: string; path: string; model: string; title: string; status: "draft" | "published" | "modified"; values: EntityValues; publishedValues?: EntityValues; lastModified?: string; lastModifiedBy?: string; usedOn?: string[]; order?: number; /** Folder inside the model's folder in the entities tree (empty = directly in the model folder). */ folder?: string };
 /** Page → entity bindings: alias used in {{alias.field}} tokens → entity path. Stored on the page as ucp:bindings. */
 export type Bindings = Record<string, string>;
 export type ReviewerOption = { id: string; name: string; team: string; activeReviews: number };
