@@ -8,7 +8,8 @@ const caretToEnd = (el: Locator) => el.evaluate((node) => { const r = document.c
 test.describe("builder", () => {
   test("select a block, edit a heading inline and save", async ({ page }) => {
     await login(page, "jordan.mensah");
-    await page.goto(`${BASE}/page/borrowing/credit-cards/rewards-credit-cards`);
+    // A draft page: pages in review / published are read-only until someone clicks Edit.
+    await page.goto(`${BASE}/page/banking/savings/fixed-rate-bonds`);
     const blocks = page.locator(".cblk");
     await expect(blocks.nth(1)).toBeVisible();
     await blocks.nth(1).click({ position: { x: 20, y: 20 } });

@@ -30,7 +30,7 @@ const AI_EXAMPLES: { title: string; items: [string, string, string][] }[] = [
 ];
 const LEFT_RAIL: ["add" | "outline", string, string][] = [["add", "Add a component", "M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM12 8.5v7M8.5 12h7"], ["outline", "Page outline", "M3.5 4.5h4v4h-4zM3.5 15.5h4v4h-4zM10.5 6.5h10M10.5 17.5h10M10.5 12h6"]];
 const RAIL: [ "block" | "page" | "ai" | "insights" | "history", string, string][] = [["block", "Component settings", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"], ["page", "Page settings", "M6 3h8l5 5v13H6zM14 3v5h5M9 13h6M9 17h6"], ["ai", "AI assistant", "M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 15l.6 1.6L7.2 17l-1.6.6L5 19.2l-.6-1.6L2.8 17l1.6-.4z"], ["insights", "Page insights", "M12 3a9 9 0 1 0 9 9M12 3v9l6.4-6.4M12 12l4 4"], ["history", "Version history", "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"]];
-const STEPS = [["Add blocks", "Click: open Components"], ["Fill in content", "Click: jump to next empty field"], ["Preview", "Click: see it exactly as visitors will"], ["Send for review", "Click: send to a reviewer"], ["In review", "Click: approve (reviewers)"], ["Publish", "Click: put it live"], ["Published", "Live for customers"]];
+const STEPS = [["Add blocks", "Click: build the page structure"], ["Fill in content", "Click: write the copy in each block"], ["Preview", "Click: see it exactly as visitors will"], ["Send for review", "Click: hand it to a reviewer"], ["In review", "Click: approve (reviewers)"], ["Publish", "Click: put it live"], ["Published", "Live for customers"]];
 
 /**
  * Interaction model (three levels):
@@ -78,7 +78,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const rel = page.path.replace(root, "");
   const selected = blocks.find((b) => b.id === sel);
   const missing = useMemo(() => blocks.reduce((n, b) => n + missingRequired(b).length, 0), [blocks]);
-  const cur = status === "published" ? 6 : status === "approved" || status === "scheduled" ? 5 : status === "review" ? 4 : blocks.length && !missing ? 2 : blocks.length ? 1 : 0;
+  /* Page lifecycle. Draft pages move between "blocks" (structure), "content" (fill in) and "preview" (visitor view) by clicking the steps;
+     review / approved / published are read-only stages set by the workflow status. "Edit" always brings you back to editing the same page. */
+  const [stage, setStage] = useState<"blocks" | "content">(() => (page.components.length ? "content" : "blocks"));
+  const locked = status === "review" || status === "approved" || status === "scheduled" || status === "published";
+  const cur = status === "published" ? 6 : status === "approved" || status === "scheduled" ? 5 : status === "review" ? 4 : focus ? 2 : stage === "content" ? 1 : 0;
+  useEffect(() => { if (locked) { setPreviewRaw(true); select(null); } else if (canEdit) setPreviewRaw(false); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [locked]);
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(null), 2200); };
 
   const mutate = useCallback((fn: (b: Block[]) => Block[]) => { setBlocks((b) => fn(b)); setDirty(true); setSaving("Unsaved"); }, []);
@@ -221,15 +226,24 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (e.key === "Enter" && !e.shiftKey && !editing.key.includes("|p|")) { e.preventDefault(); commitInline(true); say("Saved"); }
   }
 
-  const nextTxt = cur === 0 ? "Add your first block from Components" : cur === 1 ? `Fill in ${missing} required field${missing === 1 ? "" : "s"}` : cur === 2 ? "Check the preview, then send for review" : cur === 4 ? "Waiting for a reviewer" : cur === 5 ? "Approved. Publish when ready" : `Live on ${domain}`;
+  const nextTxt = cur === 0 ? (blocks.length ? "Structure is ready · click Fill in content" : "Add your first block") : cur === 1 ? (missing ? `Fill in ${missing} required field${missing === 1 ? "" : "s"}` : "Content is complete · click Preview") : cur === 2 ? "Happy with it? Click Send for review" : cur === 4 ? (mayStatus("approved") ? "Approve it, or click Edit to change it" : "Waiting for a reviewer") : cur === 5 ? (mayStatus("published") ? "Approved · click Publish" : "Waiting for a publisher") : `Live on ${domain}`;
+  /** Go back to editing: from preview → content; from a locked stage → reopen as a draft (same page, same data). */
+  const goEdit = async (to: "blocks" | "content" = "content") => {
+    if (!canEdit) { say(READ_ONLY); return; }
+    if (focus) leaveFocusState();
+    if (locked) { if (!confirm(status === "published" ? "Edit this page as a new draft? The live version stays online until you publish again." : "Reopen this page as a draft? It will leave the review queue.")) return; await transition("draft", "Reopened as a draft"); }
+    setPreviewRaw(false); setStage(to);
+    if (to === "blocks") { setLeftTab("add"); setLeftRaw(true); setRight(false); select(null); setMode("select"); }
+    else { setLeftTab("outline"); setLeftRaw(true); const b = blocks.find((x) => missingRequired(x).length) || blocks[0]; if (b) enterEdit(b.id); }
+  };
   const flowClick = (i: number) => {
-    if (i === 2) { setFocusMode(true); return; }
-    if (i <= 2 && cur >= 4) { if (confirm("Reopen this page as a draft?")) transition("draft", "Back to draft"); return; }
-    if (i === 0) { setPreview(false); setLeft(true); return; }
-    if (i === 1) { setPreview(false); const b = blocks.find((x) => missingRequired(x).length) || blocks[0]; if (b) enterEdit(b.id); return; }
-    if (i === 3) { if (status === "draft" || status === "failed") transition("review", "Sent for review"); return; }
-    if (i === 4) { if (status === "review") transition("approved", "Approved"); return; }
-    if (i === 5) { if (status === "approved" || status === "scheduled") transition("published", `Published to ${envName}`); return; }
+    if (i === 0) { void goEdit("blocks"); return; }
+    if (i === 1) { void goEdit("content"); return; }
+    if (i === 2) { if (locked) { setFocusMode(true); return; } setStage("content"); setFocusMode(true); return; }
+    if (i === 3) { if (status === "draft" || status === "failed") transition("review", "Sent for review · the page is now read-only until a reviewer decides"); else say(status === "review" ? "Already in review" : "Already past review"); return; }
+    if (i === 4) { if (status === "review") { if (mayStatus("approved")) transition("approved", "Approved · ready to publish"); else say("Waiting for a reviewer to approve"); } else say(status === "draft" || status === "failed" ? "Send the page for review first" : "Review is done"); return; }
+    if (i === 5) { if (status === "approved" || status === "scheduled") { if (mayStatus("published")) transition("published", `Published to ${envName}`); else say("Waiting for a publisher"); } else say(status === "published" ? "Already published" : "The page must be approved first"); return; }
+    if (i === 6) { say(status === "published" ? `Live on ${domain}${rel}` : "Not published yet"); }
   };
   const insightBadge = useMemo(() => pageInsights(blocks, { title, description, template: page.template, status, locale }).groups.flatMap((g) => g.items).filter((i) => i.level === "crit").length, [blocks, title, description, page.template, status, locale]);
   // On phones and tablets the panels float over the canvas instead of reserving space, so the 1:1 page keeps its width.
@@ -237,7 +251,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [avail, setAvail] = useState(0);
   useEffect(() => { const c = canvasRef.current; if (!c) return; const ro = new ResizeObserver(() => setAvail(c.clientWidth)); ro.observe(c); setAvail(c.clientWidth); return () => ro.disconnect(); }, []);
   const padL = focus ? 0 : preview ? 24 : left && !narrow ? leftW + 76 : phone ? 12 : narrow ? 64 : 76, padR = focus ? 0 : preview ? 24 : right && !narrow ? rightW + 76 : phone ? 12 : narrow ? 64 : 76;
-  const hint = !canEdit ? "Read-only: you don't have Edit on this folder. Ask a site admin to grant it." : preview ? "Preview: exactly what visitors will see" : mode === "edit" ? "Edit mode: click any highlighted text to change it. Enter saves, Esc cancels." : sel ? "Use the toolbar on the block: ✎ Edit text in place · ⚙ Configure everything · ✨ AI · ⋯ More" : "Hover to see block names. Click a block to select it, double-click to edit its text.";
+  const hint = !canEdit ? "Read-only: you don't have Edit on this folder. Ask a site admin to grant it." : locked ? (status === "review" ? "In review · read-only until a reviewer approves or you click Edit to reopen it" : status === "published" ? `Published · live on ${domain}${rel} · click Edit to start a new draft` : "Approved · read-only until it is published · click Edit to reopen it") : preview ? "Preview: exactly what visitors will see" : mode === "edit" ? "Edit mode: click any highlighted text to change it. Enter saves, Esc cancels." : sel ? "Use the toolbar on the block: ✎ Edit text in place · ⚙ Configure everything · ✨ AI · ⋯ More" : "Hover to see block names. Click a block to select it, double-click to edit its text.";
 
   return (
     <div className={`h-full grid ${focus ? "grid-rows-[1fr]" : "grid-rows-[54px_48px_1fr]"} min-w-0 overflow-hidden`}>
@@ -250,11 +264,11 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         <div className="ml-auto flex items-center gap-2.5">
           <span className="hidden sm:inline text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1">{saving}</span>
           <div className="hidden md:flex gap-1 pl-2.5 border-l border-line"><button className={`btn btn-icon btn-sm ${left ? "on" : ""}`} onClick={() => setLeft(!left)} title="Components panel" aria-pressed={left}>▤</button><button className={`btn btn-icon btn-sm ${right ? "on" : ""}`} onClick={() => { if (right) closeConfigure(true); else { setRightTab(sel ? "block" : "page"); setRight(true); } }} title="Page settings panel" aria-pressed={right}>▥</button><button className={`btn btn-sm ${focus ? "on" : ""}`} onClick={() => setFocusMode(!focus)} title="Preview the page as visitors see it (⌘⇧F)" aria-pressed={focus}>{focus ? "✕ Exit preview" : "👁 Preview"}</button></div>
-          <div className="flex gap-1 pl-2.5 border-l border-line">{!canEdit && <span className="text-xs text-ink-3 px-2" title="Ask a site admin for Edit on this folder">🔒 Read-only</span>}<button className="btn btn-sm" onClick={() => save().then(() => say("Saved")).catch(() => {})} disabled={!dirty || !canEdit}>Save</button>
+          <div className="flex gap-1 pl-2.5 border-l border-line">{!canEdit ? <span className="text-xs text-ink-3 px-2" title="Ask a site admin for Edit on this folder">🔒 Read-only</span> : <button className={`btn btn-sm ${!locked && !focus && stage === "content" ? "on" : ""}`} onClick={() => void goEdit("content")} title={locked ? "Reopen this page for editing" : "Edit the page content"}>✎ Edit</button>}<button className="btn btn-sm" onClick={() => save().then(() => say("Saved")).catch(() => {})} disabled={!dirty || !canEdit}>Save</button>
             {(status === "draft" || status === "failed") && mayStatus("review") && <button className="btn btn-sm btn-primary" onClick={() => transition("review", "Sent for review")}>Send for review</button>}
             {status === "review" && (mayStatus("approved") ? <button className="btn btn-sm btn-primary" onClick={() => transition("approved", "Approved")}>Approve</button> : <span className="text-xs text-ink-3">Waiting for a reviewer</span>)}
             {(status === "approved" || status === "scheduled") && (mayStatus("published") ? <button className="btn btn-sm btn-primary" onClick={() => transition("published", `Published to ${envName}`)}>Publish</button> : <span className="text-xs text-ink-3">Waiting for a publisher</span>)}
-            {status === "published" && mayStatus("draft") && <button className="btn btn-sm" onClick={() => transition("draft", "New draft")}>New draft</button>}</div>
+            </div>
         </div>
       </div>}
       {/* Flow stepper (hidden in preview) */}
