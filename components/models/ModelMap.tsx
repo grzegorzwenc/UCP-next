@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Model, ModelField } from "@/lib/ucp/types";
 
-/** A link between two models: a Reference field on `from` that points to `to`. `from === to` is a parent/child tree. */
+/** A connection: the master model `from` has a Reference field that points to the connected model `to`. */
 export type Relation = { from: string; to: string; key: string; label: string; many: boolean; req: boolean };
 
 /** Where a Reference field points. Older seed fields carry no referenceModel, so a few well-known keys are mapped by name. */
@@ -12,16 +12,15 @@ export const targetOf = (f: ModelField): string | null => {
 };
 export function relationsOf(models: Model[]): Relation[] {
   const ids = new Set(models.map((m) => m.id)); const out: Relation[] = [];
-  for (const m of models) for (const f of m.fields) { const to = targetOf(f); if (to && ids.has(to)) out.push({ from: m.id, to, key: f.k, label: f.l, many: !!f.validation?.multiple, req: f.req }); }
+  for (const m of models) for (const f of m.fields) { const to = targetOf(f); if (to && to !== m.id && ids.has(to)) out.push({ from: m.id, to, key: f.k, label: f.l, many: !!f.validation?.multiple, req: f.req }); }
   return out;
 }
 
 const BW = 212, HEAD = 30, ROW = 18, SHOWN = 6, GX = 110, GY = 84, PAD = 24;
 const bh = (m: Model) => HEAD + 10 + Math.min(m.fields.length, SHOWN) * ROW + (m.fields.length > SHOWN ? ROW : 0) + 6;
 type Pt = { x: number; y: number };
-type Layout = "tree" | "grid";
 
-/** Tree layout: models that point to others sit above them (Page → Product → Rate). Back edges of cycles are ignored. */
+/** Layout: master models sit above the models they are connected to (Page → Product → Rate). Back edges of cycles are ignored. */
 function treeLayout(models: Model[], rels: Relation[]): Record<string, Pt> {
   const out = new Map<string, string[]>(); for (const r of rels) if (r.from !== r.to) (out.get(r.from) ?? out.set(r.from, []).get(r.from)!).push(r.to);
   const indeg = new Map(models.map((m) => [m.id, 0])); for (const r of rels) if (r.from !== r.to) indeg.set(r.to, (indeg.get(r.to) ?? 0) + 1);
@@ -37,11 +36,6 @@ function treeLayout(models: Model[], rels: Relation[]): Record<string, Pt> {
   for (const r of rows) { if (!r) continue; const rw = r.length * (BW + GX) - GX; r.forEach((m, i) => { pos[m.id] = { x: PAD + (W - GX - rw) / 2 + i * (BW + GX), y }; }); y += Math.max(...r.map(bh)) + GY; }
   return pos;
 }
-function gridLayout(models: Model[]): Record<string, Pt> {
-  const COLS = 3; const pos: Record<string, Pt> = {}; let y = PAD;
-  for (let i = 0; i < models.length; i += COLS) { const row = models.slice(i, i + COLS); row.forEach((m, j) => { pos[m.id] = { x: PAD + j * (BW + GX), y }; }); y += Math.max(...row.map(bh)) + 56; }
-  return pos;
-}
 /* Box positions the user dragged to, kept in localStorage and read through an external store (no setState in effects). */
 const subs = new Set<() => void>();
 const readRaw = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -54,7 +48,6 @@ const center = (p: Pt, m: Model) => ({ x: p.x + BW / 2, y: p.y + bh(m) / 2 });
 
 /** Path between two boxes: vertical when one sits above the other, horizontal otherwise; `bend` spreads parallel links apart. */
 function edgePath(a: Pt, ma: Model, b: Pt, mb: Model, bend: number): { d: string; lx: number; ly: number; end: Pt } {
-  if (a === b || (a.x === b.x && a.y === b.y && ma.id === mb.id)) { const x = a.x + BW, y = a.y + HEAD / 2, k = 46 + bend; return { d: `M${x},${y} C${x + k},${y - 26} ${x + k},${y + 60} ${x},${y + 44}`, lx: x + k - 4, ly: y + 18, end: { x, y: y + 44 } }; }
   const ca = center(a, ma), cb = center(b, mb); const ha = bh(ma), hb = bh(mb);
   if (b.y >= a.y + ha + 8 || a.y >= b.y + hb + 8) { const down = b.y > a.y; const x1 = ca.x + bend, y1 = down ? a.y + ha : a.y, x2 = cb.x + bend, y2 = down ? b.y : b.y + hb; const my = (y1 + y2) / 2;
     return { d: `M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}`, lx: (x1 + x2) / 2, ly: my - 5, end: { x: x2, y: y2 } }; }
@@ -72,16 +65,15 @@ type Props = {
 
 /**
  * Content model map. Boxes are models, arrows are Reference fields. Admins drag from the ＋ handle of a model onto another
- * model to link them (drop on the same model for a parent/child tree); clicking the handle then a model does the same.
+ * model to connect them (master → connected model); clicking the handle then a model does the same.
  * Boxes can be dragged to tidy the picture (kept per browser). Click a box to open the model, click an arrow to inspect or remove it.
  */
 export function ModelMap({ models, selected, onOpen, canConnect, onConnect, onRemove, storageKey = "ucp-model-map" }: Props) {
   const rels = useMemo(() => relationsOf(models), [models]);
-  const [layout, setLayout] = useState<Layout>("tree");
-  const key = `${storageKey}:${layout}`; const stored = useStoredPositions(key);
+  const key = `${storageKey}:tree`; const stored = useStoredPositions(key);
   const [moving, setMoving] = useState<{ id: string; p: Pt } | null>(null); // box being dragged right now
   const custom = useMemo(() => (moving ? { ...stored, [moving.id]: moving.p } : stored), [stored, moving]);
-  const auto = useMemo(() => (layout === "tree" ? treeLayout(models, rels) : gridLayout(models)), [layout, models, rels]);
+  const auto = useMemo(() => treeLayout(models, rels), [models, rels]);
   const pos = useMemo(() => { const o: Record<string, Pt> = {}; for (const m of models) o[m.id] = custom[m.id] ?? auto[m.id]; return o; }, [models, auto, custom]);
   const byId = useMemo(() => new Map(models.map((m) => [m.id, m])), [models]);
 
@@ -111,26 +103,23 @@ export function ModelMap({ models, selected, onOpen, canConnect, onConnect, onRe
     d.moved = true; setMoving({ id: d.id, p: { x: Math.max(4, p.x - d.dx), y: Math.max(4, p.y - d.dy) } });
   };
   const onUp = (e: React.PointerEvent) => {
-    const l = linkRef.current; if (l) { const p = toSvg(e); const to = hit(p); const moved = l.moved || Math.hypot(p.x - pos[l.from].x - BW + 16, p.y - pos[l.from].y - HEAD / 2) > 10; if (moved && to) finishConnect(l.from, to); else if (!moved) { setPick(l.from); setLink(null); } else setLink(null); return; }
+    const l = linkRef.current; if (l) { const p = toSvg(e); const to = hit(p); const moved = l.moved || Math.hypot(p.x - pos[l.from].x - BW + 16, p.y - pos[l.from].y - HEAD / 2) > 10; if (moved && to && to !== l.from) finishConnect(l.from, to); else if (!moved) { setPick(l.from); setLink(null); } else setLink(null); return; }
     const d = drag.current; drag.current = null; if (!d) return;
     if (d.moved) { persist({ ...stored, [d.id]: pos[d.id] }); setMoving(null); return; }
-    if (pick) finishConnect(pick, d.id); else onOpen(d.id);
+    if (pick) { if (pick !== d.id) finishConnect(pick, d.id); } else onOpen(d.id);
   };
 
   const pairs = new Map<string, number>(); // spread parallel links between the same two models
   const sel = edge ? rels.find((r) => `${r.from}.${r.key}` === edge) : undefined;
-  const hover = link?.moved ? hit({ x: link.x, y: link.y }) : undefined;
+  const hover = link?.moved ? hit({ x: link.x, y: link.y }) : undefined; const hoverOk = hover && hover !== link?.from ? hover : undefined;
   const busy = !!link || !!pick;
 
   return <div>
     <div className="flex flex-wrap items-center gap-2 mb-2">
-      <div role="group" aria-label="Layout" className="inline-flex border border-line-2 rounded-lg overflow-hidden bg-surface">
-        {(["tree", "grid"] as Layout[]).map((l) => <button key={l} type="button" aria-pressed={layout === l} onClick={() => setLayout(l)} className={`px-3 h-8 text-[13px] font-medium ${layout === l ? "bg-ink text-white" : "text-ink-2 hover:bg-surface-2"}`}>{l === "tree" ? "Tree" : "Grid"}</button>)}
-      </div>
       {Object.keys(stored).length > 0 && <button type="button" className="btn btn-sm btn-quiet" onClick={() => persist({})}>Reset positions</button>}
-      <span className="text-[12.5px] text-ink-3 ml-1">{onConnect ? <>Drag from <b className="text-accent">＋</b> on a model onto another model to link them. Drop it on the same model to build a parent / child tree.</> : "Click a model to open it. Drag boxes to tidy the picture."}</span>
+      <span className="text-[12.5px] text-ink-3 ml-1">{onConnect ? <>Drag <b className="text-accent">＋</b> from one model onto another to connect them. Click a line to remove it.</> : "Click a model to open it."}</span>
     </div>
-    {pick && <div role="status" className="flex items-center gap-2 text-[13px] bg-info-soft border border-line rounded-md px-3 py-2 mb-2">Click the model that <b>{byId.get(pick)?.name}</b> should link to (click {byId.get(pick)?.name} itself for a parent / child tree).<button type="button" className="btn btn-sm ml-auto" onClick={() => setPick(null)}>Cancel</button></div>}
+    {pick && <div role="status" className="flex items-center gap-2 text-[13px] bg-info-soft border border-line rounded-md px-3 py-2 mb-2">Click the model to connect <b>{byId.get(pick)?.name}</b> to.<button type="button" className="btn btn-sm ml-auto" onClick={() => setPick(null)}>Cancel</button></div>}
     <div className="border border-line rounded-lg bg-surface-2 overflow-auto" style={{ backgroundImage: "radial-gradient(#D7D8DC 1px, transparent 1px)", backgroundSize: "18px 18px" }}>
       <svg ref={svg} width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Content model map" className="block select-none touch-none [&_g:focus]:outline-none [&_g:focus-visible]:outline-2 [&_g:focus-visible]:outline-accent" style={{ fontFamily: "var(--font-sans)", cursor: busy ? "crosshair" : undefined }} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => { drag.current = null; setLink(null); setMoving(null); }}>
         <defs>
@@ -140,22 +129,21 @@ export function ModelMap({ models, selected, onOpen, canConnect, onConnect, onRe
         {rels.map((r) => {
           const a = byId.get(r.from)!, b = byId.get(r.to)!; const pk = [r.from, r.to].sort().join("|"); const n = pairs.get(pk) ?? 0; pairs.set(pk, n + 1);
           const g = edgePath(pos[r.from], a, pos[r.to], b, n * 16); const id = `${r.from}.${r.key}`; const on = edge === id || (!!selected && (r.from === selected || r.to === selected));
-          const strong = edge === id; const txt = `${r.label}${r.many ? " · many" : ""}`;
+          const strong = edge === id; const txt = r.label;
           return <g key={id} role="button" tabIndex={0} aria-label={`${a.name} to ${b.name}: ${txt}`} style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setEdge(edge === id ? null : id); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEdge(edge === id ? null : id); } }} onPointerDown={(e) => e.stopPropagation()}>
             <path d={g.d} fill="none" stroke="transparent" strokeWidth={14} />
-            <path d={g.d} fill="none" stroke={on ? "#DB0011" : "#8A8F99"} strokeWidth={strong ? 2.6 : on ? 1.8 : 1.4} strokeDasharray={r.req ? undefined : "5 4"} markerEnd={`url(#${on ? "mm-arrow-on" : "mm-arrow"})`} />
-            {r.many && <path d={g.d} fill="none" stroke={on ? "#DB0011" : "#8A8F99"} strokeWidth={0.8} strokeOpacity={0.6} transform="translate(3,3)" />}
+            <path d={g.d} fill="none" stroke={on ? "#DB0011" : "#8A8F99"} strokeWidth={strong ? 2.6 : on ? 1.8 : 1.4} markerEnd={`url(#${on ? "mm-arrow-on" : "mm-arrow"})`} />
             <rect x={g.lx - txt.length * 3.1 - 6} y={g.ly - 11} width={txt.length * 6.2 + 12} height={16} rx={8} fill="#fff" stroke={on ? "#DB0011" : "#D7D8DC"} />
             <text x={g.lx} y={g.ly + 1} textAnchor="middle" fontSize={10.5} fill={on ? "#AF000D" : "#40434C"}>{txt}</text>
           </g>;
         })}
         {link?.moved && (() => { const s = pos[link.from]; return <path d={`M${s.x + BW - 16},${s.y + HEAD / 2} L${link.x},${link.y}`} stroke="#DB0011" strokeWidth={2} strokeDasharray="6 4" fill="none" markerEnd="url(#mm-arrow-on)" pointerEvents="none" />; })()}
         {models.map((m) => {
-          const q = pos[m.id]; const on = m.id === selected; const target = hover === m.id || (!!pick && busy); const h = bh(m); const canLink = connectable(m.id);
+          const q = pos[m.id]; const on = m.id === selected; const target = hoverOk === m.id || (!!pick && busy && pick !== m.id); const h = bh(m); const canLink = connectable(m.id);
           return <g key={m.id} role="link" tabIndex={0} aria-label={pick ? `Link ${byId.get(pick)?.name} to ${m.name}` : `Open ${m.name}`} style={{ cursor: pick ? "crosshair" : "grab" }}
-            onPointerDown={(e) => onBoxDown(e, m.id)} onKeyDown={(e) => { if (e.key === "Enter") { if (pick) finishConnect(pick, m.id); else onOpen(m.id); } }}>
+            onPointerDown={(e) => onBoxDown(e, m.id)} onKeyDown={(e) => { if (e.key === "Enter") { if (pick) { if (pick !== m.id) finishConnect(pick, m.id); } else onOpen(m.id); } }}>
             <rect x={q.x + 2} y={q.y + 3} width={BW} height={h} rx={6} fill="#0F10131A" />
-            <rect x={q.x} y={q.y} width={BW} height={h} rx={6} fill="#fff" stroke={hover === m.id ? "#DB0011" : on ? "#DB0011" : "#D7D8DC"} strokeWidth={hover === m.id ? 2.5 : on ? 2 : 1} strokeDasharray={target && hover !== m.id ? "4 3" : undefined} />
+            <rect x={q.x} y={q.y} width={BW} height={h} rx={6} fill="#fff" stroke={hoverOk === m.id || on ? "#DB0011" : "#D7D8DC"} strokeWidth={hoverOk === m.id ? 2.5 : on ? 2 : 1} strokeDasharray={target && hoverOk !== m.id ? "4 3" : undefined} />
             <path d={`M${q.x},${q.y + 6} a6,6 0 0 1 6,-6 h${BW - 12} a6,6 0 0 1 6,6 v${HEAD - 6} h-${BW} z`} fill={on ? "#DB0011" : "#17181C"} />
             <text x={q.x + 10} y={q.y + 19.5} fontSize={13} fontWeight={600} fill="#fff">{m.name.length > 20 ? `${m.name.slice(0, 19)}…` : m.name} <tspan fontWeight={400} fontSize={11} fill="#ffffffb3">v{m.version}</tspan></text>
             {m.fields.slice(0, SHOWN).map((f, i) => { const ref = !!targetOf(f); return <text key={f.k} x={q.x + 10} y={q.y + HEAD + 18 + i * ROW} fontSize={11.5} fill={ref ? "#AF000D" : "#40434C"}>{ref ? "⇄ " : f.req ? "● " : "○ "}{f.l.length > 18 ? `${f.l.slice(0, 17)}…` : f.l}<tspan fill="#9DA1AC" fontFamily="var(--font-mono)" fontSize={10.5}> {f.t}</tspan></text>; })}
@@ -169,8 +157,7 @@ export function ModelMap({ models, selected, onOpen, canConnect, onConnect, onRe
       </svg>
     </div>
     {sel ? <div className="flex flex-wrap items-center gap-2 mt-2 bg-surface border border-line rounded-lg px-3 py-2 text-[13px]">
-      <span><b>{byId.get(sel.from)?.name}</b> {sel.from === sel.to ? "→ parent / child tree" : <>→ <b>{byId.get(sel.to)?.name}</b></>} · field “{sel.label}” <span className="font-mono text-[11.5px] text-ink-3">{sel.key}</span> · {sel.many ? `many ${byId.get(sel.to)?.name}` : `one ${byId.get(sel.to)?.name}`}{sel.req ? " · required" : " · optional"}</span>
-      <span className="ml-auto flex gap-2"><button type="button" className="btn btn-sm" onClick={() => onOpen(sel.from)}>Open {byId.get(sel.from)?.name}</button>{onRemove && connectable(sel.from) && <button type="button" className="btn btn-sm text-crit" onClick={() => { setEdge(null); onRemove(sel); }}>Remove link</button>}</span></div>
-      : <div className="flex flex-wrap gap-4 text-[12.5px] text-ink-3 mt-2"><span className="inline-flex items-center gap-1.5"><i className="inline-block w-4 h-0.5 bg-[#8A8F99]" />required link</span><span className="inline-flex items-center gap-1.5"><i className="inline-block w-4 border-t border-dashed border-[#8A8F99]" />optional link</span><span>⇄ reference field</span><span>Click an arrow to see or remove the link</span></div>}
+      <span><b>{byId.get(sel.from)?.name}</b> → <b>{byId.get(sel.to)?.name}</b></span>
+      <span className="ml-auto flex gap-2"><button type="button" className="btn btn-sm" onClick={() => setEdge(null)}>Close</button>{onRemove && connectable(sel.from) && <button type="button" className="btn btn-sm text-crit" onClick={() => { setEdge(null); onRemove(sel); }}>Remove connection</button>}</span></div> : null}
   </div>;
 }

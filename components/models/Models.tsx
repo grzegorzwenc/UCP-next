@@ -17,7 +17,7 @@ import { FieldList, FieldPanel, DocsTable } from "./FieldEditor";
 import { ModelInfoForm, StatusPill, DiffView, PublishModal, UnsavedModal, CreateWizard, metaOf, type ModelMeta } from "./ModelDialogs";
 import { FormPreview, BlockPreview } from "./ModelPreviews";
 import { ModelMap, type Relation } from "./ModelMap";
-import { RelationDialog } from "./RelationDialog";
+import { camel } from "./fieldMeta";
 import { ModelDetail } from "./ModelDetail";
 import { Dot, ModelIcon, When, Toast, chip, Crumbs } from "./bits";
 import { useUnsaved } from "./useUnsaved";
@@ -97,9 +97,8 @@ function Overview({ p, isAdmin, go, say, onCreate }: { p: Props; isAdmin: boolea
   const router = useRouter();
   const sp = useSearchParams(); const pathname = usePathname(); const view = sp.get("view") === "map" ? "map" : "table";
   const pickView = (v: "table" | "map") => { const n = new URLSearchParams(sp.toString()); if (v === "map") n.set("view", "map"); else n.delete("view"); router.replace(`${pathname}${n.size ? `?${n}` : ""}`, { scroll: false }); };
-  const [rel, setRel] = useState<{ from: Model; to: Model } | null>(null);
   const saveFields = async (m: Model, fields: ModelField[], msg: string) => { try { await ucpApi.saveModel(p.marketId, m.id, { fields }); say(msg); router.refresh(); } catch (e) { say(errorText(e)); } };
-  const removeRel = (r: Relation) => { const m = p.models.find((x) => x.id === r.from); if (!m) return; if (!confirm(`Remove the link “${r.label}” from ${m.name}? Entities lose the value of this field once ${m.name} is published again.`)) return; saveFields(m, m.fields.filter((f) => f.k !== r.key), `Removed “${r.label}” from the ${m.name} draft. Publish ${m.name} to make it live.`); };
+  const removeRel = (r: Relation) => { const m = p.models.find((x) => x.id === r.from); if (!m) return; const to = p.models.find((x) => x.id === r.to)?.name ?? r.to; if (!confirm(`Remove the connection ${m.name} → ${to}?`)) return; saveFields(m, m.fields.filter((f) => f.k !== r.key), `Removed the connection ${m.name} → ${to}`); };
   const cat = p.models.some((m) => m.group === p.group) ? p.group : "";
   const [q, setQ] = useState(""); const [status, setStatus] = useState(""); const [group, setGroup] = useState(cat); const [sort, setSort] = useState<Sort>("name"); const [dir, setDir] = useState<"asc" | "desc">("asc");
   const groups = [...new Set(p.models.map((m) => m.group))];
@@ -123,7 +122,7 @@ function Overview({ p, isAdmin, go, say, onCreate }: { p: Props; isAdmin: boolea
       <span className="ml-auto text-[12.5px] text-ink-3">{rows.length} of {inCat}</span>
       <div role="group" aria-label="View" className="inline-flex border border-line-2 rounded-lg overflow-hidden bg-surface">{([["table", "Table"], ["map", "Map"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={view === v} onClick={() => pickView(v)} className={`px-3 h-8 text-[13px] font-medium ${view === v ? "bg-ink text-white" : "text-ink-2 hover:bg-surface-2"}`}>{l}</button>)}</div></div>}
     {view === "map" && rows.length ? (() => { const mapModels = rows.filter((m) => !isBlockModel(m)); return mapModels.length ? <ModelMap models={mapModels} onOpen={(id) => go(detailLink(p.base, id))} storageKey={`ucp-model-map:${cat || "all"}`}
-        canConnect={isAdmin ? (id) => !isBlockModel(p.models.find((m) => m.id === id) ?? { id, locked: true }) : undefined} onConnect={isAdmin ? (a, b) => { const from = p.models.find((m) => m.id === a), to = p.models.find((m) => m.id === b); if (from && to) setRel({ from, to }); } : undefined} onRemove={isAdmin ? removeRel : undefined} />
+        canConnect={isAdmin ? (id) => !isBlockModel(p.models.find((m) => m.id === id) ?? { id, locked: true }) : undefined} onConnect={isAdmin ? (a, b) => { const from = p.models.find((m) => m.id === a), to = p.models.find((m) => m.id === b); if (!from || !to) return; if (from.fields.some((f) => f.validation?.referenceModel === b)) { say(`${from.name} is already connected to ${to.name}`); return; } saveFields(from, [...from.fields, linkField(from, to)], `Connected ${from.name} → ${to.name}`); } : undefined} onRemove={isAdmin ? removeRel : undefined} />
       : <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl text-ink-3 text-[13px]">Block types are shown in the table only.</div>; })()
     : rows.length ? <div className="bg-surface border border-line rounded-xl overflow-hidden"><div className="overflow-auto"><table className="w-full text-[13.5px] min-w-[880px]">
       <thead className="bg-surface-2"><tr className="text-left text-[11px] uppercase tracking-[.08em] text-ink-3"><Th k="name" s={sort} d={dir} on={sortBy}>Model</Th><Th k="status" s={sort} d={dir} on={sortBy} className="w-[120px]">Status</Th><Th k="fields" s={sort} d={dir} on={sortBy} className="w-[80px]">Fields</Th><Th k="modified" s={sort} d={dir} on={sortBy} className="w-[150px]">Last modified</Th><Th className="w-[170px]">By</Th><Th className="w-[150px]">Used on</Th></tr></thead>
@@ -138,8 +137,13 @@ function Overview({ p, isAdmin, go, say, onCreate }: { p: Props; isAdmin: boolea
         </tr>; })}</tbody></table></div></div>
       : <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl">{filtered ? <><b className="block text-[15px]">No models match</b><p className="text-ink-3 text-[13px] mt-1"><button className="underline text-ink" onClick={() => { setQ(""); setStatus(""); setGroup(cat); }}>Clear filters</button></p></>
         : isAdmin ? <><b className="block text-[15px]">No Content Models yet</b><p className="text-ink-3 text-[13px] mt-1 mb-4">Create your first Content Model to define the structure of your content.</p><button className="btn btn-primary" onClick={onCreate}>＋ Create content model</button></> : <><b className="block text-[15px]">No Content Models available.</b><p className="text-ink-3 text-[13px] mt-1">Ask a site admin to define the first one.</p></>}</div>}
-    {rel && <RelationDialog from={rel.from} to={rel.to} taken={rel.from.fields.map((f) => f.k)} onClose={() => setRel(null)} onSubmit={(f) => { const m = rel.from; setRel(null); saveFields(m, [...m.fields, f], `Linked ${m.name} → ${rel.to.name} (“${f.l}”). Saved in the draft; publish ${m.name} to make it live.`); }} />}
   </div>;
+}
+
+/** The Reference field a connection drawn on the map becomes: named after the target model, key kept unique. */
+function linkField(from: Pick<Model, "fields">, to: Model): ModelField {
+  const base = camel(to.name) || "link"; let k = base, i = 2; while (from.fields.some((f) => f.k === k)) k = `${base}${i++}`;
+  return { k, l: i > 2 ? `${to.name} ${i - 1}` : to.name, t: "Reference", req: false, loc: false, validation: { referenceModel: to.id } };
 }
 
 /* ---------------- editor ---------------- */
@@ -147,7 +151,6 @@ type EditorProps = { p: Props; md: Model; isAdmin: boolean; go: (href: string) =
 function Editor({ p, md, isAdmin, go, say, setDirty, saveRef, onDuplicate, onDelete }: EditorProps) {
   const router = useRouter();
   const block = isBlockModel(md); const editable = isAdmin && !block;
-  const [rel, setRel] = useState<Model | null>(null); // target of a link drawn on the diagram tab
   const [tab, setTabState] = useState<ModelTab>(p.tab);
   const setTab = (t: ModelTab) => { setTabState(t); window.history.replaceState(null, "", editLink(p.base, md.id, t)); };
   const [meta, setMeta] = useState<ModelMeta>(() => metaOf(md)); const [fields, setFields] = useState<ModelField[]>(md.fields);
@@ -191,12 +194,11 @@ function Editor({ p, md, isAdmin, go, say, setDirty, saveRef, onDuplicate, onDel
         {!!tpls.length && <div className="flex flex-wrap gap-1.5 mt-1.5">{tpls.map((t) => <Link key={t.id} href={`${p.base}/templates?template=${t.id}`} onClick={(e) => { e.preventDefault(); go(`${p.base}/templates?template=${t.id}`); }} className="inline-flex items-center border border-line-2 rounded-full px-2.5 py-1 text-[12.5px] hover:bg-surface-2">Template: {t.name}</Link>)}</div>}</div>
     </div>}
     {tab === "diagram" && (block ? <BlockPreview type={md.id.slice(6)} /> : <ModelMap models={p.models.filter((m) => !isBlockModel(m)).map((m) => (m.id === md.id ? previewModel : m))} selected={md.id} storageKey="ucp-model-map:editor" onOpen={(id) => { if (id !== md.id) go(editLink(p.base, id, "diagram")); }}
-      canConnect={editable ? (id) => id === md.id : undefined} onConnect={editable ? (a, b) => { const to = p.models.find((m) => m.id === b); if (a === md.id && to) setRel(to); } : undefined} onRemove={editable ? (r) => { if (r.from === md.id) setFields(fields.filter((f) => f.k !== r.key)); } : undefined} />)}
+      canConnect={editable ? (id) => id === md.id : undefined} onConnect={editable ? (a, b) => { const to = b === md.id ? previewModel : p.models.find((m) => m.id === b); if (a !== md.id || !to) return; if (fields.some((f) => f.validation?.referenceModel === b)) { say(`Already connected to ${to.name}`); return; } setFields([...fields, linkField({ fields }, to)]); say(`Connected to ${to.name}. Save the draft to keep it.`); } : undefined} onRemove={editable ? (r) => { if (r.from === md.id) setFields(fields.filter((f) => f.k !== r.key)); } : undefined} />)}
     {tab === "form" && <FormPreview md={previewModel} fields={fields} locales={p.locales} />}
     {tab === "config" && <div><div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 mb-3.5"><div><h4 className="text-[13px] font-semibold mb-1.5">UCP configuration <span className="font-normal text-ink-3">{block ? "translated from the Sling dialog" : "content model definition"}</span></h4><Json value={p.config} maxHeight={420} label="configuration" /></div><div><h4 className="text-[13px] font-semibold mb-1.5">JSON Schema <span className="font-normal text-ink-3 font-mono">served at /v1/models/{md.id}</span></h4><Json value={p.schema} maxHeight={420} label="schema" /></div></div>{dirty && <p className="text-[12.5px] text-ink-3 mb-2">Shows the last saved draft. Save to refresh it with your changes.</p>}<Link className="btn btn-sm" href={`${p.base}/api?tab=models&model=${md.id}`} onClick={(e) => { e.preventDefault(); go(`${p.base}/api?tab=models&model=${md.id}`); }}>Open in API &amp; delivery</Link></div>}
     {tab === "versions" && !block && <VersionsTab p={p} md={md} current={fields} isAdmin={isAdmin} say={say} />}
 
-    {rel && <RelationDialog from={previewModel} to={rel.id === md.id ? previewModel : rel} taken={fields.map((f) => f.k)} onClose={() => setRel(null)} onSubmit={(f) => { setFields([...fields, f]); setRel(null); say(`Added “${f.l}”. Save the draft to keep it.`); }} />}
     {panel && <FieldPanel models={p.models} taken={fields.map((f) => f.k).filter((k) => panel.index === null || k !== fields[panel.index].k)} initial={panel.index === null ? undefined : fields[panel.index]} onClose={() => setPanel(null)} onSubmit={(f) => { setFields(panel.index === null ? [...fields, f] : fields.map((x, i) => (i === panel.index ? f : x))); setPanel(null); }} />}
     {publishOpen && <PublishModal model={md} fields={fields} nextVersion={nextVersion} dirty={dirty} busy={busy === "publish"} onClose={() => setPublishOpen(false)} onPublish={publish} />}
   </div>;
