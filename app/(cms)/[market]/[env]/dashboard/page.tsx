@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { market, env } from "@/lib/markets";
 import { allPages, backend } from "@/lib/server/pages";
-import { readLog, listTasks, userName } from "@/lib/server/ucp";
+import { readLogFor, listTasks, userName } from "@/lib/server/ucp";
 import { Pill } from "@/components/ui/Pill";
 import { Avatar } from "@/components/ui/Avatar";
 
@@ -41,7 +41,7 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
   const { market: mid, env: eid } = await params;
   const mk = market(mid), ev = env(eid); const base = `/${mid}/${eid}`;
   const everything = await allPages(mk.root); const all = everything.filter((p) => !p.isFolder); const folders = everything.filter((p) => p.isFolder && p.path.split("/").length === mk.root.split("/").length + 1);
-  const [log, tasks] = await Promise.all([readLog(mk.id, 5), listTasks(mk.id, everything)]);
+  const [{ log }, tasks] = await Promise.all([readLogFor(mk.id, 5), listTasks(mk.id, everything)]);
   const names = Object.fromEntries(await Promise.all(log.map(async (e) => [e.who, await userName(e.who)] as const)));
   const c = (s: string) => all.filter((p) => p.status === s).length; const n = all.length; const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
   const health = ({ prod: ["99.98%", "84 ms"], stage: ["99.9%", "96 ms"], test: ["98.7%", "140 ms"], dev: ["97.2%", "210 ms"] } as Record<string, string[]>)[ev.id] ?? ["99.9%", "90 ms"];

@@ -75,9 +75,14 @@ export async function listForms(): Promise<FormDef[]> { const f = await kids(PAT
 /* ---------------- audit (/var/audit/ucp/<market>/<id>, append-only) ---------------- */
 const toEvent = (n: RepoNode): AuditEvent => ({ id: n.name, path: n.path, time: str(n.properties["ucp:time"], str(n.properties["jcr:created"])), type: (str(n.properties["ucp:type"], "content") as AuditType), who: str(n.properties["ucp:who"], "system"), text: str(n.properties["ucp:text"]), target: str(n.properties["ucp:target"]) || undefined, level: (str(n.properties["ucp:level"]) as AuditEvent["level"]) || "", requestId: str(n.properties["ucp:requestId"]) || undefined });
 export async function readLog(marketId: string, limit = 500): Promise<AuditEvent[]> { const ev = await kids(PATHS.audit(marketId), 1); return ev.map(toEvent).sort((a, b) => b.time.localeCompare(a.time)).slice(0, limit); }
+/** Audit log as the signed-in person may see it: site admins see everyone, everyone else only their own actions. */
+export async function readLogFor(marketId: string, limit = 500): Promise<{ log: AuditEvent[]; own: boolean }> {
+  const u = await me(); const admin = u.role === "admin" || !!u.perms.root?.manage; const all = await readLog(marketId, admin ? limit : 5000);
+  return admin ? { log: all, own: false } : { log: all.filter((e) => e.who === u.id).slice(0, limit), own: true };
+}
 export async function logEvent(marketId: string, ev: { type: AuditType; who?: string; text: string; target?: string; level?: "crit" | ""; requestId?: string }): Promise<void> {
   const time = new Date().toISOString(); const id = `${time.replace(/[^0-9]/g, "").slice(0, 17)}-${Math.random().toString(36).slice(2, 6)}`;
-  try { await repo().createNode(`${PATHS.audit(marketId)}/${id}`, "nt:unstructured", { "ucp:time": time, "ucp:type": ev.type, "ucp:who": ev.who ?? (await repo().identity().catch(() => ({ id: ME }))).id, "ucp:text": ev.text, "ucp:target": ev.target, "ucp:level": ev.level, "ucp:requestId": ev.requestId }); } catch { /* backends without /var keep no audit trail; never fail the user's action over it */ }
+  try { await repo().createNode(`${PATHS.audit(marketId)}/${id}`, "nt:unstructured", { "ucp:time": time, "ucp:type": ev.type, "ucp:who": ev.who ?? (await sessionUserId()) ?? (await repo().identity().catch(() => ({ id: ME }))).id, "ucp:text": ev.text, "ucp:target": ev.target, "ucp:level": ev.level, "ucp:requestId": ev.requestId }); } catch { /* backends without /var keep no audit trail; never fail the user's action over it */ }
 }
 
 /* ---------------- tasks: derived from page workflow state (status + ucp:sentBy/ucp:sentAt/ucp:due on jcr:content) ---------------- */

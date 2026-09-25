@@ -6,7 +6,7 @@ import type { AuditEvent, AuditType } from "@/lib/ucp/types";
 import { Avatar } from "@/components/ui/Avatar";
 import { dayOf, resolveTarget, timeOf, type TargetLink } from "@/lib/ucp/auditView";
 
-type Props = { log: AuditEvent[]; names: Record<string, string>; pageTitles: Record<string, string>; base: string; root: string; marketName: string; envName: string; initial: { type: string; q: string; who: string; period: string } };
+type Props = { /** Set to the viewer's name when they only see their own actions (not an admin). */ own?: string; log: AuditEvent[]; names: Record<string, string>; pageTitles: Record<string, string>; base: string; root: string; marketName: string; envName: string; initial: { type: string; q: string; who: string; period: string } };
 type Period = "all" | "today" | "2d";
 const PAGE = 100;
 const TABS: [string, string][] = [["all", "All"], ["content", "Content"], ["publishing", "Publishing"], ["permissions", "Permissions"], ["system", "System"]];
@@ -24,7 +24,7 @@ function TargetChip({ t }: { t: TargetLink }) {
   return <span className="inline-flex items-center gap-1.5 text-[11.5px] border border-line rounded-full px-2 py-0.5 bg-surface-2 text-ink-2 max-w-full">{t.kind === "page" && <PageIcon />}{t.kind === "user" && <UserIcon />}<span className={t.kind === "path" ? "font-mono" : ""}>{t.label}</span>{t.sub && <span className="font-mono text-ink-3">{t.sub}</span>}</span>;
 }
 
-export function AuditLog({ log, names, pageTitles, base, root, marketName, envName, initial }: Props) {
+export function AuditLog({ own, log, names, pageTitles, base, root, marketName, envName, initial }: Props) {
   const router = useRouter();
   const [type, setType] = useState(initial.type || "all"); const [q, setQ] = useState(initial.q); const [who, setWho] = useState(initial.who); const [period, setPeriod] = useState<Period>((["today", "2d"].includes(initial.period) ? initial.period : "all") as Period);
   const sync = (p: { type?: string; q?: string; who?: string; period?: string }) => { const u = new URLSearchParams(); const v = { type, q, who, period, ...p }; if (v.type && v.type !== "all") u.set("type", v.type); if (v.q) u.set("q", v.q); if (v.who) u.set("who", v.who); if (v.period && v.period !== "all") u.set("period", v.period); const s = u.toString(); window.history.replaceState(null, "", `${base}/audit${s ? "?" + s : ""}`); };
@@ -47,7 +47,7 @@ export function AuditLog({ log, names, pageTitles, base, root, marketName, envNa
   const inputCls = "border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface";
 
   return (<div className="p-7">
-    <div className="flex items-start gap-4 mb-5"><div><h1 className="text-2xl font-semibold">Audit log</h1><p className="text-ink-3 text-[13px] mt-1">Every change to content, publishing and permissions on {marketName} · {envName}. Immutable, kept for 7 years, exported nightly to the security team.</p></div>
+    <div className="flex items-start gap-4 mb-5"><div><h1 className="text-2xl font-semibold">{own ? "My activity" : "Audit log"}</h1><p className="text-ink-3 text-[13px] mt-1">{own && <><b className="text-ink-2">Only your own actions, {own}.</b> Site admins see everyone&rsquo;s. </>}Every change to content, publishing and permissions on {marketName} · {envName}. Immutable, kept for 7 years, exported nightly to the security team.</p></div>
       <div className="ml-auto flex gap-2"><button className="btn" onClick={exportCsv} disabled={rows.length === 0}>Export CSV</button></div></div>
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3.5 mb-4"><Kpi label="Events today" value={today.length} tone="grey" /><Kpi label="Publishes today" value={cntType("publishing")} tone="green" /><Kpi label="Permission changes today" value={cntType("permissions")} tone="blue" /><Kpi label="Failures today" value={failures} tone={failures > 0 ? "crit" : "grey"} /></div>
     <div className="flex items-center gap-2 mb-3 flex-wrap">

@@ -1,13 +1,15 @@
 /** Client-safe helpers for showing audit events (day grouping, times, where a target links to). */
 export const SECTION_TARGETS = ["assets", "models", "api", "templates", "users", "tasks", "pages"];
 
+/** Times are shown in the market's time zone (UK) so the server render and the browser always agree. */
+export const DISPLAY_TZ = "Europe/London";
+const ymd = (x: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: DISPLAY_TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(x);
 export function dayOf(iso: string, now = new Date()): string {
   const d = new Date(iso); if (isNaN(d.getTime())) return "Unknown";
-  const day = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
-  const diff = Math.round((day(now) - day(d)) / 86400000);
-  return diff === 0 ? "Today" : diff === 1 ? "Yesterday" : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  const diff = Math.round((Date.parse(ymd(now)) - Date.parse(ymd(d))) / 86400000);
+  return diff === 0 ? "Today" : diff === 1 ? "Yesterday" : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: DISPLAY_TZ });
 }
-export const timeOf = (iso: string) => { const d = new Date(iso); return isNaN(d.getTime()) ? "—" : d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }); };
+export const timeOf = (iso: string) => { const d = new Date(iso); return isNaN(d.getTime()) ? "—" : d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: DISPLAY_TZ }); };
 export const whenOf = (iso: string) => `${dayOf(iso)} ${timeOf(iso)}`;
 
 export type TargetLink = { kind: "page" | "user" | "section" | "path" | "none"; href?: string; label: string; sub?: string; id?: string };

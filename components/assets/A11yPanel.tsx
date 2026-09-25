@@ -49,6 +49,6 @@ export function A11yPanel({ asset, locales, canEdit, busy, onSave }: { asset: As
       </>}
     </fieldset>
     {canEdit && <div className="flex items-center gap-2 mt-3"><button className="btn btn-sm btn-primary" disabled={!dirty || busy} onClick={() => onSave(v)}>{busy ? "Saving…" : "Save accessibility"}</button>{dirty && <button className="btn btn-sm btn-quiet" disabled={busy} onClick={() => setV(asset.a11y ?? {})}>Discard</button>}</div>}
-    {asset.a11y?.checkedBy && <p className="text-[11.5px] text-ink-4 mt-2">Last updated by {asset.a11y.checkedBy}{asset.a11y.checkedAt ? ` · ${new Date(asset.a11y.checkedAt).toLocaleDateString("en-GB")}` : ""}</p>}
+    {asset.a11y?.checkedBy && <p className="text-[11.5px] text-ink-4 mt-2">Last updated by {asset.a11y.checkedBy}{asset.a11y.checkedAt ? ` · ${new Date(asset.a11y.checkedAt).toLocaleDateString("en-GB", { timeZone: "Europe/London" })}` : ""}</p>}
   </section>;
 }
