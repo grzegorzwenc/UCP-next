@@ -87,7 +87,7 @@ export function Entities(p: EntitiesProps) {
         <FolderList key={ql ? `q:${ql}` : `sel:${md?.id ?? ""}`} root={{ label: "All entities", count: p.entities.length, active: !md, onClick: () => go(entitiesLink(p.base)) }} items={items} extra={ql && !items.length ? <div className="text-[12.5px] text-ink-4 px-2 py-1">Nothing matches “{q}”</div> : undefined} />
         {canEdit && <button className="btn btn-quiet btn-sm mt-2.5 ml-1" onClick={() => setCreating(true)}>＋ Create entity</button>}
       </aside>
-      <div className="overflow-auto min-w-0 min-h-0">{body}</div>
+      <div className="overflow-y-auto overflow-x-hidden min-w-0 min-h-0">{body}</div>
       {creating && canEdit && <NewEntityModal marketId={p.marketId} models={models} initial={md} onClose={() => setCreating(false)} onDone={onCreated} />}
       {pending && <UnsavedModal what={ent ? `“${ent.title}”` : "this entity"} busy={busy === "guard"} onStay={() => setPending(null)} onDiscard={() => { const h = pending; setPending(null); setDirty(false); router.push(h); }} onSave={async () => { setBusy("guard"); const ok = await saveRef.current?.(); setBusy(""); if (ok) { const h = pending; setPending(null); setDirty(false); router.push(h); } }} />}
       {moving && <MoveDialog title={`Move ${moving.title}`} what={moving.title} current={moving.model} targets={models.map((m) => ({ id: m.id, label: m.name, hint: `${(byModel[m.id] ?? []).length} entities` }))} onClose={() => setMoving(null)}

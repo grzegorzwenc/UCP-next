@@ -133,21 +133,21 @@ export function EntityEditor({ base, marketId, marketRoot, model, entity, entiti
     {blocked && <div role="alert" className="bg-crit-soft text-crit px-3 py-2.5 rounded-md text-[13px] mb-3 flex items-start gap-2"><div className="flex-1"><b>Can’t delete “{entity.title}”.</b> {blocked}{!!usedOn.length && <span className="block mt-1 text-ink-2">{usedOn.map((u, i) => <span key={u.path}>{i > 0 && ", "}<Link {...nav(pageHref(u.path))} className="underline">{u.title}</Link></span>)}</span>}</div><button className="text-ink-3 hover:text-ink" aria-label="Dismiss" onClick={() => setBlocked(null)}>×</button></div>}
     {entity.status === "modified" && !dirty && <div className="bg-warn-soft text-ink-2 px-3 py-2 rounded-md text-[12.5px] mb-3">This entity has changes that are not published yet. Visitors still see the published version.</div>}
 
-    <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
-      <form className="bg-surface border border-line rounded-xl p-5" onSubmit={(e) => { e.preventDefault(); if (dirty) save(); }}>
+    <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_300px] gap-5 items-start min-w-0">
+      <form className="bg-surface border border-line rounded-xl p-5 min-w-0" onSubmit={(e) => { e.preventDefault(); if (dirty) save(); }}>
         <fieldset disabled={!canEdit || !!busy} className="grid gap-4 min-w-0">
           <legend className="sr-only">{model.name} content</legend>
           {schema.length ? schema.map((f) => <Field key={f.k} f={f} kind={kinds[f.k]} v={values[f.k]} raw={raw[f.k]} err={errors[f.k] ?? ""} marketId={marketId} refOptions={kinds[f.k] === "ref" || kinds[f.k] === "refs" ? refOptions(f) : []} onValue={(v) => setVal(f.k, v)} onRaw={(s) => setJson(f.k, s)} />)
             : <p className="text-[13px] text-ink-3">This model has no fields authors can fill in yet.</p>}
         </fieldset>
       </form>
-      <aside className="grid gap-4">
+      <aside className="grid gap-4 min-w-0">
         <section className="bg-surface border border-line rounded-xl p-4"><h2 className="text-[13px] font-semibold mb-1">Used on {usedOn.length} page{usedOn.length === 1 ? "" : "s"}</h2>
           {usedOn.length ? <><ul className="grid gap-1 mb-2">{usedOn.map((u) => <li key={u.path}><Link {...nav(pageHref(u.path))} className="flex items-center gap-2 text-[13px] rounded px-1.5 py-1 -mx-1.5 hover:bg-surface-2"><span className="truncate flex-1">{u.title}</span><Pill status={u.status} /></Link></li>)}</ul><p className="text-[12px] text-ink-3">Publishing updates these pages automatically.</p></>
             : <p className="text-[12.5px] text-ink-3">Not on any page yet. Add a token below to a page to show this content.</p>}</section>
         <section className="bg-surface border border-line rounded-xl p-4"><h2 className="text-[13px] font-semibold mb-1">Tokens you can use on pages</h2>
           <p className="text-[12px] text-ink-3 mb-2">Type a token into any text on a page that uses this {model.name.toLowerCase()}. It shows this field’s value.</p>
-          <ul className="grid gap-1">{schema.map((f) => { const t = `{{${alias}.${f.k}}}`; return <li key={f.k} className="flex items-center gap-2"><code className="font-mono text-[12px] bg-surface-3 border border-line rounded px-1.5 py-0.5 truncate">{t}</code><span className="text-[11.5px] text-ink-4 truncate flex-1">{f.l}</span><button type="button" className="btn btn-sm btn-quiet" onClick={() => copy(t)} aria-label={`Copy ${t}`}>Copy</button></li>; })}</ul></section>
+          <ul className="grid gap-1">{schema.map((f) => { const t = `{{${alias}.${f.k}}}`; return <li key={f.k} className="flex items-center gap-2 min-w-0"><code className="font-mono text-[12px] bg-surface-3 border border-line rounded px-1.5 py-0.5 truncate min-w-0 max-w-[65%]">{t}</code><span className="text-[11.5px] text-ink-4 truncate flex-1">{f.l}</span><button type="button" className="btn btn-sm btn-quiet" onClick={() => copy(t)} aria-label={`Copy ${t}`}>Copy</button></li>; })}</ul></section>
       </aside>
     </div>
   </div>;
