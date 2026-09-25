@@ -1,7 +1,7 @@
 import type { Block } from "@/lib/api/types";
 import { BLOCK_BY_TYPE, lines } from "./registry";
-import { AssetsContext, MastSurface } from "./AssetsContext";
-export { AssetsContext };
+import { AssetsContext, EntitiesContext, InlineEditContext, InlineText, MastSurface } from "./AssetsContext";
+export { AssetsContext, EntitiesContext, InlineEditContext };
 
 const ICONS: Record<string, string> = {
   star: "M12 3l2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3 6.4 20.2l1.1-6.2L3 9.6l6.2-.9z",
@@ -12,10 +12,10 @@ const ICONS: Record<string, string> = {
   phone: "M7 2h10v20H7zM11 18h2",
 };
 
-/** Text span that the builder can make editable in place. `f` = prop key, optional row/col for list cells. */
+/** Text span that the builder can make editable in place. `f` = prop key, optional row/col for list cells. {{alias.field}} tokens resolve via EntitiesContext. */
 function T({ id, f, r, c, children }: { id: string; f: string; r?: number | string; c?: number; children: React.ReactNode }) {
   const key = [id, f, r, c].filter((x) => x !== undefined).join("|");
-  return <span className="ie" data-inline={key}>{children}</span>;
+  return <InlineText k={key}>{children}</InlineText>;
 }
 
 export function RenderBlock({ b }: { b: Block }) {

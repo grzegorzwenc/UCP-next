@@ -4,12 +4,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Block, PageView, PageStatus } from "@/lib/api/types";
 import { repoApi, ucpApi, ApiError } from "@/lib/api";
 import { blocksToComponents, componentsToBlocks } from "@/lib/repo/mapping";
-import { BLOCKS, BLOCK_BY_TYPE, GROUPS, makeBlock, lines, joinLines, missingRequired, TEMPLATES } from "@/lib/blocks/registry";
-import { RenderBlock, SiteChrome, AssetsContext } from "@/lib/blocks/Render";
+import { BLOCK_BY_TYPE, makeBlock, lines, joinLines, missingRequired, TEMPLATES } from "@/lib/blocks/registry";
+import { RenderBlock, SiteChrome, AssetsContext, EntitiesContext, InlineEditContext } from "@/lib/blocks/Render";
+import { bindingsOf, hasTokens, type ResolvedEntities } from "@/lib/ucp/tokens";
+import type { Bindings } from "@/lib/ucp/types";
+import { LinkedContentPanel, TokenChips, tokenGroups, type ContentModelInfo, type TokenGroup } from "./LinkedContent";
+import { SendForReviewModal, AssigneeChip, type ReviewBody } from "./SendForReview";
 import { AssetPicker } from "./AssetPicker";
 import { Pill } from "@/components/ui/Pill";
 import { proposeAi, AI_SUGGESTIONS, type AiProposal } from "@/lib/ai/mock";
-import { planFor, revertOp, AI_PAGE_SUGGESTIONS, type Plan, type Change } from "@/lib/ai/planner";
+import { planFor, revertOp, type Plan, type Change } from "@/lib/ai/planner";
 import { useSession } from "@/components/shell/Session";
 import { useShellMode } from "@/components/shell/SideNav";
 import { InsightsPanel, VersionHistory, TranslateModal, pageInsights } from "@/components/builder";
@@ -17,7 +21,8 @@ import { LeftPanel } from "./LeftPanel";
 import { useRouter } from "next/navigation";
 import { permForStatus } from "@/lib/ucp/perms";
 
-type Props = { marketId: string; envId: string; marketName: string; flag: string; domain: string; locale: string; envName: string; root: string; page: PageView };
+type Props = { marketId: string; envId: string; marketName: string; flag: string; domain: string; locale: string; envName: string; root: string; page: PageView; names?: Record<string, string>; models?: ContentModelInfo[]; entities?: ResolvedEntities };
+type RightTab = "block" | "page" | "content" | "ai" | "insights" | "history";
 type PageField = "description" | "title";
 /** One page-level AI task: prompt → plan → run → review. `results` keeps the snapshot around each op so it can be undone alone. */
 type AiResult = { before: Block[]; after: Block[]; changes: Change[]; undone: boolean; pageBefore?: string };
@@ -29,7 +34,7 @@ const AI_EXAMPLES: { title: string; items: [string, string, string][] }[] = [
   { title: "Check and fix", items: [["Check accessibility", "Check accessibility", "Alt text, heading order, descriptive link labels"], ["Optimise for search", "Optimise SEO", "Meta description, H1, FAQ suggestions"], ["Translate to Welsh", "Translate this page", "Draft copy in cy-GB for a translator to review"]] },
 ];
 const LEFT_RAIL: ["add" | "outline", string, string][] = [["add", "Add a component", "M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM12 8.5v7M8.5 12h7"], ["outline", "Page outline", "M3.5 4.5h4v4h-4zM3.5 15.5h4v4h-4zM10.5 6.5h10M10.5 17.5h10M10.5 12h6"]];
-const RAIL: [ "block" | "page" | "ai" | "insights" | "history", string, string][] = [["block", "Component settings", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"], ["page", "Page settings", "M6 3h8l5 5v13H6zM14 3v5h5M9 13h6M9 17h6"], ["ai", "AI assistant", "M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 15l.6 1.6L7.2 17l-1.6.6L5 19.2l-.6-1.6L2.8 17l1.6-.4z"], ["insights", "Page insights", "M12 3a9 9 0 1 0 9 9M12 3v9l6.4-6.4M12 12l4 4"], ["history", "Version history", "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"]];
+const RAIL: [RightTab, string, string][] = [["block", "Component settings", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"], ["page", "Page settings", "M6 3h8l5 5v13H6zM14 3v5h5M9 13h6M9 17h6"], ["content", "Linked content", "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"], ["ai", "AI assistant", "M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 15l.6 1.6L7.2 17l-1.6.6L5 19.2l-.6-1.6L2.8 17l1.6-.4z"], ["insights", "Page insights", "M12 3a9 9 0 1 0 9 9M12 3v9l6.4-6.4M12 12l4 4"], ["history", "Version history", "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"]];
 const STEPS = [["Add blocks", "Click: build the page structure"], ["Fill in content", "Click: write the copy in each block"], ["Preview", "Click: see it exactly as visitors will"], ["Send for review", "Click: hand it to a reviewer"], ["In review", "Click: approve (reviewers)"], ["Publish", "Click: put it live"], ["Published", "Live for customers"]];
 
 /**
@@ -39,8 +44,9 @@ const STEPS = [["Add blocks", "Click: build the page structure"], ["Fill in cont
  *   double-click → straight into inline edit
  * Edit never opens the right panel; Configure does (with Cancel / Save).
  */
-export function Builder({ marketId, envId, marketName, flag, domain, locale, envName, root, page }: Props) {
-  const { can } = useSession();
+const EMPTY_NAMES: Record<string, string> = {}; const EMPTY_MODELS: ContentModelInfo[] = []; const EMPTY_ENTS: ResolvedEntities = {};
+export function Builder({ marketId, envId, marketName, flag, domain, locale, envName, root, page, names = EMPTY_NAMES, models = EMPTY_MODELS, entities: initialEntities = EMPTY_ENTS }: Props) {
+  const { can, user } = useSession(); const isAdmin = user.role === "admin" || !!user.perms.root?.manage;
   const canEdit = can("edit", page.path); const mayStatus = (s: PageStatus) => can(permForStatus[s], page.path);
   const [blocks, setBlocks] = useState<Block[]>(() => componentsToBlocks(page.components));
   const [status, setStatus] = useState<PageStatus>(page.status);
@@ -49,11 +55,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [mode, setMode] = useState<"select" | "edit">("select");
   const [pop, setPop] = useState<"ai" | "more" | null>(null);
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
-  const [preview, setPreviewRaw] = useState(!canEdit); const setPreview = (v: boolean | ((p: boolean) => boolean)) => { if (!canEdit) return; setPreviewRaw(v); };
+  const [preview, setPreviewRaw] = useState(!canEdit); // read-only users always see the preview
   const { phone, tablet } = useShellMode(); const narrow = phone || tablet;
   const [left, setLeftRaw] = useState(true); const [right, setRight] = useState(false); const [leftTab, setLeftTab] = useState<"add" | "outline">("add");
   // Panel widths are draggable (min 260, max 560) and remembered per browser.
   const [leftW, setLeftW] = useState(320); const [rightW, setRightW] = useState(340);
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- read once from localStorage after hydration (not available during SSR)
   useEffect(() => { try { const l = Number(localStorage.getItem("ucp-leftw")); const r = Number(localStorage.getItem("ucp-rightw")); if (l >= 260 && l <= 560) setLeftW(l); if (r >= 260 && r <= 560) setRightW(r); } catch {} }, []);
   const startResize = (side: "left" | "right") => (e: React.MouseEvent) => {
     e.preventDefault(); const x0 = e.clientX; const w0 = side === "left" ? leftW : rightW; document.body.style.cursor = "col-resize"; document.body.style.userSelect = "none";
@@ -63,8 +70,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   };
   const setLeft = (v: boolean) => setLeftRaw(v);
   // On a phone or tablet start with the matching rendition so the 1:1 page fits the screen; desktop stays 1200 px.
-  useEffect(() => { if (phone) { setLeftRaw(false); setDevice("mobile"); } else if (tablet) setDevice("tablet"); }, [phone, tablet]);
-  const [rightTab, setRightTab] = useState<"block" | "page" | "ai" | "insights" | "history">("page");
+  const [shellSeen, setShellSeen] = useState({ phone: false, tablet: false }); // adjusted during render when the shell mode changes (no effect needed)
+  if (shellSeen.phone !== phone || shellSeen.tablet !== tablet) { setShellSeen({ phone, tablet }); if (phone) { setLeftRaw(false); setDevice("mobile"); } else if (tablet) setDevice("tablet"); }
+  const [rightTab, setRightTab] = useState<RightTab>("page");
   const [translating, setTranslating] = useState(false); const router = useRouter();
   const [description, setDescription] = useState(page.description ?? "");
   const [aiTasks, setAiTasks] = useState<AiTask[]>([]); const [aiDraft, setAiDraft] = useState("");
@@ -73,6 +81,16 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [clipboard, setClipboard] = useState<Block | null>(null);
   const [dirty, setDirty] = useState(false); const [saving, setSaving] = useState<string>("Saved");
   const [toast, setToast] = useState<string | null>(null);
+  /* Linked content: page bindings (alias → entity path) and their resolved values for {{alias.field}} tokens. Re-resolved whenever bindings change. */
+  const [bindings, setBindings] = useState<Bindings>(() => bindingsOf(page.meta));
+  const [entities, setEntities] = useState<ResolvedEntities>(initialEntities);
+  const bindKey = JSON.stringify(bindings);
+  useEffect(() => { let on = true; ucpApi.resolveBindings(marketId, JSON.parse(bindKey) as Bindings).then((r) => { if (on) setEntities(r); }).catch(() => {}); return () => { on = false; }; }, [marketId, bindKey]);
+  const groups = useMemo(() => tokenGroups(bindings, entities, models), [bindings, entities, models]);
+  /* Review assignment */
+  const [assignee, setAssignee] = useState(() => { const a = page.meta?.["ucp:assignee"]; return typeof a === "string" ? a : ""; });
+  const assigneeName = assignee ? names[assignee] ?? assignee : "";
+  const [sending, setSending] = useState(false);
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const rel = page.path.replace(root, "");
@@ -83,8 +101,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [stage, setStage] = useState<"blocks" | "content">(() => (page.components.length ? "content" : "blocks"));
   const locked = status === "review" || status === "approved" || status === "scheduled" || status === "published";
   const cur = status === "published" ? 6 : status === "approved" || status === "scheduled" ? 5 : status === "review" ? 4 : focus ? 2 : stage === "content" ? 1 : 0;
-  useEffect(() => { if (locked) { setPreviewRaw(true); select(null); } else if (canEdit) setPreviewRaw(false); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [locked]);
+  const [lockedSeen, setLockedSeen] = useState(false); // locked stages are read-only: switch to preview and drop the selection when the status changes
+  if (lockedSeen !== locked) { setLockedSeen(locked); if (locked) { setPreviewRaw(true); setSel(null); setMode("select"); setPop(null); } else if (canEdit) setPreviewRaw(false); }
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(null), 2200); };
+  /** In review only the assigned reviewer (or a site admin) approves; unassigned legacy reviews fall back to the Review permission. */
+  const mayApprove = mayStatus("approved") && (!assignee || assignee === user.id || isAdmin);
+  const waitingFor = assigneeName ? `Waiting for ${assigneeName}` : "Waiting for a reviewer";
 
   const mutate = useCallback((fn: (b: Block[]) => Block[]) => { setBlocks((b) => fn(b)); setDirty(true); setSaving("Unsaved"); }, []);
   const setProp = (id: string, k: string, v: unknown) => mutate((b) => b.map((x) => (x.id === id ? { ...x, props: { ...x.props, [k]: v } } : x)));
@@ -138,6 +160,29 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   }
   const undoAllAi = (task: AiTask) => { task.done.slice().reverse().forEach((id) => undoAiOp(task, id)); say("Changes undone"); };
 
+  /* ---- inline editing (only in Edit mode): click a text, Enter/✓ saves, Esc/✕ cancels ---- */
+  const [editing, setEditing] = useState<{ key: string; original: string } | null>(null); const [inlineGen, setInlineGen] = useState(0);
+  const editingKey = editing?.key ?? null; const inlineCtx = useMemo(() => ({ editing: editingKey, gen: inlineGen }), [editingKey, inlineGen]); const editingEl = useRef<HTMLElement | null>(null); // the live element stays out of state (mutated in place)
+  const [ctaPop, setCtaPop] = useState<{ id: string; labelKey: string; linkKey?: string } | null>(null);
+  const scrollGuard = useRef<(() => void) | null>(null);
+  function startInline(ie: HTMLElement) {
+    ie.contentEditable = "true"; ie.classList.add("editing"); ie.focus({ preventScroll: true }); editingEl.current = ie; setEditing({ key: ie.dataset.inline!, original: ie.dataset.raw ?? ie.innerText });
+    // Text with {{tokens}} switches to its raw form on the next render; put the caret at the end once it is there.
+    if (ie.dataset.raw !== undefined) setTimeout(() => { if (editingEl.current !== ie) return; const r = document.createRange(); r.selectNodeContents(ie); r.collapse(false); const s = window.getSelection(); s?.removeAllRanges(); s?.addRange(r); }, 0);
+    // the caret must never drag the 1:1 canvas sideways while typing
+    const c = canvasRef.current; if (c) { const left = c.scrollLeft; const h = () => { if (c.scrollLeft !== left) c.scrollLeft = left; }; c.addEventListener("scroll", h); scrollGuard.current = () => c.removeEventListener("scroll", h); }
+  }
+  function commitInline(save: boolean) {
+    const el = editingEl.current; if (!editing || !el) return; const { key, original } = editing; editingEl.current = null; el.contentEditable = "false"; el.classList.remove("editing"); scrollGuard.current?.(); scrollGuard.current = null;
+    if (el.dataset.raw !== undefined || hasTokens(el.innerText)) setInlineGen((g) => g + 1); // token spans change shape (raw ↔ resolved): remount them instead of patching the DOM the browser edited
+    if (!save) { el.innerText = original; setEditing(null); return; }
+    const [id, f, r, c] = key.split("|"); const v = el.innerText.replace(/\n+$/, "").replace(/\|/g, "/");
+    const b = blocks.find((x) => x.id === id); if (!b) { setEditing(null); return; }
+    if (r === undefined) setProp(id, f, v);
+    else if (r === "p") { const paras = String(b.props[f] ?? "").split(/\n\s*\n/); paras[Number(c)] = v; setProp(id, f, paras.join("\n\n")); }
+    else { const rows = lines(b.props[f]); if (rows[Number(r)]) { rows[Number(r)][Number(c)] = v; setProp(id, f, joinLines(rows)); } }
+    setEditing(null);
+  }
   /* ---- Focus mode (⌘⇧F): body.focus hides the top bar and side nav (CSS in globals.css); other parts of the shell can listen to ucp:focus. ---- */
   const panelsBeforeFocus = useRef<{ left: boolean; right: boolean; preview: boolean } | null>(null);
   const [fsHint, setFsHint] = useState(false);
@@ -155,21 +200,41 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     try { await repoApi.saveComponents(page.path, blocksToComponents(blocksRef.current)); await repoApi.updateContent(page.path, { title: titleRef.current, description: descRef.current, status, ...extra }); setDirty(false); setSaving("Saved just now"); }
     catch (e) { setSaving("Save failed"); say(e instanceof ApiError ? `${e.problem.title} · request ${e.requestId ?? "n/a"}` : String(e)); throw e; }
   }
+  /** Why the page cannot move to `next` (permission, or required fields before review); says it and returns true when blocked. */
+  function blocked(next: PageStatus) {
+    if (!mayStatus(next)) { say(`You don't have ${permForStatus[next] === "publish" ? "Publish" : permForStatus[next] === "review" ? "Review & approve" : "Edit"} on this folder`); return true; }
+    if (next === "review" && missing) { say(`Fill in ${missing} required field${missing === 1 ? "" : "s"} first`); const b = blocks.find((x) => missingRequired(x).length); if (b) configure(b.id); return true; }
+    return false;
+  }
   async function transition(next: PageStatus, msg: string) {
-    if (!mayStatus(next)) { say(`You don't have ${permForStatus[next] === "publish" ? "Publish" : permForStatus[next] === "review" ? "Review & approve" : "Edit"} on this folder`); return; }
-    if (next === "review" && missing) { say(`Fill in ${missing} required field${missing === 1 ? "" : "s"} first`); const b = blocks.find((x) => missingRequired(x).length); if (b) configure(b.id); return; }
+    if (blocked(next)) return;
     setStatus(next); try { await save({ status: next }); say(msg); } catch { setStatus(status); }
   }
+  /* Send for review goes through the modal (reviewer choice + note); the same checks as a plain transition apply first. */
+  const openSend = () => { if (status !== "draft" && status !== "failed") { say(status === "review" ? "Already in review" : "Already past review"); return; } if (blocked("review")) return; setPop(null); setSending(true); };
+  async function sendForReview(body: ReviewBody) {
+    if (dirty) await save();
+    const r = await ucpApi.sendForReview(marketId, page.path, body);
+    setSending(false); setAssignee(r.assignee); setStatus("review"); say(`Sent to ${r.assigneeName} for review`); router.refresh();
+  }
+  /* Token chips: while a block is being configured, insert into the last focused Configure field at its caret; otherwise copy. */
+  const lastField = useRef<{ blockId: string; k: string; l: string; start: number; end: number } | null>(null);
+  const insertToken = (blockId: string, k: string, token: string) => {
+    const b = blocksRef.current.find((x) => x.id === blockId); if (!b) return; const v = String(b.props[k] ?? ""); const lf = lastField.current;
+    const [a, z] = lf && lf.blockId === blockId && lf.k === k ? [Math.min(lf.start, v.length), Math.min(lf.end, v.length)] : [v.length, v.length];
+    setProp(blockId, k, v.slice(0, a) + token + v.slice(z)); lastField.current = { blockId, k, l: lf?.k === k ? lf.l : k, start: a + token.length, end: a + token.length };
+  };
+  const onChip = (token: string, label: string) => {
+    const lf = lastField.current;
+    if (canEdit && sel && cfgSnapshot && lf && lf.blockId === sel) { insertToken(sel, lf.k, token); say(`Inserted ${token} into ${lf.l}`); return; }
+    navigator.clipboard?.writeText(token).then(() => say(`Copied ${token} (${label}) · paste it into any text`), () => say(token));
+  };
   const [aiSeed, setAiSeed] = useState("");
   /* Pictures for the canvas: asset id → data URL. Re-read when a block points at an asset we do not know yet (e.g. just uploaded from the picker). */
   const [assetMap, setAssetMap] = useState<Record<string, { data?: string }>>({});
   const imageKey = blocks.map((b) => b.props.image).filter((x) => typeof x === "string" && x && !(x in assetMap)).join(",");
   useEffect(() => { let on = true; ucpApi.assets(marketId).then((as) => { if (on) setAssetMap(Object.fromEntries(as.map((a) => [a.id, { data: a.data }]))); }).catch(() => {}); return () => { on = false; }; }, [marketId, imageKey]);
 
-  /* ---- inline editing (only in Edit mode): click a text, Enter/✓ saves, Esc/✕ cancels ---- */
-  const [editing, setEditing] = useState<{ key: string; original: string } | null>(null); const editingEl = useRef<HTMLElement | null>(null); // the live element stays out of state (mutated in place)
-  const [ctaPop, setCtaPop] = useState<{ id: string; labelKey: string; linkKey?: string } | null>(null);
-  const scrollGuard = useRef<(() => void) | null>(null);
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); save().catch(() => {}); return; }
@@ -185,26 +250,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     window.addEventListener("ucp:add-block", onAdd); window.addEventListener("ucp:ai", onAi);
     return () => { window.removeEventListener("ucp:add-block", onAdd); window.removeEventListener("ucp:ai", onAi); };
   });
-  function startInline(ie: HTMLElement) {
-    ie.contentEditable = "true"; ie.classList.add("editing"); ie.focus({ preventScroll: true }); editingEl.current = ie; setEditing({ key: ie.dataset.inline!, original: ie.innerText });
-    // the caret must never drag the 1:1 canvas sideways while typing
-    const c = canvasRef.current; if (c) { const left = c.scrollLeft; const h = () => { if (c.scrollLeft !== left) c.scrollLeft = left; }; c.addEventListener("scroll", h); scrollGuard.current = () => c.removeEventListener("scroll", h); }
-  }
-  function commitInline(save: boolean) {
-    const el = editingEl.current; if (!editing || !el) return; const { key, original } = editing; editingEl.current = null; el.contentEditable = "false"; el.classList.remove("editing"); scrollGuard.current?.(); scrollGuard.current = null;
-    if (!save) { el.innerText = original; setEditing(null); return; }
-    const [id, f, r, c] = key.split("|"); const v = el.innerText.replace(/\n+$/, "").replace(/\|/g, "/");
-    const b = blocks.find((x) => x.id === id); if (!b) { setEditing(null); return; }
-    if (r === undefined) setProp(id, f, v);
-    else if (r === "p") { const paras = String(b.props[f] ?? "").split(/\n\s*\n/); paras[Number(c)] = v; setProp(id, f, paras.join("\n\n")); }
-    else { const rows = lines(b.props[f]); if (rows[Number(r)]) { rows[Number(r)][Number(c)] = v; setProp(id, f, joinLines(rows)); } }
-    setEditing(null);
-  }
   function enterEdit(id: string, target?: HTMLElement) {
     const b = blocks.find((x) => x.id === id); if (!b || b.props.locked) { say("This block is locked. Unlock it from ⋯ More."); return; }
     setSel(id); setMode("edit"); setPop(null);
     const ie = target?.closest<HTMLElement>(".ie") ?? canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"] .ie`) ?? undefined;
-    if (ie) setTimeout(() => startInline(ie), 0);
+    // A token span may have been remounted by the commit that just happened: look it up again by its key.
+    if (ie) { const k = ie.dataset.inline ?? ""; setTimeout(() => { const el = ie.isConnected ? ie : canvasRef.current?.querySelector<HTMLElement>(`.ie[data-inline="${CSS.escape(k)}"]`); if (el) startInline(el); }, 0); }
   }
   function onCanvasClick(e: React.MouseEvent) {
     if (preview) return;
@@ -226,7 +277,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (e.key === "Enter" && !e.shiftKey && !editing.key.includes("|p|")) { e.preventDefault(); commitInline(true); say("Saved"); }
   }
 
-  const nextTxt = cur === 0 ? (blocks.length ? "Structure is ready · click Fill in content" : "Add your first block") : cur === 1 ? (missing ? `Fill in ${missing} required field${missing === 1 ? "" : "s"}` : "Content is complete · click Preview") : cur === 2 ? "Happy with it? Click Send for review" : cur === 4 ? (mayStatus("approved") ? "Approve it, or click Edit to change it" : "Waiting for a reviewer") : cur === 5 ? (mayStatus("published") ? "Approved · click Publish" : "Waiting for a publisher") : `Live on ${domain}`;
+  const nextTxt = cur === 0 ? (blocks.length ? "Structure is ready · click Fill in content" : "Add your first block") : cur === 1 ? (missing ? `Fill in ${missing} required field${missing === 1 ? "" : "s"}` : "Content is complete · click Preview") : cur === 2 ? "Happy with it? Click Send for review" : cur === 4 ? (mayApprove ? "Approve it, or click Edit to change it" : waitingFor) : cur === 5 ? (mayStatus("published") ? "Approved · click Publish" : "Waiting for a publisher") : `Live on ${domain}`;
   /** Go back to editing: from preview → content; from a locked stage → reopen as a draft (same page, same data). */
   const goEdit = async (to: "blocks" | "content" = "content") => {
     if (!canEdit) { say(READ_ONLY); return; }
@@ -240,8 +291,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (i === 0) { void goEdit("blocks"); return; }
     if (i === 1) { void goEdit("content"); return; }
     if (i === 2) { if (locked) { setFocusMode(true); return; } setStage("content"); setFocusMode(true); return; }
-    if (i === 3) { if (status === "draft" || status === "failed") transition("review", "Sent for review · the page is now read-only until a reviewer decides"); else say(status === "review" ? "Already in review" : "Already past review"); return; }
-    if (i === 4) { if (status === "review") { if (mayStatus("approved")) transition("approved", "Approved · ready to publish"); else say("Waiting for a reviewer to approve"); } else say(status === "draft" || status === "failed" ? "Send the page for review first" : "Review is done"); return; }
+    if (i === 3) { openSend(); return; }
+    if (i === 4) { if (status === "review") { if (mayApprove) transition("approved", "Approved · ready to publish"); else say(`${waitingFor} to approve`); } else say(status === "draft" || status === "failed" ? "Send the page for review first" : "Review is done"); return; }
     if (i === 5) { if (status === "approved" || status === "scheduled") { if (mayStatus("published")) transition("published", `Published to ${envName}`); else say("Waiting for a publisher"); } else say(status === "published" ? "Already published" : "The page must be approved first"); return; }
     if (i === 6) { say(status === "published" ? `Live on ${domain}${rel}` : "Not published yet"); }
   };
@@ -260,13 +311,14 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {!focus && <Link href={`/${marketId}/${envId}/pages${rel.replace(/\/[^/]+$/, "")}`} className="btn btn-quiet btn-sm">‹ Pages</Link>}
         <div className="min-w-0 flex-1"><b className="block text-[14.5px] truncate">{title}</b><span className="hidden sm:block text-[11.5px] text-ink-3 truncate font-mono">{flag} {locale} · {domain}{rel}</span></div>
         <Pill status={status} />
+        {status === "review" && assignee && <AssigneeChip name={assigneeName} admin={isAdmin} marketId={marketId} pagePath={page.path} meId={user.id} onReassigned={(r) => { setAssignee(r.assignee); say(`Reassigned to ${r.assigneeName}`); router.refresh(); }} />}
         <div className="hidden sm:inline-flex border border-line-2 rounded-lg overflow-hidden">{(["desktop", "tablet", "mobile"] as const).map((d) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 text-[13px] ${device === d ? "bg-ink text-white" : "text-ink-3"}`} title={d}>{d === "desktop" ? "🖥" : d === "tablet" ? "▭" : "📱"}</button>)}</div>
         <div className="ml-auto flex items-center gap-2.5">
           <span className="hidden sm:inline text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1">{saving}</span>
           <div className="hidden md:flex gap-1 pl-2.5 border-l border-line"><button className={`btn btn-icon btn-sm ${left ? "on" : ""}`} onClick={() => setLeft(!left)} title="Components panel" aria-pressed={left}>▤</button><button className={`btn btn-icon btn-sm ${right ? "on" : ""}`} onClick={() => { if (right) closeConfigure(true); else { setRightTab(sel ? "block" : "page"); setRight(true); } }} title="Page settings panel" aria-pressed={right}>▥</button><button className={`btn btn-sm ${focus ? "on" : ""}`} onClick={() => setFocusMode(!focus)} title="Preview the page as visitors see it (⌘⇧F)" aria-pressed={focus}>{focus ? "✕ Exit preview" : "👁 Preview"}</button></div>
           <div className="flex gap-1 pl-2.5 border-l border-line">{!canEdit ? <span className="text-xs text-ink-3 px-2" title="Ask a site admin for Edit on this folder">🔒 Read-only</span> : <button className={`btn btn-sm ${!locked && !focus && stage === "content" ? "on" : ""}`} onClick={() => void goEdit("content")} title={locked ? "Reopen this page for editing" : "Edit the page content"}>✎ Edit</button>}<button className="btn btn-sm" onClick={() => save().then(() => say("Saved")).catch(() => {})} disabled={!dirty || !canEdit}>Save</button>
-            {(status === "draft" || status === "failed") && mayStatus("review") && <button className="btn btn-sm btn-primary" onClick={() => transition("review", "Sent for review")}>Send for review</button>}
-            {status === "review" && (mayStatus("approved") ? <button className="btn btn-sm btn-primary" onClick={() => transition("approved", "Approved")}>Approve</button> : <span className="text-xs text-ink-3">Waiting for a reviewer</span>)}
+            {(status === "draft" || status === "failed") && mayStatus("review") && <button className="btn btn-sm btn-primary" onClick={openSend}>Send for review</button>}
+            {status === "review" && (mayApprove ? <button className="btn btn-sm btn-primary" onClick={() => transition("approved", "Approved")}>Approve</button> : <span className="text-xs text-ink-3 self-center whitespace-nowrap">{waitingFor}</span>)}
             {(status === "approved" || status === "scheduled") && (mayStatus("published") ? <button className="btn btn-sm btn-primary" onClick={() => transition("published", `Published to ${envName}`)}>Publish</button> : <span className="text-xs text-ink-3">Waiting for a publisher</span>)}
             </div>
         </div>
@@ -286,7 +338,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {!focus && <div className="flex items-center gap-3 px-6 py-2 text-[12.5px] text-ink-3 border-b border-line bg-surface-2" style={{ paddingLeft: padL, paddingRight: padR }}><span className="mr-auto truncate" title={hint}>{hint}</span><span className="border border-line-2 rounded px-2 py-0.5 bg-surface whitespace-nowrap">1:1 · {device === "desktop" ? 1200 : device === "tablet" ? 768 : 390} px</span></div>}
           <div ref={canvasRef} className={focus ? "flex-1 overflow-auto p-0 bg-white" : "flex-1 overflow-auto p-6 pb-24"} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey}>
             {(() => { const fit = narrow && avail ? Math.min(1, (avail - padL - padR) / siteW) : 1; return <div style={fit < 1 ? { transform: "scale(" + fit + ")", transformOrigin: "top left", width: siteW, marginBottom: -(1 - fit) * 600 } : undefined}>
-            <AssetsContext.Provider value={assetMap}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
+            <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
               {blocks.length ? blocks.map((b, i) => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""}`} tabIndex={0}>
                 <span className="tag">{def.name}{b.props.locked ? " · 🔒 locked" : ""}{b.props.hidden ? " · hidden" : ""}</span>
                 {isSel && !preview && <ContextBar block={b} index={i} count={blocks.length} mode={mode} pop={pop} setPop={setPop} clipboard={clipboard} aiSeed={aiSeed}
@@ -295,7 +347,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
                   onAi={(p) => { mutate((bl) => bl.map((x) => (x.id === b.id ? { ...x, props: { ...x.props, ...p.props } } : x))); say("AI changes applied"); }} />}
                 <RenderBlock b={b} /></div>; })
               : <div className="m-7 p-11 border-2 border-dashed border-line-2 rounded-xl text-center text-ink-2 text-[15px]">How do you want to start this page?<small className="block text-[13px] text-ink-3 mt-1.5">Pick a layout, or add components one by one from the left.</small><div className="grid grid-cols-3 gap-3 mt-4 text-left">{TEMPLATES.filter((t) => t.blocks.length).slice(0, 3).map((t) => <button key={t.id} className="border border-line-2 bg-surface p-3.5 text-left hover:border-ink" onClick={() => mutate(() => t.blocks.map((x) => makeBlock(x, x === "mast" ? { heading: title } : {})))}><b className="block text-[13.5px]">{t.name}</b><small className="text-ink-3">{t.desc}</small></button>)}</div></div>}
-            </SiteChrome></AssetsContext.Provider></div>; })()}
+            </SiteChrome></InlineEditContext.Provider></EntitiesContext.Provider></AssetsContext.Provider></div>; })()}
           </div>
           {editing && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 flex gap-1 bg-[#0F1013] rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}><span className="px-2 py-1.5 text-white/70">Editing text</span><button className="px-3 py-1.5 rounded bg-good font-semibold" onClick={() => { commitInline(true); say("Saved"); }}>✓ Save</button><button className="px-3 py-1.5 rounded hover:bg-white/15" onClick={() => commitInline(false)}>✕ Cancel</button></div>}
           {ctaPop && selected && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 w-[420px] bg-surface border border-line rounded-xl shadow-2xl z-20 p-3.5 text-[13px]" onMouseDown={(e) => { e.stopPropagation(); if (!(e.target as HTMLElement).closest("input, textarea")) e.preventDefault(); }}>
@@ -315,7 +367,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {!preview && !focus && <nav data-ui aria-label="Panels" className={phone ? "absolute left-0 right-0 bottom-0 h-12 bg-surface border-t border-line flex flex-row items-center justify-around px-2 z-[6]" : "absolute right-0 top-0 bottom-0 w-[52px] bg-surface border-l border-line flex flex-col items-center py-2 gap-1.5 z-[6]"}>
           {phone && LEFT_RAIL.map(([t, label, path]) => { const on = left && leftTab === t; return <button key={t} type="button" title={label} aria-label={label} aria-pressed={on} onClick={() => { if (on) setLeftRaw(false); else { setLeftTab(t); setLeftRaw(true); setRight(false); } }} className={`w-11 h-11 rounded-lg grid place-items-center ${on ? "bg-accent text-white" : "text-ink-2 hover:bg-surface-3"}`}><svg viewBox="0 0 24 24" className="w-6 h-6 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={path} /></svg></button>; })}
           {phone && <span className="w-px h-6 bg-line" aria-hidden />}
-          {RAIL.map(([t, label, path]) => { const on = right && rightTab === t; const badge = t === "insights" ? insightBadge : t === "ai" ? aiTasks.filter((x) => x.stage !== "done").length : 0;
+          {RAIL.map(([t, label, path]) => { const on = right && rightTab === t; const badge = t === "insights" ? insightBadge : t === "content" ? Object.keys(bindings).length : t === "ai" ? aiTasks.filter((x) => x.stage !== "done").length : 0;
             return <button key={t} type="button" title={label} aria-label={label} aria-pressed={on} onClick={() => { if (on) { closeConfigure(true); return; } if (phone) setLeftRaw(false); if (t === "block" && sel) configure(sel); else { setRightTab(t); setRight(true); } }} className={`relative w-11 h-11 rounded-lg grid place-items-center ${on ? "bg-accent text-white" : "text-ink-2 hover:bg-surface-3"}`}>
               <svg viewBox="0 0 24 24" className="w-6 h-6 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={path} /></svg>
               {badge > 0 && <span className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[10px] font-bold grid place-items-center ${on ? "bg-white text-accent" : "bg-accent text-white"}`}>{badge}</span>}
@@ -323,9 +375,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         </nav>}
         {right && !preview && <aside data-ui style={phone ? undefined : { width: rightW }} className={phone ? "absolute inset-x-0 top-0 bottom-12 bg-surface flex flex-col z-[5]" : "absolute right-[52px] top-0 bottom-0 max-w-[calc(100%-52px)] bg-surface border-l border-line flex flex-col z-[5] shadow-xl md:shadow-none"}>
           {!phone && <div role="separator" aria-orientation="vertical" aria-label="Resize panel" title="Drag to resize" onMouseDown={startResize("right")} className="absolute -left-1 top-0 bottom-0 w-2 cursor-col-resize hover:bg-accent/30 active:bg-accent/40 z-10" />}
-          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">{rightTab === "block" ? (selected ? `Configure · ${BLOCK_BY_TYPE[selected.type].name}` : "Configure") : rightTab === "page" ? "Page settings" : rightTab === "ai" ? "✨ AI assistant" : rightTab === "insights" ? "Page insights" : "Version history"}</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => closeConfigure(true)} aria-label="Close">✕</button></div>
+          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">{rightTab === "block" ? (selected ? `Configure · ${BLOCK_BY_TYPE[selected.type].name}` : "Configure") : rightTab === "page" ? "Page settings" : rightTab === "content" ? "Linked content" : rightTab === "ai" ? "✨ AI assistant" : rightTab === "insights" ? "Page insights" : "Version history"}</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => closeConfigure(true)} aria-label="Close">✕</button></div>
           {rightTab === "insights" ? <div className="flex-1 overflow-auto p-3.5 text-[13px]"><InsightsPanel blocks={blocks} page={{ title, description, template: page.template, status, locale }} onFix={(apply, label) => { if (!canEdit) { say("Read-only: ask a site admin for Edit"); return; } mutate(apply); say(`Fixed: ${label}`); }} onSelectBlock={(id) => { select(id); const el = canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`); el?.scrollIntoView({ block: "center", behavior: "smooth" }); }} /></div>
           : rightTab === "history" ? <div className="flex-1 overflow-auto p-3.5 text-[13px]"><VersionHistory marketId={marketId} path={page.path} currentBlocks={blocks.length} onRestored={() => { router.refresh(); say("Version restored · reloading"); setTimeout(() => window.location.reload(), 400); }} /></div>
+          : rightTab === "content" ? <div className="flex-1 overflow-auto p-3.5 text-[13px]"><LinkedContentPanel marketId={marketId} base={`/${marketId}/${envId}`} pagePath={page.path} bindings={bindings} entities={entities} models={models} canEdit={canEdit && !locked} configuring={!!(sel && cfgSnapshot)} onChange={setBindings} onChip={onChip} say={say} /></div>
           : rightTab === "ai" ? <AiPanel tasks={aiTasks} draft={aiDraft} setDraft={setAiDraft} dirty={dirty} onAsk={startAiTask} onToggle={(t, id) => patchTask(t.id, (x) => ({ ...x, on: { ...x.on, [id]: !x.on[id] } }))} onRun={runAiTask} onUndo={undoAiOp} onRedo={redoAiOp} onUndoAll={undoAllAi} onSave={() => save().then(() => say("Saved")).catch(() => {})} /> : <div className="flex-1 overflow-auto p-3.5 text-[13px]">
             {rightTab === "page" ? <div className="flex flex-col gap-3">
               <label className="text-xs text-ink-2 font-medium">Page title<input className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] font-normal text-ink" value={title} onChange={(e) => setPageField("title", e.target.value)} /></label>
@@ -337,11 +390,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               <div className="border-t border-line pt-3 flex flex-col gap-2"><b className="text-xs text-ink-2">Languages</b><span className="text-[12px] text-ink-3">This page is {locale}. Create a translated copy in another locale.</span><button className="btn btn-sm justify-center" onClick={() => setTranslating(true)}>🌐 Translate this page…</button></div>
             </div>
             : !selected ? <div className="text-ink-3 p-2"><b className="block text-sm text-ink mb-1.5">Nothing selected</b>Click a block on the page, then ⚙ Configure.<div className="mt-3.5 flex flex-col gap-1.5">{blocks.slice(0, 8).map((k, ix) => <button key={k.id} className="btn btn-sm justify-start" onClick={() => configure(k.id)}>{ix + 1}. {BLOCK_BY_TYPE[k.type].name}</button>)}</div></div>
-            : <ConfigForm block={selected} index={blocks.indexOf(selected)} count={blocks.length} marketId={marketId} setProp={(k, v) => setProp(selected.id, k, v)} />}
+            : <ConfigForm block={selected} index={blocks.indexOf(selected)} count={blocks.length} marketId={marketId} setProp={(k, v) => setProp(selected.id, k, v)} tokens={groups} onFieldFocus={(k, l, start, end) => { lastField.current = { blockId: selected.id, k, l, start, end }; }} onInsert={(k, l, token) => { insertToken(selected.id, k, token); say(`Inserted ${token} into ${l}`); }} />}
           </div>}
           {rightTab === "block" && selected && <div className="flex justify-end gap-2 px-3.5 py-2.5 border-t border-line bg-surface"><button className="btn btn-sm" onClick={() => closeConfigure(false)}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => { closeConfigure(true); say("Component updated · Save the page when you're done"); }}>Save</button></div>}
         </aside>}
         {focus && <div aria-live="polite" className={`fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-[#0F1013]/85 text-white text-[12px] px-3 py-1.5 rounded-full transition-opacity duration-700 ${fsHint ? "opacity-100" : "opacity-0 pointer-events-none"}`}>Preview · this is what visitors see · press Esc to go back to editing</div>}
+        {sending && <SendForReviewModal marketId={marketId} pagePath={page.path} meId={user.id} onClose={() => setSending(false)} onSend={sendForReview} />}
         {translating && <TranslateModal marketId={marketId} path={page.path} title={title} onClose={() => setTranslating(false)} onDone={(created) => { say(`Created ${created.length} translation${created.length === 1 ? "" : "s"}`); router.refresh(); }} />}
         {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] shadow-xl z-50">{toast}</div>}
       </div>
@@ -390,13 +444,23 @@ type PropCtl = { P: Record<string, unknown>; setProp: (k: string, v: unknown) =>
 function Seg({ P, setProp, k, opts }: PropCtl & { k: string; opts: string[] }) { return <div className="flex gap-1">{opts.map((o) => <button key={o} className={`btn btn-sm capitalize ${(P[k] ?? opts[0]) === o ? "on" : ""}`} onClick={() => setProp(k, o)}>{o}</button>)}</div>; }
 function Tog({ P, setProp, k, l }: PropCtl & { k: string; l: string }) { return <label className="flex items-center justify-between text-xs text-ink-2 font-medium">{l}<button className={`w-9 h-5 rounded-full relative ${P[k] ? "bg-good" : "bg-line-2"}`} aria-pressed={!!P[k]} onClick={() => setProp(k, !P[k])}><i className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${P[k] ? "left-4" : "left-0.5"}`} /></button></label>; }
 function Section({ t, children }: { t: string; children: React.ReactNode }) { return <div className="border-t border-line pt-3 mt-1"><h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold mb-2.5">{t}</h6><div className="flex flex-col gap-3">{children}</div></div>; }
-function ConfigForm({ block: selected, index, count, marketId, setProp }: { block: Block; index: number; count: number; marketId: string; setProp: (k: string, v: unknown) => void }) {
-  const def = BLOCK_BY_TYPE[selected.type]; const P = selected.props;
+type FieldFocus = (k: string, l: string, start: number, end: number) => void;
+/** Remembers the caret of the last focused text field so token chips insert where the author was typing. */
+const track = (k: string, l: string, fn: FieldFocus) => (e: React.SyntheticEvent<HTMLInputElement | HTMLTextAreaElement>) => { const t = e.currentTarget; fn(k, l, t.selectionStart ?? t.value.length, t.selectionEnd ?? t.value.length); };
+/** "{ } Insert content" next to a text field: popover with the page's {{alias.field}} chips. */
+function InsertContent({ tokens, open, setOpen, onPick }: { tokens: TokenGroup[]; open: boolean; setOpen: (v: boolean) => void; onPick: (token: string) => void }) {
+  return <span className="relative ml-auto mr-2">
+    <button type="button" className="font-mono text-[10.5px] text-info hover:underline" aria-expanded={open} onMouseDown={(e) => e.preventDefault()} onClick={() => setOpen(!open)} title="Insert a value from linked content">{"{ }"} Insert content</button>
+    {open && <div className="absolute right-0 top-full mt-1 w-[260px] bg-surface border border-line rounded-lg shadow-2xl p-2.5 z-10 flex flex-col gap-2 font-normal">{tokens.map((g) => <div key={g.alias}><div className="text-[11px] text-ink-3 mb-1"><span className="font-mono">{g.alias}</span> · {g.title}</div><TokenChips groups={[g]} onPick={(t) => { onPick(t); setOpen(false); }} /></div>)}</div>}
+  </span>;
+}
+function ConfigForm({ block: selected, index, count, marketId, setProp, tokens, onFieldFocus, onInsert }: { block: Block; index: number; count: number; marketId: string; setProp: (k: string, v: unknown) => void; tokens: TokenGroup[]; onFieldFocus: FieldFocus; onInsert: (k: string, l: string, token: string) => void }) {
+  const def = BLOCK_BY_TYPE[selected.type]; const P = selected.props; const [ins, setIns] = useState<string | null>(null);
   return <div className="flex flex-col gap-3">
     <div><b className="text-sm">{def.name}</b><div className="text-[11px] text-ink-3">Block {index + 1} of {count} · {def.desc}</div></div>
-    <Section t="Content">{def.fields.map((f) => { const v = selected.props[f.k]; const invalid = f.req && !v; return <div key={f.k}><label className="flex justify-between text-xs text-ink-2 font-medium mb-1">{f.l}{f.req && <small className="font-mono text-[10.5px] text-ink-4">required</small>}</label>
-      {f.t === "text" ? <input className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${f.mono ? "font-mono" : ""} ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} />
-      : f.t === "textarea" ? <textarea rows={4} className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} />
+    <Section t="Content">{def.fields.map((f) => { const v = selected.props[f.k]; const invalid = f.req && !v; return <div key={f.k}><label className="flex items-center text-xs text-ink-2 font-medium mb-1">{f.l}{(f.t === "text" || f.t === "textarea") && tokens.length > 0 ? <InsertContent tokens={tokens} open={ins === f.k} setOpen={(o) => setIns(o ? f.k : null)} onPick={(t) => onInsert(f.k, f.l, t)} /> : <span className="ml-auto" />}{f.req && <small className="font-mono text-[10.5px] text-ink-4">required</small>}</label>
+      {f.t === "text" ? <input className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${f.mono ? "font-mono" : ""} ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
+      : f.t === "textarea" ? <textarea rows={4} className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
       : f.t === "lines" ? <ListEditor rows={lines(v)} hint={f.hint} onChange={(rows) => setProp(f.k, joinLines(rows))} />
       : f.t === "select" ? <div className="flex gap-1">{f.o!.map((o) => <button key={o} className={`btn btn-sm capitalize ${v === o ? "on" : ""}`} onClick={() => setProp(f.k, o)}>{o}</button>)}</div>
       : f.t === "bool" ? <button className={`w-9 h-5 rounded-full relative ${v ? "bg-good" : "bg-line-2"}`} aria-pressed={!!v} onClick={() => setProp(f.k, !v)}><i className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${v ? "left-4" : "left-0.5"}`} /></button>

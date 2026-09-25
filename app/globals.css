@@ -77,6 +77,10 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 .cblk.hidden-blk > *:not(.tag) { opacity: .4; } .cblk.hidden-blk::before { content: 'Hidden'; position: absolute; top: 8px; right: 10px; font-size: 11px; color: #4D6474; background: #F3F3F3; border: 1px solid #D7D8D6; padding: 1px 6px; border-radius: 3px; }
 .cblk.locked { cursor: default; }
 .ie.editing { outline: 2px solid #DB0011; outline-offset: 2px; background: #fff; } .cblk.editmode .ie.editing::after { content: none; }
+/* {{alias.field}} content tokens: subtle blue highlight in the builder, red dashed underline when unknown; plain text in preview */
+.tok { background: rgba(55,103,152,.10); box-shadow: inset 0 -1px 0 rgba(55,103,152,.55); border-radius: 2px; }
+.tok-bad { text-decoration: underline dashed #DB0011; text-underline-offset: 3px; }
+.preview .tok { background: none; box-shadow: none; } .preview .tok-bad { text-decoration: none; }
 .s-h2 { font-size: 26px; font-weight: 300; margin: 0 0 10px; }
 .s-p { font-size: 13.5px; color: #404040; margin: 0; max-width: 66ch; }
 .s-cta { display: inline-block; background: #DB0011; color: #fff; font-size: 14px; font-weight: 500; padding: 11px 20px; }
