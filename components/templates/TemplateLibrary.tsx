@@ -12,7 +12,6 @@ import { errorText as errText } from "@/lib/api/errors";
 import { useSession } from "@/components/shell/Session";
 import { TemplatePreview } from "./TemplatePreview";
 import { BLOCK_BY_TYPE } from "@/lib/blocks/registry";
-import { Menu } from "@/components/ui/Menu";
 
 type Props = { marketId: string; envId: string; marketName: string; flag: string; templates: Template[]; used: Record<string, number>; folder: string; view: "grid" | "list"; q: string };
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -71,7 +70,7 @@ export function TemplateLibrary({ marketId, envId, marketName, flag, templates, 
               <p className="text-ink-3 text-[12.5px] leading-snug line-clamp-2" title={t.desc || names.join(" · ")}>{t.desc || names.join(" · ") || "No blocks yet"}</p>
               <div className="flex items-center gap-1.5 text-[12px] text-ink-3 mt-auto pt-1 min-w-0"><span className="truncate">{tplFolderOf(t)}</span><span aria-hidden>·</span><span className="flex-none">{u ? `used by ${u} page${u === 1 ? "" : "s"}` : "not used yet"}</span></div>
               <div className="flex items-center gap-1.5 pt-2 border-t border-line"><Link className="btn btn-sm btn-primary" href={`${base}/pages?new=1&template=${t.id}`}>Use template</Link><Link className="btn btn-sm" href={edit}>{canManage ? "Edit" : "View"}</Link>
-                {canManage && t.id !== "blank" && <span className="ml-auto"><Menu label="⋯" ariaLabel={`More actions for ${t.name}`} buttonClassName="btn btn-sm btn-icon" items={[{ id: "dup", label: "Duplicate", onSelect: () => duplicate(t) }]} /></span>}</div>
+                {canManage && t.id !== "blank" && <button className="btn btn-sm btn-quiet" onClick={() => duplicate(t)}>Duplicate</button>}</div>
             </div>
           </div>; })}</div>}
       </div>
