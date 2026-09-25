@@ -13,6 +13,7 @@ export const PERM_COLS: [PermKey, string, string][] = [["read", "Read", "See pag
 
 export const SEED_USERS: { id: string; name: string; email: string; role: Role; team: string; perms: Perms }[] = [
   { id: "super.admin", name: "Super admin", email: "ucp-admin@hsbc.com", role: "admin", team: "UCP platform team", perms: { root: { read: true, edit: true, review: true, publish: true, manage: true } } },
+  { id: "content.author", name: "Content author", email: "content.author@hsbc.com", role: "author", team: "Digital content", perms: { root: { read: true, edit: true } } },
   { id: "jordan.mensah", name: "Jordan Mensah", email: "jordan.mensah@hsbc.com", role: "publisher", team: "Savings & Mortgages", perms: { root: { read: true, edit: true, review: true, publish: true } } },
   { id: "anna.kowalczyk", name: "Anna Kowalczyk", email: "anna.kowalczyk@hsbc.com", role: "author", team: "Cards", perms: { root: { read: true }, borrowing: { read: true, edit: true } } },
   { id: "rachel.hughes", name: "Rachel Hughes", email: "rachel.hughes@hsbc.com", role: "reviewer", team: "Compliance", perms: { root: { read: true, edit: true, review: true } } },
@@ -24,6 +25,8 @@ export const SEED_USERS: { id: string; name: string; email: string; role: Role; 
 export const ME = "jordan.mensah";
 /** Who the "Sign in with company SSO" button signs in as until real SSO is wired: the platform super admin. */
 export const SSO_USER = "super.admin";
+/** The plain "User" account on the sign-in screen: an author who sees only their own work. */
+export const AUTHOR_USER = "content.author";
 
 export const ASSET_FOLDERS = ["Products", "Campaigns", "Brand", "Documents", "Uploads"];
 export const SEED_ASSETS: Omit<Asset, "path">[] = [

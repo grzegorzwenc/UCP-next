@@ -18,7 +18,7 @@ import { sessionUserId } from "@/lib/server/session";
  *   /var/audit/ucp/<market>/<id>   audit events (append-only)
  * Same node shapes the Sling adapter produces, so switching backends changes nothing above the port.
  */
-const g = globalThis as unknown as { __ucpRepo_v6?: RepoNode };
+const g = globalThis as unknown as { __ucpRepo_v8?: RepoNode };
 
 const node = (path: string, primaryType: string, properties: NodeProps = {}, children?: RepoNode[]): RepoNode => ({ path, name: path.split("/").pop() || "", primaryType, properties, children });
 function page(parent: string, name: string, title: string, status: PageView["status"], template: string, blocks?: ReturnType<typeof makeBlock>[], extra: NodeProps = {}): RepoNode {
@@ -88,9 +88,11 @@ function seed(): RepoNode {
     audit("uk", 9, daysAgo(7, 16, 40), "system", "system", "deployment 2027.09.13-2 to Production completed in 4 m 12 s", "api"),
     audit("uk", 10, daysAgo(7, 11, 15), "content", "sunita.patel", "created Ready-made investments in Investing", "/content/uk/investing/ready-made"),
   ])))])]);
+  // Give the demo "User" account (content.author) a couple of drafts of their own, so their task list is not empty.
+  for (const n of walk(content)) if (["credit-builder", "fixed-rate-bonds"].includes(n.name)) { const c = n.children?.find((x) => x.name === "jcr:content"); if (c) c.properties["cq:lastModifiedBy"] = "content.author"; }
   return node("/", "rep:root", {}, [content, home, conf, varNode]);
 }
-const tree = () => (g.__ucpRepo_v6 ??= seed());
+const tree = () => (g.__ucpRepo_v8 ??= seed());
 function find(n: RepoNode, path: string): RepoNode | undefined { if (n.path === path) return n; if (path !== "/" && !path.startsWith(n.path === "/" ? "/" : n.path + "/")) return undefined; for (const c of n.children ?? []) { const f = find(c, path); if (f) return f; } }
 const parentPath = (p: string) => p.replace(/\/[^/]+$/, "") || "/";
 const content = (n: RepoNode) => n.children?.find((c) => c.name === "jcr:content");

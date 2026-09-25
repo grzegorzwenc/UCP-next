@@ -6,6 +6,8 @@ import type { Asset, AssetType, AuditEvent, AuditType, FormDef, Model, ModelFiel
 import { BLOCK_MODELS, ME, SEED_USERS } from "@/lib/ucp/seed";
 import { allPages } from "@/lib/server/pages";
 import { sessionUserId } from "@/lib/server/session";
+import { can } from "@/lib/ucp/perms";
+import { market as marketOf } from "@/lib/markets";
 
 /**
  * Domain services over the repository port. Each object is one JCR node; these helpers only map properties.
@@ -75,7 +77,10 @@ export async function logEvent(marketId: string, ev: { type: AuditType; who?: st
 /* ---------------- tasks: derived from page workflow state (status + ucp:sentBy/ucp:sentAt/ucp:due on jcr:content) ---------------- */
 const hash = (s: string) => s.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
 export async function listTasks(marketId: string, all?: PageSummary[]): Promise<Task[]> {
-  const pages = (all ?? await allPages(PATHS.content(marketId))).filter((p) => !p.isFolder); const meId = (await me()).id; const now = new Date();
+  const pages = (all ?? await allPages(PATHS.content(marketId))).filter((p) => !p.isFolder); const user = await me(); const meId = user.id; const now = new Date();
+  const admin = user.role === "admin" || !!user.perms.root?.manage; const root = marketOf(marketId).root;
+  /* Visibility: admins see every task; everyone else only what they can act on or what they started. */
+  const mine = (p: PageSummary, kind: TaskKind) => admin || str(p.meta?.["ucp:sentBy"]) === meId || (p.lastModifiedBy ?? ME) === meId || (kind === "Review" && can(user, "review", p.path, root)) || ((kind === "Publish" || kind === "Fix" || kind === "Check") && can(user, "publish", p.path, root));
   const dueOf = (p: PageSummary) => { const d = p.meta?.["ucp:due"]; if (typeof d === "string" && d) return new Date(d); const off = (hash(p.path) % 9) - 2; const x = new Date(now); x.setDate(x.getDate() + off); return x; };
   const mk = async (p: PageSummary, kind: TaskKind, what: string, from: string): Promise<Task> => { const due = dueOf(p); const overdueDays = Math.floor((now.setHours(0, 0, 0, 0) - new Date(due).setHours(0, 0, 0, 0)) / 86400000); return { kind, what, from, sentAt: str(p.meta?.["ucp:sentAt"]) || p.lastModified, due: due.toISOString(), overdueDays, page: { path: p.path, title: p.title, status: p.status, template: p.template } }; };
   const sender = async (p: PageSummary, fallback: string) => { const s = str(p.meta?.["ucp:sentBy"]); return s ? await userName(s) : fallback; };
@@ -87,7 +92,7 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
     else if (p.status === "scheduled") out.push(await mk(p, "Check", "Check scheduled publish", await sender(p, "Michael Osei")));
     else if (p.status === "draft" && (p.lastModifiedBy ?? ME) === meId) out.push(await mk(p, "Finish", "Finish draft and send for review", "You"));
   }
-  return out.sort((a, b) => a.due.localeCompare(b.due));
+  return out.filter((t) => mine(pages.find((p) => p.path === t.page.path)!, t.kind)).sort((a, b) => a.due.localeCompare(b.due));
 }
 export async function notifications(marketId: string): Promise<Notification[]> {
   const [tasks, log, meId] = await Promise.all([listTasks(marketId), readLog(marketId, 20), me().then((u) => u.id)]);
