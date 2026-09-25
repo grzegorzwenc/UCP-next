@@ -19,7 +19,7 @@ export function dueLabel(t: Task): { t: string; c: "crit" | "warn" | "" } {
   if (d > 0) return { t: `${d} day${d === 1 ? "" : "s"} overdue`, c: "crit" };
   if (d === 0) return { t: "Due today", c: "warn" };
   if (d === -1) return { t: "Due tomorrow", c: "warn" };
-  return { t: "Due " + new Date(t.due).toLocaleDateString("en-GB", { day: "numeric", month: "short" }), c: "" };
+  return { t: "Due " + new Date(t.due).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" }), c: "" };
 }
 /** "Waiting" = time since the task was sent (sentAt), e.g. "2 days", "18 hours", "40 min". */
 export function waitingLabel(sentAt?: string): string {
@@ -100,7 +100,7 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
                 <td className="px-4 py-3"><span className="inline-flex items-center gap-2"><Avatar name={sender} size={24} /><span className="text-[13px]">{t.from}</span></span></td>
                 <td className="px-4 py-3">{t.assigneeName ? <span className="inline-flex items-center gap-2"><Avatar name={t.assigneeName} size={24} /><span className="text-[13px]">{t.assigneeName}</span></span> : <span className="text-[12.5px] text-ink-3">Anyone with Review</span>}</td>
                 <td className="px-4 py-3 text-ink-3">{w}</td>
-                <td className="px-4 py-3"><span className={`inline-block text-[12px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span></td>
+                <td className="px-4 py-3"><span suppressHydrationWarning className={`inline-block text-[12px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span></td>
                 <td className="px-4 py-3 text-right">{allowed ? <button className={`btn btn-sm ${primary ? "btn-primary" : ""}`} disabled={busy === t.page.path} onClick={(e) => act(e, t)}>{busy === t.page.path ? "Working…" : label}</button> : <span className="inline-flex items-center gap-1.5 text-[12px] text-ink-3 whitespace-nowrap" title={`You don't have ${needs === "publish" ? "Publish" : "Review & approve"} here`}><span aria-hidden="true">🔒</span>{waiting}</span>}</td>
               </tr>; })}
           </Fragment>; })}</tbody>

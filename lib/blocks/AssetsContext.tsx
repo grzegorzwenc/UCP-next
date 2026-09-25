@@ -3,7 +3,7 @@ import { createContext, useContext } from "react";
 import { TOKEN_RE, hasTokens, resolveTokens, type ResolvedEntities } from "@/lib/ucp/tokens";
 
 /** Asset id → stored picture (data URL) so the canvas can show real uploaded photos. Empty outside the builder. */
-export const AssetsContext = createContext<Record<string, { data?: string }>>({});
+export const AssetsContext = createContext<Record<string, { data?: string; alt?: string; decorative?: boolean }>>({});
 
 /** Content entities bound to the page (alias → entity), used to resolve {{alias.field}} tokens. Empty outside the builder. */
 export const EntitiesContext = createContext<ResolvedEntities>({});
@@ -15,8 +15,9 @@ export const InlineEditContext = createContext<{ editing: string | null; gen: nu
 export function MastSurface({ image, children }: { image?: string; children: React.ReactNode }) {
   const assets = useContext(AssetsContext); const ents = useContext(EntitiesContext);
   const id = image && hasTokens(image) ? resolveTokens(image, ents).trim() : image;
-  const data = id ? assets[id]?.data : undefined;
-  return <div className="s-mast" style={data ? { backgroundImage: `url(${data})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>{children}</div>;
+  const a = id ? assets[id] : undefined; const data = a?.data;
+  /* The photo is a CSS background, so its alt text (from the asset's accessibility data) goes on a labelled img role; decorative photos stay silent. */
+  return <div className="s-mast" style={data ? { backgroundImage: `url(${data})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}>{a?.alt && !a.decorative && <span role="img" aria-label={a.alt} className="sr-only" />}{children}</div>;
 }
 
 /** Split into plain text and tokens. Own regex instance: tokenParts() in lib/ucp/tokens shares the global TOKEN_RE with resolveTokens(), whose replace() resets lastIndex and loops forever. */

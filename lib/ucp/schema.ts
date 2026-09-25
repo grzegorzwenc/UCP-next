@@ -1,4 +1,4 @@
-import type { Model } from "@/lib/ucp/types";
+import type { Asset, Model } from "@/lib/ucp/types";
 import { TEMPLATES } from "@/lib/blocks/registry";
 
 /** Pure, client-safe: JSON Schema served at /v1/models/<id>. */
@@ -34,3 +34,10 @@ export const byOrder = <T extends { order?: number; title?: string; name?: strin
 
 /** Fields two models have in common (same key and same type). Models can only be connected when they share at least one. */
 export const sharedFields = (a: Pick<Model, "fields">, b: Pick<Model, "fields">): string[] => a.fields.filter((f) => f.t !== "Reference" && b.fields.some((g) => g.k === f.k && g.t === f.t)).map((f) => f.k);
+
+/** What an asset still needs for accessibility (empty = complete). Images/icons: alt text in the default locale unless decorative. Documents: title, language and a tagged PDF. */
+export function a11yGaps(a: Pick<Asset, "type" | "a11y">, defaultLocale: string): string[] {
+  const x = a.a11y ?? {};
+  if (a.type === "image" || a.type === "svg") return x.decorative || x.alt?.[defaultLocale]?.trim() ? [] : ["Alt text"];
+  const g: string[] = []; if (!x.title?.trim()) g.push("Document title"); if (!x.lang) g.push("Language"); if (!x.tagged) g.push("Tagged PDF check"); return g;
+}

@@ -231,9 +231,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   };
   const [aiSeed, setAiSeed] = useState("");
   /* Pictures for the canvas: asset id → data URL. Re-read when a block points at an asset we do not know yet (e.g. just uploaded from the picker). */
-  const [assetMap, setAssetMap] = useState<Record<string, { data?: string }>>({});
+  const [assetMap, setAssetMap] = useState<Record<string, { data?: string; alt?: string; decorative?: boolean }>>({});
   const imageKey = blocks.map((b) => b.props.image).filter((x) => typeof x === "string" && x && !(x in assetMap)).join(",");
-  useEffect(() => { let on = true; ucpApi.assets(marketId).then((as) => { if (on) setAssetMap(Object.fromEntries(as.map((a) => [a.id, { data: a.data }]))); }).catch(() => {}); return () => { on = false; }; }, [marketId, imageKey]);
+  useEffect(() => { let on = true; ucpApi.assets(marketId).then((as) => { if (on) setAssetMap(Object.fromEntries(as.map((a) => [a.id, { data: a.data, alt: a.a11y?.alt?.[locale] || Object.values(a.a11y?.alt ?? {}).find(Boolean), decorative: a.a11y?.decorative }]))); }).catch(() => {}); return () => { on = false; }; }, [marketId, imageKey, locale]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
