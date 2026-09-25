@@ -60,9 +60,9 @@ export function PublishModal({ model, fields, nextVersion, dirty, busy, onClose,
 }
 
 /* ---------------- unsaved changes guard ---------------- */
-export function UnsavedModal({ busy, onStay, onDiscard, onSave }: { busy: boolean; onStay: () => void; onDiscard: () => void; onSave: () => void }) {
+export function UnsavedModal({ busy, onStay, onDiscard, onSave, what = "this Content Model" }: { busy: boolean; onStay: () => void; onDiscard: () => void; onSave: () => void; what?: string }) {
   return <ModalShell title="Unsaved changes" width={460} onClose={onStay} footer={<><button type="button" className="btn" onClick={onStay} disabled={busy}>Stay</button><button type="button" className="btn" onClick={onDiscard} disabled={busy}>Discard changes</button><button type="button" className="btn btn-primary" onClick={onSave} disabled={busy}>{busy ? "Saving…" : "Save"}</button></>}>
-    <p className="text-[13.5px] text-ink-2">You have unsaved changes to this Content Model. Save them as a draft, discard them, or stay on this page.</p>
+    <p className="text-[13.5px] text-ink-2">You have unsaved changes to {what}. Save them as a draft, discard them, or stay on this page.</p>
   </ModalShell>;
 }
 

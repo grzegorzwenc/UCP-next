@@ -5,6 +5,17 @@ export type ModelTab = "fields" | "diagram" | "form" | "config" | "versions";
 export const TABS: ModelTab[] = ["fields", "diagram", "form", "config", "versions"];
 export type UsedPage = { path: string; title: string; status: string };
 
+/** Links inside the models section. `?model=` = model detail, `&edit=1` = model editor, `?group=` = category. Entities live in their own section (`/entities`). */
+const enc = encodeURIComponent;
+export const detailLink = (base: string, id: string) => `${base}/models?model=${enc(id)}`;
+export const editLink = (base: string, id: string, tab: ModelTab = "fields") => `${base}/models?model=${enc(id)}&edit=1${tab !== "fields" ? `&tab=${tab}` : ""}`;
+export const entityLink = (base: string, model: string, entity: string) => `${base}/entities?model=${enc(model)}&entity=${enc(entity)}`;
+/** Content entities section: all entities, or the entities of one model. */
+export const entitiesLink = (base: string, model?: string) => `${base}/entities${model ? `?model=${enc(model)}` : ""}`;
+export const groupLink = (base: string, group: string) => `${base}/models?group=${enc(group)}`;
+/** Alias used in page tokens for a model: `product`, `faqItem`… */
+export const aliasOf = (modelId: string) => camel(modelId.replace(/-/g, " "));
+
 export const camel = (s: string) => { const w = s.toLowerCase().replace(/[^a-z0-9 ]+/g, " ").trim().split(/\s+/).filter(Boolean); return w.map((x, i) => (i ? x[0].toUpperCase() + x.slice(1) : x)).join(""); };
 export const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 export const KEY_RE = /^[a-z][A-Za-z0-9]*$/;

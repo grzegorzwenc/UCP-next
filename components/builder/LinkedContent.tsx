@@ -66,7 +66,7 @@ export function LinkedContentPanel({ marketId, base, pagePath, bindings, entitie
           {e && (e.status === "modified" ? <Pill status="review" label="Modified" /> : <Pill status={e.status} label={e.status === "published" ? "Published" : "Draft"} />)}
         </div>
         <TokenChips groups={[g]} onPick={onChip} />
-        <div className="flex gap-1.5">{known && <Link className="btn btn-sm" href={`${base}/models?model=${encodeURIComponent(mid)}&entity=${encodeURIComponent(e?.id ?? path.split("/").pop() ?? "")}`}>Open</Link>}{canEdit && <button className="btn btn-sm btn-quiet" disabled={busy} onClick={() => remove(g.alias)}>Remove</button>}</div>
+        <div className="flex gap-1.5">{known && <Link className="btn btn-sm" href={`${base}/entities?model=${encodeURIComponent(mid)}&entity=${encodeURIComponent(e?.id ?? path.split("/").pop() ?? "")}`}>Open</Link>}{canEdit && <button className="btn btn-sm btn-quiet" disabled={busy} onClick={() => remove(g.alias)}>Remove</button>}</div>
       </div>; })}
     {canEdit && (adding ? <div className="border border-line rounded-lg p-2.5 flex flex-col gap-2.5 bg-surface-2">
       <b className="text-[13px]">Link content</b>
