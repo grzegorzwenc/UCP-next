@@ -30,11 +30,9 @@ export function FolderList({ root, items, extra }: { root: { label: string; coun
       onDragOver: it.onDrop ? (e: React.DragEvent) => { const c = dragRef.current; if (!c || c === it.dragId || !(it.accepts?.(c) ?? true)) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; if (over !== it.key) setOver(it.key); } : undefined,
       onDragLeave: it.onDrop ? () => setOver((o) => (o === it.key ? null : o)) : undefined,
       onDrop: it.onDrop ? (e: React.DragEvent) => { e.preventDefault(); const id = e.dataTransfer.getData(MIME) || dragRef.current; setDrag(null); setOver(null); if (id && id !== it.dragId) it.onDrop!(id); } : undefined };
-    /* Clicking a folder's name opens it too (not only the chevron), and the folder stays highlighted as the current one. */
-    const go = () => { if (it.children?.length && !isOpen(it)) flip(it); it.onClick?.(); };
     return <div key={it.key} title={it.title} {...dnd} className={`group flex items-center rounded text-[13.5px] ${it.dragId ? "cursor-grab active:cursor-grabbing" : ""} ${drag && it.dragId === drag ? "opacity-40" : ""} ${hot && folder ? "ring-2 ring-accent bg-accent-soft" : ""} ${hot && !folder ? "shadow-[inset_0_2px_0_0_var(--color-accent)]" : ""} ${it.active ? "bg-accent-soft text-accent-hover font-semibold" : "text-ink-2 hover:bg-surface-3"}`} style={{ paddingLeft: 4 + depth * 14 }}>
       {chevron ?? <span className="w-5" aria-hidden />}
-      {it.href ? <Link href={it.href} onClick={() => { if (it.children?.length && !isOpen(it)) flip(it); }} className={cls} aria-current={it.active ? "page" : undefined}>{inner}</Link> : <button type="button" onClick={go} className={cls} aria-current={it.active ? "page" : undefined}>{inner}</button>}
+      {it.href ? <Link href={it.href} className={cls} aria-current={it.active ? "page" : undefined}>{inner}</Link> : <button type="button" onClick={it.onClick} className={cls} aria-current={it.active ? "page" : undefined}>{inner}</button>}
       {it.right}
     </div>;
   };
