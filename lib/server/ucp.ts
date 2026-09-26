@@ -12,6 +12,7 @@ import { allPages } from "@/lib/server/pages";
 import { sessionUserId } from "@/lib/server/session";
 import { can } from "@/lib/ucp/perms";
 import { getMarket } from "@/lib/server/markets";
+import { clApi } from "@/lib/server/contentlibre";
 
 /**
  * Domain services over the repository port. Each object is one JCR node; these helpers only map properties.
@@ -142,13 +143,23 @@ export { modelSchema } from "@/lib/ucp/schema";
 /* ---------------- versions: snapshots under <page>/jcr:content/ucp:versions/<id> (last 20) ---------------- */
 export type PageVersion = { id: string; time: string; who: string; note: string; title: string; status: string; blocks: number };
 const VER = (path: string) => `${path}/jcr:content/ucp:versions`;
-export async function listVersions(path: string): Promise<PageVersion[]> { const v = await kids(VER(path), 1); return v.map((n) => ({ id: n.name, time: str(n.properties["ucp:time"]), who: str(n.properties["ucp:who"]), note: str(n.properties["ucp:note"]), title: str(n.properties["ucp:title"]), status: str(n.properties["ucp:status"]), blocks: json<unknown[]>(n.properties["ucp:components"], []).length })).sort((a, b) => b.time.localeCompare(a.time)); }
+/**
+ * ContentLIBRE keeps real history: every publication archives the payload it replaced (content/v1/drafts). On that
+ * backend a version is an archived publication and restoring one opens a draft from it - nothing is overwritten.
+ */
+async function contentLibreVersions(path: string): Promise<PageVersion[]> {
+  const d = await clApi<{ archived: { id: string; createdBy?: string; created?: string; publication?: string; supersededBy?: string }[] }>("GET", "content/v1/drafts", { path });
+  return d.archived.map((a) => ({ id: a.id, time: a.created ?? "", who: a.createdBy ?? "", note: a.supersededBy ? `replaced by ${a.supersededBy}` : "earlier publication", title: a.publication || a.id, status: "published", blocks: 0 }));
+}
+export async function listVersions(path: string): Promise<PageVersion[]> { if (repo().kind === "contentlibre") return contentLibreVersions(path); const v = await kids(VER(path), 1); return v.map((n) => ({ id: n.name, time: str(n.properties["ucp:time"]), who: str(n.properties["ucp:who"]), note: str(n.properties["ucp:note"]), title: str(n.properties["ucp:title"]), status: str(n.properties["ucp:status"]), blocks: json<unknown[]>(n.properties["ucp:components"], []).length })).sort((a, b) => b.time.localeCompare(a.time)); }
 export async function snapshotVersion(path: string, note: string, who: string): Promise<void> {
+  if (repo().kind === "contentlibre") return; // the backend archives every publication itself
   const v = await repo().getPage(path); if (!v) return; const time = new Date().toISOString(); const id = `v${time.replace(/[^0-9]/g, "").slice(0, 17)}`;
   try { await repo().createNode(`${VER(path)}/${id}`, "nt:unstructured", { "ucp:time": time, "ucp:who": who, "ucp:note": note, "ucp:title": v.title, "ucp:status": v.status, "ucp:components": JSON.stringify(v.components) });
     const all = await listVersions(path); for (const old of all.slice(20)) await repo().deleteNode(`${VER(path)}/${old.id}`).catch(() => {}); } catch { /* backends without version nodes keep no history */ }
 }
 export async function restoreVersion(path: string, id: string): Promise<void> {
+  if (repo().kind === "contentlibre") { await clApi("POST", "content/v1/drafts", { path }, { from: id, label: `Restored ${id}` }); return; }
   const n = await repo().getNode(`${VER(path)}/${id}`, 0); if (!n) throw new Error("Version not found");
   await repo().saveComponents(path, json(n.properties["ucp:components"], [])); const title = str(n.properties["ucp:title"]); if (title) await repo().updateContent(path, { title });
 }

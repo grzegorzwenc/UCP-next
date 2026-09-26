@@ -46,9 +46,15 @@ UCP_BACKEND=contentlibre CONTENTLIBRE_URL=http://localhost:6727 npm run dev -- -
 - [x] **Editing page metadata** (title, description, navigation) goes into the draft through `content/v1`.
 - [ ] Builder: drag and drop, clipboard, history panel (restore an archived publication: `POST drafts {from}` exists),
       field widgets beyond text/number/checkbox, and nested slots deeper than one level in the outline.
-- [ ] **Assets, Content models, Entities, Templates, Users, Audit, Tasks**: empty on this backend. They
-      store data as generic JCR nodes, which the ContentLIBRE adapter does not bridge yet (backend stage 3
-      proposes the Repository Manager API as that bridge).
+- [x] **Assets, Content models, Entities, Templates, Audit** (stage 3, 26.09): generic nodes go through Sling's own
+      contracts in `lib/repo/adapters/contentlibre.ts`. Logical paths stay as they are; the adapter maps them to the
+      backend's roots (`/conf/hsbc` → `/conf/ucp`, `/content/entities` → `/var/ucp/entities`,
+      `/var/audit/ucp` → `/var/ucp/audit`, `/content/dam` unchanged) and refuses any other node path. AEM types the
+      backend does not have are stored as `nt:unstructured` + `ucp:primaryType`. The backend's ACLs enforce what
+      the role checks here predict (models/templates: admins; audit: append-only for authors).
+- [x] **Page history** on this backend is the publication archive; restore opens a draft from it.
+- [ ] **Users & roles, Tasks**: people and review workflow are backend stage 4 (Users lists only you; Tasks stay
+      empty until there is a review state).
 - [ ] Use the page document's `permissions` for per-page actions instead of role defaults.
 - [ ] Environment switcher: one ContentLIBRE instance is one environment.
 - [ ] Branding: HSBC logos and wording are still the mock's.

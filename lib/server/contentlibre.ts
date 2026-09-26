@@ -125,6 +125,18 @@ export async function clSlingPost(path: string, entries: [string, string][]): Pr
   return { message: answer["status.message"] };
 }
 
+/** A multipart Sling POST (file uploads) as the signed-in person. */
+export async function clSlingPostMultipart(path: string, form: FormData): Promise<void> {
+  const cfg = contentLibreConfig();
+  const res = await fetch(`${cfg.origin}${encodePath(path)}`, { method: "POST", body: form, headers: { Accept: "application/json", ...(await authHeaders(cfg, "POST")) }, cache: "no-store" });
+  if (!res.ok) { let answer: { error?: { message?: string }; "status.message"?: string } = {}; try { answer = await res.json(); } catch { /* not JSON */ } throw new RepoError(res.status, "Refused by ContentLIBRE", answer.error?.message ?? answer["status.message"] ?? res.statusText); }
+}
+
+/** GET a Sling JSON rendering, or `undefined` when there is nothing the caller can see there. */
+export async function clSlingJsonOrNone<T>(pathWithExtension: string): Promise<T | undefined> {
+  try { return await clSlingJson<T>(pathWithExtension); } catch (e) { if (e instanceof RepoError && e.status === 404) return undefined; throw e; }
+}
+
 /**
  * The server's own render of a page (or of one of its drafts) for the builder's preview. A `<base>` pointing at the
  * backend's public origin makes the page's stylesheets, scripts and images load from the backend directly - they are
