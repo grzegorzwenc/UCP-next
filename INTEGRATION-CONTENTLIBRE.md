@@ -38,10 +38,14 @@ UCP_BACKEND=contentlibre CONTENTLIBRE_URL=http://localhost:6727 npm run dev -- -
 
 ## Remaining work (front end side)
 
-- [ ] **Builder**: needs the backend's draft, component and catalogue APIs (backend stage 2). Today saving
-      components or changing status answers `501` on this backend. Decide the preview: the server's own
-      render in an iframe is recommended over the React block renderers, so there is one renderer.
-- [ ] **Editing page metadata** (title, description) waits for a draft-aware `PATCH` in the backend.
+- [x] **Builder on ContentLIBRE** (stage 2, 26.09): `components/builder/ClBuilder.tsx` + BFF `app/api/cl`. The preview is
+      the backend's own render of the open draft in an iframe (one renderer, a `<base>` points assets at the backend).
+      Structure, allowed components and fields come from the backend's `.libre-model.json`; insert / edit / move /
+      remove use the same Sling POST contracts as ContentLIBRE's `/edit`, so its validator decides every write.
+      **Edit** opens a draft, **Publish** / **Discard draft** end it; a stale publish offers **Publish anyway**.
+- [x] **Editing page metadata** (title, description, navigation) goes into the draft through `content/v1`.
+- [ ] Builder: drag and drop, clipboard, history panel (restore an archived publication: `POST drafts {from}` exists),
+      field widgets beyond text/number/checkbox, and nested slots deeper than one level in the outline.
 - [ ] **Assets, Content models, Entities, Templates, Users, Audit, Tasks**: empty on this backend. They
       store data as generic JCR nodes, which the ContentLIBRE adapter does not bridge yet (backend stage 3
       proposes the Repository Manager API as that bridge).

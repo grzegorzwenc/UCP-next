@@ -90,6 +90,55 @@ export async function clApi<T>(method: string, path: string, query: Record<strin
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
 }
 
+/* ---------------- the editor's own Sling contracts (AUTHORING-DESIGN.md, EDITOR-PLATFORM-DESIGN.md) ----------------
+ * Components are read and written the way ContentLIBRE's editor does it: `.libre-model.json` for structure, allowed
+ * types and fields; Sling POST for insert / properties / delete, `libre:moveComponent` for moves. Every write goes
+ * through the backend's composition validator and publication rules, as the signed-in person. */
+
+/** Only content and draft payloads are reachable through these helpers: the BFF must not become a generic repository proxy. */
+export function isEditablePath(path: string): boolean {
+  return /^\/(content|var\/pages\/drafts\/content)\/[^\s?#]+$/.test(path) && !path.split("/").some((s) => s === ".." || s === ".");
+}
+
+const encodePath = (path: string) => path.split("/").map(encodeURIComponent).join("/");
+
+/** GET a Sling JSON rendering (e.g. `<node>.libre-model.json`, `<node>.json`) as the signed-in person. */
+export async function clSlingJson<T>(pathWithExtension: string): Promise<T> {
+  const cfg = contentLibreConfig();
+  const res = await fetch(`${cfg.origin}${encodePath(pathWithExtension)}`, { headers: { Accept: "application/json", ...(await authHeaders(cfg, "GET")) }, cache: "no-store" });
+  if (!res.ok) throw new RepoError(res.status, res.status === 404 ? "Not found" : res.statusText, pathWithExtension);
+  return (await res.json()) as T;
+}
+
+/** One Sling POST (form-encoded) as the signed-in person. Refusals carry the backend's own message (validator, publication rules). */
+export async function clSlingPost(path: string, entries: [string, string][]): Promise<{ message?: string }> {
+  const cfg = contentLibreConfig();
+  const body = new URLSearchParams(); for (const [k, v] of entries) body.append(k, v);
+  const res = await fetch(`${cfg.origin}${encodePath(path)}`, {
+    method: "POST", body: body.toString(),
+    headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json", ...(await authHeaders(cfg, "POST")) },
+    cache: "no-store",
+  });
+  let answer: { "status.message"?: string; error?: { message?: string } } = {};
+  try { answer = await res.json(); } catch { /* not JSON */ }
+  if (!res.ok) throw new RepoError(res.status, "Refused by ContentLIBRE", answer.error?.message ?? answer["status.message"] ?? res.statusText);
+  return { message: answer["status.message"] };
+}
+
+/**
+ * The server's own render of a page (or of one of its drafts) for the builder's preview. A `<base>` pointing at the
+ * backend's public origin makes the page's stylesheets, scripts and images load from the backend directly - they are
+ * public - and keeps the preview byte-for-byte the backend's render: one renderer, not a second one here.
+ */
+export async function clRender(pagePath: string, draft?: string): Promise<string> {
+  const cfg = contentLibreConfig();
+  const res = await fetch(`${cfg.origin}${encodePath(pagePath)}.html${draft ? `?draft=${encodeURIComponent(draft)}` : ""}`, { headers: { Accept: "text/html", ...(await authHeaders(cfg, "GET")) }, cache: "no-store" });
+  if (!res.ok) throw new RepoError(res.status, "The page could not be rendered", pagePath);
+  const html = await res.text();
+  const base = `<base href="${cfg.publicOrigin}/" target="_blank">`;
+  return /<head[^>]*>/i.test(html) ? html.replace(/<head([^>]*)>/i, `<head$1>${base}`) : base + html;
+}
+
 /**
  * Sling form login. Returns the `sling.formauth` token, or throws 401.
  * `j_validate=true` makes Sling answer 200/403 instead of redirecting, and `Origin` is the backend's own because
