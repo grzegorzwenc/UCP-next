@@ -313,7 +313,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     w.ro.forEach((r) => r.disconnect()); w.ro = []; w.canvas = c; w.site = el;
     if (c) { const r = new ResizeObserver(() => setAvail(c.clientWidth)); r.observe(c); w.ro.push(r); }
     if (el) { const r = new ResizeObserver(() => setSiteH(el.offsetHeight)); r.observe(el); w.ro.push(r); } });
-  useEffect(() => () => { watched.current.ro.forEach((r) => r.disconnect()); }, []);
+  useEffect(() => () => { const w = watched.current; w.ro.forEach((r) => r.disconnect()); w.ro = []; w.canvas = null; w.site = null; /* forget them so a remount (React strict mode) re-attaches */ }, []);
   /* Watch the canvas and the page for size changes. They can mount after the first render, so re-attach whenever the element changes. */
   const watched = useRef<{ canvas: HTMLElement | null; site: HTMLElement | null; ro: ResizeObserver[] }>({ canvas: null, site: null, ro: [] });
   const padL = focus ? 0 : preview ? 24 : left && !narrow ? leftW + 76 : phone ? 12 : narrow ? 64 : 76, padR = focus ? 0 : preview ? 24 : right && !narrow ? rightW + 76 : phone ? 12 : narrow ? 64 : 76;
