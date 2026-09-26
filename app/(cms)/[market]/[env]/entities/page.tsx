@@ -1,4 +1,4 @@
-import { market } from "@/lib/markets";
+import { getMarket } from "@/lib/server/markets";
 import { allPages } from "@/lib/server/pages";
 import { entityUsage, listEntities, listEntityFolders, listModels, listUsers, me } from "@/lib/server/ucp";
 import { Entities } from "@/components/entities/Entities";
@@ -9,7 +9,7 @@ import type { UsedPage } from "@/components/models/fieldMeta";
  *   (none) → all entities · ?model=<id> → entities of one model · ?model=<id>&entity=<entityId> → entity editor
  */
 export default async function Page({ params, searchParams }: PageProps<"/[market]/[env]/entities">) {
-  const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = market(mid);
+  const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = (await getMarket(mid));
   const s = (v: unknown) => (typeof v === "string" ? v : "");
   const [all, pages, users, viewer, ents, folders] = await Promise.all([listModels(), allPages(mk.root), listUsers(), me(), listEntities(mid).catch(() => []), listEntityFolders(mid).catch(() => ({}))]);
   const models = all.filter((m) => !m.locked && !m.id.startsWith("block-"));

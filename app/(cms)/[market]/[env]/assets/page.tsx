@@ -1,4 +1,4 @@
-import { market } from "@/lib/markets";
+import { getMarket } from "@/lib/server/markets";
 import { allPages } from "@/lib/server/pages";
 import { listAssets, assetFolders, assetUsage } from "@/lib/server/ucp";
 import { ASSET_FOLDERS } from "@/lib/ucp/seed";
@@ -6,7 +6,7 @@ import { AssetLibrary } from "@/components/assets/AssetLibrary";
 
 /** Asset library: every file is a dam:Asset node under /content/dam/<market>/<folder>. */
 export default async function Page({ params, searchParams }: PageProps<"/[market]/[env]/assets">) {
-  const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = market(mid);
+  const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = (await getMarket(mid));
   const folder = typeof sp.folder === "string" ? sp.folder : "";
   const view = sp.view === "unused" || sp.view === "noalt" ? sp.view : "";
   const pages = (await allPages(mk.root)).filter((p) => !p.isFolder);

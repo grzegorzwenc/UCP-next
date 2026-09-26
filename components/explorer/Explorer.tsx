@@ -7,7 +7,7 @@ import { repoApi, ucpApi } from "@/lib/api";
 import { errorText as errText } from "@/lib/api/errors";
 import { useSession } from "@/components/shell/Session";
 import type { Template } from "@/lib/ucp/types";
-import { MARKETS, market as marketOf } from "@/lib/markets";
+import { useMarket, useMarkets } from "@/components/shell/Markets";
 import { makeBlock } from "@/lib/blocks/registry";
 import { blocksToComponents } from "@/lib/repo/mapping";
 import { Pill } from "@/components/ui/Pill";
@@ -54,9 +54,9 @@ function RowMenu({ page, canEdit, onAction }: { page: PageSummary; canEdit: bool
 
 /* ---------------- translate modal (port of the prototype's translate flow) ---------------- */
 function TranslateModal({ pages, marketId, base, root, marketName, tree, rel, folderPath, onClose, onDone }: { pages: PageSummary[]; marketId: string; base: string; root: string; marketName: string; tree: Folder[]; rel: (p: string) => string; folderPath: string; onClose: () => void; onDone: () => void }) {
-  const mk = marketOf(marketId);
-  const allLangs = useMemo(() => [...new Set([...mk.locales, ...MARKETS.flatMap((m) => m.locales)])].filter((l) => l !== mk.locales[0]), [mk]);
-  const flagOf = (l: string) => MARKETS.find((m) => m.locales.includes(l))?.flag ?? "";
+  const markets = useMarkets(); const mk = useMarket(marketId);
+  const allLangs = useMemo(() => [...new Set([...mk.locales, ...markets.flatMap((m) => m.locales)])].filter((l) => l !== mk.locales[0]), [mk, markets]);
+  const flagOf = (l: string) => markets.find((m) => m.locales.includes(l))?.flag ?? "";
   const [langs, setLangs] = useState<string[]>([mk.locales[1] ?? "cy-GB"]);
   const [mode, setMode] = useState<"ai" | "vendor">("ai"); const [review, setReview] = useState(true);
   const [dest, setDest] = useState<"same" | "folder">("same"); const [destFolder, setDestFolder] = useState(folderPath);
@@ -173,7 +173,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
               <td className={`${cell} whitespace-nowrap text-right`}><Link className="btn btn-sm mr-1.5" href={`${base}/pages${rel(n.path)}`}>Open folder</Link><RowMenu page={n} canEdit={editable} onAction={onAction} /></td></>
             : <>
               <td className={cell}><Link href={`${base}/page${rel(n.path)}`} className="font-medium flex items-center gap-2"><PageIcon />{n.title}{n.locale && n.locale !== "en-GB" && <span className="font-mono text-[11px] bg-surface-3 px-1.5 rounded">{n.locale}</span>}</Link>{src && <div className="text-[11.5px] text-ink-3 pl-5 mt-0.5">Source: <Link href={`${base}/page${rel(src)}`} className="font-mono hover:underline">{rel(src)}</Link></div>}</td><td className={cell}><Pill status={n.status} /></td><td className={`${cell} font-mono text-xs text-ink-2`}>{rel(n.path)}</td><td className={`${cell} text-ink-3`}>{tplName(n.template)}</td><td className={`${cell} text-ink-3`}>{n.lastModified?.slice(0, 10)}</td>
-              <td className={`${cell} whitespace-nowrap text-right`}><Link className="btn btn-sm mr-1.5" href={`${base}/page${rel(n.path)}`}>Edit page</Link><RowMenu page={n} canEdit={editable} onAction={onAction} /></td></>}
+              <td className={`${cell} whitespace-nowrap text-right`}>{n.hasChildren && <Link className="btn btn-sm mr-1.5" href={`${base}/pages${rel(n.path)}`} title="Show the pages below this one">Open</Link>}<Link className="btn btn-sm mr-1.5" href={`${base}/page${rel(n.path)}`}>Edit page</Link><RowMenu page={n} canEdit={editable} onAction={onAction} /></td></>}
           </tr>; })}</tbody></table></div>
           : <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">{q ? "No pages match." : canEditHere ? <>This folder is empty. <button className="underline" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}>Create the first page</button>.</> : "This folder is empty."}</div>}
         {rows.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-[12.5px] text-ink-3">Showing {shown.length} of {rows.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show {Math.min(PAGE, rows.length - shown.length)} more</button></div>}

@@ -13,7 +13,8 @@ export type RepoNode = {
   children?: RepoNode[];        // present when fetched with depth > 0
 };
 
-export type PageStatus = "draft" | "review" | "approved" | "scheduled" | "published" | "failed";
+/** `modified` = live with unpublished changes beside it (ContentLIBRE reports it; the mock never does). */
+export type PageStatus = "draft" | "review" | "approved" | "scheduled" | "published" | "modified" | "failed";
 
 /** Component instance = child node of jcr:content/root. `resourceType` maps 1:1 to the block registry. */
 export type ComponentNode = { name: string; resourceType: string; props: NodeProps };
@@ -29,9 +30,11 @@ export type PageView = {
   meta?: NodeProps;
   components: ComponentNode[];
 };
-export type PageSummary = Omit<PageView, "components"> & { isFolder: boolean; childCount?: number };
+/** `hasChildren`: a PAGE that also has pages below it (ContentLIBRE pages nest); `isFolder` is a container that is not itself a page. */
+export type PageSummary = Omit<PageView, "components"> & { isFolder: boolean; hasChildren?: boolean; childCount?: number };
 
-export type Identity = { id: string; authType: string; groups: string[] };
+/** `administrator` is reported by backends that know it (ContentLIBRE); absent means "not an administrator as far as the backend says". */
+export type Identity = { id: string; authType: string; groups: string[]; administrator?: boolean };
 
 export type CreatePageInput = { parentPath: string; name: string; template: string; title?: string };
 export type PageContentPatch = Partial<Pick<PageView, "title" | "description" | "navTitle" | "hideInNav" | "locale" | "status">>;

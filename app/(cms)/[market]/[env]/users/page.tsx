@@ -1,11 +1,12 @@
-import { env, market } from "@/lib/markets";
+import { env } from "@/lib/markets";
+import { getMarket } from "@/lib/server/markets";
 import { allPages } from "@/lib/server/pages";
 import { listUsers, readLog, me } from "@/lib/server/ucp";
 import { Users } from "@/components/users/Users";
 
 /** Users & permissions: users live at /home/users/<id>, per-folder grants as JSON in ucp:perms. */
 export default async function Page({ params, searchParams }: PageProps<"/[market]/[env]/users">) {
-  const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = market(mid); const ev = env(eid);
+  const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = (await getMarket(mid)); const ev = env(eid);
   const [all, log, pages, viewer] = await Promise.all([listUsers(), readLog(mid, 300), allPages(mk.root), me()]);
   // A plain user sees only their own profile and grants; site admins see everyone.
   const isAdmin = viewer.role === "admin" || !!viewer.perms.root?.manage; const users = isAdmin ? all : all.filter((u) => u.id === viewer.id);

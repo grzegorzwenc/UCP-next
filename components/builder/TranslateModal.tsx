@@ -3,12 +3,12 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { ucpApi, ApiError } from "@/lib/api";
-import { MARKETS, market as marketOf } from "@/lib/markets";
+import { useMarket, useMarkets } from "@/components/shell/Markets";
 
 type Props = { marketId: string; path: string; title: string; onClose: () => void; onDone: (created: string[]) => void };
 
 const errText = (e: unknown) => (e instanceof ApiError ? `${e.problem.title}${e.problem.detail ? ": " + e.problem.detail : ""} · request ${e.requestId ?? "n/a"}` : String(e));
-const flagOf = (l: string) => MARKETS.find((m) => m.locales.includes(l))?.flag ?? "";
+
 const inputCls = "mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13.5px] text-ink font-mono";
 
 function ModalShell({ title, width = 720, onClose, children, footer }: { title: string; width?: number; onClose: () => void; children: React.ReactNode; footer: React.ReactNode }) {
@@ -23,12 +23,12 @@ function ModalShell({ title, width = 720, onClose, children, footer }: { title: 
 /** Translate one page into other languages. Same flow as the explorer's bulk translate, for a single page. */
 export function TranslateModal({ marketId, path, title, onClose, onDone }: Props) {
   const params = useParams<{ env?: string }>();
-  const mk = marketOf(marketId);
+  const markets = useMarkets(); const mk = useMarket(marketId); const flagOf = (l: string) => markets.find((m) => m.locales.includes(l))?.flag ?? "";
   const base = `/${mk.id}/${params?.env ?? "prod"}`;
   const rel = (p: string) => p.replace(mk.root, "");
   const name = path.split("/").pop() ?? "";
   const folder = path.replace(/\/[^/]+$/, "");
-  const allLangs = [...new Set([...mk.locales, ...MARKETS.flatMap((m) => m.locales)])].filter((l) => l !== mk.locales[0]);
+  const allLangs = [...new Set([...mk.locales, ...markets.flatMap((m) => m.locales)])].filter((l) => l !== mk.locales[0]);
   const [langs, setLangs] = useState<string[]>(() => (mk.locales[1] ? [mk.locales[1]] : []));
   const [mode, setMode] = useState<"ai" | "vendor">("ai"); const [review, setReview] = useState(true);
   const [dest, setDest] = useState<"same" | "folder">("same"); const [destFolder, setDestFolder] = useState(folder);

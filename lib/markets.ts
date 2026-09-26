@@ -1,5 +1,12 @@
+/**
+ * Markets (sites) and environments. Client-safe: no backend access here.
+ *
+ * On the mock backend the market list is the fixed demo list below. On a real backend it comes from the backend
+ * (ContentLIBRE: its configured sites, lib/server/markets.ts) and reaches client components through
+ * MarketsProvider (components/shell/Markets.tsx), so nothing outside the mock may treat MOCK_MARKETS as the truth.
+ */
 export type Market = { id: string; name: string; flag: string; locales: string[]; domain: string; status: string; root: string };
-export const MARKETS: Market[] = [
+export const MOCK_MARKETS: Market[] = [
   { id: "uk", name: "HSBC UK", flag: "🇬🇧", locales: ["en-GB", "cy-GB"], domain: "hsbc.co.uk", status: "Live on UCP", root: "/content/uk" },
   { id: "hk", name: "HSBC Hong Kong", flag: "🇭🇰", locales: ["zh-HK", "en-HK"], domain: "hsbc.com.hk", status: "Validating", root: "/content/hk" },
   { id: "sg", name: "HSBC Singapore", flag: "🇸🇬", locales: ["en-SG"], domain: "hsbc.com.sg", status: "Pilot", root: "/content/sg" },
@@ -15,5 +22,7 @@ export const ENVS: Env[] = [
   { id: "stage", name: "Staging", color: "#E9A23B" },
   { id: "prod", name: "Production", color: "#3FBDB7" },
 ];
-export const market = (id: string) => MARKETS.find((m) => m.id === id) ?? MARKETS[0];
+/** The market with `id`, else the first one, else a placeholder named after `id` (a backend still starting up has no sites yet). */
+export const pickMarket = (markets: Market[], id: string): Market =>
+  markets.find((m) => m.id === id) ?? markets[0] ?? { id, name: id, flag: "", locales: [], domain: "", status: "", root: `/content/${id}` };
 export const env = (id: string) => ENVS.find((e) => e.id === id) ?? ENVS[3];

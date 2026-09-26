@@ -4,7 +4,7 @@ import type { PageStatus } from "@/lib/repo";
 import { logEvent, me, snapshotVersion } from "@/lib/server/ucp";
 import { can, permForStatus, PERM_LABEL } from "@/lib/ucp/perms";
 import type { PermKey } from "@/lib/ucp/types";
-import { market } from "@/lib/markets";
+import { getMarket } from "@/lib/server/markets";
 
 /**
  * Backend-for-frontend over the ContentRepository port. The browser never talks to Sling / ContentLIBRE directly.
@@ -28,14 +28,14 @@ const problem = (e: unknown) => {
   return NextResponse.json({ type: "about:blank", title: err.message, status: err.status, detail: err.detail }, { status: err.status, headers: { "Content-Type": "application/problem+json", "X-Request-Id": err.requestId ?? crypto.randomUUID() } });
 };
 const marketOf = (path: string) => path.match(/^\/content\/(?:dam\/)?([a-z]{2})(\/|$)/)?.[1] ?? path.match(/^\/var\/audit\/ucp\/([a-z]{2})/)?.[1] ?? "uk";
-const STATUS_TEXT: Record<PageStatus, string> = { draft: "reopened {t} as a draft", review: "sent {t} for review", approved: "approved {t}", scheduled: "scheduled {t} for publishing", published: "published {t}", failed: "publish of {t} failed" };
+const STATUS_TEXT: Record<PageStatus, string> = { draft: "reopened {t} as a draft", review: "sent {t} for review", approved: "approved {t}", scheduled: "scheduled {t} for publishing", published: "published {t}", modified: "started changes to {t}", failed: "publish of {t} failed" };
 
 async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }> }) {
   const { op } = await ctx.params; const o = op.join("/"); const q = req.nextUrl.searchParams; const path = q.get("path") ?? ""; const r = repo(); const rid = crypto.randomUUID();
   const ok = (b: unknown, status = 200) => NextResponse.json(b, { status, headers: { "X-Request-Id": rid, "X-Backend": r.kind } });
   const audit = (type: "content" | "publishing" | "permissions" | "system", text: string, target?: string, level?: "crit" | "") => logEvent(marketOf(target ?? path), { type, text, target: target ?? path, level, requestId: rid });
   /** Refuse what the signed-in user may not do on that folder (mirrors the UI's `can`). */
-  const guard = async (perm: PermKey, p: string) => { const u = await me(); const mk = market(marketOf(p)); if (!can(u, perm, p, mk.root)) throw new RepoError(403, `You don't have ${PERM_LABEL[perm]} on ${p.replace(mk.root, "").split("/").filter(Boolean)[0] ?? mk.name}`, `Ask a site admin to grant ${PERM_LABEL[perm]} for ${u.name}`, rid); return u; };
+  const guard = async (perm: PermKey, p: string) => { const u = await me(); const mk = (await getMarket(marketOf(p))); if (!can(u, perm, p, mk.root)) throw new RepoError(403, `You don't have ${PERM_LABEL[perm]} on ${p.replace(mk.root, "").split("/").filter(Boolean)[0] ?? mk.name}`, `Ask a site admin to grant ${PERM_LABEL[perm]} for ${u.name}`, rid); return u; };
   try {
     if (o === "me") return ok(await r.identity());
     if (o === "node" && req.method === "GET") { const n = await r.getNode(path, Number(q.get("depth") ?? 1)); return n ? ok(n) : problem(new RepoError(404, "Not found", path)); }

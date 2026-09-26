@@ -20,7 +20,7 @@ cp .env.example .env.local   # CONTENTLIBRE_MODE=mock works without any API acce
 npm run dev -- -p 3100
 ```
 
-Set `UCP_BACKEND=contentlibre` (+ `CONTENTLIBRE_*`) or `UCP_BACKEND=sling` (+ `SLING_URL`, `SLING_USER`, `SLING_PASSWORD`) to use a real backend.
+Set `UCP_BACKEND=contentlibre` (+ `CONTENTLIBRE_*`, see `.env.example` and `INTEGRATION-CONTENTLIBRE.md` for how sign-in and the BFF work) or `UCP_BACKEND=sling` (+ `SLING_URL`, `SLING_USER`, `SLING_PASSWORD`) to use a real backend.
 
 ## Repository layout (what the Sling instance must contain)
 

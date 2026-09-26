@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { pageDeliveryJson, modelSchema, listModels, listAssets, listTemplates } from "@/lib/server/ucp";
 import { allPages } from "@/lib/server/pages";
-import { MARKETS, market } from "@/lib/markets";
+import { getMarket, getMarkets } from "@/lib/server/markets";
 import { PATHS } from "@/lib/ucp/paths";
 
 /**
@@ -15,14 +15,14 @@ import { PATHS } from "@/lib/ucp/paths";
  * Only published pages are served on the non-preview route.
  */
 export async function GET(req: NextRequest, ctx: { params: Promise<{ op: string[] }> }) {
-  const { op } = await ctx.params; const q = req.nextUrl.searchParams; const mid = q.get("market") ?? "uk"; const mk = market(mid); const host = mk.domain;
+  const { op } = await ctx.params; const q = req.nextUrl.searchParams; const mid = q.get("market") ?? "uk"; const mk = (await getMarket(mid)); const host = mk.domain;
   const json = (b: unknown, status = 200) => NextResponse.json(b, { status, headers: { "X-Request-Id": crypto.randomUUID(), "Cache-Control": "public, max-age=60", "Access-Control-Allow-Origin": "*" } });
   const notFound = (detail: string) => NextResponse.json({ type: "about:blank", title: "Not found", status: 404, detail }, { status: 404, headers: { "Content-Type": "application/problem+json" } });
   const [head, ...rest] = op;
   if (head === "models" && !rest.length) return json({ items: (await listModels()).map((m) => ({ id: m.id, name: m.name, group: m.group, version: m.version, fields: m.fields.length, _links: { schema: `/v1/models/${m.id}` } })) });
   if (head === "models") { const m = (await listModels()).find((x) => x.id === rest[0]); return m ? json(modelSchema(m)) : notFound(`model ${rest[0]}`); }
   if (head === "assets") { const a = (await listAssets(mid)).find((x) => x.id === rest[0]); if (!a) return notFound(`asset ${rest[0]}`); return json({ id: a.id, name: a.name, type: a.type, rendition: rest[1] ?? "original", width: a.width, height: a.height, url: a.data ?? null, note: a.data ? "inline data for mock uploads" : "binary served by the DAM on the Sling backend" }); }
-  if (head === "markets") return json({ items: MARKETS.map((m) => ({ id: m.id, name: m.name, locales: m.locales, domain: m.domain, status: m.status })) });
+  if (head === "markets") return json({ items: (await getMarkets()).map((m) => ({ id: m.id, name: m.name, locales: m.locales, domain: m.domain, status: m.status })) });
   if (head === "templates") return json({ items: await listTemplates() });
   const preview = head === "preview"; const segs = preview ? rest.slice(1) : rest;
   if ((head === "pages" || (preview && rest[0] === "pages"))) {

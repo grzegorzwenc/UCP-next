@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { market } from "@/lib/markets";
+import { getMarket } from "@/lib/server/markets";
 import { allPages } from "@/lib/server/pages";
 import { listEntities, listModelFolders, listModels, listModelVersions, listTemplates, listUsers, me, modelUsage } from "@/lib/server/ucp";
 import { modelSchema, modelConfig } from "@/lib/ucp/schema";
@@ -13,7 +13,7 @@ import { TABS, type ModelTab, type UsedPage } from "@/components/models/fieldMet
  * Entities have their own section; old `?model=<id>&entity=<entityId>` links redirect there.
  */
 export default async function Page({ params, searchParams }: PageProps<"/[market]/[env]/models">) {
-  const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = market(mid);
+  const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = (await getMarket(mid));
   const s = (v: unknown) => (typeof v === "string" ? v : "");
   if (s(sp.entity)) redirect(`/${mid}/${eid}/entities?model=${encodeURIComponent(s(sp.model))}&entity=${encodeURIComponent(s(sp.entity))}`);
   const [models, pages, templates, users, viewer, entities, folders] = await Promise.all([listModels(), allPages(mk.root), listTemplates(), listUsers(), me(), listEntities(mid).catch(() => []), listModelFolders()]);

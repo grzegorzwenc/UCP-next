@@ -4,9 +4,13 @@ import { allPages } from "@/lib/server/pages";
 import { listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
 import { can } from "@/lib/ucp/perms";
 import { SESSION_COOKIE } from "@/lib/server/session";
+import { CL_SESSION_COOKIE, contentLibreSignIn, contentLibreSignOut } from "@/lib/server/contentlibre";
+
+/** Matches the backend's default form-login session (LIBRE_AUTH_SESSION_TIMEOUT_MINUTES, 480); the backend's own expiry still wins. */
+const CL_SESSION_MAX_AGE = 60 * 60 * 8;
 import { PATHS } from "@/lib/ucp/paths";
 import { CY } from "@/lib/ucp/seed";
-import { market } from "@/lib/markets";
+import { getMarket } from "@/lib/server/markets";
 
 /**
  * Derived, market-scoped reads and a few multi-step actions the UI needs. Everything persists through the repo port.
@@ -29,7 +33,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     if (o === "tasks") return ok(await listTasks(mid));
     /* ---- content entities: reading is open; writing needs Edit on the market (authors create content, admins define models) ---- */
     if (o.startsWith("entities")) {
-      const u = await me(); const mk = market(mid); const path = q.get("path") ?? "";
+      const u = await me(); const mk = (await getMarket(mid)); const path = q.get("path") ?? "";
       if (o === "entities" && req.method === "GET") return ok(await listEntities(mid, q.get("model") ?? undefined));
       if (o === "entities/get" && req.method === "GET") { const e = await getEntity(path); return e ? ok({ ...e, usedOn: ((await entityUsage(mid))[path] ?? []).map((p) => p.path) }) : problem(new RepoError(404, "Entity not found", path)); }
       if (o === "entities/resolve" && req.method === "POST") return ok(await resolveBindings(await req.json(), q.get("published") === "true"));
@@ -45,11 +49,11 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       if (o === "entities/delete" && req.method === "POST") { const used = (await entityUsage(mid))[path] ?? []; if (used.length) return problem(new RepoError(409, `Used on ${used.length} page${used.length === 1 ? "" : "s"}`, "Remove it from those pages first")); await deleteEntity(path); await logEvent(mid, { type: "content", text: `deleted entity ${path.split("/").pop()}`, target: "models", requestId: rid }); return ok({ ok: true }); }
     }
     /* ---- page bindings ({{alias.field}}) ---- */
-    if (o === "bindings" && req.method === "POST") { const u = await me(); const mk = market(mid); const path = q.get("path") ?? ""; if (!can(u, "edit", path, mk.root)) return problem(new RepoError(403, "You don't have Edit on this page", `Signed in as ${u.name}`)); const b = await req.json(); await repo().setProps(`${path}/jcr:content`, { "ucp:bindings": JSON.stringify(b) }); await logEvent(mid, { type: "content", text: `linked ${Object.keys(b).length} content entit${Object.keys(b).length === 1 ? "y" : "ies"} to ${path.split("/").pop()}`, target: path, requestId: rid }); return ok(b); }
+    if (o === "bindings" && req.method === "POST") { const u = await me(); const mk = (await getMarket(mid)); const path = q.get("path") ?? ""; if (!can(u, "edit", path, mk.root)) return problem(new RepoError(403, "You don't have Edit on this page", `Signed in as ${u.name}`)); const b = await req.json(); await repo().setProps(`${path}/jcr:content`, { "ucp:bindings": JSON.stringify(b) }); await logEvent(mid, { type: "content", text: `linked ${Object.keys(b).length} content entit${Object.keys(b).length === 1 ? "y" : "ies"} to ${path.split("/").pop()}`, target: path, requestId: rid }); return ok(b); }
     /* ---- review assignment ---- */
     if (o === "reviewers" && req.method === "GET") return ok(await reviewerOptions(mid, q.get("path") ?? ""));
     if (o === "review/send" && req.method === "POST") {
-      const u = await me(); const mk = market(mid); const path = q.get("path") ?? ""; const { assignee, auto, note } = await req.json() as { assignee?: string; auto?: boolean; note?: string };
+      const u = await me(); const mk = (await getMarket(mid)); const path = q.get("path") ?? ""; const { assignee, auto, note } = await req.json() as { assignee?: string; auto?: boolean; note?: string };
       if (!can(u, "edit", path, mk.root)) return problem(new RepoError(403, "You don't have Edit on this page", `Signed in as ${u.name}`));
       const pick = auto || !assignee ? await autoAssignee(mid, path, u.id) : (await reviewerOptions(mid, path)).find((o) => o.id === assignee);
       if (!pick) return problem(new RepoError(400, "Nobody can review this page", "Ask a site admin to grant Review & approve on this folder"));
@@ -86,6 +90,21 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       if (o === "models/move" && req.method === "POST") { const b = await req.json(); const m = await moveModel(id, b, u.id); await logEvent(mid, { type: "content", text: `moved model ${m.name} to ${m.group}`, target: "models", requestId: rid }); return ok(m); }
       if (o === "models/delete" && req.method === "POST") { await deleteModel(id); await logEvent(mid, { type: "content", text: `deleted model ${id}`, target: "models", requestId: rid }); return ok({ ok: true }); }
     }
+    if (o === "login" && req.method === "POST" && repo().kind === "contentlibre") {
+      // A real sign-in: the backend checks the password, and its session token is kept here, httpOnly, for the BFF to replay.
+      const { username, password } = await req.json() as { username?: string; password?: string };
+      if (!username || !password) return problem(new RepoError(400, "User name and password are required"));
+      const token = await contentLibreSignIn(username, password);
+      const res = ok({ ok: true, user: { id: username } });
+      const cookie = { httpOnly: true, sameSite: "lax" as const, secure: req.nextUrl.protocol === "https:", path: "/", maxAge: CL_SESSION_MAX_AGE };
+      res.cookies.set(CL_SESSION_COOKIE, token, cookie); res.cookies.set(SESSION_COOKIE, username, cookie);
+      return res;
+    }
+    if (o === "logout" && req.method === "POST" && repo().kind === "contentlibre") {
+      await contentLibreSignOut(); const res = ok({ ok: true });
+      res.cookies.set(CL_SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 }); res.cookies.set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
+      return res;
+    }
     if (o === "login" && req.method === "POST") { const { id } = await req.json(); const u = (await listUsers()).find((x) => x.id === id); if (!u) return problem(new RepoError(401, "Unknown user", id)); const res = ok({ ok: true, user: u }); res.cookies.set(SESSION_COOKIE, u.id, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 12 }); await logEvent(mid, { type: "system", who: u.id, text: "signed in (SSO stand-in)", target: `user:${u.id}`, requestId: rid }); return res; }
     if (o === "logout" && req.method === "POST") { const res = ok({ ok: true }); res.cookies.set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 }); return res; }
     if (o === "versions" && req.method === "GET") return ok(await listVersions(q.get("path") ?? ""));
@@ -108,7 +127,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       return ok(out, 201);
     }
     if (o === "translate" && req.method === "POST") {
-      const b = await req.json() as { pages: string[]; langs: string[]; review?: boolean; dest?: string; mode?: "ai" | "vendor" }; const r = repo(); const created: string[] = []; const mk = market(mid);
+      const b = await req.json() as { pages: string[]; langs: string[]; review?: boolean; dest?: string; mode?: "ai" | "vendor" }; const r = repo(); const created: string[] = []; const mk = (await getMarket(mid));
       const tr = (t: string, lang: string) => CY[t] && lang === "cy-GB" ? CY[t] : `${t} (${lang})`;
       for (const lang of b.langs) for (const src of b.pages) {
         const v = await r.getPage(src); if (!v) continue; const parent = b.dest || src.replace(/\/[^/]+$/, ""); const name = `${lang.split("-")[0]}-${v.name}`; const path = `${parent}/${name}`;

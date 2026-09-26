@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
-import { market, env } from "@/lib/markets";
+import { env } from "@/lib/markets";
+import { useMarket } from "@/components/shell/Markets";
 
 const ITEMS: ([string] | [string, string, string])[] = [
   ["Content"], ["dashboard", "Dashboard", "M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"], ["pages", "Pages", "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"], ["assets", "Assets", "M3 4h18v16H3zM9 10a2 2 0 1 0 0-.1M21 16l-5-5-8 8"], ["models", "Content models", "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"], ["entities", "Content entities", "M8 3h12a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM4 7v12a1 1 0 0 0 1 1h12M10 7.5h8M10 11h5"], ["templates", "Templates", "M6 3h8l5 5v13H6zM14 3v5h5"],
@@ -34,7 +35,7 @@ export function useShellMode() {
 export function SideNav({ marketId, envId, forcedMini }: { marketId: string; envId: string; forcedMini?: boolean }) {
   const pathname = usePathname(); const { pref, tablet, phone, drawer } = useShellMode();
   const mini = !phone && (forcedMini || tablet || pref); const seg = pathname.split("/")[3] || "dashboard"; const active = seg === "page" ? "pages" : seg;
-  const mk = market(marketId), e = env(envId);
+  const mk = useMarket(marketId), e = env(envId);
   if (phone && !drawer) return null;
   const nav = (
     <nav aria-label="Main" className={`relative bg-surface border-r border-line flex flex-col overflow-auto h-full ${mini ? "w-[60px] px-2 py-3" : "w-[264px] px-3.5 pt-4 pb-6"}`}>

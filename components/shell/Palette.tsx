@@ -4,7 +4,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { ucpApi } from "@/lib/api";
 import type { PageSummary } from "@/lib/api/types";
 import { BLOCKS } from "@/lib/blocks/registry";
-import { market } from "@/lib/markets";
+import { useMarket } from "@/components/shell/Markets";
 import { Pill } from "@/components/ui/Pill";
 
 /**
@@ -20,7 +20,7 @@ type Item = { id: string; section: string; label: React.ReactNode; hint?: string
 
 export function Palette({ marketId, envId }: { marketId: string; envId: string }) {
   const router = useRouter(); const pathname = usePathname();
-  const inBuilder = pathname.includes("/page/"); const base = `/${marketId}/${envId}`; const root = market(marketId).root;
+  const inBuilder = pathname.includes("/page/"); const base = `/${marketId}/${envId}`; const root = useMarket(marketId).root;
   const [open, setOpenRaw] = useState(false); const [q, setQRaw] = useState(""); const [pages, setPages] = useState<PageSummary[]>([]); const [sel, setSel] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null); const listRef = useRef<HTMLDivElement>(null); const dialogRef = useRef<HTMLDivElement>(null);
   const restoreRef = useRef<HTMLElement | null>(null); const openRef = useRef(false);

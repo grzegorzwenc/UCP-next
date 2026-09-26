@@ -11,6 +11,6 @@ export async function allPages(root: string): Promise<PageSummary[]> {
   const r = repo();
   if (r.kind === "mock") return allSummaries(root);
   const out: PageSummary[] = [];
-  const walk = async (p: string) => { const l = await r.listChildren(p, { limit: 200 }).catch(() => ({ items: [] as PageSummary[] })); for (const it of l.items) { out.push(it); if (it.isFolder) await walk(it.path); } };
+  const walk = async (p: string) => { const l = await r.listChildren(p, { limit: 200 }).catch(() => ({ items: [] as PageSummary[] })); for (const it of l.items) { out.push(it); if (it.isFolder || it.hasChildren) await walk(it.path); } };
   await walk(root); return out;
 }

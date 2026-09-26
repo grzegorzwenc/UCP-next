@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { market, env } from "@/lib/markets";
+import { env } from "@/lib/markets";
+import { getMarket } from "@/lib/server/markets";
 import { getPage } from "@/lib/server/pages";
 import { listUsers, listModels, resolveBindings } from "@/lib/server/ucp";
 import { bindingsOf } from "@/lib/ucp/tokens";
@@ -7,7 +8,7 @@ import { Builder } from "@/components/builder/Builder";
 
 export default async function PageBuilderRoute({ params }: PageProps<"/[market]/[env]/page/[...path]">) {
   const { market: mid, env: eid, path } = await params;
-  const mk = market(mid), ev = env(eid);
+  const mk = (await getMarket(mid)), ev = env(eid);
   const page = await getPage([mk.root, ...path].join("/"));
   if (!page) notFound();
   // Linked content resolves on the server too, so the first paint already shows real values instead of {{tokens}}.

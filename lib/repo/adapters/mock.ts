@@ -2,7 +2,7 @@ import type { ContentRepository, PageView, PageSummary, ComponentNode, RepoNode,
 import { RepoError } from "../types";
 import { nodeToPage, nodeToSummary, pageToNode, blocksToComponents } from "../mapping";
 import { makeBlock, TEMPLATES } from "@/lib/blocks/registry";
-import { MARKETS } from "@/lib/markets";
+import { MOCK_MARKETS as MARKETS } from "@/lib/markets";
 import { SEED_USERS, SEED_ASSETS, ASSET_FOLDERS, SEED_MODELS, SEED_TEMPLATES, FORMS, ME } from "@/lib/ucp/seed";
 import { PATHS } from "@/lib/ucp/paths";
 import { sessionUserId } from "@/lib/server/session";

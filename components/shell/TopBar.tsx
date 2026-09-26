@@ -2,7 +2,8 @@
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { MARKETS, ENVS, market, env } from "@/lib/markets";
+import { ENVS, env } from "@/lib/markets";
+import { useMarket, useMarkets } from "@/components/shell/Markets";
 import { openDrawer, useShellMode } from "@/components/shell/SideNav";
 import { ucpApi } from "@/lib/api";
 import type { PageSummary } from "@/lib/api/types";
@@ -113,14 +114,14 @@ function Account() {
 export function TopBar({ marketId, envId }: { marketId: string; envId: string }) {
   const router = useRouter(); const pathname = usePathname();
   const rest = pathname.split("/").slice(3).join("/") || "dashboard";
-  const m = market(marketId), e = env(envId); const base = `/${marketId}/${envId}`;
+  const markets = useMarkets(); const m = useMarket(marketId), e = env(envId); const base = `/${marketId}/${envId}`;
   const { phone } = useShellMode();
   return (
     <header className="h-[52px] flex items-center gap-2 md:gap-3 px-3 md:px-4 bg-[#0F1013] text-white">
       {phone && <button type="button" aria-label="Open menu" onClick={() => openDrawer(true)} className="w-9 h-9 grid place-items-center rounded-md hover:bg-white/10 -ml-1"><svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none stroke-2" aria-hidden><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>}
       <a href={`/${marketId}/${envId}/dashboard`} className="flex items-center gap-2 font-semibold text-sm pr-2 rounded hover:bg-white/10 px-1.5 py-1 whitespace-nowrap"><img src="/hsbc-logo-white.svg" alt="" className="h-6" /><span className="hidden lg:inline w-px h-4 bg-white/25 mx-1" /><span className="hidden lg:inline">Unified Content Management</span></a>
       <label className="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-md px-2.5 py-1 text-[13px] max-w-[46vw] md:max-w-none">
-        <select aria-label="Market" className="bg-transparent font-semibold outline-none" value={m.id} onChange={(ev) => router.push(`/${ev.target.value}/${envId}/${rest}`)}>{MARKETS.map((x) => <option key={x.id} value={x.id} className="text-black">{x.flag} {x.name}</option>)}</select>
+        <select aria-label="Market" className="bg-transparent font-semibold outline-none" value={m.id} onChange={(ev) => router.push(`/${ev.target.value}/${envId}/${rest}`)}>{markets.map((x) => <option key={x.id} value={x.id} className="text-black">{x.flag} {x.name}</option>)}</select>
       </label>
       <label className="hidden sm:flex items-center gap-1.5 bg-white/10 border rounded-md px-2.5 py-1 text-[13px]" style={{ borderColor: e.color, color: e.color }}>
         <i className="inline-block w-2 h-2 rounded-full" style={{ background: e.color }} />

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { market, env } from "@/lib/markets";
+import { env } from "@/lib/markets";
+import { getMarket } from "@/lib/server/markets";
 import { allPages, backend } from "@/lib/server/pages";
 import { readLogFor, listTasks, userName } from "@/lib/server/ucp";
 import { Pill } from "@/components/ui/Pill";
@@ -39,18 +40,21 @@ function Card({ title, right, children }: { title: string; right?: React.ReactNo
 
 export default async function Dashboard({ params }: PageProps<"/[market]/[env]/dashboard">) {
   const { market: mid, env: eid } = await params;
-  const mk = market(mid), ev = env(eid); const base = `/${mid}/${eid}`;
+  const mk = (await getMarket(mid)), ev = env(eid); const base = `/${mid}/${eid}`;
   const everything = await allPages(mk.root); const all = everything.filter((p) => !p.isFolder); const folders = everything.filter((p) => p.isFolder && p.path.split("/").length === mk.root.split("/").length + 1);
   const [{ log }, tasks] = await Promise.all([readLogFor(mk.id, 5), listTasks(mk.id, everything)]);
   const names = Object.fromEntries(await Promise.all(log.map(async (e) => [e.who, await userName(e.who)] as const)));
   const c = (s: string) => all.filter((p) => p.status === s).length; const n = all.length; const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
+  // A real backend has no delivery-metrics or content-event service yet: show what it records (publication), never demo numbers.
+  const demo = backend() === "mock"; const live = c("published") + c("modified");
   const health = ({ prod: ["99.98%", "84 ms"], stage: ["99.9%", "96 ms"], test: ["98.7%", "140 ms"], dev: ["97.2%", "210 ms"] } as Record<string, string[]>)[ev.id] ?? ["99.9%", "90 ms"];
   const overdue = tasks.filter((t) => t.overdueDays > 0).length; const oldest = tasks.filter((t) => t.kind === "Review").sort((a, b) => (a.sentAt ?? "").localeCompare(b.sentAt ?? ""))[0];
   const waitingDays = oldest?.sentAt ? Math.max(0, Math.round((now() - new Date(oldest.sentAt).getTime()) / 86400000)) : 0;
   const tiles = [
-    { l: `Pages on ${mk.name}`, v: n, sub: `${c("published")} published · ${c("draft") + c("failed")} in draft`, href: `${base}/pages`, go: "View pages", color: "var(--accent)" },
+    { l: `Pages on ${mk.name}`, v: n, sub: `${live} published · ${c("draft") + c("failed")} in draft`, href: `${base}/pages`, go: "View pages", color: "var(--accent)" },
     { l: "Waiting for review", v: c("review"), sub: c("review") ? `Oldest waiting ${waitingDays} day${waitingDays === 1 ? "" : "s"}` : "Nothing waiting. Nice.", href: `${base}/tasks?kind=Review`, go: "Open reviews", color: "var(--review)" },
-    { l: "Published", v: c("published"), sub: `${pct(c("published"), n)}% of the site is live`, href: `${base}/pages`, go: "See published pages", color: "var(--good)" },
+    { l: "Published", v: live, sub: `${pct(live, n)}% of the site is live`, href: `${base}/pages`, go: "See published pages", color: "var(--good)" },
+    !demo ? { l: "Changes pending", v: c("modified"), sub: c("modified") ? "Live pages with unpublished drafts" : "Every live page matches its latest edit", href: `${base}/pages`, go: "View pages", color: "var(--warn)" } :
     { l: `Delivery · ${ev.name}`, v: c("failed") ? `${c("failed")} failed` : health[0], sub: c("failed") ? "A publish failed and needs action" : `Uptime · ${health[1]} typical response`, href: `${base}/api`, go: "Delivery details", color: c("failed") ? "var(--crit)" : "var(--info)" },
   ];
   const recent = all.slice().sort((a, b) => (b.lastModified ?? "").localeCompare(a.lastModified ?? "")).slice(0, 6);
@@ -74,8 +78,8 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
         {tiles.map((t) => <Link key={t.l} href={t.href} className="bg-surface border border-line p-6 min-h-[150px] flex flex-col gap-1.5 hover:border-ink-3 hover:shadow-md" style={{ borderTop: `4px solid ${t.color}` }}><span className="text-[13px] text-ink-2">{t.l}</span><span className="text-[44px] font-light leading-none tabular-nums" style={{ color: t.color === "var(--crit)" ? t.color : undefined }}>{t.v}</span><span className="text-[13px] text-ink-3">{t.sub}</span><span className="text-[13px] font-medium mt-auto">{t.go} <span className="text-accent font-bold">›</span></span></Link>)}
       </div>
       <div className="grid md:grid-cols-2 gap-3.5 mb-3.5">
-        <Card title="Content by status"><StatusViz total={n} parts={[{ l: "Published", n: c("published"), c: "var(--good)" }, { l: "Approved", n: c("approved"), c: "var(--info)" }, { l: "In review", n: c("review"), c: "var(--review)" }, { l: "Scheduled", n: c("scheduled"), c: "var(--sched)" }, { l: "Draft", n: c("draft"), c: "var(--neutral)" }, { l: "Publish failed", n: c("failed"), c: "var(--crit)" }].filter((p) => p.n)} /></Card>
-        <Card title="Content activity" right={<span className="font-normal text-ink-3">Last 30 days</span>}><LineChart /></Card>
+        <Card title="Content by status"><StatusViz total={n} parts={[{ l: "Published", n: c("published"), c: "var(--good)" }, { l: "Published, changes pending", n: c("modified"), c: "var(--warn)" }, { l: "Approved", n: c("approved"), c: "var(--info)" }, { l: "In review", n: c("review"), c: "var(--review)" }, { l: "Scheduled", n: c("scheduled"), c: "var(--sched)" }, { l: "Draft", n: c("draft"), c: "var(--neutral)" }, { l: "Publish failed", n: c("failed"), c: "var(--crit)" }].filter((p) => p.n)} /></Card>
+        <Card title="Content activity" right={<span className="font-normal text-ink-3">Last 30 days</span>}>{demo ? <LineChart /> : <p className="text-ink-3 text-[13px] py-6">No activity history yet: this backend does not record content events.</p>}</Card>
       </div>
       <div className="grid md:grid-cols-2 gap-3.5 mb-3.5">
         <Card title="Pages by section"><ul className="flex flex-col gap-1">{bySection.map(({ f, n: k }) => <li key={f.path}><Link href={`${base}/pages${f.path.replace(mk.root, "")}`} className="grid grid-cols-[140px_1fr_32px] items-center gap-3 py-1.5 text-[13.5px] hover:bg-surface-2 -mx-2 px-2 rounded"><span>{f.title}</span><span className="h-2.5 bg-surface-3 rounded overflow-hidden"><i className="block h-full bg-accent" style={{ width: `${Math.round((k / secMax) * 100)}%` }} /></span><b className="text-right tabular-nums">{k}</b></Link></li>)}</ul></Card>

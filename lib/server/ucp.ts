@@ -11,7 +11,7 @@ import { ME, SEED_USERS } from "@/lib/ucp/seed";
 import { allPages } from "@/lib/server/pages";
 import { sessionUserId } from "@/lib/server/session";
 import { can } from "@/lib/ucp/perms";
-import { market as marketOf } from "@/lib/markets";
+import { getMarket } from "@/lib/server/markets";
 
 /**
  * Domain services over the repository port. Each object is one JCR node; these helpers only map properties.
@@ -43,10 +43,24 @@ export async function assetUsage(marketId: string, all?: PageSummary[]): Promise
 
 /* ---------------- users (/home/users/<id>) ---------------- */
 const toUser = (n: RepoNode): User => ({ id: n.name, path: n.path, name: str(n.properties["ucp:name"], n.name), email: str(n.properties["profile/email"]), role: (str(n.properties["ucp:role"], "viewer") as Role), team: str(n.properties["ucp:team"]), perms: json<Perms>(n.properties["ucp:perms"], {}) });
-export async function listUsers(): Promise<User[]> { const u = await kids(PATHS.users, 1); return u.length ? u.map(toUser) : SEED_USERS.map((x) => ({ ...x, path: `${PATHS.users}/${x.id}` })); }
+/**
+ * ContentLIBRE's user manager is not exposed to this app yet, so its list is the signed-in person only — never the
+ * demo seed, which would present made-up people as real accounts on a real backend.
+ */
+export async function listUsers(): Promise<User[]> { if (repo().kind === "contentlibre") return [await contentLibreMe()]; const u = await kids(PATHS.users, 1); return u.length ? u.map(toUser) : SEED_USERS.map((x) => ({ ...x, path: `${PATHS.users}/${x.id}` })); }
 export async function getUser(id: string): Promise<User | undefined> { return (await listUsers()).find((u) => u.id === id); }
 export async function userName(id: string): Promise<string> { if (id === "system") return "System"; const u = await getUser(id); return u?.name ?? id.split(".").map((s) => s[0]?.toUpperCase() + s.slice(1)).join(" "); }
-export async function me(): Promise<User> { const id = (await sessionUserId()) ?? (await repo().identity().catch(() => ({ id: ME }))).id; return (await getUser(id)) ?? { id, path: `${PATHS.users}/${id}`, name: await userName(id), email: "", role: "author", team: "", perms: { root: { read: true } } }; }
+/**
+ * ContentLIBRE keeps people in its own user manager and decides access with ACLs, so the signed-in person comes
+ * from identity/v1/me: administrators are site admins, members of `content-authors` (the backend's author group)
+ * are authors, everyone else reads. The backend still checks every operation as that person.
+ */
+async function contentLibreMe(): Promise<User> {
+  const idt = await repo().identity();
+  const role: Role = idt.administrator ? "admin" : idt.groups.includes("content-authors") ? "author" : "viewer";
+  return { id: idt.id, path: `${PATHS.users}/${idt.id}`, name: idt.id, email: "", role, team: idt.groups.join(", "), perms: {} };
+}
+export async function me(): Promise<User> { if (repo().kind === "contentlibre") return contentLibreMe(); const id = (await sessionUserId()) ?? (await repo().identity().catch(() => ({ id: ME }))).id; return (await getUser(id)) ?? { id, path: `${PATHS.users}/${id}`, name: await userName(id), email: "", role: "author", team: "", perms: { root: { read: true } } }; }
 
 /* ---------------- models (/conf/hsbc/models/<id>) + block types from the registry ---------------- */
 const toModel = (n: RepoNode): Model => { const fields = json<ModelField[]>(n.properties["ucp:fields"], []); const pub = n.properties["ucp:publishedFields"] !== undefined ? json<ModelField[]>(n.properties["ucp:publishedFields"], []) : undefined; const pv = num(n.properties["ucp:publishedVersion"]);
@@ -89,7 +103,7 @@ export async function logEvent(marketId: string, ev: { type: AuditType; who?: st
 const hash = (s: string) => s.split("").reduce((a, c) => a + c.charCodeAt(0), 0);
 export async function listTasks(marketId: string, all?: PageSummary[]): Promise<Task[]> {
   const pages = (all ?? await allPages(PATHS.content(marketId))).filter((p) => !p.isFolder); const user = await me(); const meId = user.id; const now = new Date();
-  const admin = user.role === "admin" || !!user.perms.root?.manage; const root = marketOf(marketId).root;
+  const admin = user.role === "admin" || !!user.perms.root?.manage; const root = (await getMarket(marketId)).root;
   /* Visibility: admins see every task; everyone else only what they can act on or what they started. */
   const mine = (p: PageSummary, kind: TaskKind) => admin || str(p.meta?.["ucp:sentBy"]) === meId || (p.lastModifiedBy ?? ME) === meId || (kind === "Review" && (str(p.meta?.["ucp:assignee"]) ? str(p.meta?.["ucp:assignee"]) === meId : can(user, "review", p.path, root))) || ((kind === "Publish" || kind === "Fix" || kind === "Check") && can(user, "publish", p.path, root));
   const dueOf = (p: PageSummary) => { const d = p.meta?.["ucp:due"]; if (typeof d === "string" && d) return new Date(d); const off = (hash(p.path) % 9) - 2; const x = new Date(now); x.setDate(x.getDate() + off); return x; };
@@ -290,7 +304,7 @@ export async function resolveBindings(b: Bindings, published = false): Promise<R
 
 /* ---------------- review assignment ---------------- */
 export async function reviewerOptions(marketId: string, pagePath: string): Promise<ReviewerOption[]> {
-  const [users, pages] = await Promise.all([listUsers(), allPages(PATHS.content(marketId))]); const root = marketOf(marketId).root;
+  const [users, pages] = await Promise.all([listUsers(), allPages(PATHS.content(marketId))]); const root = (await getMarket(marketId)).root;
   const active = (id: string) => pages.filter((p) => p.status === "review" && str(p.meta?.["ucp:assignee"]) === id).length;
   return users.filter((u) => can(u, "review", pagePath, root)).map((u) => ({ id: u.id, name: u.name, team: u.team, activeReviews: active(u.id) })).sort((a, b) => a.activeReviews - b.activeReviews || a.name.localeCompare(b.name));
 }

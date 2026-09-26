@@ -45,6 +45,8 @@ export const ucpApi = {
   logEvent: (market: string, ev: { type: "content" | "publishing" | "permissions" | "system"; text: string; target?: string; level?: "crit" | "" }) => U<{ ok: true }>("log", { method: "POST", query: { market }, body: JSON.stringify(ev) }),
   upload: (market: string, folder: string, files: File[]) => { const fd = new FormData(); files.forEach((f) => fd.append("files", f)); return U<Asset[]>("upload", { method: "POST", query: { market, folder }, body: fd }); },
   login: (id: string) => U<{ ok: true; user: User }>("login", { method: "POST", body: JSON.stringify({ id }) }),
+  /** Real sign-in against the backend (ContentLIBRE): the BFF keeps the backend session, the browser never sees it. */
+  signIn: (username: string, password: string) => U<{ ok: true; user: { id: string } }>("login", { method: "POST", body: JSON.stringify({ username, password }) }),
   logout: () => U<{ ok: true }>("logout", { method: "POST", body: "{}" }),
   versions: (path: string) => U<{ id: string; time: string; who: string; note: string; title: string; status: string; blocks: number }[]>("versions", { query: { path } }),
   restoreVersion: (market: string, path: string, id: string) => U<{ ok: true }>("versions/restore", { method: "POST", query: { market, path }, body: JSON.stringify({ id }) }),
