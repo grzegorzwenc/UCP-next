@@ -12,7 +12,7 @@ import { allPages } from "@/lib/server/pages";
 import { sessionUserId } from "@/lib/server/session";
 import { can } from "@/lib/ucp/perms";
 import { getMarket } from "@/lib/server/markets";
-import { clApi } from "@/lib/server/contentlibre";
+import { clApi, listPeople } from "@/lib/server/contentlibre";
 
 /**
  * Domain services over the repository port. Each object is one JCR node; these helpers only map properties.
@@ -48,7 +48,7 @@ const toUser = (n: RepoNode): User => ({ id: n.name, path: n.path, name: str(n.p
  * ContentLIBRE's user manager is not exposed to this app yet, so its list is the signed-in person only — never the
  * demo seed, which would present made-up people as real accounts on a real backend.
  */
-export async function listUsers(): Promise<User[]> { if (repo().kind === "contentlibre") return [await contentLibreMe()]; const u = await kids(PATHS.users, 1); return u.length ? u.map(toUser) : SEED_USERS.map((x) => ({ ...x, path: `${PATHS.users}/${x.id}` })); }
+export async function listUsers(): Promise<User[]> { if (repo().kind === "contentlibre") return contentLibrePeople(); const u = await kids(PATHS.users, 1); return u.length ? u.map(toUser) : SEED_USERS.map((x) => ({ ...x, path: `${PATHS.users}/${x.id}` })); }
 export async function getUser(id: string): Promise<User | undefined> { return (await listUsers()).find((u) => u.id === id); }
 export async function userName(id: string): Promise<string> { if (id === "system") return "System"; const u = await getUser(id); return u?.name ?? id.split(".").map((s) => s[0]?.toUpperCase() + s.slice(1)).join(" "); }
 /**
@@ -59,9 +59,17 @@ export async function userName(id: string): Promise<string> { if (id === "system
  */
 async function contentLibreMe(): Promise<User> {
   const idt = await repo().identity();
-  const role: Role = idt.administrator ? "admin" : idt.groups.includes("content-reviewers") ? "reviewer" : idt.groups.includes("content-authors") ? "author" : "viewer";
+  const role = roleOf(!!idt.administrator, idt.groups);
   return { id: idt.id, path: `${PATHS.users}/${idt.id}`, name: idt.id, email: "", role, team: idt.groups.join(", "), perms: {} };
 }
+/** ContentLIBRE's people with the role their groups give them; just the signed-in person when the list is not readable. */
+async function contentLibrePeople(): Promise<User[]> {
+  try {
+    return (await listPeople()).filter((p) => !p.disabled).map((p) => ({ id: p.id, path: `${PATHS.users}/${p.id}`, name: p.id, email: "", role: roleOf(p.admin, p.memberOf), team: p.memberOf.join(", "), perms: {} }));
+  } catch { return [await contentLibreMe()]; }
+}
+const roleOf = (admin: boolean, groups: string[]): Role => admin || groups.includes("administrators") ? "admin" : groups.includes("content-reviewers") ? "reviewer" : groups.includes("content-authors") ? "author" : "viewer";
+
 export async function me(): Promise<User> { if (repo().kind === "contentlibre") return contentLibreMe(); const id = (await sessionUserId()) ?? (await repo().identity().catch(() => ({ id: ME }))).id; return (await getUser(id)) ?? { id, path: `${PATHS.users}/${id}`, name: await userName(id), email: "", role: "author", team: "", perms: { root: { read: true } } }; }
 
 /* ---------------- models (/conf/hsbc/models/<id>) + block types from the registry ---------------- */

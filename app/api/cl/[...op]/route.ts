@@ -1,6 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { RepoError } from "@/lib/repo";
 import { clApi, clRender, clSlingJson, clSlingPost, isEditablePath } from "@/lib/server/contentlibre";
+import { logEvent } from "@/lib/server/ucp";
+import { getMarkets } from "@/lib/server/markets";
+
+/** The page a content or draft-payload path belongs to: `/var/pages/drafts/content/x/<id>/jcr:content/...` → `/content/x`. */
+const pageOf = (path: string) => path.replace(/^\/var\/pages\/drafts/, "").replace(/\/[a-z0-9]{8}\/jcr:content(\/.*)?$/, "").replace(/\/jcr:content(\/.*)?$/, "");
+
+/** Records a builder action in the audit trail of the page's market. Best effort: it never fails the action it describes. */
+async function audit(path: string, type: "content" | "publishing", text: string) {
+  const page = pageOf(path);
+  const market = (await getMarkets()).find((m) => page === m.root || page.startsWith(m.root + "/"))?.id;
+  if (market) await logEvent(market, { type, text: `${text} ${page.split("/").pop()}`, target: page }).catch(() => undefined);
+}
+
+/** Answers `result` after recording what happened. */
+async function done(result: unknown, path: string, type: "content" | "publishing", text: string, status = 200) {
+  await audit(path, type, text);
+  return NextResponse.json(result, { status });
+}
 
 /**
  * The page builder's backend on ContentLIBRE (UCP_BACKEND=contentlibre). Everything runs as the signed-in person.
@@ -48,14 +66,14 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
   const path = q.get("path") ?? undefined; const draft = q.get("draft") ?? undefined;
   try {
     if (o === "drafts" && req.method === "GET") return NextResponse.json(await clApi("GET", "content/v1/drafts", { path }));
-    if (o === "drafts" && req.method === "POST") return NextResponse.json(await clApi("POST", "content/v1/drafts", { path }, await req.json().catch(() => ({}))), { status: 201 });
-    if (o === "drafts" && req.method === "DELETE") return NextResponse.json(await clApi("DELETE", "content/v1/drafts", { path, draft }));
-    if (o === "drafts/publish" && req.method === "POST") return NextResponse.json(await clApi("POST", "content/v1/drafts/publish", { path }, await req.json()));
-    if (o === "drafts/review" && req.method === "POST") return NextResponse.json(await clApi("POST", "content/v1/drafts/review", { path }, await req.json()));
-    if (o === "drafts/decision" && req.method === "POST") return NextResponse.json(await clApi("POST", "content/v1/drafts/decision", { path }, await req.json()));
+    if (o === "drafts" && req.method === "POST") return done(await clApi("POST", "content/v1/drafts", { path }, await req.json().catch(() => ({}))), path!, "content", "opened a draft of", 201);
+    if (o === "drafts" && req.method === "DELETE") return done(await clApi("DELETE", "content/v1/drafts", { path, draft }), path!, "content", "discarded a draft of");
+    if (o === "drafts/publish" && req.method === "POST") return done(await clApi("POST", "content/v1/drafts/publish", { path }, await req.json()), path!, "publishing", "published");
+    if (o === "drafts/review" && req.method === "POST") return done(await clApi("POST", "content/v1/drafts/review", { path }, await req.json()), path!, "publishing", "sent for review");
+    if (o === "drafts/decision" && req.method === "POST") { const b = await req.json() as { decision?: string }; return done(await clApi("POST", "content/v1/drafts/decision", { path }, b), path!, "publishing", b.decision === "approve" ? "approved" : "requested changes to"); }
     if (o === "reviews" && req.method === "GET") return NextResponse.json(await clApi("GET", "content/v1/drafts/reviews", { root: q.get("root") ?? undefined }));
     if (o === "page" && req.method === "GET") return NextResponse.json(await clApi("GET", "content/v1/page", { path, draft }));
-    if (o === "page" && req.method === "PATCH") return NextResponse.json(await clApi("PATCH", "content/v1/page", { path, draft }, await req.json(), "application/merge-patch+json"));
+    if (o === "page" && req.method === "PATCH") return done(await clApi("PATCH", "content/v1/page", { path, draft }, await req.json(), "application/merge-patch+json"), path!, "content", "edited the details of");
     if (o === "model" && req.method === "GET") {
       const node = requireEditable(q.get("node"));
       const [model, props] = await Promise.all([clSlingJson(`${node}.libre-model.json`), clSlingJson<Record<string, unknown>>(`${node}.json`)]);
@@ -66,20 +84,20 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       const slot = requireEditable(b.slot); const short = b.resourceType.split("/").pop() ?? "component";
       const entries: [string, string][] = [[":nameHint", short], ["sling:resourceType", b.resourceType], ...(b.before ? [[":order", `before ${b.before}`] as [string, string]] : [])];
       for (const f of b.fields ?? []) entries.push(...encode(f, f.default));
-      return NextResponse.json(await clSlingPost(`${slot}/*`, entries));
+      return done(await clSlingPost(`${slot}/*`, entries), slot, "content", `added a ${short} to`);
     }
     if (o === "component/properties" && req.method === "POST") {
       const b = await req.json() as { node: string; values: { field: Field; value: unknown }[] };
       const entries = b.values.flatMap((v) => encode(v.field, v.value));
       if (!entries.length) return NextResponse.json({ message: "Nothing changed." });
-      return NextResponse.json(await clSlingPost(requireEditable(b.node), entries));
+      return done(await clSlingPost(requireEditable(b.node), entries), b.node, "content", "edited");
     }
-    if (o === "component/remove" && req.method === "POST") { const b = await req.json() as { node: string }; return NextResponse.json(await clSlingPost(requireEditable(b.node), [[":operation", "delete"]])); }
+    if (o === "component/remove" && req.method === "POST") { const b = await req.json() as { node: string }; return done(await clSlingPost(requireEditable(b.node), [[":operation", "delete"]]), b.node, "content", "removed a component from"); }
     if (o === "component/move" && req.method === "POST") {
       const b = await req.json() as { slot: string; source: string; before?: string };
       const entries: [string, string][] = [[":operation", "libre:moveComponent"], [":source", requireEditable(b.source)]];
       if (b.before) entries.push([":before", b.before]);
-      return NextResponse.json(await clSlingPost(requireEditable(b.slot), entries));
+      return done(await clSlingPost(requireEditable(b.slot), entries), b.slot, "content", "reordered");
     }
     if (o === "preview" && req.method === "GET") {
       const html = await clRender(requireEditable(path), draft);

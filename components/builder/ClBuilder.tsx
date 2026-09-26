@@ -37,7 +37,7 @@ async function call<T>(url: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 const nameOf = (path: string) => path.split("/").pop() ?? path;
-const STATUS_PILL: Record<string, string> = { published: "published", modified: "modified", draft: "draft", unpublished: "draft" };
+const STATUS_PILL: Record<string, string> = { published: "published", modified: "modified", draft: "draft", unpublished: "draft", review: "review", approved: "approved" };
 const qs = (params: Record<string, string | undefined>) => new URLSearchParams(Object.entries(params).filter(([, v]) => v) as [string, string][]).toString();
 
 type Loaded = { drafts: Drafts; page: PageDoc; model: Model | null };
@@ -110,7 +110,8 @@ export function ClBuilder({ path, listUrl }: { path: string; listUrl: string }) 
   }, () => setSelected(null));
 
   if (!drafts || !page) return <div className="p-10 text-ink-3">{note?.kind === "err" ? note.text : "Loading the page…"}</div>;
-  const status = page.status ?? "draft";
+  // The review, when there is one, is what the page is waiting on; otherwise its publication status.
+  const status = reviewState === "IN_REVIEW" ? "review" : reviewState === "APPROVED" ? "approved" : page.status ?? "draft";
   const previewSrc = `/api/cl/preview?${q({ draft: draft?.id })}&v=${version}`;
 
   return (

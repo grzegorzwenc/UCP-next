@@ -2,7 +2,7 @@ import Link from "next/link";
 import { env } from "@/lib/markets";
 import { getMarket } from "@/lib/server/markets";
 import { allPages, backend } from "@/lib/server/pages";
-import { readLogFor, listTasks, userName } from "@/lib/server/ucp";
+import { readLog, readLogFor, listTasks, userName } from "@/lib/server/ucp";
 import { Pill } from "@/components/ui/Pill";
 import { Avatar } from "@/components/ui/Avatar";
 
@@ -10,15 +10,17 @@ import { Avatar } from "@/components/ui/Avatar";
 function series() { const out: number[][] = [[], [], []]; let a = 52, b = 38, c = 22; for (let i = 0; i < 30; i++) { a = Math.max(20, Math.min(95, a + (((i * 7) % 5) - 2) * 2.6)); b = Math.max(15, Math.min(80, b + (((i * 5) % 5) - 2) * 2.1)); c = Math.max(10, Math.min(60, c + (((i * 3) % 5) - 2) * 1.8)); out[0].push(Math.round(a)); out[1].push(Math.round(b)); out[2].push(Math.round(c)); } return out; }
 /** Wall clock read outside render so the compiler lint (react-hooks/purity) is satisfied; the page is dynamic anyway. */
 const now = () => Date.now();
-function LineChart() {
-  const W = 640, H = 230, L = 36, R = 12, T = 14, Bt = 30, n = 30, max = 100; const d = series();
+/** 30 days of activity. `data` is real (from the audit trail); without it the demo series is drawn. */
+function LineChart({ data }: { data?: number[][] }) {
+  const d = data ?? series(); const peak = Math.max(0, ...d.flat());
+  const W = 640, H = 230, L = 36, R = 12, T = 14, Bt = 30, n = 30, max = data ? Math.max(4, Math.ceil(peak / 4) * 4) : 100;
   const x = (i: number) => L + (i * (W - L - R)) / (n - 1); const y = (v: number) => T + (H - T - Bt) * (1 - v / max);
   const S = [{ k: 0, name: "Pages published", c: "var(--good)" }, { k: 1, name: "Pages created", c: "var(--ink)" }, { k: 2, name: "Content updated", c: "var(--ink-4)" }];
   const today = new Date(now()); const days = [28, 21, 14, 7, 0].map((back) => { const t = new Date(today); t.setDate(t.getDate() - back); return t.toLocaleDateString("en-GB", { day: "numeric", month: "short" }); });
   return <div>
     <div className="flex gap-4 text-[12.5px] text-ink-2 mb-2">{S.map((s) => <span key={s.k} className="flex items-center gap-1.5"><i className="w-2.5 h-2.5 rounded-sm" style={{ background: s.c }} />{s.name}<b className="ml-1 text-ink">{d[s.k].reduce((a, b) => a + b, 0).toLocaleString("en-GB")}</b></span>)}</div>
     <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Content activity over the last 30 days" className="w-full h-auto text-[11px]" style={{ fontFamily: "var(--font-mono)" }}>
-      {[0, 50, 100].map((v) => <g key={v}><line x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke="var(--line)" /><text x={L - 8} y={y(v) + 4} textAnchor="end" fill="var(--ink-3)">{v}</text></g>)}
+      {[0, max / 2, max].map((v) => <g key={v}><line x1={L} x2={W - R} y1={y(v)} y2={y(v)} stroke="var(--line)" /><text x={L - 8} y={y(v) + 4} textAnchor="end" fill="var(--ink-3)">{v}</text></g>)}
       {days.map((dn, i) => <text key={dn} x={x(Math.min(i * 7, n - 1))} y={H - 8} textAnchor={i === 0 ? "start" : i === 4 ? "end" : "middle"} fill="var(--ink-3)">{dn}</text>)}
       <path d={`M${x(0)},${y(0)} ${d[0].map((v, i) => `L${x(i)},${y(v)}`).join(" ")} L${x(n - 1)},${y(0)} Z`} fill="var(--good)" opacity=".12" />
       {S.map((s) => <polyline key={s.k} fill="none" strokeWidth={2} stroke={s.c} strokeLinejoin="round" points={d[s.k].map((v, i) => `${x(i)},${y(v)}`).join(" ")} />)}
@@ -47,6 +49,7 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
   const c = (s: string) => all.filter((p) => p.status === s).length; const n = all.length; const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
   // A real backend has no delivery-metrics or content-event service yet: show what it records (publication), never demo numbers.
   const demo = backend() === "mock"; const live = c("published") + c("modified");
+  const activity = demo ? [] : await activitySeries(mk.id);
   const health = ({ prod: ["99.98%", "84 ms"], stage: ["99.9%", "96 ms"], test: ["98.7%", "140 ms"], dev: ["97.2%", "210 ms"] } as Record<string, string[]>)[ev.id] ?? ["99.9%", "90 ms"];
   const overdue = tasks.filter((t) => t.overdueDays > 0).length; const oldest = tasks.filter((t) => t.kind === "Review").sort((a, b) => (a.sentAt ?? "").localeCompare(b.sentAt ?? ""))[0];
   const waitingDays = oldest?.sentAt ? Math.max(0, Math.round((now() - new Date(oldest.sentAt).getTime()) / 86400000)) : 0;
@@ -79,7 +82,7 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
       </div>
       <div className="grid md:grid-cols-2 gap-3.5 mb-3.5">
         <Card title="Content by status"><StatusViz total={n} parts={[{ l: "Published", n: c("published"), c: "var(--good)" }, { l: "Published, changes pending", n: c("modified"), c: "var(--warn)" }, { l: "Approved", n: c("approved"), c: "var(--info)" }, { l: "In review", n: c("review"), c: "var(--review)" }, { l: "Scheduled", n: c("scheduled"), c: "var(--sched)" }, { l: "Draft", n: c("draft"), c: "var(--neutral)" }, { l: "Publish failed", n: c("failed"), c: "var(--crit)" }].filter((p) => p.n)} /></Card>
-        <Card title="Content activity" right={<span className="font-normal text-ink-3">Last 30 days</span>}>{demo ? <LineChart /> : <p className="text-ink-3 text-[13px] py-6">No activity history yet: this backend does not record content events.</p>}</Card>
+        <Card title="Content activity" right={<span className="font-normal text-ink-3">Last 30 days</span>}>{demo ? <LineChart /> : activity.flat().some((v) => v > 0) ? <LineChart data={activity} /> : <p className="text-ink-3 text-[13px] py-6">No activity in the last 30 days.</p>}</Card>
       </div>
       <div className="grid md:grid-cols-2 gap-3.5 mb-3.5">
         <Card title="Pages by section"><ul className="flex flex-col gap-1">{bySection.map(({ f, n: k }) => <li key={f.path}><Link href={`${base}/pages${f.path.replace(mk.root, "")}`} className="grid grid-cols-[140px_1fr_32px] items-center gap-3 py-1.5 text-[13.5px] hover:bg-surface-2 -mx-2 px-2 rounded"><span>{f.title}</span><span className="h-2.5 bg-surface-3 rounded overflow-hidden"><i className="block h-full bg-accent" style={{ width: `${Math.round((k / secMax) * 100)}%` }} /></span><b className="text-right tabular-nums">{k}</b></Link></li>)}</ul></Card>
@@ -91,4 +94,20 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
       </div>
     </div>
   );
+}
+
+/**
+ * Real activity for the last 30 days, from the audit trail: publications, pages created, other content changes.
+ * Counted per calendar day, oldest first - the same three series the demo chart draws.
+ */
+async function activitySeries(marketId: string): Promise<number[][]> {
+  const out = [new Array(30).fill(0), new Array(30).fill(0), new Array(30).fill(0)];
+  const start = new Date(now()); start.setHours(0, 0, 0, 0); start.setDate(start.getDate() - 29);
+  for (const e of await readLog(marketId)) {
+    const day = Math.floor((new Date(e.time).getTime() - start.getTime()) / 86400000);
+    if (day < 0 || day > 29) continue;
+    const series = e.type === "publishing" ? 0 : e.type === "content" && /^created\b/.test(e.text) ? 1 : e.type === "content" ? 2 : -1;
+    if (series >= 0) out[series][day]++;
+  }
+  return out;
 }

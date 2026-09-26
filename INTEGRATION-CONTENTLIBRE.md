@@ -53,8 +53,12 @@ UCP_BACKEND=contentlibre CONTENTLIBRE_URL=http://localhost:6727 npm run dev -- -
       backend does not have are stored as `nt:unstructured` + `ucp:primaryType`. The backend's ACLs enforce what
       the role checks here predict (models/templates: admins; audit: append-only for authors).
 - [x] **Page history** on this backend is the publication archive; restore opens a draft from it.
-- [ ] **Users & roles, Tasks**: people and review workflow are backend stage 4 (Users lists only you; Tasks stay
-      empty until there is a review state).
+- [x] **Review workflow** (stage 4): Send for review / Approve / Request changes in the builder; Publish explains
+      what blocks it. Tasks come from the review (Review, Fix, Publish) and builder actions are written to the
+      audit trail.
+- [x] **Users & roles** lists the backend's accounts with the role their groups give (admin, reviewer, author,
+      viewer); changing membership stays in the ContentLIBRE console for now.
+- [x] **Dashboard activity** is drawn from the audit trail; the environment switcher is a label (one instance).
 - [ ] Use the page document's `permissions` for per-page actions instead of role defaults.
 - [ ] Environment switcher: one ContentLIBRE instance is one environment.
 - [ ] Branding: HSBC logos and wording are still the mock's.

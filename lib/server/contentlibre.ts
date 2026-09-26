@@ -197,3 +197,27 @@ export type ClSite = { id: string; root?: string; locales: ClSiteLocale[] };
 export type ClIdentity = { id: string; authType?: string; groups: string[]; administrator?: boolean };
 
 export const listSites = () => clApi<{ items: ClSite[]; ready: boolean }>("GET", "content/v1/sites");
+
+/* ---------------- people (the console's access API, /api/start/v1/access) ---------------- */
+
+export type ClPerson = { id: string; admin: boolean; disabled: boolean; memberOf: string[] };
+
+/**
+ * The people of this ContentLIBRE instance: real users - not groups, not service users, not `anonymous` - with their
+ * groups. Read with the signed-in person's session, so the list is what the backend lets them see. One request per
+ * user for membership: this is an admin screen over tens of accounts, not a directory service.
+ */
+export async function listPeople(): Promise<ClPerson[]> {
+  const cfg = contentLibreConfig();
+  const get = async <T,>(path: string): Promise<T> => {
+    const res = await fetch(`${cfg.origin}/api/start/v1/access/${path}`, { headers: { Accept: "application/json", ...(await authHeaders(cfg, "GET")) }, cache: "no-store" });
+    if (!res.ok) throw new RepoError(res.status, "The user list is not available", path);
+    return (await res.json()) as T;
+  };
+  const { items } = await get<{ items: { id: string; group: boolean; system: boolean; admin: boolean; disabled: boolean }[] }>("users");
+  const people = items.filter((u) => !u.group && !u.system && u.id !== "anonymous");
+  return Promise.all(people.map(async (u) => {
+    const detail = await get<{ memberOf?: string[] }>(`principal?id=${encodeURIComponent(u.id)}`).catch(() => ({ memberOf: [] as string[] }));
+    return { id: u.id, admin: u.admin, disabled: u.disabled, memberOf: detail.memberOf ?? [] };
+  }));
+}

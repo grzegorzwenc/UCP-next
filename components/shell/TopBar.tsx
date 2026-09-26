@@ -111,7 +111,8 @@ function Account() {
   );
 }
 
-export function TopBar({ marketId, envId }: { marketId: string; envId: string }) {
+/** `envLocked`: the backend is one environment (ContentLIBRE: one instance), so the switcher only names it. */
+export function TopBar({ marketId, envId, envLocked }: { marketId: string; envId: string; envLocked?: boolean }) {
   const router = useRouter(); const pathname = usePathname();
   const rest = pathname.split("/").slice(3).join("/") || "dashboard";
   const markets = useMarkets(); const m = useMarket(marketId), e = env(envId); const base = `/${marketId}/${envId}`;
@@ -125,7 +126,8 @@ export function TopBar({ marketId, envId }: { marketId: string; envId: string })
       </label>
       <label className="hidden sm:flex items-center gap-1.5 bg-white/10 border rounded-md px-2.5 py-1 text-[13px]" style={{ borderColor: e.color, color: e.color }}>
         <i className="inline-block w-2 h-2 rounded-full" style={{ background: e.color }} />
-        <select aria-label="Environment" className="bg-transparent font-semibold outline-none" value={e.id} onChange={(ev) => router.push(`/${marketId}/${ev.target.value}/${rest}`)}>{ENVS.map((x) => <option key={x.id} value={x.id} className="text-black">{x.name}</option>)}</select>
+        {envLocked ? <span className="font-semibold" title="This backend is one environment">{e.name}</span> :
+        <select aria-label="Environment" className="bg-transparent font-semibold outline-none" value={e.id} onChange={(ev) => router.push(`/${marketId}/${ev.target.value}/${rest}`)}>{ENVS.map((x) => <option key={x.id} value={x.id} className="text-black">{x.name}</option>)}</select>}
       </label>
       {!phone && <Search marketId={marketId} base={base} root={m.root} />}
       <div className="ml-auto flex items-center gap-2 md:gap-3">{phone && <button type="button" aria-label="Search" onClick={() => window.dispatchEvent(new Event("ucp:palette"))} className="w-9 h-9 grid place-items-center rounded-md hover:bg-white/10 text-lg">⌕</button>}<Bell marketId={marketId} base={base} root={m.root} /><Account /></div>
