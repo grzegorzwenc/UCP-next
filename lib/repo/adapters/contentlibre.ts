@@ -78,13 +78,27 @@ async function mustRead(path: string, depth: number): Promise<RepoNode> {
 
 const STATUS: Record<NonNullable<ClPage["status"]>, PageStatus> = { published: "published", modified: "modified", draft: "draft", unpublished: "draft" };
 
+/**
+ * The review of the newest open draft decides the workflow status the CMS shows: waiting → `review`, approved at the
+ * current revision → `approved`. Changes requested, or an approval the draft has outgrown, fall back to the
+ * publication status - the draft needs work again - and say why in `libre:reviewState`.
+ */
+function statusOf(p: ClPage): PageStatus {
+  if (p.review?.state === "IN_REVIEW") return "review";
+  if (p.review?.state === "APPROVED") return "approved";
+  return p.status ? STATUS[p.status] : "draft";
+}
+
 const toView = (p: ClPage): PageView => ({
   path: p.path, name: p.name, title: p.title ?? p.name, description: p.description, navTitle: p.navTitle, hideInNav: p.hideInNav,
-  template: p.template?.split("/").pop(), locale: p.locale, status: p.status ? STATUS[p.status] : "draft",
+  template: p.template?.split("/").pop(), locale: p.locale, status: statusOf(p),
   created: p.created, lastModified: p.lastModified,
   meta: {
     "libre:status": p.status, "libre:template": p.template, "libre:publishedAt": p.publishedAt, "libre:publishedBy": p.publishedBy,
     "libre:openDrafts": p.openDrafts, "libre:permissions": p.permissions,
+    // The workflow fields the CMS's task list reads (lib/server/ucp.ts listTasks), from the backend's review.
+    "libre:reviewState": p.review?.state, "libre:reviewDecidedBy": p.review?.decidedBy, "libre:reviewComment": p.review?.comment,
+    "ucp:sentBy": p.review?.requestedBy, "ucp:sentAt": p.review?.requestedAt, "ucp:assignee": p.review?.assignee, "ucp:due": p.review?.due,
   },
   components: [],
 });

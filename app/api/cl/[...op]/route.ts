@@ -9,6 +9,9 @@ import { clApi, clRender, clSlingJson, clSlingPost, isEditablePath } from "@/lib
  *   POST   /api/cl/drafts?path=                    { from?, label? }        open a draft
  *   DELETE /api/cl/drafts?path=&draft=             discard
  *   POST   /api/cl/drafts/publish?path=            { draft, revision?, force? }
+ *   POST   /api/cl/drafts/review?path=             { draft, assignee?, due?, note? }   send for review
+ *   POST   /api/cl/drafts/decision?path=           { draft, decision: approve|request-changes, comment? }
+ *   GET    /api/cl/reviews?root=                   the review queue below a root
  *   GET    /api/cl/page?path=&draft=               page document, content fields from the draft
  *   PATCH  /api/cl/page?path=&draft=               { title?, description?, navTitle?, hideInNav? }
  *   GET    /api/cl/model?node=                     <node>.libre-model.json + the node's own properties
@@ -48,6 +51,9 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     if (o === "drafts" && req.method === "POST") return NextResponse.json(await clApi("POST", "content/v1/drafts", { path }, await req.json().catch(() => ({}))), { status: 201 });
     if (o === "drafts" && req.method === "DELETE") return NextResponse.json(await clApi("DELETE", "content/v1/drafts", { path, draft }));
     if (o === "drafts/publish" && req.method === "POST") return NextResponse.json(await clApi("POST", "content/v1/drafts/publish", { path }, await req.json()));
+    if (o === "drafts/review" && req.method === "POST") return NextResponse.json(await clApi("POST", "content/v1/drafts/review", { path }, await req.json()));
+    if (o === "drafts/decision" && req.method === "POST") return NextResponse.json(await clApi("POST", "content/v1/drafts/decision", { path }, await req.json()));
+    if (o === "reviews" && req.method === "GET") return NextResponse.json(await clApi("GET", "content/v1/drafts/reviews", { root: q.get("root") ?? undefined }));
     if (o === "page" && req.method === "GET") return NextResponse.json(await clApi("GET", "content/v1/page", { path, draft }));
     if (o === "page" && req.method === "PATCH") return NextResponse.json(await clApi("PATCH", "content/v1/page", { path, draft }, await req.json(), "application/merge-patch+json"));
     if (o === "model" && req.method === "GET") {

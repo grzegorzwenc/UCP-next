@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Pill } from "@/components/ui/Pill";
+import { useSession } from "@/components/shell/Session";
 
 /**
  * The page builder on ContentLIBRE (UCP_BACKEND=contentlibre).
@@ -23,8 +24,9 @@ type Model = {
   components: Record<string, { label: string; fields: FieldDef[] }>;
   values: Record<string, unknown>;
 };
-type Draft = { id: string; state: string; label?: string; revision?: string; stale: boolean; createdBy?: string; modified?: string };
-type Drafts = { page: string; publication?: string | null; publishedBy?: string; publishedAt?: string; draftsMode: boolean; open: Draft[]; archived: Draft[] };
+type Review = { state: "IN_REVIEW" | "APPROVED" | "CHANGES_REQUESTED" | "OUTDATED"; requestedBy?: string; requestedAt?: string; assignee?: string; due?: string; note?: string; decidedBy?: string; decidedAt?: string; comment?: string };
+type Draft = { id: string; state: string; label?: string; revision?: string; stale: boolean; createdBy?: string; modified?: string; review?: Review };
+type Drafts = { page: string; publication?: string | null; publishedBy?: string; publishedAt?: string; draftsMode: boolean; reviewRequired: boolean; open: Draft[]; archived: Draft[] };
 type PageDoc = { path: string; title?: string; description?: string; navTitle?: string; hideInNav?: boolean; status?: string; permissions?: { edit: boolean; delete: boolean } };
 type Problem = { title?: string; detail?: string; status?: number };
 
@@ -67,6 +69,12 @@ export function ClBuilder({ path, listUrl }: { path: string; listUrl: string }) 
   const editable = !!draft && page?.permissions?.edit !== false;
   const q = (extra: Record<string, string | undefined> = {}) => qs({ path, ...extra });
   const inspected = selected && selModel?.node === selected ? selModel.model : null;
+  const { user } = useSession();
+  const [reviewForm, setReviewForm] = useState<null | "request" | "changes">(null);
+  const review = draft?.review; const reviewState = review?.state;
+  // The backend decides (approver groups, never your own request); this only hides what it would refuse.
+  const canDecide = reviewState === "IN_REVIEW" && (user.role === "admin" || (user.role === "reviewer" && review?.requestedBy !== user.id));
+  const publishBlocked = reviewState === "IN_REVIEW" ? "Waiting for review" : reviewState === "CHANGES_REQUESTED" ? "Changes were requested" : reviewState === "OUTDATED" ? "Changed after approval: send for review again" : drafts?.reviewRequired && reviewState !== "APPROVED" ? "This site publishes reviewed drafts only" : null;
 
   useEffect(() => {
     let current = true;
@@ -106,7 +114,7 @@ export function ClBuilder({ path, listUrl }: { path: string; listUrl: string }) 
   const previewSrc = `/api/cl/preview?${q({ draft: draft?.id })}&v=${version}`;
 
   return (
-    <div className="lg:h-full grid lg:grid-rows-[auto_auto_1fr] min-h-0">
+    <div className="lg:h-full flex flex-col min-h-0">
       <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-b border-line bg-surface">
         <Link href={listUrl} className="text-ink-3 text-[13px]">‹ Pages</Link>
         <div className="min-w-0"><b className="block truncate">{page.title ?? nameOf(path)}</b><span className="font-mono text-[11.5px] text-ink-3">{path}</span></div>
@@ -117,16 +125,24 @@ export function ClBuilder({ path, listUrl }: { path: string; listUrl: string }) 
           {!draft && <button className="btn btn-sm on" disabled={busy || page.permissions?.edit === false} onClick={() => void openDraft()}>✎ Edit</button>}
           {draft && <>
             <button className="btn btn-sm" disabled={busy} onClick={() => void discard()}>Discard draft</button>
-            <button className="btn btn-sm on" disabled={busy} onClick={() => void publish(false)}>Publish</button>
+            {reviewState !== "IN_REVIEW" && <button className="btn btn-sm" disabled={busy} onClick={() => setReviewForm(reviewForm === "request" ? null : "request")}>Send for review</button>}
+            {canDecide && <>
+              <button className="btn btn-sm" disabled={busy} onClick={() => setReviewForm(reviewForm === "changes" ? null : "changes")}>Request changes</button>
+              <button className="btn btn-sm on" disabled={busy} onClick={() => void act("Approved. It can be published now.", () => call(`/api/cl/drafts/decision?${q()}`, { method: "POST", body: JSON.stringify({ draft: draft.id, decision: "approve" }) }))}>Approve</button>
+            </>}
+            <button className="btn btn-sm on" disabled={busy || !!publishBlocked} title={publishBlocked ?? undefined} onClick={() => void publish(false)}>Publish</button>
           </>}
         </div>
       </div>
+      {draft && review && <ReviewBanner review={review} />}
+      {draft && reviewForm === "request" && <ReviewRequestForm busy={busy} onCancel={() => setReviewForm(null)} onSend={(body) => act("Sent for review.", () => call(`/api/cl/drafts/review?${q()}`, { method: "POST", body: JSON.stringify({ draft: draft.id, ...body }) }), () => setReviewForm(null))} />}
+      {draft && reviewForm === "changes" && <ChangesForm busy={busy} onCancel={() => setReviewForm(null)} onSend={(comment) => act("Changes requested. The author has been asked to update the draft.", () => call(`/api/cl/drafts/decision?${q()}`, { method: "POST", body: JSON.stringify({ draft: draft.id, decision: "request-changes", comment }) }), () => setReviewForm(null))} />}
       {(note || stalePublish) && <div role="status" className={`px-5 py-2 text-[13px] border-b border-line ${note?.kind === "err" ? "bg-crit/10 text-crit" : "bg-good-soft text-good"}`}>
         {note?.text}{stalePublish && <> <button className="btn btn-sm ml-2" disabled={busy} onClick={() => void publish(true)}>Publish anyway</button></>}
       </div>}
-      {!(note || stalePublish) && <div />}
 
-      <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)_300px] min-h-0">
+
+      <div className="grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)_300px] min-h-0 flex-1">
         <aside className="border-b lg:border-b-0 lg:border-r border-line overflow-auto p-3 bg-surface" aria-label="Page structure">
           <h2 className="text-[11px] tracking-[.1em] uppercase text-ink-3 font-semibold mb-2">Structure</h2>
           {!model ? <p className="text-ink-3 text-[13px]">No structure for this page.</p>
@@ -235,4 +251,40 @@ function PageMeta({ page, editable, busy, onSave }: { page: PageDoc; editable: b
     {editable && <button className="btn btn-sm on justify-self-start" disabled={busy || !Object.keys(patch).length} onClick={() => onSave(patch)}>Save details</button>}
     {!editable && <p className="text-[12px] text-ink-3">Select a component on the left to see its fields. Open a draft to edit.</p>}
   </div>;
+}
+
+const when = (iso?: string) => iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+
+/** Where the draft stands in review, in one line: who asked whom, by when, and what was decided. */
+function ReviewBanner({ review }: { review: Review }) {
+  const tone = review.state === "APPROVED" ? "bg-good-soft text-good" : review.state === "IN_REVIEW" ? "bg-info-soft text-info" : "bg-warn-soft text-warn";
+  const text = review.state === "IN_REVIEW"
+    ? `In review: sent by ${review.requestedBy ?? "?"} ${when(review.requestedAt)}${review.assignee ? ` to ${review.assignee}` : " to any approver"}${review.due ? `, due ${when(review.due)}` : ""}.`
+    : review.state === "APPROVED" ? `Approved by ${review.decidedBy ?? "?"} ${when(review.decidedAt)}. Ready to publish.`
+    : review.state === "CHANGES_REQUESTED" ? `Changes requested by ${review.decidedBy ?? "?"} ${when(review.decidedAt)}. Make them, then send for review again.`
+    : "Approved, then changed. Send it for review again before publishing.";
+  return <div className={`px-5 py-2 text-[13px] border-b border-line ${tone}`} role="note">
+    {text}{review.note && review.state === "IN_REVIEW" && <span className="block text-ink-2">Note: {review.note}</span>}{review.comment && review.state !== "IN_REVIEW" && <span className="block text-ink-2">Reviewer: {review.comment}</span>}
+  </div>;
+}
+
+function ReviewRequestForm({ busy, onSend, onCancel }: { busy: boolean; onSend: (body: { assignee?: string; due?: string; note?: string }) => void; onCancel: () => void }) {
+  const [assignee, setAssignee] = useState(""); const [due, setDue] = useState(""); const [note, setNote] = useState("");
+  const input = "border border-line rounded px-2 py-1 text-[13px] bg-surface";
+  return <form className="px-5 py-3 border-b border-line bg-surface-2 flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); onSend({ assignee: assignee.trim() || undefined, due: due ? new Date(`${due}T17:00:00`).toISOString() : undefined, note: note.trim() || undefined }); }}>
+    <label className="grid gap-1 text-[12px] text-ink-3">Reviewer (user id, optional)<input id="cl-review-assignee" className={input} value={assignee} onChange={(e) => setAssignee(e.target.value)} placeholder="Any approver" /></label>
+    <label className="grid gap-1 text-[12px] text-ink-3">Due<input id="cl-review-due" type="date" className={input} value={due} onChange={(e) => setDue(e.target.value)} /></label>
+    <label className="grid gap-1 text-[12px] text-ink-3 flex-1 min-w-[220px]">What should the reviewer check?<input id="cl-review-note" className={input} value={note} onChange={(e) => setNote(e.target.value)} /></label>
+    <button type="submit" className="btn btn-sm on" disabled={busy}>Send for review</button>
+    <button type="button" className="btn btn-sm" onClick={onCancel}>Cancel</button>
+  </form>;
+}
+
+function ChangesForm({ busy, onSend, onCancel }: { busy: boolean; onSend: (comment: string) => void; onCancel: () => void }) {
+  const [comment, setComment] = useState("");
+  return <form className="px-5 py-3 border-b border-line bg-surface-2 flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); onSend(comment.trim()); }}>
+    <label className="grid gap-1 text-[12px] text-ink-3 flex-1 min-w-[260px]">What needs to change?<input id="cl-review-comment" className="border border-line rounded px-2 py-1 text-[13px] bg-surface" value={comment} onChange={(e) => setComment(e.target.value)} required /></label>
+    <button type="submit" className="btn btn-sm on" disabled={busy || !comment.trim()}>Request changes</button>
+    <button type="button" className="btn btn-sm" onClick={onCancel}>Cancel</button>
+  </form>;
 }

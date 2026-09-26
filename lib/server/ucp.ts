@@ -53,12 +53,13 @@ export async function getUser(id: string): Promise<User | undefined> { return (a
 export async function userName(id: string): Promise<string> { if (id === "system") return "System"; const u = await getUser(id); return u?.name ?? id.split(".").map((s) => s[0]?.toUpperCase() + s.slice(1)).join(" "); }
 /**
  * ContentLIBRE keeps people in its own user manager and decides access with ACLs, so the signed-in person comes
- * from identity/v1/me: administrators are site admins, members of `content-authors` (the backend's author group)
+ * from identity/v1/me: administrators are site admins, members of `content-reviewers` review (and edit), members of
+ * `content-authors` (the backend's author group)
  * are authors, everyone else reads. The backend still checks every operation as that person.
  */
 async function contentLibreMe(): Promise<User> {
   const idt = await repo().identity();
-  const role: Role = idt.administrator ? "admin" : idt.groups.includes("content-authors") ? "author" : "viewer";
+  const role: Role = idt.administrator ? "admin" : idt.groups.includes("content-reviewers") ? "reviewer" : idt.groups.includes("content-authors") ? "author" : "viewer";
   return { id: idt.id, path: `${PATHS.users}/${idt.id}`, name: idt.id, email: "", role, team: idt.groups.join(", "), perms: {} };
 }
 export async function me(): Promise<User> { if (repo().kind === "contentlibre") return contentLibreMe(); const id = (await sessionUserId()) ?? (await repo().identity().catch(() => ({ id: ME }))).id; return (await getUser(id)) ?? { id, path: `${PATHS.users}/${id}`, name: await userName(id), email: "", role: "author", team: "", perms: { root: { read: true } } }; }
@@ -107,7 +108,9 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
   const admin = user.role === "admin" || !!user.perms.root?.manage; const root = (await getMarket(marketId)).root;
   /* Visibility: admins see every task; everyone else only what they can act on or what they started. */
   const mine = (p: PageSummary, kind: TaskKind) => admin || str(p.meta?.["ucp:sentBy"]) === meId || (p.lastModifiedBy ?? ME) === meId || (kind === "Review" && (str(p.meta?.["ucp:assignee"]) ? str(p.meta?.["ucp:assignee"]) === meId : can(user, "review", p.path, root))) || ((kind === "Publish" || kind === "Fix" || kind === "Check") && can(user, "publish", p.path, root));
-  const dueOf = (p: PageSummary) => { const d = p.meta?.["ucp:due"]; if (typeof d === "string" && d) return new Date(d); const off = (hash(p.path) % 9) - 2; const x = new Date(now); x.setDate(x.getDate() + off); return x; };
+  const dueOf = (p: PageSummary) => { const d = p.meta?.["ucp:due"]; if (typeof d === "string" && d) return new Date(d);
+    // A real review without a due date is due three days after it was requested - never a made-up date.
+    const sent = p.meta?.["ucp:sentAt"]; if (repo().kind !== "mock" && typeof sent === "string" && sent) { const x = new Date(sent); x.setDate(x.getDate() + 3); return x; } const off = (hash(p.path) % 9) - 2; const x = new Date(now); x.setDate(x.getDate() + off); return x; };
   const mk = async (p: PageSummary, kind: TaskKind, what: string, from: string): Promise<Task> => { const due = dueOf(p); const overdueDays = Math.floor((now.setHours(0, 0, 0, 0) - new Date(due).setHours(0, 0, 0, 0)) / 86400000); return { kind, what, from, sentAt: str(p.meta?.["ucp:sentAt"]) || p.lastModified, due: due.toISOString(), overdueDays, page: { path: p.path, title: p.title, status: p.status, template: p.template } }; };
   const sender = async (p: PageSummary, fallback: string) => { const s = str(p.meta?.["ucp:sentBy"]); return s ? await userName(s) : fallback; };
   const out: Task[] = [];
@@ -116,6 +119,8 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
     else if (p.status === "approved") out.push(await mk(p, "Publish", "Publish approved page", `${await sender(p, "Rachel Hughes")} (approved)`));
     else if (p.status === "failed") out.push(await mk(p, "Fix", "Fix failed publish", "System"));
     else if (p.status === "scheduled") out.push(await mk(p, "Check", "Check scheduled publish", await sender(p, "Michael Osei")));
+    else if (p.meta?.["libre:reviewState"] === "CHANGES_REQUESTED") out.push(await mk(p, "Fix", "Make the changes the reviewer asked for", await userName(str(p.meta?.["libre:reviewDecidedBy"], "Reviewer"))));
+    else if (p.meta?.["libre:reviewState"] === "OUTDATED") out.push(await mk(p, "Finish", "Changed after approval - send for review again", "You"));
     else if (p.status === "draft" && (p.lastModifiedBy ?? ME) === meId) out.push(await mk(p, "Finish", "Finish draft and send for review", "You"));
   }
   return out.filter((t) => mine(pages.find((p) => p.path === t.page.path)!, t.kind)).sort((a, b) => a.due.localeCompare(b.due));
