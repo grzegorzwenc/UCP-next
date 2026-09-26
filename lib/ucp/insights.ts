@@ -1,5 +1,6 @@
 import type { Block } from "@/lib/api/types";
 import { BLOCK_BY_TYPE, makeBlock, missingRequired, lines } from "@/lib/blocks/registry";
+import { TOKEN_RE, resolveTokens, type ResolvedEntities } from "@/lib/ucp/tokens";
 
 /* Pure, client-safe page checks. Port of the prototype's insightsPanel() with fixes that return new blocks. */
 
@@ -9,10 +10,15 @@ export type InsightFix = { label: string; apply: (blocks: Block[]) => Block[] };
 export type Insight = { id: string; level: InsightLevel; title: string; detail: string; blockId?: string; field?: string; fix?: InsightFix };
 export type InsightGroup = { id: InsightGroupId; title: string; score: number; items: Insight[] };
 export type PageInsights = { score: number; groups: InsightGroup[] };
-export type PageMeta = { title: string; description?: string; template?: string; status: string; locale?: string };
+export type PageMeta = { title: string; description?: string; template?: string; status: string; locale?: string;
+  /** Asset accessibility from the library (alt text / decorative), so an image described there counts as described. */
+  assets?: Record<string, { alt?: string; decorative?: boolean }>;
+  /** Content entities linked to the page; when given, {{alias.field}} tokens that do not resolve are reported. */
+  entities?: ResolvedEntities };
 
-const GROUP_TITLE: Record<InsightGroupId, string> = { content: "Content", accessibility: "Accessibility", seo: "Search (SEO)", compliance: "Compliance", performance: "Performance" };
-const GROUP_ORDER: InsightGroupId[] = ["content", "accessibility", "seo", "compliance", "performance"];
+export const GROUP_TITLE: Record<InsightGroupId, string> = { content: "Content", accessibility: "Accessibility", seo: "Search", compliance: "Compliance", performance: "Performance" };
+/** Only the checks authors act on. Performance numbers were estimates, so they are no longer shown. */
+const GROUP_ORDER: InsightGroupId[] = ["content", "compliance", "accessibility", "seo"];
 
 export const HEADING_MAX = 60;
 export const PARAGRAPH_MAX = 180;
@@ -58,6 +64,10 @@ export function pageInsights(blocks: Block[], page: PageMeta): PageInsights {
 
   for (const b of visible) for (const f of missingRequired(b)) push("content", { id: `req-${b.id}-${f.k}`, level: "crit", title: `${name(b)}: “${f.l}” is empty`, detail: "Required before the page can go for review.", blockId: b.id, field: f.k });
 
+  if (page.entities) for (const b of visible) for (const k of TEXT_KEYS) { const v = str(b.props[k]); if (!v.includes("{{")) continue;
+    const bad = [...new Set((v.match(new RegExp(TOKEN_RE.source, "g")) ?? []).filter((tok) => resolveTokens(tok, page.entities!) === tok))];
+    if (bad.length) push("content", { id: `tok-${b.id}-${k}`, level: "crit", title: `Broken content link in ${name(b)}`, detail: `${bad.join(", ")} does not match linked content, so visitors would see the raw code. Link the entity in Linked content or correct the token.`, blockId: b.id, field: k }); }
+
   if (!visible.some((b) => b.type === "mast")) push("content", { id: "no-mast", level: "warn", title: "No masthead at the top", detail: "HSBC pages open with a masthead so visitors know where they are.", fix: { label: "Add a masthead", apply: (bl) => [makeBlock("mast", { heading: page.title || "Your heading here" }), ...bl] } });
   else if (visible[0].type !== "mast") { const mastId = visible.find((b) => b.type === "mast")!.id; push("content", { id: "mast-not-first", level: "warn", title: "The masthead is not the first block", detail: "Move it to the top so the page opens with it.", blockId: mastId, fix: { label: "Move to top", apply: (bl) => { const m = bl.find((b) => b.id === mastId); return m ? [m, ...bl.filter((b) => b.id !== mastId)] : bl; } } }); }
   else push("content", { id: "mast-ok", level: "ok", title: "Opens with a masthead", detail: "Visitors see where they are straight away." });
@@ -79,19 +89,20 @@ export function pageInsights(blocks: Block[], page: PageMeta): PageInsights {
       push("content", { id: `cta-${b.id}-${c.field}-${c.row ?? 0}`, level: "warn", title: `Vague button label “${c.label}” in ${name(b)}`, detail: `Say what happens next, e.g. “${better}”. Vague labels lose clicks and confuse screen readers.`, blockId: b.id, field: c.field, fix: { label: `Rename to “${better}”`, apply: (bl) => bl.map((x) => { if (x.id !== b.id) return x; if (c.field === "cta") return { ...x, props: { ...x.props, cta: better } }; const rows = lines(x.props.items); if (rows[c.row ?? 0]) rows[c.row ?? 0][5] = better; return { ...x, props: { ...x.props, items: rows.map((r) => r.join(" | ")).join("\n") } }; }) } });
     }
   }
-  if (!visible.some((b) => ["form", "banner", "mastertiles"].includes(b.type)) && visible.length) push("content", { id: "no-action", level: "info", title: "Nothing asks the visitor to act", detail: "Add a banner, product tiles or a form.", fix: { label: "Add a banner", apply: (bl) => [...bl, makeBlock("banner")] } });
   for (const b of visible.filter((x) => x.type === "form")) if (!str(b.props.heading).trim()) push("content", { id: `formh-${b.id}`, level: "warn", title: "The form has no heading", detail: "Tell visitors what the form is for.", blockId: b.id, field: "heading", fix: { label: "Add “Apply online”", apply: (bl) => setProp(bl, b.id, "heading", "Apply online") } });
 
   /* ---- accessibility ---- */
   const imgBlocks = visible.filter((b) => str(b.props.image));
   for (const b of imgBlocks) {
-    if (!str(b.props.alt).trim()) push("accessibility", { id: `alt-${b.id}`, level: "crit", title: `Image without alt text in ${name(b)}`, detail: "Screen readers cannot describe it. Say what the picture shows in a few words.", blockId: b.id, field: "alt", fix: { label: "Add placeholder alt", apply: (bl) => setProp(bl, b.id, "alt", str(b.props.heading).trim() || "Describe this image") } });
+    const lib = page.assets?.[str(b.props.image)];
+    if (lib?.decorative) { push("accessibility", { id: `altdec-${b.id}`, level: "ok", title: `Image in ${name(b)} is decorative`, detail: "Marked decorative in the asset library, so screen readers skip it." }); continue; }
+    if (!str(b.props.alt).trim() && lib?.alt?.trim()) { push("accessibility", { id: `altlib-${b.id}`, level: "ok", title: `Image in ${name(b)} has alt text`, detail: `From the asset library: “${lib.alt.trim()}”` }); continue; }
+    if (!str(b.props.alt).trim()) push("accessibility", { id: `alt-${b.id}`, level: "crit", title: `Image without alt text in ${name(b)}`, detail: "Screen readers cannot describe it. Add alt text to the image in Assets (it then applies on every page) or in this block.", blockId: b.id, field: "alt", fix: { label: "Add placeholder alt", apply: (bl) => setProp(bl, b.id, "alt", str(b.props.heading).trim() || "Describe this image") } });
     else push("accessibility", { id: `altok-${b.id}`, level: "ok", title: `Image in ${name(b)} has alt text`, detail: `“${str(b.props.alt)}”` });
   }
   if (!imgBlocks.length) push("accessibility", { id: "no-img", level: "ok", title: "No images to describe", detail: "Nothing needs alt text." });
   const formNoHeading = visible.some((b) => b.type === "form" && !str(b.props.heading).trim());
   if (!formNoHeading) push("accessibility", { id: "labels-ok", level: "ok", title: "Buttons and forms are labelled", detail: "Every control has a visible name." });
-  for (const b of visible) for (const c of ctaLabels(b)) if (c.label.trim().length > 30) push("accessibility", { id: `ctalen-${b.id}-${c.row ?? 0}`, level: "info", title: `Long button label in ${name(b)}`, detail: "Keep button text under 30 characters so it fits on one line." , blockId: b.id, field: c.field });
 
   /* ---- seo ---- */
   const t = (page.title ?? "").trim();
@@ -103,9 +114,6 @@ export function pageInsights(blocks: Block[], page: PageMeta): PageInsights {
   if (!d) push("seo", { id: "desc-missing", level: "warn", title: "No page description", detail: "Search results show a description under the title. Add one in Page settings (about 150 characters)." });
   else if (d.length > 160) push("seo", { id: "desc-long", level: "info", title: `Description is long (${d.length} characters)`, detail: "Search results cut descriptions after about 160 characters." });
   else push("seo", { id: "desc-ok", level: "ok", title: "Page description is set", detail: `${d.length} characters.` });
-  const h1 = visible.find((b) => b.type === "mast");
-  if (h1 && str(h1.props.heading).trim() && t && !str(h1.props.heading).toLowerCase().includes(t.toLowerCase().split(/\s+/)[0]) && !t.toLowerCase().includes(str(h1.props.heading).toLowerCase().split(/\s+/)[0])) push("seo", { id: "h1-title", level: "info", title: "Masthead heading and page title differ", detail: "They do not need to match, but sharing the main words helps search.", blockId: h1.id, field: "heading" });
-  if (!visible.some((b) => b.type === "faq") && visible.length) push("seo", { id: "no-faq", level: "info", title: "No FAQ block", detail: "Questions and answers often appear directly in search results.", fix: { label: "Add an FAQ", apply: (bl) => [...bl, makeBlock("faq")] } });
 
   /* ---- compliance ---- */
   for (const b of visible) {
@@ -121,7 +129,8 @@ export function pageInsights(blocks: Block[], page: PageMeta): PageInsights {
   else if (visible.length) push("compliance", { id: "smallprint-ok", level: "ok", title: "Small print is in place", detail: "The page carries a disclaimer or additional information." });
   if (!items.compliance.some((i) => i.level === "warn" || i.level === "crit")) push("compliance", { id: "wording-ok", level: "ok", title: "No risky wording found", detail: "No promises like “guaranteed” or “no fees”." });
 
-  /* ---- performance ---- */
+  /* ---- performance: kept out of the panel (estimates only) ---- */
+  if (GROUP_ORDER.includes("performance")) {
   const heavy = visible.filter((b) => HEAVY_TYPES.includes(b.type));
   const renditions = imgBlocks.length * 3 + heavy.reduce((n, b) => n + lines(b.props.items).length, 0);
   if (visible.length > BLOCKS_MAX) push("performance", { id: "many-blocks", level: "warn", title: `Long page (${visible.length} blocks)`, detail: `Pages over ${BLOCKS_MAX} blocks load slower and are skimmed less. Move detail into an FAQ or a second page.` });
@@ -130,9 +139,10 @@ export function pageInsights(blocks: Block[], page: PageMeta): PageInsights {
   const words = visible.reduce((n, b) => n + allText(b).split(/\s+/).filter(Boolean).length, 0);
   if (words > 900) push("performance", { id: "words", level: "warn", title: `Long page (${words} words)`, detail: "Move detail into an FAQ or a second page." });
   else if (visible.length) push("performance", { id: "words-ok", level: "ok", title: `${words} words`, detail: "A comfortable read." });
+  }
 
   const groups = GROUP_ORDER.map((id) => ({ id, title: GROUP_TITLE[id], score: groupScore(items[id]), items: items[id] }));
-  const weights: Record<InsightGroupId, number> = { content: 30, accessibility: 25, seo: 15, compliance: 20, performance: 10 };
+  const weights: Record<InsightGroupId, number> = { content: 35, accessibility: 25, seo: 15, compliance: 25, performance: 0 };
   const score = Math.round(groups.reduce((s, g) => s + g.score * weights[g.id], 0) / 100);
   return { score, groups };
 }
