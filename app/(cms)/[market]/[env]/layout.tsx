@@ -2,12 +2,12 @@ import { TopBar } from "@/components/shell/TopBar";
 import { SideNav } from "@/components/shell/SideNav";
 import { Palette } from "@/components/shell/Palette";
 import { SessionProvider } from "@/components/shell/Session";
-import { me } from "@/lib/server/ucp";
+import { me, publishDue } from "@/lib/server/ucp";
 import { market } from "@/lib/markets";
 
 export default async function CmsLayout({ children, params }: LayoutProps<"/[market]/[env]">) {
   const { market: mid, env } = await params;
-  const user = await me();
+  const [user] = await Promise.all([me(), publishDue(mid).catch(() => 0)]); // scheduled pages whose time has come go live
   return (
     <SessionProvider user={user} marketRoot={market(mid).root}>
       <div className="cms-shell h-dvh grid grid-rows-[52px_1fr]">

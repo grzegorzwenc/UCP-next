@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
+import { listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
 import { can } from "@/lib/ucp/perms";
 import { SESSION_COOKIE } from "@/lib/server/session";
 import { PATHS } from "@/lib/ucp/paths";
@@ -93,6 +93,9 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     if (o === "me") return ok(await me());
     if (o === "assets") return ok(await listAssets(mid));
     if (o === "notifications") return ok(await notifications(mid));
+    /* ---- publish now / schedule / cancel a schedule, for one page or a batch (permission checked per page) ---- */
+    if (o === "publish" && req.method === "POST") { const b = await req.json(); const paths: string[] = Array.isArray(b.paths) ? b.paths.filter((x: unknown) => typeof x === "string") : [];
+      if (!paths.length) return problem(new RepoError(400, "Choose at least one page")); return ok(await publishPages(mid, paths, { at: typeof b.at === "string" ? b.at : undefined, cancel: !!b.cancel }, await me())); }
     if (o === "log" && req.method === "GET") return ok((await readLogFor(mid)).log);
     if (o === "log" && req.method === "POST") { const b = await req.json(); await logEvent(mid, { ...b, requestId: rid }); return ok({ ok: true }, 201); }
     if (o === "search") {

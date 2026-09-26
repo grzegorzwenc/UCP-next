@@ -58,6 +58,8 @@ export const ucpApi = {
   modelFolder: (market: string, act: "create" | "rename" | "delete", body: { name?: string; from?: string; to?: string }) => U<string[]>(`models/folders/${act}`, { method: "POST", query: { market }, body: JSON.stringify(body) }),
   moveModel: (market: string, id: string, to: { group?: string; before?: string }) => U<Model>("models/move", { method: "POST", query: { market, id }, body: JSON.stringify(to) }),
   deleteModel: (market: string, id: string) => U<{ ok: true }>("models/delete", { method: "POST", query: { market, id }, body: "{}" }),
+  /** Publish now (no `at`), schedule (`at` in the future) or cancel a schedule, for one page or many. */
+  publish: (market: string, paths: string[], opts: { at?: string; cancel?: boolean } = {}) => U<{ path: string; title: string; ok: boolean; status?: string; reason?: string }[]>("publish", { method: "POST", query: { market }, body: JSON.stringify({ paths, ...opts }) }),
   /* content entities */
   entities: (market: string, model?: string) => U<Entity[]>("entities", { query: { market, model } }),
   entity: (market: string, path: string) => U<Entity>("entities/get", { query: { market, path } }),

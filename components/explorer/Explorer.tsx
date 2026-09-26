@@ -1,5 +1,7 @@
 "use client";
 import Link from "next/link";
+import { PublishDialog } from "@/components/pages/PublishDialog";
+import { env } from "@/lib/markets";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PageSummary } from "@/lib/api/types";
@@ -19,7 +21,8 @@ type Props = { marketId: string; envId: string; root: string; marketName: string
 type Modal =
   | { kind: "new" } | { kind: "folder" }
   | { kind: "rename"; page: PageSummary } | { kind: "move"; pages: PageSummary[] }
-  | { kind: "translate"; pages: PageSummary[] };
+  | { kind: "translate"; pages: PageSummary[] }
+  | { kind: "publish"; pages: PageSummary[] };
 const isFolder = (p: PageSummary) => p.isFolder;
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const PAGE = 50;
@@ -179,6 +182,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
         {rows.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-[12.5px] text-ink-3">Showing {shown.length} of {rows.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show {Math.min(PAGE, rows.length - shown.length)} more</button></div>}
         {selected.length > 0 && <div className="sticky bottom-4 mt-4 flex items-center gap-2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] shadow-xl w-fit mx-auto z-20"><b>{selected.length} selected</b><span className="text-white/40">·</span>
           <button className={barBtn} style={barStyle} disabled={!selected.some((p) => !p.isFolder)} onClick={() => setModal({ kind: "translate", pages: selected.filter((p) => !p.isFolder) })}>🌐 Translate</button>
+          <button className={barBtn} style={barStyle} disabled={!selected.some((p) => !p.isFolder)} onClick={() => setModal({ kind: "publish", pages: selected.filter((p) => !p.isFolder) })}>Publish</button>
           {canEditSelected ? <><button className={barBtn} style={barStyle} onClick={() => { openModal({ kind: "move", pages: selected }); setParent(folder.path === root ? root : parentOf(folder.path)); }}>Move</button>
           <button className={barBtn} style={barStyle} onClick={() => remove(selected)}>Delete</button></> : <span className="text-white/60 text-[12px]">Move and delete need Edit on every selected item</span>}
           <button className={barBtn} style={{ ...barStyle, borderColor: "transparent", opacity: .75 }} onClick={() => setSel([])}>Clear</button></div>}
@@ -205,6 +209,8 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
         <label className="text-xs text-ink-3">Destination folder<FolderSelect value={parent} onChange={setParent} root={root} marketName={marketName} tree={tree} rel={rel} exclude={modal.pages.filter((p) => p.isFolder).map((p) => p.path)} /></label>
         <ul className="mt-3 text-[12.5px] text-ink-2 grid gap-1 max-h-[160px] overflow-auto">{modal.pages.map((p) => <li key={p.path} className="font-mono text-[12px]">{rel(p.path)} → {rel(parent)}/{p.name}</li>)}</ul><Err err={err} /></ModalShell>}
 
+      {modal?.kind === "publish" && <PublishDialog marketId={marketId} envName={env(envId).name} pages={modal.pages.map((p) => ({ path: p.path, title: p.title, status: p.status, publishAt: typeof p.meta?.["ucp:publishAt"] === "string" ? String(p.meta["ucp:publishAt"]) : undefined }))} mayPublish={(path) => can("publish", path)} onClose={() => setModal(null)}
+        onDone={(r, m) => { const n = r.filter((x) => x.ok).length; say(n ? `${m === "schedule" ? "Scheduled" : m === "cancel" ? "Unscheduled" : "Published"} ${n} page${n === 1 ? "" : "s"}${n < modal.pages.length ? ` · ${modal.pages.length - n} skipped` : ""}` : "Nothing was published"); if (r.length && r.every((x) => x.ok) && n === modal.pages.length) setModal(null); setSel([]); router.refresh(); }} />}
       {modal?.kind === "translate" && <TranslateModal pages={modal.pages} marketId={marketId} base={base} root={root} marketName={marketName} tree={tree} rel={rel} folderPath={folder.path} onClose={() => setModal(null)} onDone={() => { setSel([]); router.refresh(); }} />}
       {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] z-50">{toast}</div>}
     </div>

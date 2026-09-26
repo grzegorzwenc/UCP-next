@@ -53,7 +53,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       if (patch.status && before && patch.status !== before.status) await snapshotVersion(path, `before: ${STATUS_TEXT[patch.status as PageStatus].replace("{t}", "").trim()}`, who.id);
       const p = await r.updateContent(path, patch);
       if (patch.status && before && patch.status !== before.status) {
-        const meId = (await r.identity()).id; const meta: Record<string, unknown> = { "ucp:sentBy": meId, "ucp:sentAt": new Date().toISOString() };
+        const meId = who.id; const meta: Record<string, unknown> = { "ucp:sentBy": meId, "ucp:sentAt": new Date().toISOString() };
         if (patch.status === "review") { const d = new Date(); d.setDate(d.getDate() + 3); meta["ucp:due"] = d.toISOString(); } else meta["ucp:due"] = null;
         await r.setProps(`${path}/jcr:content`, meta).catch(() => {});
         await audit(patch.status === "published" || patch.status === "approved" || patch.status === "scheduled" ? "publishing" : "content", STATUS_TEXT[patch.status as PageStatus].replace("{t}", p.title), path, patch.status === "failed" ? "crit" : "");

@@ -9,6 +9,7 @@ import { RenderBlock, SiteChrome, AssetsContext, EntitiesContext, InlineEditCont
 import { bindingsOf, hasTokens, type ResolvedEntities } from "@/lib/ucp/tokens";
 import type { Bindings } from "@/lib/ucp/types";
 import { LinkedContentPanel, TokenChips, tokenGroups, type ContentModelInfo, type TokenGroup } from "./LinkedContent";
+import { PublishDialog } from "@/components/pages/PublishDialog";
 import { SendForReviewModal, AssigneeChip, type ReviewBody } from "./SendForReview";
 import { AssetPicker } from "./AssetPicker";
 import { Pill } from "@/components/ui/Pill";
@@ -93,6 +94,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [assignee, setAssignee] = useState(() => { const a = page.meta?.["ucp:assignee"]; return typeof a === "string" ? a : ""; });
   const assigneeName = assignee ? names[assignee] ?? assignee : "";
   const [sending, setSending] = useState(false);
+  const [publishing, setPublishing] = useState(false); const [publishAt, setPublishAt] = useState<string | undefined>(() => (typeof page.meta?.["ucp:publishAt"] === "string" ? String(page.meta["ucp:publishAt"]) : undefined));
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const rel = page.path.replace(root, "");
@@ -295,7 +297,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (i === 2) { if (locked) { setFocusMode(true); return; } setStage("content"); setFocusMode(true); return; }
     if (i === 3) { openSend(); return; }
     if (i === 4) { if (status === "review") { if (mayApprove) transition("approved", "Approved · ready to publish"); else say(`${waitingFor} to approve`); } else say(status === "draft" || status === "failed" ? "Send the page for review first" : "Review is done"); return; }
-    if (i === 5) { if (status === "approved" || status === "scheduled") { if (mayStatus("published")) transition("published", `Published to ${envName}`); else say("Waiting for a publisher"); } else say(status === "published" ? "Already published" : "The page must be approved first"); return; }
+    if (i === 5) { if (status === "approved" || status === "scheduled") { if (mayStatus("published")) { if (dirty) save().catch(() => {}); setPublishing(true); } else say("Waiting for a publisher"); } else say(status === "published" ? "Already published" : "The page must be approved first"); return; }
     if (i === 6) { say(status === "published" ? `Live on ${domain}${rel}` : "Not published yet"); }
   };
   const insightBadge = useMemo(() => pageInsights(blocks, { title, description, template: page.template, status, locale }).groups.flatMap((g) => g.items).filter((i) => i.level === "crit").length, [blocks, title, description, page.template, status, locale]);
@@ -329,7 +331,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           <div className="flex gap-1 pl-2.5 border-l border-line">{!canEdit ? <span className="text-xs text-ink-3 px-2" title="Ask a site admin for Edit on this folder">🔒 Read-only</span> : <button className={`btn btn-sm ${!locked && !focus && stage === "content" ? "on" : ""}`} onClick={() => void goEdit("content")} title={locked ? "Reopen this page for editing" : "Edit the page content"}>✎ Edit</button>}<button className="btn btn-sm" onClick={() => save().then(() => say("Saved")).catch(() => {})} disabled={!dirty || !canEdit}>Save</button>
             {(status === "draft" || status === "failed") && mayStatus("review") && <button className="btn btn-sm btn-primary" onClick={openSend}>Send for review</button>}
             {status === "review" && (mayApprove ? <button className="btn btn-sm btn-primary" onClick={() => transition("approved", "Approved")}>Approve</button> : <span className="text-xs text-ink-3 self-center whitespace-nowrap">{waitingFor}</span>)}
-            {(status === "approved" || status === "scheduled") && (mayStatus("published") ? <button className="btn btn-sm btn-primary" onClick={() => transition("published", `Published to ${envName}`)}>Publish</button> : <span className="text-xs text-ink-3">Waiting for a publisher</span>)}
+            {(status === "approved" || status === "scheduled") && (mayStatus("published") ? <button className="btn btn-sm btn-primary" onClick={() => { if (dirty) save().catch(() => {}); setPublishing(true); }}>{status === "scheduled" ? "Publish / reschedule" : "Publish"}</button> : <span className="text-xs text-ink-3">Waiting for a publisher</span>)}
             </div>
         </div>
       </div>}
@@ -405,6 +407,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {rightTab === "block" && selected && <div className="flex justify-end gap-2 px-3.5 py-2.5 border-t border-line bg-surface"><button className="btn btn-sm" onClick={() => closeConfigure(false)}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => { closeConfigure(true); say("Component updated · Save the page when you're done"); }}>Save</button></div>}
         </aside>}
         {focus && <div aria-live="polite" className={`fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-[#0F1013]/85 text-white text-[12px] px-3 py-1.5 rounded-full transition-opacity duration-700 ${fsHint ? "opacity-100" : "opacity-0 pointer-events-none"}`}>Preview · this is what visitors see · press Esc to go back to editing</div>}
+        {publishing && <PublishDialog marketId={marketId} envName={envName} pages={[{ path: page.path, title, status, publishAt }]} mayPublish={() => mayStatus("published")} onClose={() => setPublishing(false)}
+          onDone={(r, m) => { const x = r[0]; setPublishing(false); if (!x?.ok) { say(x?.reason ?? "Nothing was published"); return; } setStatus(x.status as PageStatus); setPublishAt(undefined); say(m === "cancel" ? "Schedule cancelled · back to Approved" : m === "schedule" ? "Scheduled for publishing" : `Published to ${envName}`); router.refresh(); }} />}
         {sending && <SendForReviewModal marketId={marketId} pagePath={page.path} meId={user.id} onClose={() => setSending(false)} onSend={sendForReview} />}
         {translating && <TranslateModal marketId={marketId} path={page.path} title={title} onClose={() => setTranslating(false)} onDone={(created) => { say(`Created ${created.length} translation${created.length === 1 ? "" : "s"}`); router.refresh(); }} />}
         {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] shadow-xl z-50">{toast}</div>}

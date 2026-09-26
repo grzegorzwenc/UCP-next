@@ -296,3 +296,52 @@ export async function reviewerOptions(marketId: string, pagePath: string): Promi
 }
 /** Pick the reviewer with the fewest active reviews (never the sender when someone else is available). */
 export async function autoAssignee(marketId: string, pagePath: string, senderId: string): Promise<ReviewerOption | undefined> { const opts = await reviewerOptions(marketId, pagePath); return opts.find((o) => o.id !== senderId) ?? opts[0]; }
+
+/* ---------------- publishing: now or at a date, one page or many ---------------- */
+export type PublishResult = { path: string; title: string; ok: boolean; status?: string; reason?: string };
+const PUBLISHABLE = ["approved", "scheduled"];
+/**
+ * Publish pages now (`at` empty or in the past) or schedule them for `at`. Only approved or already scheduled pages
+ * can go live, and the person needs Publish on each page. Every page is handled on its own; the result says why one was skipped.
+ */
+export async function publishPages(marketId: string, paths: string[], opts: { at?: string; cancel?: boolean }, u: User): Promise<PublishResult[]> {
+  const mk = marketOf(marketId); const now = new Date(); const at = opts.at ? new Date(opts.at) : undefined;
+  if (at && isNaN(at.getTime())) throw new RepoError(400, "That date is not valid", opts.at);
+  const schedule = !!at && at.getTime() > now.getTime() + 60_000; const out: PublishResult[] = [];
+  for (const path of [...new Set(paths)]) {
+    const pg = await repo().getPage(path).catch(() => undefined);
+    if (!pg) { out.push({ path, title: path, ok: false, reason: "Page not found" }); continue; }
+    const r = { path, title: pg.title };
+    if (!can(u, "publish", path, mk.root)) { out.push({ ...r, ok: false, reason: "You don't have Publish on this page" }); continue; }
+    if (opts.cancel) {
+      if (pg.status !== "scheduled") { out.push({ ...r, ok: false, reason: "Not scheduled" }); continue; }
+      await repo().updateContent(path, { status: "approved" }); await repo().setProps(`${path}/jcr:content`, { "ucp:publishAt": null });
+      await logEvent(marketId, { type: "publishing", who: u.id, text: `cancelled the scheduled publish of ${pg.title}`, target: path }); out.push({ ...r, ok: true, status: "approved" }); continue;
+    }
+    if (!PUBLISHABLE.includes(pg.status)) { out.push({ ...r, ok: false, reason: pg.status === "published" ? "Already live" : pg.status === "review" ? "Still in review" : "Needs approval first" }); continue; }
+    const stamp = new Date().toISOString();
+    if (schedule) {
+      await snapshotVersion(path, "before: scheduled for publishing", u.id);
+      await repo().updateContent(path, { status: "scheduled" }); await repo().setProps(`${path}/jcr:content`, { "ucp:publishAt": at!.toISOString(), "ucp:sentBy": u.id, "ucp:sentAt": stamp, "ucp:due": null });
+      await logEvent(marketId, { type: "publishing", who: u.id, text: `scheduled ${pg.title} for ${at!.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" })}`, target: path });
+      out.push({ ...r, ok: true, status: "scheduled" });
+    } else {
+      await snapshotVersion(path, "before: published", u.id);
+      await repo().updateContent(path, { status: "published" }); await repo().setProps(`${path}/jcr:content`, { "ucp:publishAt": null, "ucp:publishedAt": stamp, "ucp:publishedBy": u.id, "ucp:sentBy": u.id, "ucp:sentAt": stamp, "ucp:due": null });
+      await logEvent(marketId, { type: "publishing", who: u.id, text: `published ${pg.title}`, target: path });
+      out.push({ ...r, ok: true, status: "published" });
+    }
+  }
+  return out;
+}
+/** Scheduled pages whose time has come go live. Called when CMS screens load (a real backend would run this as a job). */
+export async function publishDue(marketId: string): Promise<number> {
+  const mk = marketOf(marketId); const now = Date.now(); let n = 0;
+  for (const p of await allPages(mk.root).catch(() => [])) {
+    const at = typeof p.meta?.["ucp:publishAt"] === "string" ? Date.parse(String(p.meta["ucp:publishAt"])) : NaN;
+    if (p.status !== "scheduled" || isNaN(at) || at > now) continue;
+    await repo().updateContent(p.path, { status: "published" }); await repo().setProps(`${p.path}/jcr:content`, { "ucp:publishAt": null, "ucp:publishedAt": new Date().toISOString(), "ucp:publishedBy": "system" });
+    await logEvent(marketId, { type: "publishing", who: "system", text: `published ${p.title} (scheduled)`, target: p.path }); n++;
+  }
+  return n;
+}
