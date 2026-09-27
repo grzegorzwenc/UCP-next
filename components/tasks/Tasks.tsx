@@ -68,14 +68,17 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
   function assignee(t: Task, phone = false) {
     if (!isAdmin || t.kind === "Finish") return t.assigneeName ? <span className="inline-flex items-center gap-2"><Avatar name={t.assigneeName} size={phone ? 18 : 24} /><span>{phone ? <>Assigned to <b className="font-semibold">{t.assigneeName}</b></> : t.assigneeName}</span></span> : <span className="text-ink-3">{t.kind === "Finish" ? "The page’s author" : unassigned(t)}</span>;
     const open = (e: React.MouseEvent) => { e.stopPropagation(); setAssigning(t); };
-    const btn = <button type="button" className="text-[12px] font-semibold text-accent underline underline-offset-2 hover:no-underline py-0.5" onClick={open} aria-label={`${t.assigneeName ? "Change who does" : "Assign"} ${t.what.toLowerCase()} on ${t.page.title}`}>{t.assigneeName ? "Change" : "Assign"}</button>;
-    // phone: one flowing line under the title, e.g. "(PK) Assigned to Priya Kaur · Change"
-    if (phone) return <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">{t.assigneeName ? <><Avatar name={t.assigneeName} size={18} /><span>Assigned to</span><b className="font-semibold">{t.assigneeName}</b></> : <><i aria-hidden className="w-2 h-2 rounded-full bg-warn" /><span className="text-warn font-medium">Waiting for assignment</span></>}{btn}</span>;
-    return <span className="grid gap-0.5 justify-items-start">
-      {t.assigneeName ? <span className="inline-flex items-center gap-2"><Avatar name={t.assigneeName} size={24} /><span>{t.assigneeName}</span></span>
-        : <span className="inline-flex items-center gap-1.5 text-warn font-medium"><i aria-hidden className="w-2 h-2 rounded-full bg-warn flex-none" />Waiting for assignment</span>}
-      {btn}
-    </span>;
+    const label = `${t.assigneeName ? `Assigned to ${t.assigneeName}. Change who does` : "Waiting for assignment. Assign"} ${t.what.toLowerCase()} on ${t.page.title}`;
+    // one clickable chip: the person (click to change) or a dashed "waiting" chip (click to assign)
+    const chip = t.assigneeName
+      ? <button type="button" onClick={open} aria-label={label} title="Change who does this" className="group inline-flex items-center gap-2 max-w-full rounded-full border border-line bg-surface pl-1 pr-2.5 py-1 text-[12.5px] text-ink hover:border-ink-4 hover:bg-surface-2">
+          <Avatar name={t.assigneeName} size={22} /><span className="truncate font-medium">{t.assigneeName}</span><span aria-hidden className="text-ink-4 group-hover:text-ink text-[11px]">✎</span></button>
+      : phone
+        ? <button type="button" onClick={open} aria-label={label} className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-warn/60 bg-warn-soft px-2 py-1 text-[11.5px] font-semibold text-warn text-left hover:border-warn">
+            <i aria-hidden className="w-1.5 h-1.5 rounded-full bg-warn flex-none" /><span>Waiting for assignment <span className="text-ink underline underline-offset-2">Assign</span></span></button>
+        : <button type="button" onClick={open} aria-label={label} className="inline-flex items-center gap-2 rounded-full border border-dashed border-warn/60 bg-warn-soft pl-2.5 pr-1 py-1 text-[12px] font-semibold text-warn whitespace-nowrap hover:border-warn">
+          <i aria-hidden className="w-1.5 h-1.5 rounded-full bg-warn" />Waiting for assignment<span className="rounded-full bg-surface text-ink px-2 py-0.5 text-[11.5px] border border-line">Assign</span></button>;
+    return phone ? <span className="flex flex-wrap items-center gap-x-2 gap-y-1">{chip}</span> : chip;
   }
 
   async function act(e: React.MouseEvent, t: Task) {
@@ -111,8 +114,8 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
         <span className="ml-auto text-[12.5px] text-ink-3">{rows.length} of {tasks.length}</span>
       </div>
       {rows.length ? (
-        <div className="bg-surface border border-line rounded-xl overflow-hidden"><div className="overflow-auto"><table className={`w-full text-[13.5px] ${isAdmin ? "[&_tr>*:nth-child(4)]:hidden md:[&_tr>*:nth-child(4)]:table-cell" : "[&_tr>*:nth-child(4)]:hidden 2xl:[&_tr>*:nth-child(4)]:table-cell"} [&_tr>*:nth-child(1)]:hidden md:[&_tr>*:nth-child(1)]:table-cell [&_tr>*:nth-child(6)]:hidden sm:[&_tr>*:nth-child(6)]:table-cell [&_tr>*:nth-child(3)]:hidden 2xl:[&_tr>*:nth-child(3)]:table-cell [&_tr>*:nth-child(5)]:hidden 2xl:[&_tr>*:nth-child(5)]:table-cell`}>
-          <thead className="bg-surface-2"><tr className="text-left text-[11px] uppercase tracking-[.08em] text-ink-3"><Th {...thp} k="kind" className="w-[130px]">Type</Th><Th {...thp} k="name">Page · what to do</Th><Th {...thp} k="from" className="w-[200px]">Sent by</Th><Th {...thp} k="assignee" className="w-[190px]">Assigned to</Th><Th {...thp} k="waiting" className="w-[110px]">Waiting</Th><Th {...thp} k="due" className="w-[170px]">Due · sent</Th><Th {...thp} className="w-[150px] text-right">Action</Th></tr></thead>
+        <div className="bg-surface border border-line rounded-xl overflow-hidden"><div className="overflow-auto"><table className={`w-full text-[13.5px] max-sm:[&_td]:px-3 max-sm:[&_th]:px-3 ${isAdmin ? "[&_tr>*:nth-child(4)]:hidden md:[&_tr>*:nth-child(4)]:table-cell" : "[&_tr>*:nth-child(4)]:hidden 2xl:[&_tr>*:nth-child(4)]:table-cell"} [&_tr>*:nth-child(1)]:hidden md:[&_tr>*:nth-child(1)]:table-cell [&_tr>*:nth-child(6)]:hidden sm:[&_tr>*:nth-child(6)]:table-cell [&_tr>*:nth-child(3)]:hidden 2xl:[&_tr>*:nth-child(3)]:table-cell [&_tr>*:nth-child(5)]:hidden 2xl:[&_tr>*:nth-child(5)]:table-cell`}>
+          <thead className="bg-surface-2"><tr className="text-left text-[11px] uppercase tracking-[.08em] text-ink-3"><Th {...thp} k="kind" className="w-[130px]">Type</Th><Th {...thp} k="name">Page · what to do</Th><Th {...thp} k="from" className="w-[200px]">Sent by</Th><Th {...thp} k="assignee" className="w-[240px]">Assigned to</Th><Th {...thp} k="waiting" className="w-[110px]">Waiting</Th><Th {...thp} k="due" className="w-[170px]">Due · sent</Th><Th {...thp} className="w-[150px] text-right">Action</Th></tr></thead>
           <tbody>{([["Overdue", (t: Task) => t.overdueDays > 0, "text-crit"], ["Due today", (t: Task) => t.overdueDays === 0, "text-warn"], ["Coming up", (t: Task) => t.overdueDays < 0, "text-ink-3"]] as const).map(([title, pred, cls]) => { const grouped = sort === "due" && dir === "asc"; const list = grouped ? rows.filter(pred) : (title === "Overdue" ? rows : []); if (!list.length) return null; return <Fragment key={title}>
             {grouped && <tr><td colSpan={7} className={`px-4 pt-3 pb-1.5 text-[10.5px] uppercase tracking-[.1em] font-semibold ${cls}`}>{title} · {list.length}</td></tr>}
             {list.map((t) => { const d = dueLabel(t); const primary = t.kind === "Review" || t.kind === "Publish"; const label = t.kind === "Review" ? "Review" : t.kind === "Publish" ? "Publish" : t.kind === "Fix" ? "Retry publish" : t.kind === "Check" ? "Check" : "Continue";
@@ -133,7 +136,7 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
         <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl"><b className="block text-[15px]">{q || kind || when ? "No tasks match" : "All clear"}</b><p className="text-ink-3 text-[13px] mt-1">{q || kind || when ? <button className="underline text-ink" onClick={() => { setQ(""); setKind(""); setWhen(""); }}>Clear filters</button> : "Nothing is waiting on you. New review and publish requests will show up here."}</p></div>
       )}
       {assigning && <AssignDialog marketId={marketId} task={assigning} pageHref={builderHref(assigning.page.path)} onClose={() => setAssigning(null)} onDone={(name) => { setToast(name ? `${assigning.page.title}: assigned to ${name}` : `${assigning.page.title}: waiting for assignment`); setAssigning(null); router.refresh(); }} />}
-      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] shadow-xl z-50">{toast}</div>}
+      {toast && <div role="status" className="fixed bottom-5 left-1/2 -translate-x-1/2 w-max max-w-[calc(100vw-32px)] flex items-center gap-2.5 bg-[#0F1013] text-white pl-3 pr-4 py-2.5 rounded-xl text-[13px] shadow-xl z-50"><span aria-hidden className="grid place-items-center w-5 h-5 rounded-full bg-white/15 text-[11px] flex-none">✓</span><span className="min-w-0">{toast}</span></div>}
     </div>
   );
 }
