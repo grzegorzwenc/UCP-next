@@ -19,10 +19,10 @@ export function LeftPanel({ tab, setTab, phone, width = 320, onResizeStart, bloc
   return (
     <aside data-ui style={phone ? undefined : { width }} className={phone ? "absolute inset-x-0 top-0 bottom-12 bg-surface flex flex-col z-[5]" : "absolute left-[52px] top-0 bottom-0 max-w-[calc(100%-52px)] bg-surface border-r border-line flex flex-col z-[5] shadow-xl md:shadow-none"}>
       {!phone && onResizeStart && <div role="separator" aria-orientation="vertical" aria-label="Resize panel" title="Drag to resize" onMouseDown={onResizeStart} className="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize hover:bg-accent/30 active:bg-accent/40 z-10" />}
-      <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line">
-        <b className="text-[13.5px]">{tab === "add" ? "Add a component" : `Page outline · ${blocks.length} block${blocks.length === 1 ? "" : "s"}`}</b>
+      {tab === "add" && <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line">
+        <b className="text-[13.5px]">Add a component</b>
         <button type="button" className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={onClose} aria-label="Close panel">✕</button>
-      </div>
+      </div>}
       {tab === "add" ? <>
         <div className="p-3 border-b border-line"><input className="w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px]" placeholder="Find a component…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a component" /></div>
         <div className="flex-1 overflow-auto p-2">
