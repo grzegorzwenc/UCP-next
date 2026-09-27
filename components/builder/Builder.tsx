@@ -122,6 +122,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const remove = (id: string) => { mutate((b) => b.filter((x) => x.id !== id)); select(null); };
   const duplicate = (b: Block) => mutate((bl) => { const i = bl.findIndex((x) => x.id === b.id); const c = bl.slice(); c.splice(i + 1, 0, { ...b, id: makeBlock(b.type).id, props: { ...b.props } }); return c; });
   const configure = (id: string) => { setSel(id); setMode("select"); setPop(null); setRightTab("block"); setRight(true); setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
+  /** Clicking a component opens Configure with its fields right away (not on phones, where the panel would cover the page). */
+  const openCfgPanel = (id: string) => { if (phone || !canEdit || locked) return; setRightTab("block"); setRight(true); setCfgSnapshot(blocksRef.current.find((b) => b.id === id)?.props ?? null); };
   const closeConfigure = (keep: boolean) => { if (!keep && sel && cfgSnapshot) mutate((b) => b.map((x) => (x.id === sel ? { ...x, props: cfgSnapshot } : x))); setCfgSnapshot(null); setRight(false); };
   /* Latest values for timers and async work (the AI run applies ops 300 ms apart and must see its own previous result). */
   const blocksRef = useRef(blocks); const titleRef = useRef(title); const descRef = useRef(description); const taskSeq = useRef(0);
@@ -298,10 +300,11 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
       e.preventDefault(); if (editing) commitInline(true);
       const cta = t.closest(".s-cta"); const hasLink = BLOCK_BY_TYPE[b.type].fields.some((f) => f.k === "link");
       if (cta && hasLink && !ie.dataset.inline!.includes("|")) { setSel(id); setMode("edit"); setCtaPop({ id, labelKey: ie.dataset.inline!.split("|")[1], linkKey: "link" }); return; }
-      enterEdit(id, t, { x: e.clientX, y: e.clientY }); return;
+      enterEdit(id, t, { x: e.clientX, y: e.clientY }); openCfgPanel(id); return;
     }
-    if (id !== sel) { if (editing) commitInline(true); select(id); return; }
+    if (id !== sel) { if (editing) commitInline(true); select(id); openCfgPanel(id); return; }
     if (editing && !ie) commitInline(true);
+    if (!(right && rightTab === "block")) openCfgPanel(id);
   }
   function onCanvasDouble(e: React.MouseEvent) { if (preview) return; const t = e.target as HTMLElement; if (t.closest("[data-ui]")) return; const blk = t.closest<HTMLElement>(".cblk"); if (!blk) return; if (editing && editingEl.current?.contains(t)) return; /* double-click inside the text being edited selects a word */ if (editing) commitInline(true); enterEdit(blk.dataset.id!, t); }
   function onCanvasKey(e: React.KeyboardEvent) {
@@ -435,7 +438,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               <div className="border-t border-line pt-3 flex flex-col gap-2"><b className="text-xs text-ink-2">Languages</b><span className="text-[12px] text-ink-3">This page is {locale}. Create a translated copy in another locale.</span><button className="btn btn-sm justify-center" onClick={() => setTranslating(true)}>🌐 Translate this page…</button></div>
             </div>
             : !selected ? <div className="text-ink-3 p-2"><b className="block text-sm text-ink mb-1.5">Nothing selected</b>Click a block on the page, then ⚙ Configure.<div className="mt-3.5 flex flex-col gap-1.5">{blocks.slice(0, 8).map((k, ix) => <button key={k.id} className="btn btn-sm justify-start" onClick={() => configure(k.id)}>{ix + 1}. {BLOCK_BY_TYPE[k.type].name}</button>)}</div></div>
-            : <ConfigForm block={selected} index={blocks.indexOf(selected)} count={blocks.length} marketId={marketId} setProp={(k, v) => setProp(selected.id, k, v)} entities={entities} canEdit={canEdit && !locked} onFieldFocus={(k, l, start, end) => { lastField.current = { blockId: selected.id, k, l, start, end }; }} onChoose={(k, l) => setContentPick({ target: "field", blockId: selected.id, k, l })} />}
+            : <ConfigForm block={selected} index={blocks.indexOf(selected)} count={blocks.length} marketId={marketId} setProp={(k, v) => setProp(selected.id, k, v)} entities={entities} canEdit={canEdit && !locked} onFieldFocus={(k, l, start, end) => { if (editing) commitInline(true); lastField.current = { blockId: selected.id, k, l, start, end }; }} onChoose={(k, l) => setContentPick({ target: "field", blockId: selected.id, k, l })} />}
           </div>}
           {rightTab === "block" && selected && <div className="flex justify-end gap-2 px-3.5 py-2.5 border-t border-line bg-surface"><button className="btn btn-sm" onClick={() => closeConfigure(false)}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => { closeConfigure(true); say("Component updated · Save the page when you're done"); }}>Save</button></div>}
         </aside>}
