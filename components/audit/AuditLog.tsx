@@ -46,8 +46,8 @@ export function AuditLog({ own, log, names, pageTitles, base, root, marketName, 
   };
   const inputCls = "border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface";
 
-  return (<div className="p-7">
-    <div className="flex items-start gap-4 mb-5"><div><h1 className="text-2xl font-semibold">{own ? "My activity" : "Audit log"}</h1><p className="text-ink-3 text-[13px] mt-1">{own && <><b className="text-ink-2">Only your own actions, {own}.</b> Site admins see everyone&rsquo;s. </>}Every change to content, publishing and permissions on {marketName} · {envName}. Immutable, kept for 7 years, exported nightly to the security team.</p></div>
+  return (<div className="p-4 md:p-7">
+    <div className="flex flex-wrap items-start gap-x-4 gap-y-3 mb-5"><div><h1 className="text-2xl font-semibold">{own ? "My activity" : "Audit log"}</h1><p className="text-ink-3 text-[13px] mt-1">{own && <><b className="text-ink-2">Only your own actions, {own}.</b> Site admins see everyone&rsquo;s. </>}Every change to content, publishing and permissions on {marketName} · {envName}. Immutable, kept for 7 years, exported nightly to the security team.</p></div>
       <div className="ml-auto flex gap-2"><button className="btn" onClick={exportCsv} disabled={rows.length === 0}>Export CSV</button></div></div>
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3.5 mb-4"><Kpi label="Events today" value={today.length} tone="grey" /><Kpi label="Publishes today" value={cntType("publishing")} tone="green" /><Kpi label="Permission changes today" value={cntType("permissions")} tone="blue" /><Kpi label="Failures today" value={failures} tone={failures > 0 ? "crit" : "grey"} /></div>
     <div className="flex items-center gap-2 mb-3 flex-wrap">

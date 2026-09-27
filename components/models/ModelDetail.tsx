@@ -20,7 +20,7 @@ function Stat({ label, value, hint }: { label: string; value: number; hint?: str
 export function ModelDetail({ p, md, isAdmin, go }: { p: Props; md: Model; isAdmin: boolean; go: (href: string) => void }) {
   const block = isBlockModel(md); const used = p.usage[md.id] ?? []; const nEnt = p.entityCounts[md.id] ?? 0;
   const nav = (href: string) => ({ href, onClick: (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); go(href); } });
-  return <div className="p-7">
+  return <div className="p-4 md:p-7">
     <Crumbs items={[{ label: "Content models", href: `${p.base}/models`, onClick: () => go(`${p.base}/models`) }, { label: md.group, href: groupLink(p.base, md.group), onClick: () => go(groupLink(p.base, md.group)) }, { label: md.name }]} />
     <div className="flex items-start gap-3 mb-5 flex-wrap"><ModelIcon m={md} big /><div className="min-w-0">
       <div className="flex items-center gap-2.5 flex-wrap"><h1 className="text-2xl font-semibold leading-tight">{md.name}</h1><StatusPill status={md.status} /><span className={chip} title="Draft version">v{md.version}</span>{md.publishedVersion && <span className={chip} title="Version served by the delivery API">Published: v{md.publishedVersion}</span>}</div>

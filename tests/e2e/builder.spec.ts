@@ -46,6 +46,9 @@ test.describe("builder", () => {
     await page.keyboard.press("Backspace");
     await page.keyboard.press("Enter");
     await expect(heading).toHaveText(before);
+    await expect(status).toHaveText("Saving…");
     await expect(status).toHaveText("✓ Saved", { timeout: 5000 });
+    await page.reload();
+    await expect(heading).toHaveText(before);
   });
 });

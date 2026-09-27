@@ -1,4 +1,5 @@
 "use client";
+import { SideTree } from "@/components/ui/SideTree";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -88,17 +89,17 @@ export function Entities(p: EntitiesProps) {
 
   let body: React.ReactNode;
   if (md && ent) body = <EntityEditor key={`${ent.path}:${ent.lastModified ?? ""}:${ent.status}`} base={p.base} marketId={p.marketId} marketRoot={p.marketRoot} marketName={p.marketName} flag={p.flag} model={md} entity={ent} entities={p.entities} models={p.models} usedOn={p.usage[ent.path] ?? []} names={p.names} viewerId={p.viewerId} canEdit={canEdit} go={go} say={say} setDirty={setDirty} saveRef={saveRef} />;
-  else if (md && p.entityId) body = <div className="p-7"><Crumbs items={[{ label: "Content entities", href: entitiesLink(p.base), onClick: () => go(entitiesLink(p.base)) }, { label: md.name, href: entitiesLink(p.base, md.id), onClick: () => go(entitiesLink(p.base, md.id)) }, { label: "Not found" }]} /><div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl"><b className="block text-[15px]">This entity no longer exists</b><p className="text-ink-3 text-[13px] mt-1">It may have been deleted. <button className="underline text-ink" onClick={() => go(entitiesLink(p.base, md.id))}>Back to {md.name} entities</button></p></div></div>;
+  else if (md && p.entityId) body = <div className="p-4 md:p-7"><Crumbs items={[{ label: "Content entities", href: entitiesLink(p.base), onClick: () => go(entitiesLink(p.base)) }, { label: md.name, href: entitiesLink(p.base, md.id), onClick: () => go(entitiesLink(p.base, md.id)) }, { label: "Not found" }]} /><div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl"><b className="block text-[15px]">This entity no longer exists</b><p className="text-ink-3 text-[13px] mt-1">It may have been deleted. <button className="underline text-ink" onClick={() => go(entitiesLink(p.base, md.id))}>Back to {md.name} entities</button></p></div></div>;
   else body = <Overview key={md?.id ?? ""} p={p} md={md} byModel={byModel} models={models} canEdit={canEdit} go={go} onCreate={() => setCreating(true)} onNewFolder={(m) => setFolderDlg({ model: m })} />;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] grid-rows-[auto_1fr] md:grid-rows-1 h-full min-h-0">
-      <aside className="bg-surface border-b md:border-b-0 md:border-r border-line p-3 md:overflow-auto">
+      <SideTree label="Entities" current={ent?.title ?? md?.name ?? "All entities"}>
         <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mb-2">Content entities</h6>{canEdit && <p className="text-[11.5px] text-ink-4 px-2 -mt-1 mb-2">Drag an entity to reorder it or move it to another folder.</p>}
         <label className="flex items-center gap-2 border border-line-2 rounded-md px-2.5 py-1.5 mb-2 bg-surface"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px] bg-transparent min-w-0" placeholder="Find an entity" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find an entity" /></label>
         <FolderList key={ql ? `q:${ql}` : `sel:${md?.id ?? ""}`} root={{ label: "All entities", count: p.entities.length, active: !md, onClick: () => go(entitiesLink(p.base)) }} items={items} extra={ql && !items.length ? <div className="text-[12.5px] text-ink-4 px-2 py-1">Nothing matches “{q}”</div> : undefined} />
         {canEdit && <button className="btn btn-quiet btn-sm mt-2.5 ml-1" onClick={() => setCreating(true)}>＋ New entity</button>}
-      </aside>
+      </SideTree>
       <div className="overflow-y-auto overflow-x-hidden min-w-0 min-h-0">{body}</div>
       {creating && canEdit && <NewEntityModal marketId={p.marketId} models={models} initial={md} folder={p.folder} onClose={() => setCreating(false)} onDone={onCreated} />}
       {pending && <UnsavedModal what={ent ? `“${ent.title}”` : "this entity"} busy={busy === "guard"} onStay={() => setPending(null)} onDiscard={() => { const h = pending; setPending(null); setDirty(false); router.push(h); }} onSave={async () => { setBusy("guard"); const ok = await saveRef.current?.(); setBusy(""); if (ok) { const h = pending; setPending(null); setDirty(false); router.push(h); } }} />}
@@ -142,7 +143,7 @@ function Overview({ p, md, byModel, models, canEdit, go, onCreate, onNewFolder }
   const createBtn = canEdit ? <>{!p.folder && <button className="btn" onClick={() => onNewFolder(md)}>＋ New folder</button>}<button className="btn btn-primary" onClick={onCreate}>＋ New entity</button></> : null;
   const nav = (href: string) => ({ href, onClick: (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); go(href); } });
 
-  return <div className="p-7">
+  return <div className="p-4 md:p-7">
     {md && <Crumbs items={[{ label: "Content entities", href: entitiesLink(p.base), onClick: () => go(entitiesLink(p.base)) }, ...(p.folder ? [{ label: md.name, href: entitiesLink(p.base, md.id), onClick: () => go(entitiesLink(p.base, md.id)) }, { label: p.folder }] : [{ label: md.name }])]} />}
     <div className="flex flex-wrap items-end gap-4 mb-5"><div><h1 className="text-2xl font-semibold">{md ? (p.folder ? p.folder : `${md.name} entities`) : "Content entities"}</h1><p className="text-ink-3 text-[13px] mt-1">Concrete content built from a content model. Pages reuse it with {"{{tokens}}"}.{md && <> · <Link {...nav(detailLink(p.base, md.id))} className="underline hover:text-ink">View the {md.name} model</Link></>}</p></div>
       <div className="ml-auto flex gap-2 items-center">{createBtn ?? <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="You need Edit on this site to create content."><span aria-hidden="true">🔒</span>Read-only</span>}</div></div>

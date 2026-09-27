@@ -80,8 +80,8 @@ export function Users({ users: initialUsers, folders, log, pageTitles, base, roo
     } catch (e) { setErr(errText(e)); } finally { setBusy(false); }
   };
 
-  return (<div className="p-7">
-    <div className="flex items-start gap-4 mb-5"><div><h1 className="text-2xl font-semibold">Users & permissions</h1><p className="text-ink-3 text-[13px] mt-1">Who can see, edit, approve and publish, per folder. Click a user, then tick or untick the boxes.</p></div>
+  return (<div className="p-4 md:p-7">
+    <div className="flex flex-wrap items-start gap-x-4 gap-y-3 mb-5"><div><h1 className="text-2xl font-semibold">Users & permissions</h1><p className="text-ink-3 text-[13px] mt-1">Who can see, edit, approve and publish, per folder. Click a user, then tick or untick the boxes.</p></div>
       <div className="ml-auto flex gap-2"><button className="btn btn-primary" disabled={!isAdmin} title={isAdmin ? undefined : "Only site admins can invite users"} onClick={() => { setErr(null); setInvite(true); }}>＋ Invite user</button></div></div>
     {!isAdmin && <div role="note" className="mb-4 flex items-center gap-2.5 text-[13px] text-ink-2 bg-info-soft border border-info/30 px-3.5 py-2.5 rounded-lg"><span aria-hidden="true">🔒</span>Only site admins can change users and permissions. Ask {adminName}.</div>}
     {err && <div className="mb-4 text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded" role="alert">{err}</div>}

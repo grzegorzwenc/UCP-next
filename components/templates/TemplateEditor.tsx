@@ -10,6 +10,7 @@ import { repoApi } from "@/lib/api";
 import { errorText as errText } from "@/lib/api/errors";
 import { useSession } from "@/components/shell/Session";
 import { LeftPanel } from "@/components/builder/LeftPanel";
+import { useShellMode } from "@/components/shell/SideNav";
 import { templateBlocks } from "./TemplatePreview";
 import { tplFolders, tplFolderOf } from "./TemplateLibrary";
 
@@ -26,7 +27,12 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
   const ro = !(user.role === "admin" || can("manage", marketRoot));
   const base = `/${marketId}/${envId}`;
   const [name, setName] = useState(t.name); const [desc, setDesc] = useState(t.desc); const [blocks, setBlocks] = useState<string[]>(t.blocks); const [folder, setFolder] = useState(tplFolderOf(t));
-  const [sel, setSel] = useState<number | null>(null); const [left, setLeft] = useState(!ro); const [right, setRight] = useState(true);
+  const [sel, setSel] = useState<number | null>(null); const [deskLeft, setDeskLeft] = useState(!ro); const [deskRight, setDeskRight] = useState(true);
+  /* phones: no side rails, panels open full screen from the top bar and start closed */
+  const { phone } = useShellMode(); const [phoneLeft, setPhoneLeft] = useState(false); const [phoneRight, setPhoneRight] = useState(false);
+  const left = phone ? phoneLeft : deskLeft; const right = phone ? phoneRight : deskRight;
+  const setLeft = (v: boolean) => { if (phone) { setPhoneLeft(v); if (v) setPhoneRight(false); } else setDeskLeft(v); };
+  const setRight = (v: boolean) => { if (phone) { setPhoneRight(v); if (v) setPhoneLeft(false); } else setDeskRight(v); };
   const [toast, setToast] = useState<string | null>(null); const [saving, setSaving] = useState(false);
   const folders = useMemo(() => tplFolders(templates, marketName, [folder]), [templates, marketName, folder]);
   const say = (s: string) => { setToast(s); setTimeout(() => setToast(null), 2200); };
@@ -38,7 +44,7 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
   }
   const setBl = (b: string[]) => { setBlocks(b); void persist({ blocks: b }); };
   /** Add below the selected block, or at the end. */
-  const add = (type: string) => { if (ro) return; const at = sel === null ? blocks.length : sel + 1; const b = [...blocks]; b.splice(at, 0, type); setBl(b); setSel(at); say(`Added ${BLOCK_BY_TYPE[type]?.name ?? type}`); };
+  const add = (type: string) => { if (ro) return; const at = sel === null ? blocks.length : sel + 1; const b = [...blocks]; b.splice(at, 0, type); setBl(b); setSel(at); say(`Added ${BLOCK_BY_TYPE[type]?.name ?? type}`); if (phone) setPhoneLeft(false); };
   const move = (i: number, d: number) => { const j = i + d; if (j < 0 || j >= blocks.length) return; const b = [...blocks]; [b[i], b[j]] = [b[j], b[i]]; setBl(b); setSel(j); };
   const remove = (i: number) => { const b = blocks.filter((_, k) => k !== i); setBl(b); setSel(null); say(`Removed ${BLOCK_BY_TYPE[blocks[i]]?.name ?? blocks[i]}`); };
   async function del() {
@@ -51,8 +57,8 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
   useEffect(() => { const c = canvas.current; if (!c) return; const ro2 = new ResizeObserver(() => setAvail(c.clientWidth)); ro2.observe(c); return () => ro2.disconnect(); }, []);
   const siteRef = useRef<HTMLDivElement>(null); const [siteH, setSiteH] = useState(0);
   useEffect(() => { const el = siteRef.current; if (!el) return; const ro3 = new ResizeObserver(() => setSiteH(el.offsetHeight)); ro3.observe(el); return () => ro3.disconnect(); }, []);
-  const padL = left ? 320 + 76 : 76, padR = right ? 320 + 24 : 24;
-  const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / 1200)) : 1;
+  const padL = phone ? 12 : left ? 320 + 76 : 76, padR = phone ? 12 : right ? 320 + 24 : 24;
+  const siteW = phone ? 390 : 1200; const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / siteW)) : 1;
   const rendered = useMemo(() => templateBlocks(blocks), [blocks]);
 
   const railBtn = (on: boolean) => `relative w-11 h-11 rounded-lg grid place-items-center ${on ? "bg-accent text-white" : "text-ink-2 hover:bg-surface-3"}`;
@@ -62,22 +68,24 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
       <div className="flex items-center gap-3 px-4 bg-surface border-b border-line min-w-0">
         <Link href={`${base}/templates?folder=${encodeURIComponent(folder)}`} className="text-[13px] text-ink-2 hover:text-ink whitespace-nowrap">‹ Templates</Link>
         <div className="min-w-0 flex-1"><b className="block text-[14.5px] truncate">{name || "Untitled template"}</b><span className="block text-[11.5px] text-ink-3 truncate">Template · {folder} · {blocks.length} block{blocks.length === 1 ? "" : "s"} · used by {used} page{used === 1 ? "" : "s"}</span></div>
-        <span className="text-[12px] text-ink-3 whitespace-nowrap">{ro ? "🔒 Read-only" : saving ? "Saving…" : "Saved"}</span>
-        <Link className="btn btn-primary btn-sm whitespace-nowrap" href={`${base}/pages?new=1&template=${t.id}`}>New page from this template</Link>
+        <span className="hidden sm:inline text-[12px] text-ink-3 whitespace-nowrap">{ro ? "🔒 Read-only" : saving ? "Saving…" : "Saved"}</span>
+        {phone && !ro && <button type="button" className={`btn btn-sm ${left ? "on" : ""}`} onClick={() => setLeft(!left)}>＋ Add</button>}
+        {phone && <button type="button" className={`btn btn-sm ${right ? "on" : ""}`} onClick={() => setRight(!right)}>Settings</button>}
+        <Link className="btn btn-primary btn-sm whitespace-nowrap" href={`${base}/pages?new=1&template=${t.id}`}><span className="hidden sm:inline">New page from this template</span><span className="sm:hidden">Use</span></Link>
       </div>
 
       <div className="relative min-h-0 overflow-hidden">
         {/* left rail + component library (same as the page builder) */}
-        <nav aria-label="Left panels" className="absolute left-0 top-0 bottom-0 w-[52px] bg-surface border-r border-line flex flex-col items-center py-2 gap-1.5 z-[6] cursor-pointer" onClick={(e) => { if (e.target === e.currentTarget && !ro) setLeft(!left); }}>
+        <nav aria-label="Left panels" className="hidden sm:flex absolute left-0 top-0 bottom-0 w-[52px] bg-surface border-r border-line flex-col items-center py-2 gap-1.5 z-[6] cursor-pointer" onClick={(e) => { if (e.target === e.currentTarget && !ro) setLeft(!left); }}>
           <button type="button" title="Add a component" aria-label="Add a component" aria-pressed={left} disabled={ro} onClick={() => setLeft(!left)} className={railBtn(left)}><svg viewBox="0 0 24 24" className="w-6 h-6 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={ADD_ICON} /></svg></button>
         </nav>
-        {left && !ro && <LeftPanel canEdit={!ro} onAdd={add} onClose={() => setLeft(false)} />}
+        {left && !ro && <LeftPanel phone={phone} canEdit={!ro} onAdd={add} onClose={() => setLeft(false)} />}
 
         {/* canvas: HSBC menu and footer are part of every template */}
         <div ref={canvas} className="absolute inset-0 overflow-auto p-6 pb-24" style={{ paddingLeft: padL, paddingRight: padR }} onClick={(e) => { if (e.target === e.currentTarget) setSel(null); }}>
-          <p className="text-[12px] text-ink-3 mb-2 truncate" style={{ width: fit < 1 ? 1200 * fit : 1200, margin: "0 auto 8px" }} title="Menu and footer are part of every HSBC page and cannot be removed.">HSBC menu and footer are always part of the template.</p>
-          <div style={fit < 1 ? { width: 1200 * fit, height: siteH ? siteH * fit : undefined, margin: "0 auto" } : undefined}><div ref={siteRef} style={fit < 1 ? { transform: `scale(${fit})`, transformOrigin: "top left", width: 1200 } : undefined}>
-            <SiteChrome marketName={marketName} crumbs={[name || "Template"]} device="desktop">
+          <p className="text-[12px] text-ink-3 mb-2 truncate" style={{ width: fit < 1 ? siteW * fit : siteW, maxWidth: "100%", margin: "0 auto 8px" }} title="Menu and footer are part of every HSBC page and cannot be removed.">HSBC menu and footer are always part of the template.</p>
+          <div style={fit < 1 ? { width: siteW * fit, height: siteH ? siteH * fit : undefined, margin: "0 auto" } : { width: siteW, maxWidth: "100%", margin: "0 auto" }}><div ref={siteRef} style={fit < 1 ? { transform: `scale(${fit})`, transformOrigin: "top left", width: siteW } : undefined}>
+            <SiteChrome marketName={marketName} crumbs={[name || "Template"]} device={phone ? "mobile" : "desktop"}>
               {rendered.length ? rendered.map((b, i) => { const on = sel === i; const def = BLOCK_BY_TYPE[b.type];
                 return <div key={b.id} className={`cblk relative ${on ? "sel" : ""}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSel(on ? null : i); }}>
                   <span className="tag">{def?.name ?? b.type}</span>
@@ -94,10 +102,10 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
         </div>
 
         {/* right rail + template settings */}
-        <nav aria-label="Panels" className="absolute right-0 top-0 bottom-0 w-[52px] bg-surface border-l border-line flex flex-col items-center py-2 gap-1.5 z-[6] cursor-pointer" onClick={(e) => { if (e.target === e.currentTarget) setRight(!right); }}>
+        <nav aria-label="Panels" className="hidden sm:flex absolute right-0 top-0 bottom-0 w-[52px] bg-surface border-l border-line flex-col items-center py-2 gap-1.5 z-[6] cursor-pointer" onClick={(e) => { if (e.target === e.currentTarget) setRight(!right); }}>
           <button type="button" title="Template settings" aria-label="Template settings" aria-pressed={right} onClick={() => setRight(!right)} className={railBtn(right)}><svg viewBox="0 0 24 24" className="w-6 h-6 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" aria-hidden><path d={SET_ICON} /></svg></button>
         </nav>
-        {right && <aside className="absolute right-[52px] top-0 bottom-0 w-[320px] bg-surface border-l border-line z-[5] flex flex-col">
+        {right && <aside className={phone ? "absolute inset-0 bg-surface z-[7] flex flex-col" : "absolute right-[52px] top-0 bottom-0 w-[320px] bg-surface border-l border-line z-[5] flex flex-col"}>
           <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">Template settings</b><button type="button" className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => setRight(false)} aria-label="Close panel">✕</button></div>
           <div className="flex-1 overflow-auto p-3.5 grid gap-3 content-start text-[13px]">
             <label className="text-xs text-ink-2 font-medium">Name<input aria-label="Template name" disabled={ro} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink" value={name} onChange={(e) => setName(e.target.value)} onBlur={() => name !== t.name && persist({ name })} /></label>

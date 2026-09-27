@@ -57,7 +57,7 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
   const bySection = folders.map((f) => ({ f, n: all.filter((p) => p.path.startsWith(f.path + "/")).length })).sort((a, b) => b.n - a.n); const secMax = bySection[0]?.n || 1;
   const rel = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); const diff = Math.round((now() - d.getTime()) / 60000); return diff < 60 ? `${Math.max(diff, 0)} min ago` : diff < 1440 ? `${Math.round(diff / 60)} h ago` : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
   return (
-    <div className="p-7 pb-14">
+    <div className="p-4 md:p-7 pb-14">
       <div className="flex flex-wrap items-center gap-4 mb-6 p-5 bg-surface border border-line border-l-[5px] border-l-accent">
         <div className="text-[40px] leading-none" aria-hidden>{mk.flag}</div>
         <div><h1 className="text-2xl font-semibold leading-tight">{mk.name}</h1><div className="text-[13px] text-ink-3 mt-1 flex gap-1.5 items-center"><span className="font-mono">{mk.domain}</span> · {mk.locales.join(", ")} · <Pill status={mk.status === "Live on UCP" ? "published" : mk.status === "On AEM" ? "draft" : "scheduled"} label={mk.status} /></div></div>

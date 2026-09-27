@@ -1,4 +1,5 @@
 "use client";
+import { SideTree } from "@/components/ui/SideTree";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -78,12 +79,12 @@ export function Models(p: Props) {
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] grid-rows-[auto_1fr] md:grid-rows-1 h-full min-h-0">
-      <aside className="bg-surface border-b md:border-b-0 md:border-r border-line p-3 md:overflow-auto">
+      <SideTree label="Models" current={md?.name ?? (p.group || "All models")}>
         <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mb-2">Content models</h6>{isAdmin && <p className="text-[11.5px] text-ink-4 px-2 -mt-1 mb-2">Drag a model onto a category to move it.</p>}
         <label className="flex items-center gap-2 border border-line-2 rounded-md px-2.5 py-1.5 mb-2 bg-surface"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px] bg-transparent min-w-0" placeholder="Find a model" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a model" /></label>
         <FolderList key={ql ? `q:${ql}` : `sel:${md?.id ?? ""}:${p.group}`} root={{ label: "All models", count: p.models.length, active: !md && !p.group, onClick: () => go(`${p.base}/models`) }} items={items} extra={ql && !items.length ? <div className="text-[12.5px] text-ink-4 px-2 py-1">Nothing matches “{q}”</div> : undefined} />
         {isAdmin && <button className="btn btn-quiet btn-sm mt-2.5 ml-1" onClick={() => setWizard(true)}>＋ New content model</button>}
-      </aside>
+      </SideTree>
       <div className="overflow-auto min-w-0 min-h-0">{body}</div>
       {wizard && isAdmin && <CreateWizard models={p.models} folders={groups} marketId={p.marketId} onClose={() => setWizard(false)} onDone={onCreated} />}
       {pending && <UnsavedModal busy={busy === "guard"} onStay={() => setPending(null)} onDiscard={() => { const h = pending; setPending(null); setDirty(false); router.push(h); }} onSave={async () => { setBusy("guard"); const ok = await saveRef.current?.(); setBusy(""); if (ok) { const h = pending; setPending(null); setDirty(false); router.push(h); } }} />}
@@ -118,7 +119,7 @@ function Overview({ p, isAdmin, go, say, onCreate, onNewFolder }: { p: Props; is
   const sortBy = (k: Sort) => { if (sort === k) setDir((d) => (d === "asc" ? "desc" : "asc")); else { setSort(k); setDir("asc"); } };
   const filtered = !!(q || status || (group && group !== cat)); const sel = "border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface";
   const inCat = cat ? p.models.filter((m) => m.group === cat).length : p.models.length;
-  return <div className="p-7">
+  return <div className="p-4 md:p-7">
     {cat && <Crumbs items={[{ label: "Content models", href: `${p.base}/models`, onClick: () => go(`${p.base}/models`) }, { label: cat }]} />}
     <div className="flex flex-wrap items-end gap-4 mb-5"><div><h1 className="text-2xl font-semibold">{cat || "Content models"}</h1><p className="text-ink-3 text-[13px] mt-1">{cat ? `Category · ${inCat} model${inCat === 1 ? "" : "s"}` : `The structure of your content · ${p.models.length} model${p.models.length === 1 ? "" : "s"}`}</p></div>
       <div className="ml-auto flex gap-2 items-center">{isAdmin ? <><button className="btn" onClick={onNewFolder}>＋ New folder</button><button className="btn btn-primary" onClick={onCreate}>＋ New content model</button></> : <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="Only site admins can change content models."><span aria-hidden="true">🔒</span>Read-only · documentation view</span>}</div></div>
@@ -133,11 +134,11 @@ function Overview({ p, isAdmin, go, say, onCreate, onNewFolder }: { p: Props; is
         canConnect={isAdmin ? (id) => !isBlockModel(p.models.find((m) => m.id === id) ?? { id, locked: true }) : undefined} onConnect={isAdmin ? (a, b) => { const from = p.models.find((m) => m.id === a), to = p.models.find((m) => m.id === b); if (!from || !to) return; if (from.fields.some((f) => f.validation?.referenceModel === b)) { say(`${from.name} is already connected to ${to.name}`); return; } const common = sharedFields(from, to); if (!common.length) { say(`${from.name} and ${to.name} have no fields in common, so they can't be connected`); return; } saveFields(from, [...from.fields, linkField(from, to)], `Connected ${from.name} → ${to.name} (shared: ${common.join(", ")})`); } : undefined}
         canLink={(a, b) => { const x = p.models.find((m) => m.id === a), y = p.models.find((m) => m.id === b); return !!x && !!y && sharedFields(x, y).length > 0; }} onRemove={isAdmin ? removeRel : undefined} />
 
-    : rows.length ? <div className="bg-surface border border-line rounded-xl overflow-hidden"><div className="overflow-auto"><table className="w-full text-[13.5px] [&_tr>*:nth-child(4)]:hidden 2xl:[&_tr>*:nth-child(4)]:table-cell [&_tr>*:nth-child(5)]:hidden 2xl:[&_tr>*:nth-child(5)]:table-cell [&_tr>*:nth-child(6)]:hidden 2xl:[&_tr>*:nth-child(6)]:table-cell">
+    : rows.length ? <div className="bg-surface border border-line rounded-xl overflow-hidden"><div className="overflow-auto"><table className="w-full text-[13.5px] [&_tr>*:nth-child(3)]:hidden md:[&_tr>*:nth-child(3)]:table-cell [&_tr>*:nth-child(4)]:hidden 2xl:[&_tr>*:nth-child(4)]:table-cell [&_tr>*:nth-child(5)]:hidden 2xl:[&_tr>*:nth-child(5)]:table-cell [&_tr>*:nth-child(6)]:hidden 2xl:[&_tr>*:nth-child(6)]:table-cell">
       <thead className="bg-surface-2"><tr className="text-left text-[11px] uppercase tracking-[.08em] text-ink-3"><Th k="name" s={sort} d={dir} on={sortBy}>Model</Th><Th k="status" s={sort} d={dir} on={sortBy} className="w-[120px]">Status</Th><Th k="fields" s={sort} d={dir} on={sortBy} className="w-[80px]">Fields</Th><Th k="modified" s={sort} d={dir} on={sortBy} className="w-[150px]">Last modified</Th><Th className="w-[170px]">By</Th><Th className="w-[150px]">Used on</Th></tr></thead>
       <tbody>{rows.map((m) => { const used = p.usage[m.id] ?? []; const tpl = p.templatesByModel[m.id] ?? []; const by = m.lastModifiedBy ? whoName(m.lastModifiedBy, p.names) : ""; const href = detailLink(p.base, m.id);
         return <tr key={m.id} className="hover:bg-surface-2 cursor-pointer border-t border-line" onClick={() => go(href)}>
-          <td className="px-4 py-3"><div className="flex items-center gap-2.5 min-w-0"><ModelIcon m={m} /><div className="min-w-0"><Link href={href} onClick={(e) => { e.preventDefault(); e.stopPropagation(); go(href); }} className="font-semibold hover:underline">{m.name}</Link><span className="font-mono text-[11.5px] text-ink-3 ml-2">{m.id}</span>{m.locked && <span className="ml-2 text-[10.5px] uppercase tracking-[.06em] text-ink-4" title="Translated from the Sling component dialog; read-only">read-only</span>}{m.description && <div className="text-[12.5px] text-ink-3 truncate max-w-[420px]">{m.description}</div>}</div></div></td>
+          <td className="px-4 py-3"><div className="flex items-center gap-2.5 min-w-0"><ModelIcon m={m} /><div className="min-w-0"><Link href={href} onClick={(e) => { e.preventDefault(); e.stopPropagation(); go(href); }} className="font-semibold hover:underline">{m.name}</Link><span className="font-mono text-[11.5px] text-ink-3 ml-2">{m.id}</span>{m.locked && <span className="ml-2 text-[10.5px] uppercase tracking-[.06em] text-ink-4" title="Translated from the Sling component dialog; read-only">read-only</span>}{m.description && <div className="text-[12.5px] text-ink-3 line-clamp-2 sm:line-clamp-none sm:truncate max-w-[420px]">{m.description}</div>}</div></div></td>
           <td className="px-4 py-3"><StatusPill status={m.status} /></td>
           <td className="px-4 py-3 font-mono tabular-nums">{m.fields.length}</td>
           <td className="px-4 py-3 text-ink-2"><When iso={m.lastModified} /></td>
@@ -178,7 +179,7 @@ function Editor({ p, md, isAdmin, go, say, setDirty, saveRef, onDuplicate, onDel
   const TABS_UI: [ModelTab, string][] = [["fields", "Fields"], ["diagram", block ? "Rendered preview" : "Diagram"], ["form", "Form preview"], ["config", "Config"], ...(block ? [] : [["versions", "Versions"] as [ModelTab, string]])];
   const previewModel = { ...md, name: meta.name || md.name, fields };
 
-  return <div className="p-7">
+  return <div className="p-4 md:p-7">
     <Crumbs items={[{ label: "Content models", href: `${p.base}/models`, onClick: () => go(`${p.base}/models`) }, { label: md.group, href: groupLink(p.base, md.group), onClick: () => go(groupLink(p.base, md.group)) }, { label: md.name, href: detailLink(p.base, md.id), onClick: () => go(detailLink(p.base, md.id)) }, { label: block ? "Details" : isAdmin ? "Edit model" : "Documentation" }]} />
     <div className="flex items-start gap-3 mb-4 flex-wrap"><ModelIcon m={{ ...md, icon: meta.icon || md.icon }} big /><div className="min-w-0">
       <div className="flex items-center gap-2.5 flex-wrap"><h1 className="text-2xl font-semibold leading-tight">{meta.name || md.name}</h1><StatusPill status={md.status} /><span className={chip} title="Draft version">v{md.version}</span>{md.publishedVersion && <span className={chip} title="Version served by the delivery API">Published: v{md.publishedVersion}</span>}{dirty && <span className="text-[11.5px] font-semibold text-warn bg-warn-soft rounded-full px-2 py-0.5">Unsaved changes</span>}</div>

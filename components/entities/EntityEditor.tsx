@@ -114,9 +114,9 @@ export function EntityEditor({ base, marketId, marketRoot, marketName, flag, mod
   const by = entity.lastModifiedBy ? (entity.lastModifiedBy === viewerId ? "you" : whoName(entity.lastModifiedBy, names)) : "";
   const pubDisabled = (entity.status === "published" && !dirty) || invalid || !!busy;
 
-  return <div className="p-7">
+  return <div className="p-4 md:p-7">
     <Crumbs items={[{ label: "Content entities", href: entitiesLink(base), onClick: () => go(entitiesLink(base)) }, { label: model.name, href: entitiesLink(base, model.id), onClick: () => go(entitiesLink(base, model.id)) }, { label: title || entity.title }]} />
-    <div className="flex items-start gap-3 mb-4 flex-wrap"><div className="min-w-0 flex-1">
+    <div className="flex items-start gap-3 mb-4 flex-wrap"><div className="min-w-0 flex-1 basis-full sm:basis-0">
       <div className="flex items-center gap-2.5 flex-wrap">
         {canEdit ? <input aria-label="Entity title" value={title} onChange={(e) => setTitle(e.target.value)} className={`text-2xl font-semibold leading-tight bg-transparent border-b-2 ${titleErr ? "border-crit" : "border-transparent hover:border-line-2 focus:border-accent"} outline-none min-w-0 max-w-full`} style={{ width: `${Math.max(8, title.length + 1)}ch` }} />
           : <h1 className="text-2xl font-semibold leading-tight">{entity.title}</h1>}

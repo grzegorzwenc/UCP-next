@@ -10,7 +10,7 @@ export function ErrorState({ section, error, reset }: Props) {
   const dash = `/${params?.market ?? "uk"}/${params?.env ?? "prod"}/dashboard`;
   const requestId = error.requestId ?? (error.message.match(/request ([A-Za-z0-9-]+)/)?.[1]) ?? error.digest;
   return (
-    <div className="p-7">
+    <div className="p-4 md:p-7">
       <div role="alert" className="max-w-[640px] mx-auto mt-10 bg-surface border border-line rounded-xl p-8">
         <div className="w-10 h-10 rounded-full bg-crit-soft text-crit grid place-items-center text-[18px] font-bold mb-4" aria-hidden="true">!</div>
         <h1 className="text-xl font-semibold">Something went wrong loading {section}</h1>

@@ -1,4 +1,5 @@
 "use client";
+import { SideTree } from "@/components/ui/SideTree";
 import { ViewToggle } from "@/components/ui/ViewToggle";
 import { FolderList } from "@/components/ui/FolderList";
 import Link from "next/link";
@@ -70,30 +71,30 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] grid-rows-[auto_1fr] md:grid-rows-1 h-full min-h-0">
-      <aside className="bg-surface border-r border-line p-3 overflow-auto">
+      <SideTree label="Folders" current={title}>
         <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mb-2">Asset library</h6>
         <FolderList root={{ label: `${flag} All assets`, count: assets.length, active: !folder && !view, onClick: () => go("") }} items={folders.map((f) => ({ key: f, label: f, count: assets.filter((x) => x.folder === f).length, active: folder === f, onClick: () => go(`?folder=${encodeURIComponent(f)}`) }))} />
         {canEdit && <button className="btn btn-quiet btn-sm mt-2.5 ml-1" onClick={() => setNewFolder(true)}>＋ New folder</button>}
         <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mt-5 mb-2">Smart views</h6>
         <FolderList root={{ label: "Needs attention", count: unusedCount + noAlt.length }} items={[{ key: "unused", label: "Not used on any page", count: unusedCount, active: view === "unused", onClick: () => go("?view=unused"), icon: "page" }, { key: "noalt", label: "Missing accessibility info", count: noAlt.length, active: view === "noalt", onClick: () => go("?view=noalt"), icon: "page" }]} />
-      </aside>
+      </SideTree>
 
-      <div className={`p-7 overflow-auto min-h-0 relative ${drag ? "outline outline-2 outline-dashed outline-accent -outline-offset-8" : ""}`} onDragOver={(e) => { if (canEdit && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDrag(true); } }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false); }} onDrop={onDrop}>
+      <div className={`p-4 md:p-7 overflow-auto min-h-0 relative ${drag ? "outline outline-2 outline-dashed outline-accent -outline-offset-8" : ""}`} onDragOver={(e) => { if (canEdit && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDrag(true); } }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false); }} onDrop={onDrop}>
         <input ref={uplRef} type="file" multiple accept="image/*,.pdf,.svg" className="hidden" onChange={(e) => { upload(Array.from(e.target.files ?? []), folder || "Uploads"); e.target.value = ""; }} />
         <input ref={replRef} type="file" accept="image/*,.pdf,.svg" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) replace(f); e.target.value = ""; }} />
         <div className="text-[12.5px] text-ink-3 mb-2 flex items-center gap-1.5"><button className="hover:underline" onClick={() => go("")}>Asset library</button>{(folder || view) && <><span>/</span><b className="text-ink">{title}</b></>}</div>
-        <div className="flex items-end gap-4 mb-5"><div><h1 className="text-2xl font-semibold">{title}</h1><p className="text-ink-3 text-[13px] mt-1">{list.length} file{list.length === 1 ? "" : "s"}{folder ? " in this folder" : view ? " in this view" : ` in the ${marketName} library`}{canEdit && " · drag files anywhere here to upload"}</p></div>
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-3 mb-5"><div><h1 className="text-2xl font-semibold">{title}</h1><p className="text-ink-3 text-[13px] mt-1">{list.length} file{list.length === 1 ? "" : "s"}{folder ? " in this folder" : view ? " in this view" : ` in the ${marketName} library`}{canEdit && " · drag files anywhere here to upload"}</p></div>
           <div className="ml-auto flex gap-2 items-center">{canEdit ? <><button className="btn" onClick={() => setNewFolder(true)}>＋ New folder</button><button className="btn btn-primary" disabled={busy === "upload"} onClick={() => uplRef.current?.click()}>{busy === "upload" ? "Uploading…" : "↑ Upload files"}</button></> : <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="You don't have Edit on this site. Ask a site admin."><span aria-hidden="true">🔒</span>Read-only library</span>}</div></div>
         <div className="flex items-center gap-2 mb-4">
-          <input className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] w-[280px]" placeholder="Find a file by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a file by name" />
+          <input className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] w-full sm:w-[280px] min-w-0" placeholder="Find a file by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a file by name" />
           <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface" value={type} onChange={(e) => setType(e.target.value)} aria-label="File type"><option value="">Any type</option><option value="image">Images</option><option value="pdf">Documents</option><option value="svg">Icons</option></select>
           <ViewToggle value={mode} onChange={(v) => { setMode(v); try { localStorage.setItem("ucp-assets-view", v); } catch {} }} className="ml-auto" />
         </div>
         {err && <div className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded mb-4 flex items-center">{err}<button className="ml-auto underline" onClick={() => setErr(null)}>Dismiss</button></div>}
 
-        <div className="grid grid-cols-[1fr_320px] gap-5 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
           {mode === "list"
-            ? <div><div className="overflow-auto"><table className="w-full text-[13.5px] bg-surface border border-line min-w-[640px]"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="p-3 border-b border-line-2">Name</th><th className="p-3 border-b border-line-2">Type</th><th className="p-3 border-b border-line-2">Size</th><th className="p-3 border-b border-line-2">Folder</th><th className="p-3 border-b border-line-2">Used on</th><th className="p-3 border-b border-line-2">Accessibility</th></tr></thead>
+            ? <div><div className="overflow-auto"><table className="w-full text-[13.5px] bg-surface border border-line [&_tr>*:nth-child(2)]:hidden md:[&_tr>*:nth-child(2)]:table-cell [&_tr>*:nth-child(3)]:hidden md:[&_tr>*:nth-child(3)]:table-cell [&_tr>*:nth-child(4)]:hidden md:[&_tr>*:nth-child(4)]:table-cell [&_tr>*:nth-child(5)]:hidden sm:[&_tr>*:nth-child(5)]:table-cell"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="p-3 border-b border-line-2">Name</th><th className="p-3 border-b border-line-2">Type</th><th className="p-3 border-b border-line-2">Size</th><th className="p-3 border-b border-line-2">Folder</th><th className="p-3 border-b border-line-2">Used on</th><th className="p-3 border-b border-line-2">Accessibility</th></tr></thead>
               <tbody>{list.length ? shown.map((x) => <tr key={x.id} onClick={() => setSel(x.id)} className={`cursor-pointer hover:bg-surface-2 ${a && x.id === a.id ? "bg-accent-soft" : ""}`}><td className="p-3 border-b border-line font-medium flex items-center gap-2.5"><Thumb a={x} className="w-9 h-7 shrink-0" />{x.name}</td><td className="p-3 border-b border-line text-ink-3">{x.type}</td><td className="p-3 border-b border-line font-mono text-xs">{x.size}</td><td className="p-3 border-b border-line text-ink-3">{x.folder}</td><td className="p-3 border-b border-line text-ink-3">{usedOn(x.id).length} pages</td><td className="p-3 border-b border-line">{noAlt.includes(x.id) ? <span className="text-[11.5px] font-semibold text-warn">Missing {a11yGaps(x, locales[0]).join(", ").toLowerCase()}</span> : <span className="text-[11.5px] font-semibold text-good">Complete</span>}</td></tr>)
                 : <tr><td colSpan={6} className="p-10 text-center text-ink-3">No files here yet.{canEdit && " Upload some or drag them in."}</td></tr>}</tbody></table></div>
             {list.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-[12.5px] text-ink-3">Showing {shown.length} of {list.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show more</button></div>}</div>
@@ -101,7 +102,7 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
               : <div className="col-span-full p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">No files here yet.{canEdit && " Upload some or drag them in."}</div>}
               {list.length > shown.length && <div className="col-span-full flex items-center justify-center gap-3 py-4 text-[12.5px] text-ink-3">Showing {shown.length} of {list.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show more</button></div>}</div>}
 
-          {a && <div className="bg-surface border border-line rounded-lg p-4 sticky top-0">
+          {a && <div className="bg-surface border border-line rounded-lg p-4 lg:sticky lg:top-0">
             <Thumb a={a} className="w-full h-[180px]" />
             <b className="block mt-3 mb-0.5 break-all text-[14px]">{a.name}</b>
             <div className="font-mono text-[12px] text-ink-3">{a.width && a.height ? `${a.width}×${a.height} · ` : ""}{a.size} · {a.folder}</div>
