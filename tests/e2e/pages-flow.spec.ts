@@ -9,7 +9,7 @@ test.describe("page lifecycle", () => {
     const path = `${ROOT}/${slug}`;
     try {
       await page.goto(`${BASE}/pages`);
-      await page.getByRole("button", { name: "New page here" }).click();
+      await page.getByRole("button", { name: "＋ New page" }).click();
       await expect(page.getByRole("dialog", { name: "New page" })).toBeVisible();
       await page.getByPlaceholder("e.g. Regular saver").fill(title);
       await page.getByRole("button", { name: "Create and open" }).click();

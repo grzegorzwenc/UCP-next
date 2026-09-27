@@ -32,20 +32,20 @@ test.describe("builder", () => {
     await expect(heading).not.toHaveClass(/editing/);
     await expect(heading).toHaveText(`${before} ✓`);
 
-    const save = page.getByRole("button", { name: "Save", exact: true });
-    await expect(save).toBeEnabled();
-    await save.click();
-    await expect(page.getByText("Saved just now")).toBeVisible();
+    // No Save button: the draft saves itself shortly after the change.
+    const status = page.getByTitle("Changes are saved automatically");
+    await expect(status).toHaveText("✓ Saved", { timeout: 5000 });
+    await page.reload();
+    await expect(heading).toHaveText(`${before} ✓`);
 
     // Put the heading back so the seed stays tidy for other tests.
-    await heading.dblclick();
+    await heading.click();
     await expect(heading).toHaveClass(/editing/);
     await caretToEnd(heading);
     await page.keyboard.press("Backspace");
     await page.keyboard.press("Backspace");
     await page.keyboard.press("Enter");
     await expect(heading).toHaveText(before);
-    await save.click();
-    await expect(page.getByText("Saved just now")).toBeVisible();
+    await expect(status).toHaveText("✓ Saved", { timeout: 5000 });
   });
 });

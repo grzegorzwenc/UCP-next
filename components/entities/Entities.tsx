@@ -97,7 +97,7 @@ export function Entities(p: EntitiesProps) {
         <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mb-2">Content entities</h6>{canEdit && <p className="text-[11.5px] text-ink-4 px-2 -mt-1 mb-2">Drag an entity to reorder it or move it to another folder.</p>}
         <label className="flex items-center gap-2 border border-line-2 rounded-md px-2.5 py-1.5 mb-2 bg-surface"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px] bg-transparent min-w-0" placeholder="Find an entity" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find an entity" /></label>
         <FolderList key={ql ? `q:${ql}` : `sel:${md?.id ?? ""}`} root={{ label: "All entities", count: p.entities.length, active: !md, onClick: () => go(entitiesLink(p.base)) }} items={items} extra={ql && !items.length ? <div className="text-[12.5px] text-ink-4 px-2 py-1">Nothing matches “{q}”</div> : undefined} />
-        {canEdit && <button className="btn btn-quiet btn-sm mt-2.5 ml-1" onClick={() => setCreating(true)}>＋ Create entity</button>}
+        {canEdit && <button className="btn btn-quiet btn-sm mt-2.5 ml-1" onClick={() => setCreating(true)}>＋ New entity</button>}
       </aside>
       <div className="overflow-y-auto overflow-x-hidden min-w-0 min-h-0">{body}</div>
       {creating && canEdit && <NewEntityModal marketId={p.marketId} models={models} initial={md} folder={p.folder} onClose={() => setCreating(false)} onDone={onCreated} />}
@@ -139,7 +139,7 @@ function Overview({ p, md, byModel, models, canEdit, go, onCreate, onNewFolder }
   }, [scope, modelOf, p.usage, q, status, sort, dir]);
   const sortBy = (k: Sort) => { if (sort === k) setDir((d) => (d === "asc" ? "desc" : "asc")); else { setSort(k); setDir("asc"); } };
   const filtered = !!(q || status); const sel = "border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface";
-  const createBtn = canEdit ? <>{!p.folder && <button className="btn" onClick={() => onNewFolder(md)}>＋ New folder</button>}<button className="btn btn-primary" onClick={onCreate}>＋ Create entity</button></> : null;
+  const createBtn = canEdit ? <>{!p.folder && <button className="btn" onClick={() => onNewFolder(md)}>＋ New folder</button>}<button className="btn btn-primary" onClick={onCreate}>＋ New entity</button></> : null;
   const nav = (href: string) => ({ href, onClick: (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); go(href); } });
 
   return <div className="p-7">

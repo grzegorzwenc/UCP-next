@@ -63,7 +63,7 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
         <Link href={`${base}/templates?folder=${encodeURIComponent(folder)}`} className="text-[13px] text-ink-2 hover:text-ink whitespace-nowrap">‹ Templates</Link>
         <div className="min-w-0 flex-1"><b className="block text-[14.5px] truncate">{name || "Untitled template"}</b><span className="block text-[11.5px] text-ink-3 truncate">Template · {folder} · {blocks.length} block{blocks.length === 1 ? "" : "s"} · used by {used} page{used === 1 ? "" : "s"}</span></div>
         <span className="text-[12px] text-ink-3 whitespace-nowrap">{ro ? "🔒 Read-only" : saving ? "Saving…" : "Saved"}</span>
-        <Link className="btn btn-primary btn-sm whitespace-nowrap" href={`${base}/pages?new=1&template=${t.id}`}>Create a page with it</Link>
+        <Link className="btn btn-primary btn-sm whitespace-nowrap" href={`${base}/pages?new=1&template=${t.id}`}>New page from this template</Link>
       </div>
 
       <div className="relative min-h-0 overflow-hidden">
