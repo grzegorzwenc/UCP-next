@@ -4,7 +4,7 @@ import { ViewToggle } from "@/components/ui/ViewToggle";
 import { FolderList } from "@/components/ui/FolderList";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Asset, AssetA11y } from "@/lib/ucp/types";
 import { a11yGaps } from "@/lib/ucp/schema";
 import { A11yPanel } from "./A11yPanel";
@@ -21,15 +21,22 @@ const PAGE = 60;
 const who = (id?: string) => (!id ? "" : id === "system" ? "System" : id.split(".").map((s) => (s[0]?.toUpperCase() ?? "") + s.slice(1)).join(" "));
 const when = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); if (isNaN(d.getTime())) return iso; const diff = Math.round((Date.now() - d.getTime()) / 60000); return diff < 2 ? "just now" : diff < 60 ? `${diff} min ago` : diff < 1440 ? `${Math.round(diff / 60)} h ago` : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); };
 
+/* grid/list preference, kept in localStorage and read after hydration (server always renders the grid) */
+const VIEW_KEY = "ucp-assets-view"; const viewSubs = new Set<() => void>();
+const subscribeView = (cb: () => void) => { viewSubs.add(cb); return () => { viewSubs.delete(cb); }; };
+const readView = (): "grid" | "list" => { try { return localStorage.getItem(VIEW_KEY) === "list" ? "list" : "grid"; } catch { return "grid"; } };
+const setView = (v: "grid" | "list") => { try { localStorage.setItem(VIEW_KEY, v); } catch { /* private mode: keep the default */ } viewSubs.forEach((cb) => cb()); };
+const TYPE_NAME: Record<string, string> = { image: "Image", pdf: "PDF", svg: "Icon", file: "File" };
+
 /** Thumbnail: the real picture when the repository holds it, otherwise a calm grey tile with the file type. */
-function Thumb({ a, className = "" }: { a: Asset; className?: string }) {
+function Thumb({ a, className = "", badge = true }: { a: Asset; className?: string; badge?: boolean }) {
   return a.data
     ? <div className={`bg-surface-3 bg-cover bg-center rounded-md ${className}`} style={{ backgroundImage: `url(${a.data})` }} role="img" aria-label={a.name} />
     : <div className={`relative rounded-md grid place-items-center overflow-hidden ${a.type === "image" ? "bg-[linear-gradient(135deg,#dfe3ea,#b8bfcc)]" : a.type === "pdf" ? "bg-[#FDECEE]" : "bg-surface-3"} ${className}`} role="img" aria-label={`${a.name} (${TYPE_LABEL[a.type] ?? "FILE"})`}>
         {a.type === "image" ? <svg viewBox="0 0 24 24" className="w-[38%] h-[38%] max-w-8 max-h-8 fill-none stroke-white" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="M21 16l-5-5-8 8" /></svg>
         : a.type === "pdf" ? <svg viewBox="0 0 24 24" className="w-[38%] h-[38%] max-w-8 max-h-8 fill-none stroke-accent" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5M8 13h8M8 17h5" /></svg>
         : <svg viewBox="0 0 24 24" className="w-[38%] h-[38%] max-w-8 max-h-8 fill-none stroke-ink-3" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5" /></svg>}
-        <span className="absolute bottom-1 right-1 text-[9.5px] font-semibold tracking-[.08em] px-1 rounded bg-black/55 text-white">{TYPE_LABEL[a.type] ?? "FILE"}</span>
+        {badge && <span className="absolute bottom-1 right-1 text-[9.5px] font-semibold tracking-[.08em] px-1 rounded bg-black/55 text-white">{TYPE_LABEL[a.type] ?? "FILE"}</span>}
       </div>;
 }
 
@@ -39,7 +46,7 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
   const noAlt = useMemo(() => assets.filter((x) => a11yGaps(x, locales[0]).length).map((x) => x.id), [assets, locales]);
   const canEdit = can("edit", marketRoot);
   const base = `/${marketId}/${envId}`;
-  const [q, setQ] = useState(""); const [type, setType] = useState(""); const [mode, setMode] = useState<"grid" | "list">(() => { try { return (typeof window !== "undefined" && localStorage.getItem("ucp-assets-view") === "list") ? "list" : "grid"; } catch { return "grid"; } });
+  const [q, setQ] = useState(""); const [type, setType] = useState(""); const mode = useSyncExternalStore(subscribeView, readView, () => "grid" as const);
   const [limit, setLimit] = useState(PAGE); const listKey = `${folder}|${view}|${q}|${type}`; const [seenKey, setSeenKey] = useState(listKey); if (seenKey !== listKey) { setSeenKey(listKey); setLimit(PAGE); }
   const [sel, setSel] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState<string | null>(null);
@@ -85,18 +92,28 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
         <div className="text-[12.5px] text-ink-3 mb-2 flex items-center gap-1.5"><button className="hover:underline" onClick={() => go("")}>Asset library</button>{(folder || view) && <><span>/</span><b className="text-ink">{title}</b></>}</div>
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3 mb-5"><div><h1 className="text-2xl font-semibold">{title}</h1><p className="text-ink-3 text-[13px] mt-1">{list.length} file{list.length === 1 ? "" : "s"}{folder ? " in this folder" : view ? " in this view" : ` in the ${marketName} library`}{canEdit && " · drag files anywhere here to upload"}</p></div>
           <div className="ml-auto flex gap-2 items-center">{canEdit ? <><button className="btn" onClick={() => setNewFolder(true)}>＋ New folder</button><button className="btn btn-primary" disabled={busy === "upload"} onClick={() => uplRef.current?.click()}>{busy === "upload" ? "Uploading…" : "↑ Upload files"}</button></> : <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="You don't have Edit on this site. Ask a site admin."><span aria-hidden="true">🔒</span>Read-only library</span>}</div></div>
-        <div className="flex items-center gap-2 mb-4">
-          <input className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] w-full sm:w-[280px] min-w-0" placeholder="Find a file by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a file by name" />
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <input className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] flex-1 sm:flex-none sm:w-[280px] min-w-[150px]" placeholder="Find a file by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a file by name" />
           <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface" value={type} onChange={(e) => setType(e.target.value)} aria-label="File type"><option value="">Any type</option><option value="image">Images</option><option value="pdf">Documents</option><option value="svg">Icons</option></select>
-          <ViewToggle value={mode} onChange={(v) => { setMode(v); try { localStorage.setItem("ucp-assets-view", v); } catch {} }} className="ml-auto" />
+          <ViewToggle value={mode} onChange={setView} className="ml-auto" />
         </div>
         {err && <div className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded mb-4 flex items-center">{err}<button className="ml-auto underline" onClick={() => setErr(null)}>Dismiss</button></div>}
 
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
           {mode === "list"
-            ? <div><div className="overflow-auto"><table className="w-full text-[13.5px] bg-surface border border-line [&_tr>*:nth-child(2)]:hidden md:[&_tr>*:nth-child(2)]:table-cell [&_tr>*:nth-child(3)]:hidden md:[&_tr>*:nth-child(3)]:table-cell [&_tr>*:nth-child(4)]:hidden md:[&_tr>*:nth-child(4)]:table-cell [&_tr>*:nth-child(5)]:hidden sm:[&_tr>*:nth-child(5)]:table-cell"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="p-3 border-b border-line-2">Name</th><th className="p-3 border-b border-line-2">Type</th><th className="p-3 border-b border-line-2">Size</th><th className="p-3 border-b border-line-2">Folder</th><th className="p-3 border-b border-line-2">Used on</th><th className="p-3 border-b border-line-2">Accessibility</th></tr></thead>
-              <tbody>{list.length ? shown.map((x) => <tr key={x.id} onClick={() => setSel(x.id)} className={`cursor-pointer hover:bg-surface-2 ${a && x.id === a.id ? "bg-accent-soft" : ""}`}><td className="p-3 border-b border-line font-medium flex items-center gap-2.5"><Thumb a={x} className="w-9 h-7 shrink-0" />{x.name}</td><td className="p-3 border-b border-line text-ink-3">{x.type}</td><td className="p-3 border-b border-line font-mono text-xs">{x.size}</td><td className="p-3 border-b border-line text-ink-3">{x.folder}</td><td className="p-3 border-b border-line text-ink-3">{usedOn(x.id).length} pages</td><td className="p-3 border-b border-line">{noAlt.includes(x.id) ? <span className="text-[11.5px] font-semibold text-warn">Missing {a11yGaps(x, locales[0]).join(", ").toLowerCase()}</span> : <span className="text-[11.5px] font-semibold text-good">Complete</span>}</td></tr>)
-                : <tr><td colSpan={6} className="p-10 text-center text-ink-3">No files here yet.{canEdit && " Upload some or drag them in."}</td></tr>}</tbody></table></div>
+            ? <div className="min-w-0"><div className="bg-surface border border-line rounded-xl overflow-hidden"><table className="w-full text-[13.5px] [&_tr>*:nth-child(2)]:hidden 2xl:[&_tr>*:nth-child(2)]:table-cell [&_tr>*:nth-child(3)]:hidden 2xl:[&_tr>*:nth-child(3)]:table-cell">
+              <thead className="bg-surface-2"><tr className="text-left text-[11px] uppercase tracking-[.08em] text-ink-3"><th className="px-4 py-2.5 border-b border-line font-semibold">Name</th><th className="px-4 py-2.5 border-b border-line font-semibold w-[1%] whitespace-nowrap">Used on</th><th className="px-4 py-2.5 border-b border-line font-semibold w-[1%] whitespace-nowrap">Accessibility</th></tr></thead>
+              <tbody>{list.length ? shown.map((x) => { const on = x.id === a?.id; const n = usedOn(x.id).length; const gaps = noAlt.includes(x.id) ? a11yGaps(x, locales[0]) : [];
+                const a11y = gaps.length ? <span className="inline-flex items-center gap-1.5 rounded-full bg-warn-soft text-warn px-2 py-0.5 text-[11.5px] font-semibold whitespace-nowrap" title={`Missing: ${gaps.join(", ")}`}><i aria-hidden className="w-1.5 h-1.5 rounded-full bg-warn" />{gaps.length > 1 ? `${gaps.length} things missing` : `No ${gaps[0].toLowerCase()}`}</span> : <span className="inline-flex items-center gap-1 rounded-full bg-good-soft text-good px-2 py-0.5 text-[11.5px] font-semibold whitespace-nowrap">✓ Complete</span>;
+                return <tr key={x.id} onClick={() => setSel(x.id)} aria-selected={on} className={`cursor-pointer border-b border-line last:border-0 ${on ? "bg-accent-soft shadow-[inset_3px_0_0_var(--accent)]" : "hover:bg-surface-2"}`}>
+                  <td className="px-4 py-2.5 max-w-0 w-full"><div className="flex items-center gap-3 min-w-0"><Thumb a={x} badge={false} className="w-12 h-9 shrink-0" />
+                    <div className="min-w-0"><b className="block truncate font-medium" title={x.name}>{x.name}</b>
+                      <div className="text-[12px] text-ink-3 truncate">{TYPE_NAME[x.type] ?? "File"} · <span className="tabular-nums">{x.size}</span>{!folder && <> · {x.folder}</>}<span className="2xl:hidden"> · {n ? `${n} page${n === 1 ? "" : "s"}` : "not used"}</span></div>
+                      <div className="2xl:hidden mt-1">{a11y}</div></div></div></td>
+                  <td className="px-4 py-2.5 whitespace-nowrap">{n ? <span className="text-ink-2">{n} page{n === 1 ? "" : "s"}</span> : <span className="text-ink-4">Not used</span>}</td>
+                  <td className="px-4 py-2.5">{a11y}</td>
+                </tr>; })
+                : <tr><td colSpan={3} className="p-10 text-center text-ink-3">No files here yet.{canEdit && " Upload some or drag them in."}</td></tr>}</tbody></table></div>
             {list.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-[12.5px] text-ink-3">Showing {shown.length} of {list.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show more</button></div>}</div>
             : <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">{list.length ? shown.map((x) => <button key={x.id} onClick={() => setSel(x.id)} className={`text-left bg-surface border rounded-lg p-2 hover:border-ink-4 ${a && x.id === a.id ? "border-accent ring-2 ring-accent-soft" : "border-line"}`}><Thumb a={x} className="w-full h-[96px]" /><b className="block text-[12.5px] mt-2 truncate" title={x.name}>{x.name}</b><small className="text-ink-3 text-[11.5px] flex items-center gap-1.5">{x.size}{noAlt.includes(x.id) && <span className="ml-auto text-[10.5px] font-semibold px-1.5 rounded bg-warn-soft text-warn" title={`Missing: ${a11yGaps(x, locales[0]).join(", ")}`}>A11y</span>}</small></button>)
               : <div className="col-span-full p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">No files here yet.{canEdit && " Upload some or drag them in."}</div>}
