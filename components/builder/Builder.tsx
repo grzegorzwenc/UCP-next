@@ -8,7 +8,8 @@ import { BLOCK_BY_TYPE, makeBlock, lines, joinLines, missingRequired, TEMPLATES 
 import { RenderBlock, SiteChrome, AssetsContext, EntitiesContext, InlineEditContext } from "@/lib/blocks/Render";
 import { bindingsOf, hasTokens, type ResolvedEntities } from "@/lib/ucp/tokens";
 import type { Bindings } from "@/lib/ucp/types";
-import { EntitiesPanel, TokenChips, tokenGroups, type ContentModelInfo, type TokenGroup } from "./LinkedContent";
+import { ContentPicker, type ContentChoice } from "./ContentPicker";
+import { EntitiesPanel, uniqueAlias, type ContentModelInfo } from "./LinkedContent";
 import { PublishDialog } from "@/components/pages/PublishDialog";
 import { ModalShell } from "@/components/models/ModalShell";
 import { SendForReviewModal, AssigneeChip, type ReviewBody } from "./SendForReview";
@@ -90,7 +91,6 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [entities, setEntities] = useState<ResolvedEntities>(initialEntities);
   const bindKey = JSON.stringify(bindings);
   useEffect(() => { let on = true; ucpApi.resolveBindings(marketId, JSON.parse(bindKey) as Bindings).then((r) => { if (on) setEntities(r); }).catch(() => {}); return () => { on = false; }; }, [marketId, bindKey]);
-  const groups = useMemo(() => tokenGroups(bindings, entities, models), [bindings, entities, models]);
   /* Review assignment */
   const [assignee, setAssignee] = useState(() => { const a = page.meta?.["ucp:assignee"]; return typeof a === "string" ? a : ""; });
   const assigneeName = assignee ? names[assignee] ?? assignee : "";
@@ -168,7 +168,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
 
   /* ---- inline editing (only in Edit mode): click a text, Enter/✓ saves, Esc/✕ cancels ---- */
   const [editing, setEditing] = useState<{ key: string; original: string } | null>(null); const [inlineGen, setInlineGen] = useState(0);
-  const editingKey = editing?.key ?? null; const inlineCtx = useMemo(() => ({ editing: editingKey, gen: inlineGen }), [editingKey, inlineGen]); const editingEl = useRef<HTMLElement | null>(null); // the live element stays out of state (mutated in place)
+  const editingKey = editing?.key ?? null; const inlineCtx = useMemo(() => ({ editing: editingKey, gen: inlineGen, raw: !preview && !focus }), [editingKey, inlineGen, preview, focus]); const editingEl = useRef<HTMLElement | null>(null); // the live element stays out of state (mutated in place)
   const [ctaPop, setCtaPop] = useState<{ id: string; labelKey: string; linkKey?: string } | null>(null);
   const scrollGuard = useRef<(() => void) | null>(null);
   function startInline(ie: HTMLElement) {
@@ -179,7 +179,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     const c = canvasRef.current; if (c) { const left = c.scrollLeft; const h = () => { if (c.scrollLeft !== left) c.scrollLeft = left; }; c.addEventListener("scroll", h); scrollGuard.current = () => c.removeEventListener("scroll", h); }
   }
   function commitInline(save: boolean) {
-    const el = editingEl.current; if (!editing || !el) return; const { key, original } = editing; editingEl.current = null; el.contentEditable = "false"; el.classList.remove("editing"); scrollGuard.current?.(); scrollGuard.current = null;
+    const el = editingEl.current; if (!editing || !el) return; const { key, original } = editing; editingEl.current = null; setTokTyped(false); el.contentEditable = "false"; el.classList.remove("editing"); scrollGuard.current?.(); scrollGuard.current = null;
     if (el.dataset.raw !== undefined || hasTokens(el.innerText)) setInlineGen((g) => g + 1); // token spans change shape (raw ↔ resolved): remount them instead of patching the DOM the browser edited
     if (!save) { el.innerText = original; setEditing(null); return; }
     const [id, f, r, c] = key.split("|"); const v = el.innerText.replace(/\n+$/, "").replace(/\|/g, "/");
@@ -188,6 +188,22 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     else if (r === "p") { const paras = String(b.props[f] ?? "").split(/\n\s*\n/); paras[Number(c)] = v; setProp(id, f, paras.join("\n\n")); }
     else { const rows = lines(b.props[f]); if (rows[Number(r)]) { rows[Number(r)][Number(c)] = v; setProp(id, f, joinLines(rows)); } }
     setEditing(null);
+  }
+  /* ---- insert a value from an entity while editing text: toolbar button or typing "{{" ---- */
+  const [contentPick, setContentPick] = useState<null | { target: "inline"; label: string } | { target: "field"; blockId: string; k: string; l: string }>(null); const [tokTyped, setTokTyped] = useState(false); /* typed "{{" opened the picker: those two characters get replaced by the token */ const caret = useRef<Range | null>(null);
+  useEffect(() => { if (!editing) return; const h = () => { const el = editingEl.current; const sel = window.getSelection(); if (el && sel && sel.rangeCount && el.contains(sel.getRangeAt(0).startContainer)) caret.current = sel.getRangeAt(0).cloneRange(); }; document.addEventListener("selectionchange", h); return () => document.removeEventListener("selectionchange", h); }, [editing]);
+  const onInlineInput = () => { const el = editingEl.current; const sel = window.getSelection(); if (!el || !sel?.rangeCount) return; const r = sel.getRangeAt(0); const n = r.startContainer; if (n.nodeType === 3 && el.contains(n) && (n.textContent ?? "").slice(0, r.startOffset).endsWith("{{")) { setTokTyped(true); setContentPick({ target: "inline", label: "this text" }); } };
+  /** Use a field of an entity here: the entity is added to the page (if needed) and the text inherits the field as a {{alias.field}} token. */
+  async function applyContent(c: ContentChoice) {
+    const target = contentPick; setContentPick(null); if (!target) return;
+    let alias = Object.entries(bindings).find(([, p]) => p === c.entity.path)?.[0];
+    if (!alias) { alias = uniqueAlias(c.entity.model, bindings); try { const next = { ...bindings, [alias]: c.entity.path }; const saved = await ucpApi.saveBindings(marketId, page.path, next); setBindings(saved ?? next); } catch (e) { say(e instanceof ApiError ? e.problem.title : String(e)); return; } }
+    const token = `{{${alias}.${c.field.k}}}`;
+    if (target.target === "field") { setProp(target.blockId, target.k, token); say(`${target.l} now shows ${c.entity.title} · ${c.field.l}`); return; }
+    const el = editingEl.current; if (!el) return; el.focus({ preventScroll: true }); const sel = window.getSelection();
+    if (tokTyped) { const r = caret.current && el.contains(caret.current.startContainer) ? caret.current : null; if (r && r.startContainer.nodeType === 3 && r.startOffset >= 2 && (r.startContainer.textContent ?? "").slice(r.startOffset - 2, r.startOffset) === "{{") { r.setStart(r.startContainer, r.startOffset - 2); r.deleteContents(); const t = document.createTextNode(token); r.insertNode(t); r.setStartAfter(t); r.collapse(true); sel?.removeAllRanges(); sel?.addRange(r); setTokTyped(false); say(`Inserted ${c.entity.title} · ${c.field.l}. Press ✓ Save.`); return; } }
+    setTokTyped(false); el.innerText = token; const r = document.createRange(); r.selectNodeContents(el); r.collapse(false); sel?.removeAllRanges(); sel?.addRange(r);
+    say(`This text now shows ${c.entity.title} · ${c.field.l}. Press ✓ Save.`);
   }
   /* ---- Focus mode (⌘⇧F): body.focus hides the top bar and side nav (CSS in globals.css); other parts of the shell can listen to ucp:focus. ---- */
   const panelsBeforeFocus = useRef<{ left: boolean; right: boolean; preview: boolean } | null>(null);
@@ -225,11 +241,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   }
   /* Token chips: while a block is being configured, insert into the last focused Configure field at its caret; otherwise copy. */
   const lastField = useRef<{ blockId: string; k: string; l: string; start: number; end: number } | null>(null);
-  const insertToken = (blockId: string, k: string, token: string) => {
-    const b = blocksRef.current.find((x) => x.id === blockId); if (!b) return; const v = String(b.props[k] ?? ""); const lf = lastField.current;
-    const [a, z] = lf && lf.blockId === blockId && lf.k === k ? [Math.min(lf.start, v.length), Math.min(lf.end, v.length)] : [v.length, v.length];
-    setProp(blockId, k, v.slice(0, a) + token + v.slice(z)); lastField.current = { blockId, k, l: lf?.k === k ? lf.l : k, start: a + token.length, end: a + token.length };
-  };
+
 
   const [aiSeed, setAiSeed] = useState("");
   /* Pictures for the canvas: asset id → data URL. Re-read when a block points at an asset we do not know yet (e.g. just uploaded from the picker). */
@@ -348,7 +360,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
       <div className="relative min-h-0 overflow-hidden bg-bg">
         <div className={`absolute inset-0 flex flex-col ${preview ? "preview" : ""}`}>
           {!focus && <div className="flex items-center gap-3 px-6 py-2 text-[12.5px] text-ink-3 border-b border-line bg-surface-2" style={{ paddingLeft: padL, paddingRight: padR }}><span className="mr-auto truncate" title={hint}>{hint}</span><span className="border border-line-2 rounded px-2 py-0.5 bg-surface whitespace-nowrap">1:1 · {device === "desktop" ? 1200 : device === "tablet" ? 768 : 390} px</span></div>}
-          <div ref={canvasRef} className={focus ? "flex-1 overflow-auto p-0 bg-white" : "flex-1 overflow-auto p-6 pb-24"} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey}>
+          <div ref={canvasRef} className={focus ? "flex-1 overflow-auto p-0 bg-white" : "flex-1 overflow-auto p-6 pb-24"} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
             {(() => { const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / siteW)) : 1; return <div style={fit < 1 ? { width: siteW * fit, height: siteH ? siteH * fit : undefined, margin: "0 auto" } : undefined}><div ref={siteRef} style={fit < 1 ? { transform: "scale(" + fit + ")", transformOrigin: "top left", width: siteW } : undefined}>
             <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
               {blocks.length ? blocks.map((b, i) => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""}`} tabIndex={0}>
@@ -361,7 +373,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               : <div className="m-7 p-11 border-2 border-dashed border-line-2 rounded-xl text-center text-ink-2 text-[15px]">How do you want to start this page?<small className="block text-[13px] text-ink-3 mt-1.5">Pick a layout, or add components one by one from the left.</small><div className="grid grid-cols-3 gap-3 mt-4 text-left">{TEMPLATES.filter((t) => t.blocks.length).slice(0, 3).map((t) => <button key={t.id} className="border border-line-2 bg-surface p-3.5 text-left hover:border-ink" onClick={() => mutate(() => t.blocks.map((x) => makeBlock(x, x === "mast" ? { heading: title } : {})))}><b className="block text-[13.5px]">{t.name}</b><small className="text-ink-3">{t.desc}</small></button>)}</div></div>}
             </SiteChrome></InlineEditContext.Provider></EntitiesContext.Provider></AssetsContext.Provider></div></div>; })()}
           </div>
-          {editing && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 flex gap-1 bg-[#0F1013] rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}><span className="px-2 py-1.5 text-white/70">Editing text</span><button className="px-3 py-1.5 rounded bg-good font-semibold" onClick={() => { commitInline(true); say("Saved"); }}>✓ Save</button><button className="px-3 py-1.5 rounded hover:bg-white/15" onClick={() => commitInline(false)}>✕ Cancel</button></div>}
+          {editing && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 flex gap-1 bg-[#0F1013] rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}><span className="px-2 py-1.5 text-white/70">Editing text</span><button className="px-3 py-1.5 rounded hover:bg-white/15" title="Show content from an entity here (or type {{ to insert at the cursor)" onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }}>⤓ Choose content</button><button className="px-3 py-1.5 rounded bg-good font-semibold" onClick={() => { commitInline(true); say("Saved"); }}>✓ Save</button><button className="px-3 py-1.5 rounded hover:bg-white/15" onClick={() => commitInline(false)}>✕ Cancel</button></div>}
           {ctaPop && selected && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 w-[420px] bg-surface border border-line rounded-xl shadow-2xl z-20 p-3.5 text-[13px]" onMouseDown={(e) => { e.stopPropagation(); if (!(e.target as HTMLElement).closest("input, textarea")) e.preventDefault(); }}>
             <div className="flex items-center mb-2.5"><b>Button</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => setCtaPop(null)} aria-label="Close">✕</button></div>
             <label className="block text-xs text-ink-2 font-medium">Label<input autoFocus className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink font-normal" value={String(selected.props[ctaPop.labelKey] ?? "")} onChange={(e) => setProp(selected.id, ctaPop.labelKey, e.target.value)} /></label>
@@ -402,11 +414,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               <div className="border-t border-line pt-3 flex flex-col gap-2"><b className="text-xs text-ink-2">Languages</b><span className="text-[12px] text-ink-3">This page is {locale}. Create a translated copy in another locale.</span><button className="btn btn-sm justify-center" onClick={() => setTranslating(true)}>🌐 Translate this page…</button></div>
             </div>
             : !selected ? <div className="text-ink-3 p-2"><b className="block text-sm text-ink mb-1.5">Nothing selected</b>Click a block on the page, then ⚙ Configure.<div className="mt-3.5 flex flex-col gap-1.5">{blocks.slice(0, 8).map((k, ix) => <button key={k.id} className="btn btn-sm justify-start" onClick={() => configure(k.id)}>{ix + 1}. {BLOCK_BY_TYPE[k.type].name}</button>)}</div></div>
-            : <ConfigForm block={selected} index={blocks.indexOf(selected)} count={blocks.length} marketId={marketId} setProp={(k, v) => setProp(selected.id, k, v)} tokens={groups} onFieldFocus={(k, l, start, end) => { lastField.current = { blockId: selected.id, k, l, start, end }; }} onInsert={(k, l, token) => { insertToken(selected.id, k, token); say(`Inserted ${token} into ${l}`); }} />}
+            : <ConfigForm block={selected} index={blocks.indexOf(selected)} count={blocks.length} marketId={marketId} setProp={(k, v) => setProp(selected.id, k, v)} entities={entities} canEdit={canEdit && !locked} onFieldFocus={(k, l, start, end) => { lastField.current = { blockId: selected.id, k, l, start, end }; }} onChoose={(k, l) => setContentPick({ target: "field", blockId: selected.id, k, l })} />}
           </div>}
           {rightTab === "block" && selected && <div className="flex justify-end gap-2 px-3.5 py-2.5 border-t border-line bg-surface"><button className="btn btn-sm" onClick={() => closeConfigure(false)}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => { closeConfigure(true); say("Component updated · Save the page when you're done"); }}>Save</button></div>}
         </aside>}
         {focus && <div aria-live="polite" className={`fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-[#0F1013]/85 text-white text-[12px] px-3 py-1.5 rounded-full transition-opacity duration-700 ${fsHint ? "opacity-100" : "opacity-0 pointer-events-none"}`}>Preview · this is what visitors see · press Esc to go back to editing</div>}
+        {contentPick && <ContentPicker marketId={marketId} models={models} current={contentPick.target === "field" ? contentPick.l : undefined} onClose={() => { setContentPick(null); setTokTyped(false); editingEl.current?.focus({ preventScroll: true }); }} onPick={(c) => void applyContent(c)} />}
         {backToReview && <ModalShell title="Review is already done" width={500} onClose={() => setBackToReview(false)}
           footer={<><button className="btn" onClick={() => setBackToReview(false)}>Keep approval</button><button className="btn btn-primary" onClick={async () => { const wasScheduled = status === "scheduled"; setBackToReview(false); await transition("review", `Back in review${assigneeName ? ` with ${assigneeName}` : ""}`); if (wasScheduled) { await repoApi.setProps(`${page.path}/jcr:content`, { "ucp:publishAt": null }).catch(() => {}); setPublishAt(undefined); } router.refresh(); }}>Send back to review</button></>}>
           <p className="text-[13.5px]">This page is <b>approved</b> and ready to publish.</p>
@@ -468,17 +481,16 @@ type FieldFocus = (k: string, l: string, start: number, end: number) => void;
 /** Remembers the caret of the last focused text field so token chips insert where the author was typing. */
 const track = (k: string, l: string, fn: FieldFocus) => (e: React.SyntheticEvent<HTMLInputElement | HTMLTextAreaElement>) => { const t = e.currentTarget; fn(k, l, t.selectionStart ?? t.value.length, t.selectionEnd ?? t.value.length); };
 /** "{ } Insert content" next to a text field: popover with the page's {{alias.field}} chips. */
-function InsertContent({ tokens, open, setOpen, onPick }: { tokens: TokenGroup[]; open: boolean; setOpen: (v: boolean) => void; onPick: (token: string) => void }) {
-  return <span className="relative ml-auto mr-2">
-    <button type="button" className="font-mono text-[10.5px] text-info hover:underline" aria-expanded={open} onMouseDown={(e) => e.preventDefault()} onClick={() => setOpen(!open)} title="Insert a value from linked content">{"{ }"} Insert content</button>
-    {open && <div className="absolute right-0 top-full mt-1 w-[260px] bg-surface border border-line rounded-lg shadow-2xl p-2.5 z-10 flex flex-col gap-2 font-normal">{tokens.map((g) => <div key={g.alias}><div className="text-[11px] text-ink-3 mb-1"><span className="font-mono">{g.alias}</span> · {g.title}</div><TokenChips groups={[g]} onPick={(t) => { onPick(t); setOpen(false); }} /></div>)}</div>}
-  </span>;
+/** Under a text field that inherits content: where it comes from, with a way to stop inheriting. */
+function Inherited({ value, entities, onStop }: { value: string; entities: ResolvedEntities; onStop: (text: string) => void }) {
+  const m = value.trim().match(/^\{\{\s*([a-zA-Z][\w-]*)\.([\w-]+)\s*\}\}$/); if (!m) return null; const e = entities[m[1]]; const v = e ? (m[2] === "title" ? e.values?.title ?? e.title : e.values?.[m[2]]) : undefined; const text = typeof v === "string" ? v : v === undefined ? "" : String(v);
+  return <div className={`mt-1 flex items-center gap-2 text-[11.5px] rounded-md px-2 py-1 ${e ? "bg-info-soft text-info" : "bg-crit-soft text-crit"}`}><span className="min-w-0 truncate">{e ? <>⤓ From <b>{e.title}</b> · {m[2]}{text ? <> · “{text.replace(/<[^>]+>/g, " ").slice(0, 40)}”</> : null}</> : "Not linked to an entity on this page"}</span>{e && <button type="button" className="ml-auto flex-none underline" onClick={() => onStop(text)}>Stop inheriting</button>}</div>;
 }
-function ConfigForm({ block: selected, index, count, marketId, setProp, tokens, onFieldFocus, onInsert }: { block: Block; index: number; count: number; marketId: string; setProp: (k: string, v: unknown) => void; tokens: TokenGroup[]; onFieldFocus: FieldFocus; onInsert: (k: string, l: string, token: string) => void }) {
-  const def = BLOCK_BY_TYPE[selected.type]; const P = selected.props; const [ins, setIns] = useState<string | null>(null);
+function ConfigForm({ block: selected, index, count, marketId, setProp, entities, canEdit, onFieldFocus, onChoose }: { block: Block; index: number; count: number; marketId: string; setProp: (k: string, v: unknown) => void; entities: ResolvedEntities; canEdit: boolean; onFieldFocus: FieldFocus; onChoose: (k: string, l: string) => void }) {
+  const def = BLOCK_BY_TYPE[selected.type]; const P = selected.props;
   return <div className="flex flex-col gap-3">
     <div><b className="text-sm">{def.name}</b><div className="text-[11px] text-ink-3">Block {index + 1} of {count} · {def.desc}</div></div>
-    <Section t="Content">{def.fields.map((f) => { const v = selected.props[f.k]; const invalid = f.req && !v; return <div key={f.k}><label className="flex items-center text-xs text-ink-2 font-medium mb-1">{f.l}{(f.t === "text" || f.t === "textarea") && tokens.length > 0 ? <InsertContent tokens={tokens} open={ins === f.k} setOpen={(o) => setIns(o ? f.k : null)} onPick={(t) => onInsert(f.k, f.l, t)} /> : <span className="ml-auto" />}{f.req && <small className="font-mono text-[10.5px] text-ink-4">required</small>}</label>
+    <Section t="Content">{def.fields.map((f) => { const v = selected.props[f.k]; const invalid = f.req && !v; return <div key={f.k}><label className="flex items-center text-xs text-ink-2 font-medium mb-1">{f.l}{(f.t === "text" || f.t === "textarea") && canEdit ? <button type="button" className="ml-auto mr-2 text-[11px] text-info hover:underline font-normal" onMouseDown={(e) => e.preventDefault()} onClick={() => onChoose(f.k, f.l)} title="Show content from an entity in this field">⤓ Choose content</button> : <span className="ml-auto" />}{f.req && <small className="font-mono text-[10.5px] text-ink-4">required</small>}</label>
       {f.t === "text" ? <input className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${f.mono ? "font-mono" : ""} ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
       : f.t === "textarea" ? <textarea rows={4} className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
       : f.t === "lines" ? <ListEditor rows={lines(v)} hint={f.hint} onChange={(rows) => setProp(f.k, joinLines(rows))} />
@@ -486,6 +498,7 @@ function ConfigForm({ block: selected, index, count, marketId, setProp, tokens, 
       : f.t === "bool" ? <button className={`w-9 h-5 rounded-full relative ${v ? "bg-good" : "bg-line-2"}`} aria-pressed={!!v} onClick={() => setProp(f.k, !v)}><i className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${v ? "left-4" : "left-0.5"}`} /></button>
       : f.t === "asset" ? <AssetPicker marketId={marketId} value={String(v ?? "")} invalid={invalid} onChange={(id) => setProp(f.k, id)} />
       : <input className="w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] font-mono" value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} />}
+      {(f.t === "text" || f.t === "textarea") && <Inherited value={String(v ?? "")} entities={entities} onStop={(text) => setProp(f.k, text)} />}
       {invalid ? <div className="text-[11.5px] text-crit mt-1">Required before the page can be sent for review.</div> : f.hint && f.t !== "lines" ? <div className="text-[11.5px] text-ink-3 mt-1">{f.hint}</div> : null}</div>; })}</Section>
     <Section t="Layout"><div><label className="block text-xs text-ink-2 font-medium mb-1">Width</label><Seg P={P} setProp={setProp} k="layout" opts={["full", "contained", "narrow"]} /></div><div><label className="block text-xs text-ink-2 font-medium mb-1">Spacing</label><Seg P={P} setProp={setProp} k="spacing" opts={["default", "compact", "roomy"]} /></div></Section>
     <Section t="Behaviour"><Tog P={P} setProp={setProp} k="hidden" l="Hidden (not rendered on the live site)" /><Tog P={P} setProp={setProp} k="hideMobile" l="Hide on mobile" /><Tog P={P} setProp={setProp} k="locked" l="Locked (no edits until unlocked)" /><Tog P={P} setProp={setProp} k="personalise" l="Targeting enabled (Adobe Target segment)" /></Section>

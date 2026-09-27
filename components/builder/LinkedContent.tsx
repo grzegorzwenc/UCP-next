@@ -9,28 +9,12 @@ import { Pill } from "@/components/ui/Pill";
 
 /** Content models the page can link to (from the server page): id, display name and visible fields. */
 export type ContentModelInfo = { id: string; name: string; fields: { k: string; l: string }[] };
-/** Token chips for one binding: `{{alias.field}}` per field of the entity's model. */
-export type TokenGroup = { alias: string; title: string; tokens: { token: string; label: string }[] };
 
 /** Entities live at /content/entities/<market>/<model>/<id>, so the model is the second-last path segment. */
 export const modelOfPath = (path: string) => path.split("/").filter(Boolean).slice(-2, -1)[0] ?? "";
 const camel = (s: string) => s.replace(/[-_\s]+(\w)/g, (_, c: string) => c.toUpperCase()).replace(/^[A-Z]/, (c) => c.toLowerCase()).replace(/[^\w]/g, "");
 /** Alias for a new binding: the model id in camelCase, with a number when it is already taken. */
 export function uniqueAlias(model: string, taken: Bindings): string { const b = camel(model) || "content"; if (!(b in taken)) return b; let i = 2; while (`${b}${i}` in taken) i++; return `${b}${i}`; }
-
-export function tokenGroups(bindings: Bindings, entities: ResolvedEntities, models: ContentModelInfo[]): TokenGroup[] {
-  return Object.entries(bindings).map(([alias, path]) => {
-    const m = models.find((x) => x.id === modelOfPath(path)); const e = entities[alias];
-    const fields = m?.fields.length ? m.fields : Object.keys(e?.values ?? {}).map((k) => ({ k, l: k }));
-    const all = fields.some((f) => f.k === "title") ? fields : [{ k: "title", l: "Title" }, ...fields];
-    return { alias, title: e?.title ?? path.split("/").pop() ?? alias, tokens: all.map((f) => ({ token: `{{${alias}.${f.k}}}`, label: f.l })) };
-  });
-}
-
-/** Clickable `{{alias.field}}` chips. */
-export function TokenChips({ groups, onPick }: { groups: TokenGroup[]; onPick: (token: string, label: string) => void }) {
-  return <div className="flex flex-wrap gap-1">{groups.flatMap((g) => g.tokens).map((t) => <button key={t.token} type="button" title={`${t.label} · click to insert or copy`} onMouseDown={(e) => e.preventDefault()} onClick={() => onPick(t.token, t.label)} className="font-mono text-[11.5px] px-2 py-0.5 rounded-full border border-line-2 bg-surface-2 text-ink-2 hover:border-ink hover:text-ink">{t.token}</button>)}</div>;
-}
 
 type PanelProps = { marketId: string; base: string; pagePath: string; bindings: Bindings; entities: ResolvedEntities; models: ContentModelInfo[]; blocks: { props: Record<string, unknown> }[]; canEdit: boolean; onChange: (b: Bindings) => void; say: (m: string) => void };
 
@@ -48,6 +32,9 @@ export function EntitiesPanel({ marketId, base, pagePath, bindings, entities, mo
   const byPath = useMemo(() => Object.fromEntries((all ?? []).map((e) => [e.path, e])), [all]);
   const byModel = useMemo(() => { const g: Record<string, Entity[]> = {}; for (const e of all ?? []) if (!Object.values(bindings).includes(e.path)) (g[e.model] ??= []).push(e); return g; }, [all, bindings]);
   const modelName = (id: string) => models.find((m) => m.id === id)?.name ?? id;
+  /* tokens typed in the text whose name is not linked to an entity yet: offer to link them */
+  const typed = useMemo(() => { const n: Record<string, number> = {}; const re = /\{\{\s*([a-zA-Z][\w-]*)\./g; for (const b of blocks) for (const m of JSON.stringify(b.props).matchAll(re)) n[m[1]] = (n[m[1]] ?? 0) + 1; return Object.entries(n).filter(([a]) => !(a in bindings)); }, [blocks, bindings]);
+  const [linkPick, setLinkPick] = useState<Record<string, string>>({});
   const rows = Object.entries(bindings).map(([alias, path]) => ({ alias, path, e: byPath[path], mid: byPath[path]?.model ?? modelOfPath(path), title: byPath[path]?.title ?? entities[alias]?.title, uses: usesOf(alias, blocks) }));
 
   async function save(next: Bindings, msg: string) {
@@ -68,6 +55,14 @@ export function EntitiesPanel({ marketId, base, pagePath, bindings, entities, mo
       <div className="flex items-center gap-2 mt-2">{r.e && (r.e.status === "modified" ? <Pill status="review" label="Modified" /> : <Pill status={r.e.status} label={r.e.status === "published" ? "Published" : "Draft"} />)}
         {r.e && <Link className="btn btn-sm ml-auto" href={`${base}/entities?model=${encodeURIComponent(r.mid)}&entity=${encodeURIComponent(r.e.id)}`}>Open</Link>}</div>
     </li>)}</ul>}
+    {typed.length > 0 && <div className="border border-warn/40 bg-warn-soft rounded-lg p-2.5 flex flex-col gap-2">
+      <b className="text-[12.5px]">Not linked yet</b>
+      {typed.map(([alias, n]) => <div key={alias} className="flex flex-col gap-1.5">
+        <div className="text-[12px]"><span className="font-mono">{`{{${alias}.…}}`}</span> is used {n}× but no entity is linked as “{alias}”, so visitors would see the code.</div>
+        {canEdit && <div className="flex gap-1.5"><select className="flex-1 min-w-0 border border-line-2 rounded-md px-2 py-1 text-[12.5px] bg-surface" value={linkPick[alias] ?? ""} onChange={(e) => setLinkPick((x) => ({ ...x, [alias]: e.target.value }))} aria-label={`Entity for ${alias}`}><option value="">Choose an entity…</option>{(all ?? []).map((e) => <option key={e.path} value={e.path}>{e.title} · {modelName(e.model)}</option>)}</select>
+          <button className="btn btn-sm btn-primary" disabled={!linkPick[alias] || busy} onClick={() => void save({ ...bindings, [alias]: linkPick[alias] }, `Linked “${alias}” to ${byPath[linkPick[alias]]?.title ?? "the entity"}`)}>Link</button></div>}
+      </div>)}
+    </div>}
     {canEdit && (adding ? <div className="border border-line rounded-lg p-2.5 flex flex-col gap-2 bg-surface-2">
       <label className="text-xs text-ink-2 font-medium">Entity<select className="mt-1 w-full border border-line-2 rounded-md px-2 py-1.5 text-[13px] font-normal text-ink bg-surface" value={pick} onChange={(e) => setPick(e.target.value)} autoFocus>
         <option value="">{all === null ? "Loading…" : "Choose an entity…"}</option>
@@ -77,3 +72,4 @@ export function EntitiesPanel({ marketId, base, pagePath, bindings, entities, mo
     {err && <div role="alert" className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</div>}
   </div>;
 }
+

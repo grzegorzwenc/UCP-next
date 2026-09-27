@@ -66,6 +66,7 @@ export const ucpApi = {
   createEntity: (market: string, model: string, title: string, values: EntityValues = {}, folder = "") => U<Entity>("entities/create", { method: "POST", query: { market }, body: JSON.stringify({ model, title, values, folder }) }),
   saveEntity: (market: string, path: string, patch: { title?: string; values?: EntityValues }) => U<Entity>("entities/save", { method: "POST", query: { market, path }, body: JSON.stringify(patch) }),
   publishEntity: (market: string, path: string) => U<Entity>("entities/publish", { method: "POST", query: { market, path }, body: "{}" }),
+  entityFolders: (market: string) => U<Record<string, string[]>>("entities/folders", { query: { market } }),
   entityFolder: (market: string, act: "create" | "rename" | "delete", body: { model: string; name?: string; from?: string; to?: string }) => U<string[]>(`entities/folders/${act}`, { method: "POST", query: { market }, body: JSON.stringify(body) }),
   moveEntity: (market: string, path: string, to: { model?: string; before?: string; folder?: string }) => U<{ entity: Entity; rebound: number; missing: string[] }>("entities/move", { method: "POST", query: { market, path }, body: JSON.stringify(to) }),
   deleteEntity: (market: string, path: string) => U<{ ok: true }>("entities/delete", { method: "POST", query: { market, path }, body: "{}" }),

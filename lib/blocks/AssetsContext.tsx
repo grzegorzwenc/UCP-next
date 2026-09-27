@@ -9,7 +9,8 @@ export const AssetsContext = createContext<Record<string, { data?: string; alt?:
 export const EntitiesContext = createContext<ResolvedEntities>({});
 
 /** Inline editing state from the builder: the span being edited shows its raw text (tokens), `gen` remounts spans after an edit. */
-export const InlineEditContext = createContext<{ editing: string | null; gen: number }>({ editing: null, gen: 0 });
+/** `raw`: show {{alias.field}} tokens as written (builder edit view); otherwise show the entity values (preview, live). */
+export const InlineEditContext = createContext<{ editing: string | null; gen: number; raw?: boolean }>({ editing: null, gen: 0 });
 
 /** Mast surface: real photo as background when the `image` prop points at an asset we hold data for (also via a {{alias.field}} token), HSBC grey gradient otherwise. */
 export function MastSurface({ image, children }: { image?: string; children: React.ReactNode }) {
@@ -28,8 +29,9 @@ function parts(s: string, ents: ResolvedEntities): { text: string; token?: strin
 }
 /** Text with tokens: resolved values get a subtle highlight in the builder (neutralised by `.preview`), unknown tokens stay visible with a red underline. */
 export function TokenText({ text }: { text: string }) {
-  const ents = useContext(EntitiesContext);
+  const ents = useContext(EntitiesContext); const { raw } = useContext(InlineEditContext);
   return <>{parts(text, ents).map((p, i) => !p.token ? p.text
+    : raw ? <span key={i} className={p.ok ? "tok tok-raw" : "tok-bad tok-raw"} data-token={p.token} title={p.ok ? `Shows “${p.text}” from ${ents[p.alias!]?.title ?? "an entity"} in Preview` : "Not linked to an entity on this page"}>{p.token}</span>
     : p.ok ? <span key={i} className="tok" data-token={p.token} title={`From ${ents[p.alias!]?.title ?? "linked content"} · ${p.token}`}>{p.text}</span>
     : <span key={i} className="tok-bad" data-token={p.token} title="Unknown content reference">{p.token}</span>)}</>;
 }
