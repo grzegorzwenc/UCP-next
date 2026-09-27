@@ -18,7 +18,7 @@ import { detailLink, entitiesLink, entityLink, whoName, TEXT_TYPES, type UsedPag
 import { EntityEditor } from "./EntityEditor";
 import { NewEntityModal } from "./NewEntityModal";
 
-export type EntitiesProps = { base: string; marketId: string; marketRoot: string; models: Model[]; entities: Entity[]; usage: Record<string, UsedPage[]>; names: Record<string, string>; viewerId: string; modelId: string; entityId: string; folders: Record<string, string[]>; folder: string };
+export type EntitiesProps = { base: string; marketId: string; marketRoot: string; marketName: string; flag: string; models: Model[]; entities: Entity[]; usage: Record<string, UsedPage[]>; names: Record<string, string>; viewerId: string; modelId: string; entityId: string; folders: Record<string, string[]>; folder: string };
 type Sort = "title" | "model" | "status" | "used" | "modified";
 const STATUS_ORDER: Record<Entity["status"], number> = { draft: 0, modified: 1, published: 2 };
 
@@ -87,7 +87,7 @@ export function Entities(p: EntitiesProps) {
   const onCreated = (m: Model, e: Entity) => { setCreating(false); say(`Created “${e.title}” (draft). Fill in the content, then save.`); router.push(entityLink(p.base, m.id, e.id)); router.refresh(); };
 
   let body: React.ReactNode;
-  if (md && ent) body = <EntityEditor key={`${ent.path}:${ent.lastModified ?? ""}:${ent.status}`} base={p.base} marketId={p.marketId} marketRoot={p.marketRoot} model={md} entity={ent} entities={p.entities} models={p.models} usedOn={p.usage[ent.path] ?? []} names={p.names} viewerId={p.viewerId} canEdit={canEdit} go={go} say={say} setDirty={setDirty} saveRef={saveRef} />;
+  if (md && ent) body = <EntityEditor key={`${ent.path}:${ent.lastModified ?? ""}:${ent.status}`} base={p.base} marketId={p.marketId} marketRoot={p.marketRoot} marketName={p.marketName} flag={p.flag} model={md} entity={ent} entities={p.entities} models={p.models} usedOn={p.usage[ent.path] ?? []} names={p.names} viewerId={p.viewerId} canEdit={canEdit} go={go} say={say} setDirty={setDirty} saveRef={saveRef} />;
   else if (md && p.entityId) body = <div className="p-7"><Crumbs items={[{ label: "Content entities", href: entitiesLink(p.base), onClick: () => go(entitiesLink(p.base)) }, { label: md.name, href: entitiesLink(p.base, md.id), onClick: () => go(entitiesLink(p.base, md.id)) }, { label: "Not found" }]} /><div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl"><b className="block text-[15px]">This entity no longer exists</b><p className="text-ink-3 text-[13px] mt-1">It may have been deleted. <button className="underline text-ink" onClick={() => go(entitiesLink(p.base, md.id))}>Back to {md.name} entities</button></p></div></div>;
   else body = <Overview key={md?.id ?? ""} p={p} md={md} byModel={byModel} models={models} canEdit={canEdit} go={go} onCreate={() => setCreating(true)} onNewFolder={(m) => setFolderDlg({ model: m })} />;
 

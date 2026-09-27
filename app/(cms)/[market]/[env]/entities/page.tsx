@@ -18,5 +18,5 @@ export default async function Page({ params, searchParams }: PageProps<"/[market
   const usage: Record<string, UsedPage[]> = Object.fromEntries(Object.entries(usageRaw).map(([k, v]) => [k, v.map((p) => ({ path: p.path, title: p.title, status: p.status }))]));
   const names = Object.fromEntries(users.map((u) => [u.id, u.name]));
   const model = known.has(s(sp.model)) ? s(sp.model) : "";
-  return <Entities base={`/${mid}/${eid}`} marketId={mid} marketRoot={mk.root} models={models} entities={entities} usage={usage} names={names} viewerId={viewer.id} modelId={model} entityId={model ? s(sp.entity) : ""} folders={folders} folder={model ? s(sp.folder) : ""} />;
+  return <Entities base={`/${mid}/${eid}`} marketId={mid} marketRoot={mk.root} marketName={mk.name} flag={mk.flag} models={models} entities={entities} usage={usage} names={names} viewerId={viewer.id} modelId={model} entityId={model ? s(sp.entity) : ""} folders={folders} folder={model ? s(sp.folder) : ""} />;
 }

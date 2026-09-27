@@ -1,4 +1,5 @@
 "use client";
+import { UsedOn } from "@/components/models/UsedOn";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -7,13 +8,12 @@ import { ucpApi, ApiError } from "@/lib/api";
 import { describeError, errorText } from "@/lib/api/errors";
 import { AssetPicker } from "@/components/builder/AssetPicker";
 import { Menu } from "@/components/ui/Menu";
-import { Pill } from "@/components/ui/Pill";
 import { StatusPill } from "@/components/models/ModelDialogs";
 import { When, chip, Crumbs } from "@/components/models/bits";
 import { inputCls } from "@/components/models/ModalShell";
 import { aliasOf, detailLink, entitiesLink, entityLink, whoName, type UsedPage } from "@/components/models/fieldMeta";
 
-type Props = { base: string; marketId: string; marketRoot: string; model: Model; entity: Entity; entities: Entity[]; models: Model[]; usedOn: UsedPage[]; names: Record<string, string>; viewerId: string; canEdit: boolean;
+type Props = { base: string; marketId: string; marketRoot: string; marketName: string; flag: string; model: Model; entity: Entity; entities: Entity[]; models: Model[]; usedOn: UsedPage[]; names: Record<string, string>; viewerId: string; canEdit: boolean;
   go: (href: string) => void; say: (t: string) => void; setDirty: (d: boolean) => void; saveRef: React.MutableRefObject<(() => Promise<boolean>) | null> };
 type Kind = "text" | "url" | "area" | "number" | "bool" | "date" | "datetime" | "select" | "multi" | "list" | "asset" | "ref" | "refs" | "json";
 
@@ -79,7 +79,7 @@ function Field({ f, kind, v, raw, err, marketId, refOptions, onValue, onRaw }: F
 
 /* ---------------- editor ---------------- */
 /** Entity editor: a form generated from the model's published schema, with Save / Publish like a page. */
-export function EntityEditor({ base, marketId, marketRoot, model, entity, entities, models, usedOn, names, viewerId, canEdit, go, say, setDirty, saveRef }: Props) {
+export function EntityEditor({ base, marketId, marketRoot, marketName, flag, model, entity, entities, models, usedOn, names, viewerId, canEdit, go, say, setDirty, saveRef }: Props) {
   const router = useRouter();
   const schema = useMemo(() => (model.publishedFields ?? model.fields).filter((f) => !f.hidden), [model]);
   const kinds = useMemo(() => Object.fromEntries(schema.map((f) => [f.k, kindOf(f, entity.values[f.k])])) as Record<string, Kind>, [schema, entity.values]);
@@ -142,9 +142,7 @@ export function EntityEditor({ base, marketId, marketRoot, model, entity, entiti
         </fieldset>
       </form>
       <aside className="grid gap-4 min-w-0">
-        <section className="bg-surface border border-line rounded-xl p-4"><h2 className="text-[13px] font-semibold mb-1">Used on {usedOn.length} page{usedOn.length === 1 ? "" : "s"}</h2>
-          {usedOn.length ? <><ul className="grid gap-1 mb-2">{usedOn.map((u) => <li key={u.path}><Link {...nav(pageHref(u.path))} className="flex items-center gap-2 text-[13px] rounded px-1.5 py-1 -mx-1.5 hover:bg-surface-2"><span className="truncate flex-1">{u.title}</span><Pill status={u.status} /></Link></li>)}</ul><p className="text-[12px] text-ink-3">Publishing updates these pages automatically.</p></>
-            : <p className="text-[12.5px] text-ink-3">Not on any page yet. Add a token below to a page to show this content.</p>}</section>
+        <UsedOn compact pages={usedOn} base={base} marketRoot={marketRoot} marketName={marketName} flag={flag} go={go} note="Publishing this entity updates these pages automatically." empty="Open a page, click a text and use ⤓ Choose content to show this entity there." />
         <section className="bg-surface border border-line rounded-xl p-4"><h2 className="text-[13px] font-semibold mb-1">Tokens you can use on pages</h2>
           <p className="text-[12px] text-ink-3 mb-2">Type a token into any text on a page that uses this {model.name.toLowerCase()}. It shows this field’s value.</p>
           <ul className="grid gap-1">{schema.map((f) => { const t = `{{${alias}.${f.k}}}`; return <li key={f.k} className="flex items-center gap-2 min-w-0"><code className="font-mono text-[12px] bg-surface-3 border border-line rounded px-1.5 py-0.5 truncate min-w-0 max-w-[65%]">{t}</code><span className="text-[11.5px] text-ink-4 truncate flex-1">{f.l}</span><button type="button" className="btn btn-sm btn-quiet" onClick={() => copy(t)} aria-label={`Copy ${t}`}>Copy</button></li>; })}</ul></section>

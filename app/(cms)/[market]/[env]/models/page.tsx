@@ -26,6 +26,6 @@ export default async function Page({ params, searchParams }: PageProps<"/[market
   for (const m of models) if (m.id.startsWith("block-")) { const t = templates.filter((x) => x.blocks.includes(m.id.slice(6))).map((x) => ({ id: x.id, name: x.name })); if (t.length) templatesByModel[m.id] = t; }
   const names = Object.fromEntries(users.map((u) => [u.id, u.name]));
   const entityCounts: Record<string, number> = {}; for (const e of entities) entityCounts[e.model] = (entityCounts[e.model] ?? 0) + 1;
-  return <Models folders={folders} base={`/${mid}/${eid}`} marketId={mid} marketName={mk.name} marketRoot={mk.root} locales={mk.locales} models={models} selectedId={md?.id ?? ""} tab={tab} edit={edit} group={s(sp.group)} usage={slim(usageRaw)} entityCounts={entityCounts} templatesByModel={templatesByModel} names={names} versions={versions} viewerId={viewer.id}
+  return <Models folders={folders} flag={mk.flag} base={`/${mid}/${eid}`} marketId={mid} marketName={mk.name} marketRoot={mk.root} locales={mk.locales} models={models} selectedId={md?.id ?? ""} tab={tab} edit={edit} group={s(sp.group)} usage={slim(usageRaw)} entityCounts={entityCounts} templatesByModel={templatesByModel} names={names} versions={versions} viewerId={viewer.id}
     schema={md && edit ? modelSchema(md) : {}} config={md && edit ? modelConfig(md, mk.locales) : {}} />;
 }
