@@ -8,6 +8,11 @@ import { FolderIcon, PageIcon } from "@/components/ui/Icons";
 import { Pill } from "@/components/ui/Pill";
 import type { ContentModelInfo } from "./LinkedContent";
 
+/** Icon for "use content from an entity" (a card with an arrow into it). */
+export function ContentIcon({ className = "w-4 h-4" }: { className?: string }) {
+  return <svg viewBox="0 0 24 24" className={`${className} fill-none stroke-current`} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="3" y="4" width="13" height="16" rx="2" /><path d="M7 9h5M7 13h3" /><path d="M21 12h-7m0 0 3-3m-3 3 3 3" /></svg>;
+}
+
 export type ContentChoice = { entity: Entity; field: { k: string; l: string } };
 type Place = { model: string; folder: string | null }; // folder null = every entity of the model
 
@@ -20,7 +25,7 @@ const valueOf = (e: Entity, k: string) => plain(k === "title" ? e.values.title ?
  * "Choose content": browse folder → entity → field and use that field's value here. The text field then inherits the
  * entity's content (it is stored as a {{alias.field}} token and follows every change to the entity).
  */
-export function ContentPicker({ marketId, models, current, onClose, onPick }: { marketId: string; models: ContentModelInfo[]; current?: string; onClose: () => void; onPick: (c: ContentChoice) => void }) {
+export function ContentPicker({ marketId, marketName, flag, locale, models, current, onClose, onPick }: { marketId: string; marketName: string; flag: string; locale: string; models: ContentModelInfo[]; current?: string; onClose: () => void; onPick: (c: ContentChoice) => void }) {
   const [all, setAll] = useState<Entity[] | null>(null); const [folders, setFolders] = useState<Record<string, string[]>>({}); const [err, setErr] = useState<string | null>(null);
   const [place, setPlace] = useState<Place | null>(null); const [ent, setEnt] = useState<string>(""); const [field, setField] = useState<string>(""); const [q, setQ] = useState("");
   useEffect(() => { let on = true; Promise.all([ucpApi.entities(marketId), ucpApi.entityFolders(marketId).catch(() => ({}))]).then(([es, fs]) => { if (!on) return; setAll(es); setFolders(fs); const first = models.find((m) => es.some((e) => e.model === m.id)); if (first) setPlace({ model: first.id, folder: null }); }).catch((e) => { if (on) { setAll([]); setErr(errorText(e)); } }); return () => { on = false; }; }, [marketId, models]);
@@ -34,7 +39,12 @@ export function ContentPicker({ marketId, models, current, onClose, onPick }: { 
 
   return <ModalShell title="Choose content" subtitle={<>Pick a folder, an entity and the field to show{current ? <> in <b>{current}</b></> : null}. The text then inherits it and updates when the entity changes.</>} width={880} onClose={onClose}
     footer={<>{chosen && f && <span className="mr-auto text-[12.5px] text-ink-3 min-w-0 truncate">Shows: <b className="text-ink">{cut(valueOf(chosen, f.k), 70) || "(empty)"}</b></span>}<button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={!chosen || !f} onClick={() => chosen && f && onPick({ entity: chosen, field: f })}>Use this content</button></>}>
-    <label className="flex items-center gap-2 border border-line-2 rounded-md px-2.5 py-1.5 mb-3 bg-surface"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px] bg-transparent" placeholder="Search all entities" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search all entities" /></label>
+    <div className="flex flex-wrap items-center gap-2 mb-3 text-[12px]">
+      <span className="inline-flex items-center gap-1.5 bg-surface-2 border border-line rounded-full px-2.5 py-1"><span className="text-ink-3">Market</span><b>{flag} {marketName}</b></span>
+      <span className="inline-flex items-center gap-1.5 bg-surface-2 border border-line rounded-full px-2.5 py-1"><span className="text-ink-3">Language root</span><b className="font-mono">{locale}</b></span>
+      <span className="inline-flex items-center gap-1.5 bg-surface-2 border border-line rounded-full px-2.5 py-1 font-mono text-ink-3" title="Where these entities are stored">/content/entities/{marketId}</span>
+    </div>
+    <label className="flex items-center gap-2 border border-line-2 rounded-md px-2.5 py-1.5 mb-3 bg-surface"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px] bg-transparent" placeholder="Search all entities" autoFocus value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search all entities" /></label>
     <div className="grid grid-cols-[200px_1fr_1.2fr] gap-3 h-[360px]">
       <div className={col} aria-label="Folders"><div className="px-2.5 pt-2 pb-1 text-[10.5px] uppercase tracking-[.08em] text-ink-3 font-semibold">1 · Folder</div><div className="p-1">
         {models.filter((m) => count(m.id, null) > 0).map((m) => <div key={m.id}>

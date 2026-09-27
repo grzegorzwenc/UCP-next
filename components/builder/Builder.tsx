@@ -8,7 +8,7 @@ import { BLOCK_BY_TYPE, makeBlock, lines, joinLines, missingRequired, TEMPLATES 
 import { RenderBlock, SiteChrome, AssetsContext, EntitiesContext, InlineEditContext } from "@/lib/blocks/Render";
 import { bindingsOf, hasTokens, type ResolvedEntities } from "@/lib/ucp/tokens";
 import type { Bindings } from "@/lib/ucp/types";
-import { ContentPicker, type ContentChoice } from "./ContentPicker";
+import { ContentPicker, ContentIcon, type ContentChoice } from "./ContentPicker";
 import { EntitiesPanel, uniqueAlias, type ContentModelInfo } from "./LinkedContent";
 import { PublishDialog } from "@/components/pages/PublishDialog";
 import { ModalShell } from "@/components/models/ModalShell";
@@ -81,7 +81,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [translating, setTranslating] = useState(false); const router = useRouter();
   const [description, setDescription] = useState(page.description ?? "");
   const [aiTasks, setAiTasks] = useState<AiTask[]>([]); const [aiDraft, setAiDraft] = useState("");
-  const [focus, setFocus] = useState(false);
+  const [focus, setFocus] = useState(false); const [previewCheck, setPreviewCheck] = useState(false); // after leaving Preview: "does it look right?"
   const [cfgSnapshot, setCfgSnapshot] = useState<Record<string, unknown> | null>(null);
   const [clipboard, setClipboard] = useState<Block | null>(null);
   const [dirty, setDirty] = useState(false); const [saving, setSaving] = useState<string>("Saved");
@@ -106,7 +106,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
      review / approved / published are read-only stages set by the workflow status. "Edit" always brings you back to editing the same page. */
   const [stage, setStage] = useState<"blocks" | "content">(() => (page.components.length ? "content" : "blocks"));
   const locked = status === "review" || status === "approved" || status === "scheduled" || status === "published";
-  const cur = status === "published" ? 6 : status === "approved" || status === "scheduled" ? 5 : status === "review" ? 4 : focus ? 2 : stage === "content" ? 1 : 0;
+  const cur = status === "published" ? 6 : status === "approved" || status === "scheduled" ? 5 : status === "review" ? 4 : focus || previewCheck ? 2 : stage === "content" ? 1 : 0;
   const [lockedSeen, setLockedSeen] = useState(false); // locked stages are read-only: switch to preview and drop the selection when the status changes
   if (lockedSeen !== locked) { setLockedSeen(locked); if (locked) { setPreviewRaw(true); setSel(null); setMode("select"); setPop(null); } else if (canEdit) setPreviewRaw(false); }
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(null), 2200); };
@@ -193,6 +193,11 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [contentPick, setContentPick] = useState<null | { target: "inline"; label: string } | { target: "field"; blockId: string; k: string; l: string }>(null); const [tokTyped, setTokTyped] = useState(false); /* typed "{{" opened the picker: those two characters get replaced by the token */ const caret = useRef<Range | null>(null);
   useEffect(() => { if (!editing) return; const h = () => { const el = editingEl.current; const sel = window.getSelection(); if (el && sel && sel.rangeCount && el.contains(sel.getRangeAt(0).startContainer)) caret.current = sel.getRangeAt(0).cloneRange(); }; document.addEventListener("selectionchange", h); return () => document.removeEventListener("selectionchange", h); }, [editing]);
   const onInlineInput = () => { const el = editingEl.current; const sel = window.getSelection(); if (!el || !sel?.rangeCount) return; const r = sel.getRangeAt(0); const n = r.startContainer; if (n.nodeType === 3 && el.contains(n) && (n.textContent ?? "").slice(0, r.startOffset).endsWith("{{")) { setTokTyped(true); setContentPick({ target: "inline", label: "this text" }); } };
+  /* Icon floating next to the text being edited: opens Choose content. Follows the text when the canvas scrolls. */
+  const [inlinePos, setInlinePos] = useState<{ top: number; left: number } | null>(null);
+  useEffect(() => { if (!editing) return; const place = () => { const el = editingEl.current; if (!el) { setInlinePos(null); return; } const r = el.getBoundingClientRect(); setInlinePos({ top: r.top + r.height / 2 - 14, left: Math.min(window.innerWidth - 40, r.right + 8) }); };
+    const raf = requestAnimationFrame(place); const c = canvasRef.current; c?.addEventListener("scroll", place); window.addEventListener("resize", place); document.addEventListener("input", place);
+    return () => { cancelAnimationFrame(raf); c?.removeEventListener("scroll", place); window.removeEventListener("resize", place); document.removeEventListener("input", place); setInlinePos(null); }; }, [editing]);
   /** Use a field of an entity here: the entity is added to the page (if needed) and the text inherits the field as a {{alias.field}} token. */
   async function applyContent(c: ContentChoice) {
     const target = contentPick; setContentPick(null); if (!target) return;
@@ -205,6 +210,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     setTokTyped(false); el.innerText = token; const r = document.createRange(); r.selectNodeContents(el); r.collapse(false); sel?.removeAllRanges(); sel?.addRange(r);
     say(`This text now shows ${c.entity.title} · ${c.field.l}. Press ✓ Save.`);
   }
+  /** Leaving Preview on a draft asks whether the page is right: yes → Send for review, no → back to the content. */
+  const leavePreview = () => { setFocusMode(false); if (canEdit && (status === "draft" || status === "failed")) setPreviewCheck(true); };
   /* ---- Focus mode (⌘⇧F): body.focus hides the top bar and side nav (CSS in globals.css); other parts of the shell can listen to ucp:focus. ---- */
   const panelsBeforeFocus = useRef<{ left: boolean; right: boolean; preview: boolean } | null>(null);
   const [fsHint, setFsHint] = useState(false);
@@ -253,7 +260,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     const h = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); save().catch(() => {}); return; }
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "f") { e.preventDefault(); setFocusMode(!focus); return; }
-      if (e.key === "Escape") { if (focus && !editing && !pop && !ctaPop) setFocusMode(false); }
+      if (e.key === "Escape") { if (focus && !editing && !pop && !ctaPop) leavePreview(); }
     };
     window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
   });
@@ -286,6 +293,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   }
   function onCanvasDouble(e: React.MouseEvent) { if (preview) return; const t = e.target as HTMLElement; if (t.closest("[data-ui]")) return; const blk = t.closest<HTMLElement>(".cblk"); if (!blk) return; if (editing) commitInline(true); enterEdit(blk.dataset.id!, t); }
   function onCanvasKey(e: React.KeyboardEvent) {
+    if (contentPick || previewCheck) return; // a dialog is open: it handles its own keys
     if (e.key === "Escape") { e.preventDefault(); if (editing) commitInline(false); else if (ctaPop || pop) { setCtaPop(null); setPop(null); } else if (mode === "edit") setMode("select"); else select(null); return; }
     if (!editing) return;
     if (e.key === "Enter" && !e.shiftKey && !editing.key.includes("|p|")) { e.preventDefault(); commitInline(true); say("Saved"); }
@@ -339,7 +347,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         <div className="hidden sm:inline-flex border border-line-2 rounded-lg overflow-hidden">{(["desktop", "tablet", "mobile"] as const).map((d) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 text-[13px] ${device === d ? "bg-ink text-white" : "text-ink-3"}`} title={d}>{d === "desktop" ? "🖥" : d === "tablet" ? "▭" : "📱"}</button>)}</div>
         <div className="ml-auto flex items-center gap-2.5">
           <span className="hidden sm:inline text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1">{saving}</span>
-          <div className="hidden md:flex gap-1 pl-2.5 border-l border-line"><button className={`btn btn-icon btn-sm ${left ? "on" : ""}`} onClick={() => setLeft(!left)} title="Components panel" aria-pressed={left}>▤</button><button className={`btn btn-icon btn-sm ${right ? "on" : ""}`} onClick={() => { if (right) closeConfigure(true); else { setRightTab(sel ? "block" : "page"); setRight(true); } }} title="Page settings panel" aria-pressed={right}>▥</button><button className={`btn btn-sm ${focus ? "on" : ""}`} onClick={() => setFocusMode(!focus)} title="Preview the page as visitors see it (⌘⇧F)" aria-pressed={focus}>{focus ? "✕ Exit preview" : "👁 Preview"}</button></div>
+          <div className="hidden md:flex gap-1 pl-2.5 border-l border-line"><button className={`btn btn-icon btn-sm ${left ? "on" : ""}`} onClick={() => setLeft(!left)} title="Components panel" aria-pressed={left}>▤</button><button className={`btn btn-icon btn-sm ${right ? "on" : ""}`} onClick={() => { if (right) closeConfigure(true); else { setRightTab(sel ? "block" : "page"); setRight(true); } }} title="Page settings panel" aria-pressed={right}>▥</button><button className={`btn btn-sm ${focus ? "on" : ""}`} onClick={() => (focus ? leavePreview() : setFocusMode(true))} title="Preview the page as visitors see it (⌘⇧F)" aria-pressed={focus}>{focus ? "✕ Exit preview" : "👁 Preview"}</button></div>
           <div className="flex gap-1 pl-2.5 border-l border-line">{!canEdit ? <span className="text-xs text-ink-3 px-2" title="Ask a site admin for Edit on this folder">🔒 Read-only</span> : <button className={`btn btn-sm ${!locked && !focus && stage === "content" ? "on" : ""}`} onClick={() => void goEdit("content")} title={locked ? "Reopen this page for editing" : "Edit the page content"}>✎ Edit</button>}<button className="btn btn-sm" onClick={() => save().then(() => say("Saved")).catch(() => {})} disabled={!dirty || !canEdit}>Save</button>
             {(status === "draft" || status === "failed") && mayStatus("review") && <button className="btn btn-sm btn-primary" onClick={openSend}>Send for review</button>}
             {status === "review" && (mayApprove ? <button className="btn btn-sm btn-primary" onClick={() => transition("approved", "Approved")}>Approve</button> : <span className="text-xs text-ink-3 self-center whitespace-nowrap">{waitingFor}</span>)}
@@ -373,7 +381,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               : <div className="m-7 p-11 border-2 border-dashed border-line-2 rounded-xl text-center text-ink-2 text-[15px]">How do you want to start this page?<small className="block text-[13px] text-ink-3 mt-1.5">Pick a layout, or add components one by one from the left.</small><div className="grid grid-cols-3 gap-3 mt-4 text-left">{TEMPLATES.filter((t) => t.blocks.length).slice(0, 3).map((t) => <button key={t.id} className="border border-line-2 bg-surface p-3.5 text-left hover:border-ink" onClick={() => mutate(() => t.blocks.map((x) => makeBlock(x, x === "mast" ? { heading: title } : {})))}><b className="block text-[13.5px]">{t.name}</b><small className="text-ink-3">{t.desc}</small></button>)}</div></div>}
             </SiteChrome></InlineEditContext.Provider></EntitiesContext.Provider></AssetsContext.Provider></div></div>; })()}
           </div>
-          {editing && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 flex gap-1 bg-[#0F1013] rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}><span className="px-2 py-1.5 text-white/70">Editing text</span><button className="px-3 py-1.5 rounded hover:bg-white/15" title="Show content from an entity here (or type {{ to insert at the cursor)" onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }}>⤓ Choose content</button><button className="px-3 py-1.5 rounded bg-good font-semibold" onClick={() => { commitInline(true); say("Saved"); }}>✓ Save</button><button className="px-3 py-1.5 rounded hover:bg-white/15" onClick={() => commitInline(false)}>✕ Cancel</button></div>}
+          {editing && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 flex gap-1 bg-[#0F1013] rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}><span className="px-2 py-1.5 text-white/70">Editing text</span><button className="px-2.5 py-1.5 rounded hover:bg-white/15 inline-flex items-center" title="Choose content from an entity (or type {{ to insert at the cursor)" aria-label="Choose content from an entity" onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }}><ContentIcon /></button><button className="px-3 py-1.5 rounded bg-good font-semibold" onClick={() => { commitInline(true); say("Saved"); }}>✓ Save</button><button className="px-3 py-1.5 rounded hover:bg-white/15" onClick={() => commitInline(false)}>✕ Cancel</button></div>}
           {ctaPop && selected && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 w-[420px] bg-surface border border-line rounded-xl shadow-2xl z-20 p-3.5 text-[13px]" onMouseDown={(e) => { e.stopPropagation(); if (!(e.target as HTMLElement).closest("input, textarea")) e.preventDefault(); }}>
             <div className="flex items-center mb-2.5"><b>Button</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => setCtaPop(null)} aria-label="Close">✕</button></div>
             <label className="block text-xs text-ink-2 font-medium">Label<input autoFocus className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink font-normal" value={String(selected.props[ctaPop.labelKey] ?? "")} onChange={(e) => setProp(selected.id, ctaPop.labelKey, e.target.value)} /></label>
@@ -419,7 +427,14 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {rightTab === "block" && selected && <div className="flex justify-end gap-2 px-3.5 py-2.5 border-t border-line bg-surface"><button className="btn btn-sm" onClick={() => closeConfigure(false)}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => { closeConfigure(true); say("Component updated · Save the page when you're done"); }}>Save</button></div>}
         </aside>}
         {focus && <div aria-live="polite" className={`fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-[#0F1013]/85 text-white text-[12px] px-3 py-1.5 rounded-full transition-opacity duration-700 ${fsHint ? "opacity-100" : "opacity-0 pointer-events-none"}`}>Preview · this is what visitors see · press Esc to go back to editing</div>}
-        {contentPick && <ContentPicker marketId={marketId} models={models} current={contentPick.target === "field" ? contentPick.l : undefined} onClose={() => { setContentPick(null); setTokTyped(false); editingEl.current?.focus({ preventScroll: true }); }} onPick={(c) => void applyContent(c)} />}
+        {editing && inlinePos && !contentPick && <button type="button" data-ui className="fixed z-30 w-7 h-7 rounded-full grid place-items-center bg-info text-white shadow-lg hover:scale-105 transition-transform" style={{ top: inlinePos.top, left: inlinePos.left }} onMouseDown={(e) => e.preventDefault()} onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }} title="Choose content from an entity" aria-label="Choose content from an entity"><ContentIcon className="w-3.5 h-3.5" /></button>}
+        {previewCheck && <ModalShell title="Does everything look right?" width={480} onClose={() => setPreviewCheck(false)}
+          footer={<><button className="btn" onClick={() => { setPreviewCheck(false); void goEdit("content"); }}>No, keep editing</button><button className="btn btn-primary" onClick={() => { setPreviewCheck(false); openSend(); }}>Yes, send for review</button></>}>
+          <p className="text-[13.5px]">You have just seen <b>{title}</b> the way customers will.</p>
+          <ul className="text-[13px] text-ink-2 mt-2 grid gap-1 list-disc pl-5"><li>Texts, prices and rates are correct</li><li>Images and buttons are in the right place</li><li>Nothing is missing on phone and tablet</li></ul>
+          {insightBadge > 0 && <p className="text-[12.5px] bg-warn-soft rounded-md px-3 py-2 mt-3">Page insights found {insightBadge} thing{insightBadge === 1 ? "" : "s"} to fix. You can still send it, but the reviewer will see them.</p>}
+        </ModalShell>}
+        {contentPick && <ContentPicker marketId={marketId} marketName={marketName} flag={flag} locale={locale} models={models} current={contentPick.target === "field" ? contentPick.l : undefined} onClose={() => { setContentPick(null); setTokTyped(false); editingEl.current?.focus({ preventScroll: true }); }} onPick={(c) => void applyContent(c)} />}
         {backToReview && <ModalShell title="Review is already done" width={500} onClose={() => setBackToReview(false)}
           footer={<><button className="btn" onClick={() => setBackToReview(false)}>Keep approval</button><button className="btn btn-primary" onClick={async () => { const wasScheduled = status === "scheduled"; setBackToReview(false); await transition("review", `Back in review${assigneeName ? ` with ${assigneeName}` : ""}`); if (wasScheduled) { await repoApi.setProps(`${page.path}/jcr:content`, { "ucp:publishAt": null }).catch(() => {}); setPublishAt(undefined); } router.refresh(); }}>Send back to review</button></>}>
           <p className="text-[13.5px]">This page is <b>approved</b> and ready to publish.</p>
@@ -490,7 +505,7 @@ function ConfigForm({ block: selected, index, count, marketId, setProp, entities
   const def = BLOCK_BY_TYPE[selected.type]; const P = selected.props;
   return <div className="flex flex-col gap-3">
     <div><b className="text-sm">{def.name}</b><div className="text-[11px] text-ink-3">Block {index + 1} of {count} · {def.desc}</div></div>
-    <Section t="Content">{def.fields.map((f) => { const v = selected.props[f.k]; const invalid = f.req && !v; return <div key={f.k}><label className="flex items-center text-xs text-ink-2 font-medium mb-1">{f.l}{(f.t === "text" || f.t === "textarea") && canEdit ? <button type="button" className="ml-auto mr-2 text-[11px] text-info hover:underline font-normal" onMouseDown={(e) => e.preventDefault()} onClick={() => onChoose(f.k, f.l)} title="Show content from an entity in this field">⤓ Choose content</button> : <span className="ml-auto" />}{f.req && <small className="font-mono text-[10.5px] text-ink-4">required</small>}</label>
+    <Section t="Content">{def.fields.map((f) => { const v = selected.props[f.k]; const invalid = f.req && !v; return <div key={f.k}><label className="flex items-center text-xs text-ink-2 font-medium mb-1">{f.l}{(f.t === "text" || f.t === "textarea") && canEdit ? <button type="button" className="ml-auto mr-2 w-6 h-6 rounded grid place-items-center text-info hover:bg-info-soft" onMouseDown={(e) => e.preventDefault()} onClick={() => onChoose(f.k, f.l)} title="Choose content from an entity" aria-label={`Choose content from an entity for ${f.l}`}><ContentIcon /></button> : <span className="ml-auto" />}{f.req && <small className="font-mono text-[10.5px] text-ink-4">required</small>}</label>
       {f.t === "text" ? <input className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${f.mono ? "font-mono" : ""} ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
       : f.t === "textarea" ? <textarea rows={4} className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
       : f.t === "lines" ? <ListEditor rows={lines(v)} hint={f.hint} onChange={(rows) => setProp(f.k, joinLines(rows))} />

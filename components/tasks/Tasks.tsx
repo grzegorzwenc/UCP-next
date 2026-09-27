@@ -21,6 +21,8 @@ export function dueLabel(t: Task): { t: string; c: "crit" | "warn" | "" } {
   if (d === -1) return { t: "Due tomorrow", c: "warn" };
   return { t: "Due " + new Date(t.due).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" }), c: "" };
 }
+/** Short date for task tables, e.g. "Mon 29 Sep, 09:00" (UK time so server and browser agree). */
+export const taskDate = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); return isNaN(d.getTime()) ? "" : d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }); };
 /** "Waiting" = time since the task was sent (sentAt), e.g. "2 days", "18 hours", "40 min". */
 export function waitingLabel(sentAt?: string): string {
   if (!sentAt) return "—"; const ms = Date.now() - new Date(sentAt).getTime(); if (!isFinite(ms) || ms < 0) return "—";
@@ -89,7 +91,7 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
       </div>
       {rows.length ? (
         <div className="bg-surface border border-line rounded-xl overflow-hidden"><div className="overflow-auto"><table className="w-full text-[13.5px] [&_tr>*:nth-child(3)]:hidden 2xl:[&_tr>*:nth-child(3)]:table-cell [&_tr>*:nth-child(5)]:hidden 2xl:[&_tr>*:nth-child(5)]:table-cell [&_tr>*:nth-child(4)]:hidden 2xl:[&_tr>*:nth-child(4)]:table-cell">
-          <thead className="bg-surface-2"><tr className="text-left text-[11px] uppercase tracking-[.08em] text-ink-3"><Th {...thp} k="kind" className="w-[130px]">Type</Th><Th {...thp} k="name">Page · what to do</Th><Th {...thp} k="from" className="w-[200px]">Sent by</Th><Th {...thp} k="assignee" className="w-[190px]">Assigned to</Th><Th {...thp} k="waiting" className="w-[110px]">Waiting</Th><Th {...thp} k="due" className="w-[140px]">Due</Th><Th {...thp} className="w-[150px] text-right">Action</Th></tr></thead>
+          <thead className="bg-surface-2"><tr className="text-left text-[11px] uppercase tracking-[.08em] text-ink-3"><Th {...thp} k="kind" className="w-[130px]">Type</Th><Th {...thp} k="name">Page · what to do</Th><Th {...thp} k="from" className="w-[200px]">Sent by</Th><Th {...thp} k="assignee" className="w-[190px]">Assigned to</Th><Th {...thp} k="waiting" className="w-[110px]">Waiting</Th><Th {...thp} k="due" className="w-[170px]">Due · sent</Th><Th {...thp} className="w-[150px] text-right">Action</Th></tr></thead>
           <tbody>{([["Overdue", (t: Task) => t.overdueDays > 0, "text-crit"], ["Due today", (t: Task) => t.overdueDays === 0, "text-warn"], ["Coming up", (t: Task) => t.overdueDays < 0, "text-ink-3"]] as const).map(([title, pred, cls]) => { const grouped = sort === "due" && dir === "asc"; const list = grouped ? rows.filter(pred) : (title === "Overdue" ? rows : []); if (!list.length) return null; return <Fragment key={title}>
             {grouped && <tr><td colSpan={7} className={`px-4 pt-3 pb-1.5 text-[10.5px] uppercase tracking-[.1em] font-semibold ${cls}`}>{title} · {list.length}</td></tr>}
             {list.map((t) => { const d = dueLabel(t); const primary = t.kind === "Review" || t.kind === "Publish"; const label = t.kind === "Review" ? "Review" : t.kind === "Publish" ? "Publish" : t.kind === "Fix" ? "Retry publish" : t.kind === "Check" ? "Check" : "Continue";
@@ -100,7 +102,8 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
                 <td className="px-4 py-3"><span className="inline-flex items-center gap-2"><Avatar name={sender} size={24} /><span className="text-[13px]">{t.from}</span></span></td>
                 <td className="px-4 py-3">{t.assigneeName ? <span className="inline-flex items-center gap-2"><Avatar name={t.assigneeName} size={24} /><span className="text-[13px]">{t.assigneeName}</span></span> : <span className="text-[12.5px] text-ink-3">Anyone with Review</span>}</td>
                 <td className="px-4 py-3 text-ink-3">{w}</td>
-                <td className="px-4 py-3"><span suppressHydrationWarning className={`inline-block text-[12px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span></td>
+                <td className="px-4 py-3"><span suppressHydrationWarning className={`inline-block text-[12px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span>
+                  <div className="text-[11.5px] text-ink-3 mt-1 leading-snug whitespace-nowrap" suppressHydrationWarning><span title="Due date">Due {taskDate(t.due)}</span>{t.sentAt && <span className="block" title="Sent date">Sent {taskDate(t.sentAt)}</span>}</div></td>
                 <td className="px-4 py-3 text-right">{allowed ? <button className={`btn btn-sm ${primary ? "btn-primary" : ""}`} disabled={busy === t.page.path} onClick={(e) => act(e, t)}>{busy === t.page.path ? "Working…" : label}</button> : <span className="inline-flex items-center gap-1.5 text-[12px] text-ink-3 whitespace-nowrap" title={`You don't have ${needs === "publish" ? "Publish" : "Review & approve"} here`}><span aria-hidden="true">🔒</span>{waiting}</span>}</td>
               </tr>; })}
           </Fragment>; })}</tbody>
