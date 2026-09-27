@@ -74,6 +74,8 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 .ie { border-radius: 2px; } .cblk.editmode .ie { box-shadow: 0 0 0 1px rgba(219,0,17,.35); cursor: text; background: rgba(219,0,17,.03); }
 .cblk.editmode .ie:hover { background: #FDECEE; } .cblk.editmode .ie::after { content: '✎'; font-size: 11px; color: #DB0011; margin-left: 5px; opacity: .55; vertical-align: super; }
 .cblk.editmode { border-style: dashed; }
+/* texts can be edited with one click: show it on hover without switching the block to edit mode first */
+.can-edit .cblk:not(.locked) .ie { cursor: text; } .can-edit .cblk:not(.locked) .ie:hover { background: #FDECEE; box-shadow: 0 0 0 1px rgba(219,0,17,.35); }
 .cblk.hidden-blk > *:not(.tag) { opacity: .4; } .cblk.hidden-blk::before { content: 'Hidden'; position: absolute; top: 8px; right: 10px; font-size: 11px; color: #4D6474; background: #F3F3F3; border: 1px solid #D7D8D6; padding: 1px 6px; border-radius: 3px; }
 .cblk.locked { cursor: default; }
 .ie.editing { outline: 2px solid #DB0011; outline-offset: 2px; background: #fff; } .cblk.editmode .ie.editing::after { content: none; }

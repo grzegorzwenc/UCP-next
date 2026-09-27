@@ -271,12 +271,16 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     window.addEventListener("ucp:add-block", onAdd); window.addEventListener("ucp:ai", onAi);
     return () => { window.removeEventListener("ucp:add-block", onAdd); window.removeEventListener("ucp:ai", onAi); };
   });
-  function enterEdit(id: string, target?: HTMLElement) {
+  function enterEdit(id: string, target?: HTMLElement, at?: { x: number; y: number }) {
     const b = blocks.find((x) => x.id === id); if (!b || b.props.locked) { say("This block is locked. Unlock it from ⋯ More."); return; }
     setSel(id); setMode("edit"); setPop(null);
     const ie = target?.closest<HTMLElement>(".ie") ?? canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"] .ie`) ?? undefined;
     // A token span may have been remounted by the commit that just happened: look it up again by its key.
-    if (ie) { const k = ie.dataset.inline ?? ""; setTimeout(() => { const el = ie.isConnected ? ie : canvasRef.current?.querySelector<HTMLElement>(`.ie[data-inline="${CSS.escape(k)}"]`); if (el) startInline(el); }, 0); }
+    if (ie) { const k = ie.dataset.inline ?? ""; setTimeout(() => { const el = ie.isConnected ? ie : canvasRef.current?.querySelector<HTMLElement>(`.ie[data-inline="${CSS.escape(k)}"]`); if (!el) return; startInline(el);
+      /* put the caret where the person clicked (plain text only; text with tokens switches to its raw form first) */
+      if (at && el.dataset.raw === undefined) { const doc = document as Document & { caretRangeFromPoint?: (x: number, y: number) => Range | null; caretPositionFromPoint?: (x: number, y: number) => { offsetNode: Node; offset: number } | null };
+        let r: Range | null = doc.caretRangeFromPoint?.(at.x, at.y) ?? null; if (!r && doc.caretPositionFromPoint) { const p = doc.caretPositionFromPoint(at.x, at.y); if (p) { r = document.createRange(); r.setStart(p.offsetNode, p.offset); r.collapse(true); } }
+        if (r && el.contains(r.startContainer)) { const sel = window.getSelection(); sel?.removeAllRanges(); sel?.addRange(r); } } }, 0); }
   }
   function onCanvasClick(e: React.MouseEvent) {
     if (preview) return;
@@ -284,14 +288,19 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     const blk = t.closest<HTMLElement>(".cblk"); if (!blk) { if (editing) commitInline(true); select(null); return; }
     const id = blk.dataset.id!; const ie = t.closest<HTMLElement>(".ie");
     if (t.closest("a, summary, .s-cta")) e.preventDefault();
+    /* One click on a text edits it straight away (caret where you clicked); a click elsewhere in the block selects the block. */
+    if (ie && editing && editingEl.current === ie) return; // moving the caret inside the text being edited
+    if (ie && canEdit && !locked) {
+      const b = blocks.find((x) => x.id === id)!; if (b.props.locked) { if (id !== sel) select(id); say("This block is locked. Unlock it from ⋯ More."); return; }
+      e.preventDefault(); if (editing) commitInline(true);
+      const cta = t.closest(".s-cta"); const hasLink = BLOCK_BY_TYPE[b.type].fields.some((f) => f.k === "link");
+      if (cta && hasLink && !ie.dataset.inline!.includes("|")) { setSel(id); setMode("edit"); setCtaPop({ id, labelKey: ie.dataset.inline!.split("|")[1], linkKey: "link" }); return; }
+      enterEdit(id, t, { x: e.clientX, y: e.clientY }); return;
+    }
     if (id !== sel) { if (editing) commitInline(true); select(id); return; }
-    if (mode !== "edit") return;
-    if (ie && !editing) { e.preventDefault(); const cta = t.closest(".s-cta"); const b = blocks.find((x) => x.id === id)!; const hasLink = BLOCK_BY_TYPE[b.type].fields.some((f) => f.k === "link");
-      if (cta && hasLink && !ie.dataset.inline!.includes("|")) { setCtaPop({ id, labelKey: ie.dataset.inline!.split("|")[1], linkKey: "link" }); return; }
-      startInline(ie); return; }
     if (editing && !ie) commitInline(true);
   }
-  function onCanvasDouble(e: React.MouseEvent) { if (preview) return; const t = e.target as HTMLElement; if (t.closest("[data-ui]")) return; const blk = t.closest<HTMLElement>(".cblk"); if (!blk) return; if (editing) commitInline(true); enterEdit(blk.dataset.id!, t); }
+  function onCanvasDouble(e: React.MouseEvent) { if (preview) return; const t = e.target as HTMLElement; if (t.closest("[data-ui]")) return; const blk = t.closest<HTMLElement>(".cblk"); if (!blk) return; if (editing && editingEl.current?.contains(t)) return; /* double-click inside the text being edited selects a word */ if (editing) commitInline(true); enterEdit(blk.dataset.id!, t); }
   function onCanvasKey(e: React.KeyboardEvent) {
     if (contentPick || previewCheck) return; // a dialog is open: it handles its own keys
     if (e.key === "Escape") { e.preventDefault(); if (editing) commitInline(false); else if (ctaPop || pop) { setCtaPop(null); setPop(null); } else if (mode === "edit") setMode("select"); else select(null); return; }
@@ -368,7 +377,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
       <div className="relative min-h-0 overflow-hidden bg-bg">
         <div className={`absolute inset-0 flex flex-col ${preview ? "preview" : ""}`}>
           {!focus && <div className="flex items-center gap-3 px-6 py-2 text-[12.5px] text-ink-3 border-b border-line bg-surface-2" style={{ paddingLeft: padL, paddingRight: padR }}><span className="mr-auto truncate" title={hint}>{hint}</span><span className="border border-line-2 rounded px-2 py-0.5 bg-surface whitespace-nowrap">1:1 · {device === "desktop" ? 1200 : device === "tablet" ? 768 : 390} px</span></div>}
-          <div ref={canvasRef} className={focus ? "flex-1 overflow-auto p-0 bg-white" : "flex-1 overflow-auto p-6 pb-24"} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
+          <div ref={canvasRef} className={`${focus ? "flex-1 overflow-auto p-0 bg-white" : "flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
             {(() => { const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / siteW)) : 1; return <div style={fit < 1 ? { width: siteW * fit, height: siteH ? siteH * fit : undefined, margin: "0 auto" } : undefined}><div ref={siteRef} style={fit < 1 ? { transform: "scale(" + fit + ")", transformOrigin: "top left", width: siteW } : undefined}>
             <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
               {blocks.length ? blocks.map((b, i) => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""}`} tabIndex={0}>
