@@ -15,7 +15,7 @@ import { Pill } from "@/components/ui/Pill";
  * Accessibility: combobox + listbox with aria-activedescendant, Tab is trapped inside the dialog, focus returns to the opener on close.
  */
 const AI = [["Improve this page", "Improve this page"], ["Create a new section", "Create a promotional section for the new Premier Banking offer"], ["Translate page", "Translate this page"], ["Create mobile version", "Create mobile version"], ["Find unused components", "Find unused components"], ["Check accessibility", "Check accessibility"], ["Check content compliance", "Check content compliance"], ["Optimise SEO", "Optimise SEO"], ["Design a landing page", "Design a landing page for Premier Banking"]];
-const NAV = [["Dashboard", "dashboard"], ["Pages", "pages"], ["Assets", "assets"], ["Content models", "models"], ["Content entities", "entities"], ["Templates", "templates"], ["My tasks", "tasks"], ["API & delivery", "api"], ["Users & roles", "users"], ["Audit log", "audit"], ["Repository (JCR)", "repo"]];
+const NAV = [["Dashboard", "dashboard"], ["Pages", "pages"], ["Assets", "assets"], ["Content models", "models"], ["Content entities", "entities"], ["Templates", "templates"], ["My tasks", "tasks"], ["API & delivery", "api"], ["Users & roles", "users"], ["Audit log", "audit"]];
 type Item = { id: string; section: string; label: React.ReactNode; hint?: string; run: () => void };
 
 export function Palette({ marketId, envId }: { marketId: string; envId: string }) {

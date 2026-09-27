@@ -9,7 +9,7 @@ const ITEMS: ([string] | [string, string, string])[] = [
   ["Content"], ["pages", "Pages", "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"], ["assets", "Assets", "M3 4h18v16H3zM9 10a2 2 0 1 0 0-.1M21 16l-5-5-8 8"], ["entities", "Content entities", "M8 3h12a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM4 7v12a1 1 0 0 0 1 1h12M10 7.5h8M10 11h5"],
   ["Structure"], ["models", "Content models", "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"], ["templates", "Templates", "M6 3h8l5 5v13H6zM14 3v5h5"],
   ["Work"], ["tasks", "My tasks", "M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"],
-  ["Platform"], ["api", "API & delivery", "M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"], ["users", "Users & roles", "M9 8a3.5 3.5 0 1 0 0-.1M2.5 20a6.5 6.5 0 0 1 13 0M16 4a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-5-6.3"], ["audit", "Audit log", "M12 3l8 4v6c0 4.5-3.5 7.5-8 8-4.5-.5-8-3.5-8-8V7zM9 12l2 2 4-4"], ["repo", "Repository (JCR)", "M4 6a8 3 0 0 1 16 0v12a8 3 0 0 1-16 0zM4 6a8 3 0 0 0 16 0M4 12a8 3 0 0 0 16 0"],
+  ["Platform"], ["api", "API & delivery", "M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"], ["users", "Users & roles", "M9 8a3.5 3.5 0 1 0 0-.1M2.5 20a6.5 6.5 0 0 1 13 0M16 4a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-5-6.3"], ["audit", "Audit log", "M12 3l8 4v6c0 4.5-3.5 7.5-8 8-4.5-.5-8-3.5-8-8V7zM9 12l2 2 4-4"],
 ];
 
 /*

@@ -11,7 +11,6 @@ const SECTIONS: [string, RegExp][] = [
   ["api", /API & delivery/],
   ["users", /Users/],
   ["audit", /My activity/], // jordan.mensah is not a site admin: only their own actions
-  ["repo", /Repository \(JCR\)/],
 ];
 
 test.describe("sections", () => {
