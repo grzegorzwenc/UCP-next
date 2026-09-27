@@ -23,15 +23,11 @@ export function Login({ users, next, demo }: { users: User[]; next: string; demo
     catch (e) { setErr(errorText(e)); setBusy(null); }
   }
   return (
-    <main className="min-h-dvh bg-[#0F1013] text-white flex flex-col items-center justify-center px-4 py-10" style={{ backgroundImage: "radial-gradient(1200px 600px at 50% -10%, rgba(219,0,17,.18), transparent 60%)" }}>
-      <div className="w-[min(440px,100%)] flex flex-col items-center text-center">
+    <main className="min-h-dvh bg-[#0F1013] text-white flex flex-col items-center px-4 pt-10 pb-8" style={{ backgroundImage: "radial-gradient(1200px 600px at 50% -10%, rgba(219,0,17,.18), transparent 60%)" }}>
+      <div className="w-[min(440px,100%)] flex flex-col items-center text-center my-auto">
         <img src="/hsbc-logo-white.svg" alt="HSBC" className="h-12 mb-8" />
         <h1 className="text-[28px] font-semibold leading-tight">Unified Content Management</h1>
         <p className="text-[14px] text-white/60 mt-2">One place to author and publish for every HSBC market</p>
-        <div role="note" className="mt-6 w-full rounded-lg border border-white/15 bg-white/5 px-4 py-3 text-left">
-          <div className="flex items-center gap-2"><span className="text-[10.5px] font-bold tracking-[.12em] uppercase bg-warn text-[#0F1013] rounded px-1.5 py-0.5">Test</span><b className="text-[13.5px]">Clickable mockup for testing</b></div>
-          <p className="text-[12.5px] text-white/65 mt-1.5 leading-relaxed">This is a prototype to try the authoring flow. Data is sample content and may reset at any time. Nothing here reaches customers until you publish.</p>
-        </div>
 
         {!picker ? <>
           <button type="button" onClick={() => { setErr(null); setPicker(true); }} className="mt-10 w-full h-12 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold text-[15px] inline-flex items-center justify-center gap-2.5 transition-colors">
@@ -60,7 +56,10 @@ export function Login({ users, next, demo }: { users: User[]; next: string; demo
             <span className="text-[12px] text-white/60">{busy === u.id ? "Signing in…" : "Sign in →"}</span></button></li>))}</ul>}
         {err && <div role="alert" className="mt-4 w-full text-[12.5px] bg-crit/20 border border-crit/40 text-white px-3 py-2 rounded">{err}</div>}
       </div>
-      <p className="text-[12px] text-white/35 mt-12">© HSBC Group</p>
+      <footer role="note" className="mt-10 w-[min(560px,100%)] border-t border-white/10 pt-5 text-center">
+        <div className="inline-flex items-center gap-2 text-[11px] font-semibold tracking-[.14em] uppercase text-[#F5B544]"><span className="w-1.5 h-1.5 rounded-full bg-[#F5B544]" aria-hidden />Test · Clickable mockup</div>
+        <p className="text-[12.5px] text-white/45 mt-2 leading-relaxed">A prototype to try the authoring flow. Data is sample content and may reset at any time.<br />Nothing here reaches customers until you publish.</p>
+      </footer>
     </main>
   );
 }
