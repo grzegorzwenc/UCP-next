@@ -91,7 +91,7 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
   const pages = (all ?? await allPages(PATHS.content(marketId))).filter((p) => !p.isFolder); const user = await me(); const meId = user.id; const now = new Date();
   const admin = user.role === "admin" || !!user.perms.root?.manage; const root = marketOf(marketId).root;
   /* Visibility: admins see every task; everyone else only what they can act on or what they started. */
-  const mine = (p: PageSummary, kind: TaskKind) => admin || str(p.meta?.["ucp:sentBy"]) === meId || (p.lastModifiedBy ?? ME) === meId || (kind === "Review" && (str(p.meta?.["ucp:assignee"]) ? str(p.meta?.["ucp:assignee"]) === meId : can(user, "review", p.path, root))) || ((kind === "Publish" || kind === "Fix" || kind === "Check") && can(user, "publish", p.path, root));
+  const mine = (p: PageSummary, kind: TaskKind) => admin || str(p.meta?.["ucp:sentBy"]) === meId || (p.lastModifiedBy ?? ME) === meId || (kind === "Review" && (str(p.meta?.["ucp:assignee"]) ? str(p.meta?.["ucp:assignee"]) === meId : can(user, "review", p.path, root))) || ((kind === "Publish" || kind === "Fix" || kind === "Check") && (taskAssignee(p, kind) ? taskAssignee(p, kind) === meId : can(user, "publish", p.path, root)));
   const dueOf = (p: PageSummary) => { const d = p.meta?.["ucp:due"]; if (typeof d === "string" && d) return new Date(d); const off = (hash(p.path) % 9) - 2; const x = new Date(now); x.setDate(x.getDate() + off); return x; };
   const mk = async (p: PageSummary, kind: TaskKind, what: string, from: string): Promise<Task> => { const due = dueOf(p); const overdueDays = Math.floor((now.setHours(0, 0, 0, 0) - new Date(due).setHours(0, 0, 0, 0)) / 86400000); return { kind, what, from, sentAt: str(p.meta?.["ucp:sentAt"]) || p.lastModified, due: due.toISOString(), overdueDays, page: { path: p.path, title: p.title, status: p.status, template: p.template } }; };
   const sender = async (p: PageSummary, fallback: string) => { const s = str(p.meta?.["ucp:sentBy"]); return s ? await userName(s) : fallback; };
@@ -103,6 +103,7 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
     else if (p.status === "scheduled") out.push(await mk(p, "Check", "Check scheduled publish", await sender(p, "Michael Osei")));
     else if (p.status === "draft" && (p.lastModifiedBy ?? ME) === meId) out.push(await mk(p, "Finish", "Finish draft and send for review", "You"));
   }
+  for (const t of out) { const a = taskAssignee(pages.find((p) => p.path === t.page.path)!, t.kind); if (a) { t.assignee = a; t.assigneeName = await userName(a); } }
   return out.filter((t) => mine(pages.find((p) => p.path === t.page.path)!, t.kind)).sort((a, b) => a.due.localeCompare(b.due));
 }
 export async function notifications(marketId: string): Promise<Notification[]> {
@@ -289,11 +290,17 @@ export async function resolveBindings(b: Bindings, published = false): Promise<R
 }
 
 /* ---------------- review assignment ---------------- */
-export async function reviewerOptions(marketId: string, pagePath: string): Promise<ReviewerOption[]> {
+export async function reviewerOptions(marketId: string, pagePath: string, perm: "review" | "publish" = "review"): Promise<ReviewerOption[]> {
   const [users, pages] = await Promise.all([listUsers(), allPages(PATHS.content(marketId))]); const root = marketOf(marketId).root;
-  const active = (id: string) => pages.filter((p) => p.status === "review" && str(p.meta?.["ucp:assignee"]) === id).length;
-  return users.filter((u) => can(u, "review", pagePath, root)).map((u) => ({ id: u.id, name: u.name, team: u.team, activeReviews: active(u.id) })).sort((a, b) => a.activeReviews - b.activeReviews || a.name.localeCompare(b.name));
+  const active = (id: string) => pages.filter((p) => (p.status === "review" && str(p.meta?.["ucp:assignee"]) === id) || (p.status !== "review" && str(p.meta?.["ucp:taskAssignee"]) === id && str(p.meta?.["ucp:taskKind"]) === KIND_OF_STATUS[p.status])).length;
+  return users.filter((u) => can(u, perm, pagePath, root)).map((u) => ({ id: u.id, name: u.name, team: u.team, activeReviews: active(u.id) })).sort((a, b) => a.activeReviews - b.activeReviews || a.name.localeCompare(b.name));
 }
+/** Which task a page status stands for (tasks other than Review keep their assignee in ucp:taskAssignee + ucp:taskKind). */
+export const KIND_OF_STATUS: Record<string, TaskKind> = { review: "Review", approved: "Publish", failed: "Fix", scheduled: "Check" };
+/** The permission someone needs to take a task of this kind. */
+export const permOfKind = (k: TaskKind): "review" | "publish" => (k === "Review" ? "review" : "publish");
+/** Assignee of a non-review task, only while the page is still in the state that created it. */
+const taskAssignee = (p: PageSummary, kind: TaskKind) => (kind !== "Review" && str(p.meta?.["ucp:taskKind"]) === kind ? str(p.meta?.["ucp:taskAssignee"]) : "");
 /** Pick the reviewer with the fewest active reviews (never the sender when someone else is available). */
 export async function autoAssignee(marketId: string, pagePath: string, senderId: string): Promise<ReviewerOption | undefined> { const opts = await reviewerOptions(marketId, pagePath); return opts.find((o) => o.id !== senderId) ?? opts[0]; }
 

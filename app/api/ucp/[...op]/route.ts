@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
+import { KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
 import { can } from "@/lib/ucp/perms";
 import { SESSION_COOKIE } from "@/lib/server/session";
 import { PATHS } from "@/lib/ucp/paths";
 import { CY } from "@/lib/ucp/seed";
 import { market } from "@/lib/markets";
+import type { TaskKind } from "@/lib/ucp/types";
 
 /**
  * Derived, market-scoped reads and a few multi-step actions the UI needs. Everything persists through the repo port.
@@ -69,6 +70,21 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       await repo().setProps(`${path}/jcr:content`, { "ucp:assignee": pick.id, "ucp:assignedBy": u.id, "ucp:sentAt": new Date().toISOString() });
       await logEvent(mid, { type: "content", text: `reassigned the review of ${pg.title} from ${prev} to ${pick.name}`, target: path, requestId: rid });
       return ok({ assignee: pick.id, assigneeName: pick.name });
+    }
+    /* ---- task assignment (site admins): who should pick up a Review, Publish, Fix or Check task ---- */
+    if (o === "task/people" && req.method === "GET") { const k = (q.get("kind") ?? "Review") as TaskKind; return ok(await reviewerOptions(mid, q.get("path") ?? "", permOfKind(k))); }
+    if (o === "task/assign" && req.method === "POST") {
+      const u = await me(); if (!(u.role === "admin" || u.perms.root?.manage)) return problem(new RepoError(403, "Only site admins can assign tasks", `Signed in as ${u.name}`));
+      const path = q.get("path") ?? ""; const { kind, assignee } = await req.json() as { kind: TaskKind; assignee?: string | null };
+      const pg = await repo().getPage(path); if (!pg) return problem(new RepoError(404, "Page not found", path));
+      if (KIND_OF_STATUS[pg.status] !== kind) return problem(new RepoError(409, "This task is already done", `The page is now ${pg.status}`));
+      const pick = assignee ? (await reviewerOptions(mid, path, permOfKind(kind))).find((x) => x.id === assignee) : undefined;
+      if (assignee && !pick) return problem(new RepoError(400, `That person doesn't have ${kind === "Review" ? "Review & approve" : "Publish"} on this page`));
+      const key = kind === "Review" ? "ucp:assignee" : "ucp:taskAssignee"; const prevId = kind === "Review" ? pg.meta?.["ucp:assignee"] : pg.meta?.["ucp:taskKind"] === kind ? pg.meta?.["ucp:taskAssignee"] : undefined;
+      const prev = typeof prevId === "string" && prevId ? await userName(prevId) : "nobody";
+      await repo().setProps(`${path}/jcr:content`, { [key]: pick?.id ?? null, ...(kind === "Review" ? {} : { "ucp:taskKind": pick ? kind : null }), "ucp:assignedBy": u.id });
+      await logEvent(mid, { type: "content", text: pick ? `assigned the ${kind.toLowerCase()} task on ${pg.title} to ${pick.name}${prev !== "nobody" ? ` (was ${prev})` : ""}` : `removed ${prev} from the ${kind.toLowerCase()} task on ${pg.title}`, target: path, requestId: rid });
+      return ok({ assignee: pick?.id ?? null, assigneeName: pick?.name ?? null });
     }
     /* ---- content models: every mutation needs a site admin (checked here, not only hidden in the UI) ---- */
     if (o.startsWith("models")) {

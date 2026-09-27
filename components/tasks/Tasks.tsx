@@ -9,6 +9,7 @@ import { useSession } from "@/components/shell/Session";
 import { Pill } from "@/components/ui/Pill";
 import { Avatar } from "@/components/ui/Avatar";
 import { PageIcon } from "@/components/ui/Icons";
+import { AssignDialog } from "./AssignDialog";
 
 type Sort = "due" | "name" | "kind" | "from" | "assignee" | "waiting";
 type Props = { marketId: string; envId: string; root: string; marketName: string; tasks: Task[]; q: string; kind: string; sort: Sort };
@@ -23,6 +24,8 @@ export function dueLabel(t: Task): { t: string; c: "crit" | "warn" | "" } {
 }
 /** Short date for task tables, e.g. "Mon 29 Sep, 09:00" (UK time so server and browser agree). */
 export const taskDate = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); return isNaN(d.getTime()) ? "" : d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }); };
+/** Who can pick up a task nobody is assigned to. */
+const unassigned = (t: Task) => (t.kind === "Review" ? "Anyone with Review" : t.kind === "Publish" || t.kind === "Fix" ? "Anyone with Publish" : "The page’s author");
 /** "Waiting" = time since the task was sent (sentAt), e.g. "2 days", "18 hours", "40 min". */
 export function waitingLabel(sentAt?: string): string {
   if (!sentAt) return "—"; const ms = Date.now() - new Date(sentAt).getTime(); if (!isFinite(ms) || ms < 0) return "—";
@@ -38,11 +41,14 @@ function Th({ k, sort, dir, onSort, children, className = "" }: { k?: Sort; sort
 }
 
 export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: kind0, sort: sort0 }: Props) {
-  const router = useRouter(); const { can } = useSession();
+  const router = useRouter(); const { can, user } = useSession(); const isAdmin = user.role === "admin" || !!user.perms.root?.manage;
+  const [who, setWho] = useState(""); // admins: filter by the person a task is assigned to ("" = everyone, "-" = not assigned to a person)
+  const people = useMemo(() => [...new Set(tasks.map((t) => t.assigneeName).filter((x): x is string => !!x))].sort(), [tasks]);
   const base = `/${marketId}/${envId}`;
   const routeOf = (path: string) => path.replace(root, "") || "/";
   const builderHref = (path: string) => `${base}/page${routeOf(path)}`;
   const [q, setQ] = useState(q0); const [kind, setKind] = useState(kind0); const [sort, setSort] = useState<Sort>(sort0); const [dir, setDir] = useState<"asc" | "desc">("asc"); const [when, setWhen] = useState<"" | "overdue" | "today" | "later">("");
+  const [assigning, setAssigning] = useState<Task | null>(null); // admins: the task whose person is being picked
   const [busy, setBusy] = useState<string | null>(null); const [toast, setToast] = useState<string | null>(null);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
   // keep the URL shareable (?q=&kind=&sort=) without triggering a navigation
@@ -50,13 +56,27 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
 
   const rows = useMemo(() => {
     const s = q.toLowerCase().trim();
-    const r = tasks.filter((t) => (!kind || t.kind === kind) && (!when || (when === "overdue" ? t.overdueDays > 0 : when === "today" ? t.overdueDays === 0 : t.overdueDays < 0)) && (!s || `${t.page.title} ${t.what} ${t.from} ${t.assigneeName ?? ""} ${routeOf(t.page.path)}`.toLowerCase().includes(s)));
+    const r = tasks.filter((t) => (!kind || t.kind === kind) && (!who || (who === "-" ? !t.assigneeName : t.assigneeName === who)) && (!when || (when === "overdue" ? t.overdueDays > 0 : when === "today" ? t.overdueDays === 0 : t.overdueDays < 0)) && (!s || `${t.page.title} ${t.what} ${t.from} ${t.assigneeName ?? ""} ${routeOf(t.page.path)}`.toLowerCase().includes(s)));
     const cmp = (a: Task, b: Task) => sort === "name" ? a.page.title.localeCompare(b.page.title) : sort === "kind" ? a.kind.localeCompare(b.kind) || a.due.localeCompare(b.due) : sort === "from" ? a.from.localeCompare(b.from) : sort === "assignee" ? (+!a.assigneeName - +!b.assigneeName || (a.assigneeName ?? "").localeCompare(b.assigneeName ?? "")) : sort === "waiting" ? (a.sentAt ?? "").localeCompare(b.sentAt ?? "") : a.due.localeCompare(b.due);
     return r.sort((a, b) => (dir === "asc" ? cmp(a, b) : -cmp(a, b)));
-  }, [tasks, q, kind, sort, dir, when]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tasks, q, kind, sort, dir, when, who]); // eslint-disable-line react-hooks/exhaustive-deps
   const sortBy = (k: Sort) => { if (sort === k) setDir((d) => (d === "asc" ? "desc" : "asc")); else { setSort(k); setDir("asc"); } };
   const thp = { sort, dir, onSort: sortBy };
   const overdue = tasks.filter((t) => t.overdueDays > 0).length;
+
+  /** Admins see who does each task and can assign or change the person; everyone else gets the read-only wording. */
+  function assignee(t: Task, phone = false) {
+    if (!isAdmin || t.kind === "Finish") return t.assigneeName ? <span className="inline-flex items-center gap-2"><Avatar name={t.assigneeName} size={phone ? 18 : 24} /><span>{phone ? <>Assigned to <b className="font-semibold">{t.assigneeName}</b></> : t.assigneeName}</span></span> : <span className="text-ink-3">{t.kind === "Finish" ? "The page’s author" : unassigned(t)}</span>;
+    const open = (e: React.MouseEvent) => { e.stopPropagation(); setAssigning(t); };
+    const btn = <button type="button" className="text-[12px] font-semibold text-accent underline underline-offset-2 hover:no-underline py-0.5" onClick={open} aria-label={`${t.assigneeName ? "Change who does" : "Assign"} ${t.what.toLowerCase()} on ${t.page.title}`}>{t.assigneeName ? "Change" : "Assign"}</button>;
+    // phone: one flowing line under the title, e.g. "(PK) Assigned to Priya Kaur · Change"
+    if (phone) return <span className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">{t.assigneeName ? <><Avatar name={t.assigneeName} size={18} /><span>Assigned to</span><b className="font-semibold">{t.assigneeName}</b></> : <><i aria-hidden className="w-2 h-2 rounded-full bg-warn" /><span className="text-warn font-medium">Waiting for assignment</span></>}{btn}</span>;
+    return <span className="grid gap-0.5 justify-items-start">
+      {t.assigneeName ? <span className="inline-flex items-center gap-2"><Avatar name={t.assigneeName} size={24} /><span>{t.assigneeName}</span></span>
+        : <span className="inline-flex items-center gap-1.5 text-warn font-medium"><i aria-hidden className="w-2 h-2 rounded-full bg-warn flex-none" />Waiting for assignment</span>}
+      {btn}
+    </span>;
+  }
 
   async function act(e: React.MouseEvent, t: Task) {
     e.stopPropagation();
@@ -87,10 +107,11 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
       </div>
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <label className="flex items-center gap-2 bg-surface border border-line-2 rounded-md px-2.5 py-1.5 min-w-[260px]"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px]" placeholder="Search tasks, pages, people" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search tasks" /></label>
+        {isAdmin && <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface" value={who} onChange={(e) => setWho(e.target.value)} aria-label="Assigned to"><option value="">Assigned to: everyone</option>{people.map((n) => <option key={n} value={n}>{n}</option>)}<option value="-">Waiting for assignment</option></select>}
         <span className="ml-auto text-[12.5px] text-ink-3">{rows.length} of {tasks.length}</span>
       </div>
       {rows.length ? (
-        <div className="bg-surface border border-line rounded-xl overflow-hidden"><div className="overflow-auto"><table className="w-full text-[13.5px] [&_tr>*:nth-child(1)]:hidden md:[&_tr>*:nth-child(1)]:table-cell [&_tr>*:nth-child(6)]:hidden sm:[&_tr>*:nth-child(6)]:table-cell [&_tr>*:nth-child(3)]:hidden 2xl:[&_tr>*:nth-child(3)]:table-cell [&_tr>*:nth-child(5)]:hidden 2xl:[&_tr>*:nth-child(5)]:table-cell [&_tr>*:nth-child(4)]:hidden 2xl:[&_tr>*:nth-child(4)]:table-cell">
+        <div className="bg-surface border border-line rounded-xl overflow-hidden"><div className="overflow-auto"><table className={`w-full text-[13.5px] ${isAdmin ? "[&_tr>*:nth-child(4)]:hidden md:[&_tr>*:nth-child(4)]:table-cell" : "[&_tr>*:nth-child(4)]:hidden 2xl:[&_tr>*:nth-child(4)]:table-cell"} [&_tr>*:nth-child(1)]:hidden md:[&_tr>*:nth-child(1)]:table-cell [&_tr>*:nth-child(6)]:hidden sm:[&_tr>*:nth-child(6)]:table-cell [&_tr>*:nth-child(3)]:hidden 2xl:[&_tr>*:nth-child(3)]:table-cell [&_tr>*:nth-child(5)]:hidden 2xl:[&_tr>*:nth-child(5)]:table-cell`}>
           <thead className="bg-surface-2"><tr className="text-left text-[11px] uppercase tracking-[.08em] text-ink-3"><Th {...thp} k="kind" className="w-[130px]">Type</Th><Th {...thp} k="name">Page · what to do</Th><Th {...thp} k="from" className="w-[200px]">Sent by</Th><Th {...thp} k="assignee" className="w-[190px]">Assigned to</Th><Th {...thp} k="waiting" className="w-[110px]">Waiting</Th><Th {...thp} k="due" className="w-[170px]">Due · sent</Th><Th {...thp} className="w-[150px] text-right">Action</Th></tr></thead>
           <tbody>{([["Overdue", (t: Task) => t.overdueDays > 0, "text-crit"], ["Due today", (t: Task) => t.overdueDays === 0, "text-warn"], ["Coming up", (t: Task) => t.overdueDays < 0, "text-ink-3"]] as const).map(([title, pred, cls]) => { const grouped = sort === "due" && dir === "asc"; const list = grouped ? rows.filter(pred) : (title === "Overdue" ? rows : []); if (!list.length) return null; return <Fragment key={title}>
             {grouped && <tr><td colSpan={7} className={`px-4 pt-3 pb-1.5 text-[10.5px] uppercase tracking-[.1em] font-semibold ${cls}`}>{title} · {list.length}</td></tr>}
@@ -98,9 +119,9 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
               const needs = t.kind === "Publish" || t.kind === "Fix" ? "publish" : t.kind === "Review" ? "review" : null; const allowed = !needs || can(needs, t.page.path); const waiting = needs === "publish" ? "Waiting for a publisher" : "Waiting for a reviewer"; const w = waitingLabel(t.sentAt); const sender = t.from.replace(/ \(.*\)$/, "");
               return <tr key={t.page.path + t.kind} className="hover:bg-surface-2 cursor-pointer border-t border-line" onClick={() => router.push(builderHref(t.page.path))}>
                 <td className="px-4 py-3"><Pill status={t.page.status} label={t.kind} /></td>
-                <td className="px-4 py-3"><div className="flex items-center gap-2 min-w-0"><PageIcon /><b className="truncate">{t.page.title}</b><span className="hidden sm:inline font-mono text-[11.5px] text-ink-3 truncate">{routeOf(t.page.path)}</span></div><div className="text-[12.5px] text-ink-2 mt-0.5 pl-[26px]">{t.what}</div><div className="sm:hidden mt-1.5 pl-[26px] flex flex-wrap items-center gap-1.5 text-[11.5px] text-ink-3" suppressHydrationWarning><span className={`inline-block font-semibold px-2 py-0.5 rounded-full ${DUE_CLS[d.c]}`}>{d.t}</span>Due {taskDate(t.due)}</div></td>
+                <td className="px-4 py-3"><div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} onClick={(e) => e.stopPropagation()} className="truncate font-bold hover:underline underline-offset-2">{t.page.title}</Link><span className="hidden 2xl:inline font-mono text-[11.5px] text-ink-3 truncate">{routeOf(t.page.path)}</span></div><div className="text-[12.5px] text-ink-2 mt-0.5 pl-[26px]">{t.what}</div>{isAdmin && <div className="md:hidden mt-1.5 pl-[26px] text-[12px] text-ink-2">{assignee(t, true)}</div>}<div className="sm:hidden mt-1.5 pl-[26px] flex flex-wrap items-center gap-1.5 text-[11.5px] text-ink-3" suppressHydrationWarning><span className={`inline-block font-semibold px-2 py-0.5 rounded-full ${DUE_CLS[d.c]}`}>{d.t}</span>Due {taskDate(t.due)}</div></td>
                 <td className="px-4 py-3"><span className="inline-flex items-center gap-2"><Avatar name={sender} size={24} /><span className="text-[13px]">{t.from}</span></span></td>
-                <td className="px-4 py-3">{t.assigneeName ? <span className="inline-flex items-center gap-2"><Avatar name={t.assigneeName} size={24} /><span className="text-[13px]">{t.assigneeName}</span></span> : <span className="text-[12.5px] text-ink-3">Anyone with Review</span>}</td>
+                <td className="px-4 py-3 text-[13px]">{assignee(t)}</td>
                 <td className="px-4 py-3 text-ink-3">{w}</td>
                 <td className="px-4 py-3"><span suppressHydrationWarning className={`inline-block text-[12px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span>
                   <div className="text-[11.5px] text-ink-3 mt-1 leading-snug sm:whitespace-nowrap" suppressHydrationWarning><span title="Due date">Due {taskDate(t.due)}</span>{t.sentAt && <span className="block" title="Sent date">Sent {taskDate(t.sentAt)}</span>}</div></td>
@@ -111,6 +132,7 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
       ) : (
         <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl"><b className="block text-[15px]">{q || kind || when ? "No tasks match" : "All clear"}</b><p className="text-ink-3 text-[13px] mt-1">{q || kind || when ? <button className="underline text-ink" onClick={() => { setQ(""); setKind(""); setWhen(""); }}>Clear filters</button> : "Nothing is waiting on you. New review and publish requests will show up here."}</p></div>
       )}
+      {assigning && <AssignDialog marketId={marketId} task={assigning} pageHref={builderHref(assigning.page.path)} onClose={() => setAssigning(null)} onDone={(name) => { setToast(name ? `${assigning.page.title}: assigned to ${name}` : `${assigning.page.title}: waiting for assignment`); setAssigning(null); router.refresh(); }} />}
       {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] shadow-xl z-50">{toast}</div>}
     </div>
   );
