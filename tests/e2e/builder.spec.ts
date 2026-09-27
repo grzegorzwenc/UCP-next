@@ -12,7 +12,9 @@ test.describe("builder", () => {
     await page.goto(`${BASE}/page/banking/savings/fixed-rate-bonds`);
     const blocks = page.locator(".cblk");
     await expect(blocks.nth(1)).toBeVisible();
-    await blocks.nth(1).click({ position: { x: 20, y: 20 } });
+    // Clicking a text edits it straight away, so select the block by clicking next to its texts (bottom-right corner).
+    const box = (await blocks.nth(1).boundingBox())!;
+    await blocks.nth(1).click({ position: { x: box.width - 8, y: box.height - 6 } });
     const bar = page.getByRole("toolbar");
     await expect(bar).toBeVisible();
     await expect(bar.getByRole("button", { name: "✎ Edit" })).toBeVisible();
@@ -22,7 +24,7 @@ test.describe("builder", () => {
     // The mast heading is the first inline-editable text of the first block.
     const heading = blocks.first().locator(".ie").first();
     const before = (await heading.innerText()).trim();
-    await heading.dblclick();
+    await heading.click(); // one click is enough to edit a text
     await expect(heading).toHaveClass(/editing/);
     await caretToEnd(heading);
     await page.keyboard.type(" ✓");
