@@ -1,0 +1,16 @@
+{
+  // Hosted demo on Cloudflare Workers (workers.dev address). Build: npm run cf:build · deploy: npm run cf:deploy
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ucp-next-demo",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "account_id": "5c908e52c1d785f9c759821ab6d3dcca",
+  "workers_dev": true,
+  "preview_urls": false,
+  // Cost guard: no single request may use more than 5 s CPU
+  "limits": { "cpu_ms": 5000 },
+  "observability": { "enabled": true }
+  // DEMO_USER / DEMO_PASSWORD are Worker secrets (wrangler secret put), never in this file
+}
