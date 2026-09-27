@@ -32,50 +32,48 @@ export function TokenChips({ groups, onPick }: { groups: TokenGroup[]; onPick: (
   return <div className="flex flex-wrap gap-1">{groups.flatMap((g) => g.tokens).map((t) => <button key={t.token} type="button" title={`${t.label} · click to insert or copy`} onMouseDown={(e) => e.preventDefault()} onClick={() => onPick(t.token, t.label)} className="font-mono text-[11.5px] px-2 py-0.5 rounded-full border border-line-2 bg-surface-2 text-ink-2 hover:border-ink hover:text-ink">{t.token}</button>)}</div>;
 }
 
-type PanelProps = { marketId: string; base: string; pagePath: string; bindings: Bindings; entities: ResolvedEntities; models: ContentModelInfo[]; canEdit: boolean; configuring: boolean; onChange: (b: Bindings) => void; onChip: (token: string, label: string) => void; say: (m: string) => void };
+type PanelProps = { marketId: string; base: string; pagePath: string; bindings: Bindings; entities: ResolvedEntities; models: ContentModelInfo[]; blocks: { props: Record<string, unknown> }[]; canEdit: boolean; onChange: (b: Bindings) => void; say: (m: string) => void };
 
-/** Right-rail panel: content entities linked to this page, their tokens, and ＋ Link content. */
-export function LinkedContentPanel({ marketId, base, pagePath, bindings, entities, models, canEdit, configuring, onChange, onChip, say }: PanelProps) {
+/** How many {{alias.…}} tokens the page text uses for one linked entity. */
+const usesOf = (alias: string, blocks: { props: Record<string, unknown> }[]) => { const re = new RegExp(`\\{\\{\\s*${alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.`, "g"); return blocks.reduce((n, b) => n + (JSON.stringify(b.props).match(re)?.length ?? 0), 0); };
+
+/**
+ * Right-rail "Entities" panel: the content entities this page uses, with their status and where to edit them.
+ * Adding one is a single choice; its name in tokens is picked automatically.
+ */
+export function EntitiesPanel({ marketId, base, pagePath, bindings, entities, models, blocks, canEdit, onChange, say }: PanelProps) {
   const [all, setAll] = useState<Entity[] | null>(null); const [err, setErr] = useState<string | null>(null);
-  const [adding, setAdding] = useState(false); const [model, setModel] = useState(""); const [entity, setEntity] = useState(""); const [alias, setAlias] = useState(""); const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState(false); const [pick, setPick] = useState(""); const [busy, setBusy] = useState(false);
   useEffect(() => { let on = true; ucpApi.entities(marketId).then((es) => { if (on) setAll(es); }).catch((e) => { if (on) { setAll([]); setErr(errorText(e)); } }); return () => { on = false; }; }, [marketId]);
   const byPath = useMemo(() => Object.fromEntries((all ?? []).map((e) => [e.path, e])), [all]);
-  const byModel = useMemo(() => { const g: Record<string, Entity[]> = {}; for (const e of all ?? []) (g[e.model] ??= []).push(e); return g; }, [all]);
-  const groups = tokenGroups(bindings, entities, models);
+  const byModel = useMemo(() => { const g: Record<string, Entity[]> = {}; for (const e of all ?? []) if (!Object.values(bindings).includes(e.path)) (g[e.model] ??= []).push(e); return g; }, [all, bindings]);
   const modelName = (id: string) => models.find((m) => m.id === id)?.name ?? id;
+  const rows = Object.entries(bindings).map(([alias, path]) => ({ alias, path, e: byPath[path], mid: byPath[path]?.model ?? modelOfPath(path), title: byPath[path]?.title ?? entities[alias]?.title, uses: usesOf(alias, blocks) }));
 
   async function save(next: Bindings, msg: string) {
     setBusy(true); setErr(null);
     try { const saved = await ucpApi.saveBindings(marketId, pagePath, next); onChange(saved ?? next); say(msg); return true; }
-    catch (e) { setErr(errorText(e)); return false; }
-    finally { setBusy(false); }
+    catch (e) { setErr(errorText(e)); return false; } finally { setBusy(false); }
   }
-  const pickModel = (m: string) => { setModel(m); setEntity(""); setAlias(m ? uniqueAlias(m, bindings) : ""); };
-  const aliasOk = /^[a-zA-Z][\w-]*$/.test(alias) && !(alias in bindings);
-  async function add() { if (!entity || !aliasOk) return; if (await save({ ...bindings, [alias]: entity }, `Linked ${byPath[entity]?.title ?? "content"} as {{${alias}.…}}`)) { setAdding(false); pickModel(""); } }
-  const remove = (a: string) => { const next = { ...bindings }; delete next[a]; void save(next, `Removed ${a} · its tokens now show as unknown`); };
+  async function add() { const e = byPath[pick]; if (!e) return; const alias = uniqueAlias(e.model, bindings); if (await save({ ...bindings, [alias]: e.path }, `Added ${e.title} · use {{${alias}.title}} in text`)) { setAdding(false); setPick(""); } }
+  const remove = (alias: string, title?: string) => { const next = { ...bindings }; delete next[alias]; void save(next, `Removed ${title ?? alias} from this page`); };
 
   return <div className="flex flex-col gap-3">
-    <p className="text-[12px] text-ink-3">Reuse text from content items instead of copying it. Put a token like <span className="font-mono">{"{{product.title}}"}</span> in any text and it shows the item’s current value.</p>
-    {configuring && groups.length > 0 && <div className="text-[12px] bg-info-soft text-info rounded-md px-2.5 py-1.5">Click a token to insert it into the field you last clicked in Configure.</div>}
-    {!groups.length && !adding && <div className="border border-dashed border-line-2 rounded-lg p-4 text-center text-ink-3 text-[12.5px]"><b className="block text-ink text-[13px] mb-0.5">No linked content yet</b>{canEdit ? "Link a content item to use its values on this page." : "Nothing on this page comes from content items."}</div>}
-    {groups.map((g) => { const path = bindings[g.alias]; const e = byPath[path]; const mid = e?.model ?? modelOfPath(path); const known = !!entities[g.alias] || !!e;
-      return <div key={g.alias} className="border border-line rounded-lg p-2.5 flex flex-col gap-2">
-        <div className="flex items-start gap-2">
-          <div className="min-w-0 flex-1"><div className="font-mono text-[12px] text-ink-2">{g.alias}</div><b className="block text-[13px] truncate">{known ? (e?.title ?? g.title) : "Missing content item"}</b><div className="text-[11.5px] text-ink-3">{modelName(mid)}</div></div>
-          {e && (e.status === "modified" ? <Pill status="review" label="Modified" /> : <Pill status={e.status} label={e.status === "published" ? "Published" : "Draft"} />)}
-        </div>
-        <TokenChips groups={[g]} onPick={onChip} />
-        <div className="flex gap-1.5">{known && <Link className="btn btn-sm" href={`${base}/entities?model=${encodeURIComponent(mid)}&entity=${encodeURIComponent(e?.id ?? path.split("/").pop() ?? "")}`}>Open</Link>}{canEdit && <button className="btn btn-sm btn-quiet" disabled={busy} onClick={() => remove(g.alias)}>Remove</button>}</div>
-      </div>; })}
-    {canEdit && (adding ? <div className="border border-line rounded-lg p-2.5 flex flex-col gap-2.5 bg-surface-2">
-      <b className="text-[13px]">Link content</b>
-      <label className="text-xs text-ink-2 font-medium">Content type<select className="mt-1 w-full border border-line-2 rounded-md px-2 py-1.5 text-[13px] font-normal text-ink bg-surface" value={model} onChange={(e) => pickModel(e.target.value)}><option value="">Choose…</option>{Object.keys(byModel).sort().map((m) => <option key={m} value={m}>{modelName(m)} ({byModel[m].length})</option>)}</select></label>
-      {all === null && <span className="text-[12px] text-ink-3">Loading content…</span>}
-      {model && <label className="text-xs text-ink-2 font-medium">Item<select className="mt-1 w-full border border-line-2 rounded-md px-2 py-1.5 text-[13px] font-normal text-ink bg-surface" value={entity} onChange={(e) => setEntity(e.target.value)}><option value="">Choose…</option>{(byModel[model] ?? []).map((x) => <option key={x.path} value={x.path}>{x.title}{x.status === "draft" ? " (draft)" : ""}</option>)}</select></label>}
-      {model && <label className="text-xs text-ink-2 font-medium">Name in tokens<input className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] font-mono font-normal text-ink bg-surface" value={alias} onChange={(e) => setAlias(e.target.value.trim())} /><small className={`font-normal ${alias && !aliasOk ? "text-crit" : "text-ink-3"}`}>{alias && !aliasOk ? (alias in bindings ? "Already used on this page" : "Letters and numbers only, starting with a letter") : <>Tokens will look like <span className="font-mono">{`{{${alias || "name"}.title}}`}</span></>}</small></label>}
-      <div className="flex justify-end gap-2"><button className="btn btn-sm" onClick={() => { setAdding(false); pickModel(""); }}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!entity || !aliasOk || busy} onClick={() => void add()}>{busy ? "Linking…" : "Link"}</button></div>
-    </div> : <button className="btn btn-sm justify-center" onClick={() => setAdding(true)}>＋ Link content</button>)}
+    <p className="text-[12px] text-ink-3">Content entities used on this page. Change them in Content entities and every page that uses them updates.</p>
+    {!rows.length && !adding && <div className="border border-dashed border-line-2 rounded-lg p-4 text-center text-ink-3 text-[12.5px]"><b className="block text-ink text-[13px] mb-0.5">No entities on this page</b>{canEdit ? "Add one to reuse its text here." : "Nothing on this page comes from content entities."}</div>}
+    {rows.length > 0 && <ul className="border border-line rounded-lg divide-y divide-line">{rows.map((r) => <li key={r.alias} className="px-3 py-2.5">
+      <div className="flex items-start gap-2"><b className="flex-1 min-w-0 text-[13px] leading-snug break-words">{r.title ?? "Missing entity"}</b>
+        {canEdit && !r.uses && <button className="flex-none w-6 h-6 -mt-0.5 rounded text-ink-3 hover:bg-surface-3" title="Remove from this page" aria-label={`Remove ${r.title ?? r.alias} from this page`} disabled={busy} onClick={() => remove(r.alias, r.title)}>✕</button>}</div>
+      <div className="text-[11.5px] text-ink-3 mt-0.5">{modelName(r.mid)} · {r.uses ? `used ${r.uses}× in the text` : "not used in the text yet"}</div>
+      <div className="flex items-center gap-2 mt-2">{r.e && (r.e.status === "modified" ? <Pill status="review" label="Modified" /> : <Pill status={r.e.status} label={r.e.status === "published" ? "Published" : "Draft"} />)}
+        {r.e && <Link className="btn btn-sm ml-auto" href={`${base}/entities?model=${encodeURIComponent(r.mid)}&entity=${encodeURIComponent(r.e.id)}`}>Open</Link>}</div>
+    </li>)}</ul>}
+    {canEdit && (adding ? <div className="border border-line rounded-lg p-2.5 flex flex-col gap-2 bg-surface-2">
+      <label className="text-xs text-ink-2 font-medium">Entity<select className="mt-1 w-full border border-line-2 rounded-md px-2 py-1.5 text-[13px] font-normal text-ink bg-surface" value={pick} onChange={(e) => setPick(e.target.value)} autoFocus>
+        <option value="">{all === null ? "Loading…" : "Choose an entity…"}</option>
+        {Object.keys(byModel).sort().map((m) => <optgroup key={m} label={modelName(m)}>{byModel[m].map((x) => <option key={x.path} value={x.path}>{x.title}{x.status === "draft" ? " (draft)" : ""}</option>)}</optgroup>)}</select></label>
+      <div className="flex justify-end gap-2"><button className="btn btn-sm" onClick={() => { setAdding(false); setPick(""); }}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!pick || busy} onClick={() => void add()}>{busy ? "Adding…" : "Add"}</button></div>
+    </div> : <button className="btn btn-sm justify-center" onClick={() => setAdding(true)}>＋ Add entity</button>)}
     {err && <div role="alert" className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</div>}
   </div>;
 }

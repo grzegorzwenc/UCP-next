@@ -66,7 +66,7 @@ export function pageInsights(blocks: Block[], page: PageMeta): PageInsights {
 
   if (page.entities) for (const b of visible) for (const k of TEXT_KEYS) { const v = str(b.props[k]); if (!v.includes("{{")) continue;
     const bad = [...new Set((v.match(new RegExp(TOKEN_RE.source, "g")) ?? []).filter((tok) => resolveTokens(tok, page.entities!) === tok))];
-    if (bad.length) push("content", { id: `tok-${b.id}-${k}`, level: "crit", title: `Broken content link in ${name(b)}`, detail: `${bad.join(", ")} does not match linked content, so visitors would see the raw code. Link the entity in Linked content or correct the token.`, blockId: b.id, field: k }); }
+    if (bad.length) push("content", { id: `tok-${b.id}-${k}`, level: "crit", title: `Broken content link in ${name(b)}`, detail: `${bad.join(", ")} does not match any entity on this page, so visitors would see the raw code. Add the entity in the Entities panel or correct the token.`, blockId: b.id, field: k }); }
 
   if (!visible.some((b) => b.type === "mast")) push("content", { id: "no-mast", level: "warn", title: "No masthead at the top", detail: "HSBC pages open with a masthead so visitors know where they are.", fix: { label: "Add a masthead", apply: (bl) => [makeBlock("mast", { heading: page.title || "Your heading here" }), ...bl] } });
   else if (visible[0].type !== "mast") { const mastId = visible.find((b) => b.type === "mast")!.id; push("content", { id: "mast-not-first", level: "warn", title: "The masthead is not the first block", detail: "Move it to the top so the page opens with it.", blockId: mastId, fix: { label: "Move to top", apply: (bl) => { const m = bl.find((b) => b.id === mastId); return m ? [m, ...bl.filter((b) => b.id !== mastId)] : bl; } } }); }
