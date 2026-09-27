@@ -1,24 +1,33 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Template } from "@/lib/ucp/types";
 import { PATHS } from "@/lib/ucp/paths";
-import { BLOCKS, GROUPS, BLOCK_BY_TYPE } from "@/lib/blocks/registry";
+import { BLOCK_BY_TYPE } from "@/lib/blocks/registry";
+import { RenderBlock, SiteChrome } from "@/lib/blocks/Render";
 import { repoApi } from "@/lib/api";
 import { errorText as errText } from "@/lib/api/errors";
 import { useSession } from "@/components/shell/Session";
-import { TemplatePreview } from "./TemplatePreview";
+import { LeftPanel } from "@/components/builder/LeftPanel";
+import { templateBlocks } from "./TemplatePreview";
 import { tplFolders, tplFolderOf } from "./TemplateLibrary";
 
 type Props = { marketId: string; envId: string; marketName: string; template: Template; templates: Template[]; used: number };
+const ADD_ICON = "M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM12 8.5v7M8.5 12h7";
+const SET_ICON = "M4 6h16M4 12h16M4 18h10";
 
+/**
+ * Template builder, laid out like the page builder: component library on the left, the page on the canvas with the HSBC
+ * menu and footer that every template always has, template settings on the right. Blocks show their default content.
+ */
 export function TemplateEditor({ marketId, envId, marketName, template: t, templates, used }: Props) {
   const router = useRouter(); const { user, can, marketRoot } = useSession();
   const ro = !(user.role === "admin" || can("manage", marketRoot));
   const base = `/${marketId}/${envId}`;
   const [name, setName] = useState(t.name); const [desc, setDesc] = useState(t.desc); const [blocks, setBlocks] = useState<string[]>(t.blocks); const [folder, setFolder] = useState(tplFolderOf(t));
-  const [add, setAdd] = useState(BLOCKS[0].type); const [toast, setToast] = useState<string | null>(null); const [saving, setSaving] = useState(false);
+  const [sel, setSel] = useState<number | null>(null); const [left, setLeft] = useState(!ro); const [right, setRight] = useState(true);
+  const [toast, setToast] = useState<string | null>(null); const [saving, setSaving] = useState(false);
   const folders = useMemo(() => tplFolders(templates, marketName, [folder]), [templates, marketName, folder]);
   const say = (s: string) => { setToast(s); setTimeout(() => setToast(null), 2200); };
 
@@ -27,28 +36,80 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
     try { await repoApi.setProps(`${PATHS.templates}/${t.id}`, { "jcr:title": v.name.trim() || t.id, "jcr:description": v.desc, "ucp:blocks": v.blocks.join(","), "ucp:folder": v.folder }, { text: `updated template ${v.name.trim() || t.id}`, target: "templates" }); router.refresh(); }
     catch (e) { say(errText(e)); } finally { setSaving(false); }
   }
-  const setBl = (b: string[]) => { setBlocks(b); persist({ blocks: b }); };
-  const move = (i: number, d: number) => { const b = [...blocks]; const j = i + d; if (j < 0 || j >= b.length) return; [b[i], b[j]] = [b[j], b[i]]; setBl(b); };
+  const setBl = (b: string[]) => { setBlocks(b); void persist({ blocks: b }); };
+  /** Add below the selected block, or at the end. */
+  const add = (type: string) => { if (ro) return; const at = sel === null ? blocks.length : sel + 1; const b = [...blocks]; b.splice(at, 0, type); setBl(b); setSel(at); say(`Added ${BLOCK_BY_TYPE[type]?.name ?? type}`); };
+  const move = (i: number, d: number) => { const j = i + d; if (j < 0 || j >= blocks.length) return; const b = [...blocks]; [b[i], b[j]] = [b[j], b[i]]; setBl(b); setSel(j); };
+  const remove = (i: number) => { const b = blocks.filter((_, k) => k !== i); setBl(b); setSel(null); say(`Removed ${BLOCK_BY_TYPE[blocks[i]]?.name ?? blocks[i]}`); };
   async function del() {
     if (!confirm(`Delete template “${name}”? Pages already created with it are not affected.`)) return;
     try { await repoApi.deleteNode(`${PATHS.templates}/${t.id}`, { text: `deleted template ${name}`, target: "templates" }); router.push(`${base}/templates`); router.refresh(); } catch (e) { say(errText(e)); }
   }
 
+  /* the 1200 px page is scaled to fit the canvas, like in the page builder */
+  const canvas = useRef<HTMLDivElement>(null); const [avail, setAvail] = useState(0);
+  useEffect(() => { const c = canvas.current; if (!c) return; const ro2 = new ResizeObserver(() => setAvail(c.clientWidth)); ro2.observe(c); return () => ro2.disconnect(); }, []);
+  const siteRef = useRef<HTMLDivElement>(null); const [siteH, setSiteH] = useState(0);
+  useEffect(() => { const el = siteRef.current; if (!el) return; const ro3 = new ResizeObserver(() => setSiteH(el.offsetHeight)); ro3.observe(el); return () => ro3.disconnect(); }, []);
+  const padL = left ? 320 + 76 : 76, padR = right ? 320 + 24 : 24;
+  const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / 1200)) : 1;
+  const rendered = useMemo(() => templateBlocks(blocks), [blocks]);
+
+  const railBtn = (on: boolean) => `relative w-11 h-11 rounded-lg grid place-items-center ${on ? "bg-accent text-white" : "text-ink-2 hover:bg-surface-3"}`;
   return (
-    <div className="p-7">
-      <div className="text-[13px] text-ink-3 mb-2 flex gap-1.5"><Link href={`${base}/templates`} className="hover:text-ink">Template library</Link><span className="text-ink-4">/</span><Link href={`${base}/templates?folder=${encodeURIComponent(folder)}`} className="hover:text-ink">{folder}</Link><span className="text-ink-4">/</span><b className="text-ink">{name}</b></div>
-      <div className="flex items-end gap-4 mb-5 flex-wrap"><div className="min-w-0"><h1 className="text-2xl font-semibold"><input aria-label="Template name" disabled={ro} className="disabled:border-transparent text-2xl font-semibold bg-transparent border-b border-transparent hover:border-line-2 focus:border-accent outline-none w-[min(520px,100%)]" value={name} onChange={(e) => setName(e.target.value)} onBlur={() => name !== t.name && persist({ name })} onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }} /></h1><p className="text-[13px] text-ink-3 mt-1">Used by {used} page{used === 1 ? "" : "s"} · changes affect new pages only{ro && <span className="ml-2 inline-flex items-center gap-1 text-ink-3"><span aria-hidden="true">🔒</span>Read-only · ask a site admin to change templates</span>}{saving && <span className="ml-2 text-ink-4">· saving…</span>}</p></div>
-        <div className="ml-auto flex gap-2 flex-wrap"><label className="btn gap-1.5">Folder <select disabled={ro} className="bg-transparent outline-none text-[13.5px]" value={folder} onChange={(e) => { setFolder(e.target.value); persist({ folder: e.target.value }); }}>{folders.map((f) => <option key={f}>{f}</option>)}</select></label>
-          <Link className="btn" href={`${base}/templates?folder=${encodeURIComponent(folder)}`}>Done</Link><Link className="btn btn-primary" href={`${base}/pages?new=1&template=${t.id}`}>Create a page with it</Link>{!ro && t.id !== "blank" && <button className="btn btn-quiet" onClick={del}>Delete</button>}</div></div>
-      <div className="grid gap-[18px] items-start" style={{ gridTemplateColumns: "minmax(0,1fr) 380px" }}>
-        <div className="bg-surface border border-line p-3.5"><h3 className="text-[14px] font-semibold mb-2.5">Layout preview <span className="font-normal text-ink-3">default content</span></h3><TemplatePreview blocks={blocks} scale={0.62} height={Math.max(420, blocks.length * 170)} /></div>
-        <div className="bg-surface border border-line p-4"><h3 className="text-[14px] font-semibold mb-2.5">Blocks, top to bottom</h3>
-          {blocks.length ? blocks.map((b, i) => <div key={`${b}-${i}`} className="flex items-center gap-2.5 border border-line rounded-md px-2.5 py-2 mb-1.5"><span className="text-ink-4 cursor-grab">⋮⋮</span><div className="flex-1 min-w-0"><b className="text-[13px]">{i + 1}. {BLOCK_BY_TYPE[b]?.name ?? b}</b><div className="text-[11.5px] text-ink-3 truncate">{BLOCK_BY_TYPE[b]?.desc}</div></div><div className="whitespace-nowrap"><button className="btn btn-quiet btn-sm" disabled={ro || i === 0} onClick={() => move(i, -1)} aria-label="Move up">↑</button><button className="btn btn-quiet btn-sm" disabled={ro || i === blocks.length - 1} onClick={() => move(i, 1)} aria-label="Move down">↓</button><button className="btn btn-quiet btn-sm" disabled={ro} onClick={() => setBl(blocks.filter((_, k) => k !== i))} aria-label="Remove">✕</button></div></div>)
-            : <div className="p-6 text-center text-ink-3 border border-dashed border-line-2 rounded-lg text-[13px]">No blocks yet. Add the first one below.</div>}
-          <div className="grid gap-2 mt-3" style={{ gridTemplateColumns: "1fr auto" }}><label className="text-xs text-ink-3">Add a block<select disabled={ro} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13.5px] text-ink" value={add} onChange={(e) => setAdd(e.target.value)}>{GROUPS.map((g) => <optgroup key={g} label={g}>{BLOCKS.filter((b) => b.group === g).map((b) => <option key={b.type} value={b.type}>{b.name}</option>)}</optgroup>)}</select></label><button className="btn btn-primary btn-sm self-end" disabled={ro} onClick={() => setBl([...blocks, add])}>＋ Add</button></div>
-          <h6 className="mt-4 mb-1.5 text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold">Description</h6>
-          <input aria-label="Template description" disabled={ro} className="w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink" value={desc} onChange={(e) => setDesc(e.target.value)} onBlur={() => desc !== t.desc && persist({ desc })} placeholder="What is this template for?" />
+    <div className="h-full grid grid-rows-[54px_1fr] min-h-0 bg-bg">
+      {/* top bar */}
+      <div className="flex items-center gap-3 px-4 bg-surface border-b border-line min-w-0">
+        <Link href={`${base}/templates?folder=${encodeURIComponent(folder)}`} className="text-[13px] text-ink-2 hover:text-ink whitespace-nowrap">‹ Templates</Link>
+        <div className="min-w-0 flex-1"><b className="block text-[14.5px] truncate">{name || "Untitled template"}</b><span className="block text-[11.5px] text-ink-3 truncate">Template · {folder} · {blocks.length} block{blocks.length === 1 ? "" : "s"} · used by {used} page{used === 1 ? "" : "s"}</span></div>
+        <span className="text-[12px] text-ink-3 whitespace-nowrap">{ro ? "🔒 Read-only" : saving ? "Saving…" : "Saved"}</span>
+        <Link className="btn btn-primary btn-sm whitespace-nowrap" href={`${base}/pages?new=1&template=${t.id}`}>Create a page with it</Link>
+      </div>
+
+      <div className="relative min-h-0 overflow-hidden">
+        {/* left rail + component library (same as the page builder) */}
+        <nav aria-label="Left panels" className="absolute left-0 top-0 bottom-0 w-[52px] bg-surface border-r border-line flex flex-col items-center py-2 gap-1.5 z-[6] cursor-pointer" onClick={(e) => { if (e.target === e.currentTarget && !ro) setLeft(!left); }}>
+          <button type="button" title="Add a component" aria-label="Add a component" aria-pressed={left} disabled={ro} onClick={() => setLeft(!left)} className={railBtn(left)}><svg viewBox="0 0 24 24" className="w-6 h-6 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={ADD_ICON} /></svg></button>
+        </nav>
+        {left && !ro && <LeftPanel canEdit={!ro} onAdd={add} onClose={() => setLeft(false)} />}
+
+        {/* canvas: HSBC menu and footer are part of every template */}
+        <div ref={canvas} className="absolute inset-0 overflow-auto p-6 pb-24" style={{ paddingLeft: padL, paddingRight: padR }} onClick={(e) => { if (e.target === e.currentTarget) setSel(null); }}>
+          <p className="text-[12px] text-ink-3 mb-2 truncate" style={{ width: fit < 1 ? 1200 * fit : 1200, margin: "0 auto 8px" }} title="Menu and footer are part of every HSBC page and cannot be removed.">HSBC menu and footer are always part of the template.</p>
+          <div style={fit < 1 ? { width: 1200 * fit, height: siteH ? siteH * fit : undefined, margin: "0 auto" } : undefined}><div ref={siteRef} style={fit < 1 ? { transform: `scale(${fit})`, transformOrigin: "top left", width: 1200 } : undefined}>
+            <SiteChrome marketName={marketName} crumbs={[name || "Template"]} device="desktop">
+              {rendered.length ? rendered.map((b, i) => { const on = sel === i; const def = BLOCK_BY_TYPE[b.type];
+                return <div key={b.id} className={`cblk relative ${on ? "sel" : ""}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); setSel(on ? null : i); }}>
+                  <span className="tag">{def?.name ?? b.type}</span>
+                  {on && !ro && <div role="toolbar" aria-label={`${def?.name} actions`} className="absolute -top-4 left-4 z-10 flex gap-1 bg-[#0F1013] text-white rounded-lg p-1 shadow-xl text-[11px]" style={{ transform: `scale(${1 / fit})`, transformOrigin: "top left" }} onClick={(e) => e.stopPropagation()}>
+                    <button type="button" className="px-2.5 py-1 rounded hover:bg-white/15 disabled:opacity-40" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up">↑</button>
+                    <button type="button" className="px-2.5 py-1 rounded hover:bg-white/15 disabled:opacity-40" disabled={i === rendered.length - 1} onClick={() => move(i, 1)} aria-label="Move down">↓</button>
+                    <button type="button" className="px-2.5 py-1 rounded hover:bg-white/15" onClick={() => remove(i)} aria-label="Remove">Remove</button>
+                  </div>}
+                  <div className="pointer-events-none"><RenderBlock b={b} /></div>
+                </div>; })
+                : <div className="m-8 p-16 text-center border-2 border-dashed border-line-2 rounded-xl text-ink-3 text-[20px]">Empty template. {ro ? "" : "Add components from the left."}</div>}
+            </SiteChrome>
+          </div></div>
         </div>
+
+        {/* right rail + template settings */}
+        <nav aria-label="Panels" className="absolute right-0 top-0 bottom-0 w-[52px] bg-surface border-l border-line flex flex-col items-center py-2 gap-1.5 z-[6] cursor-pointer" onClick={(e) => { if (e.target === e.currentTarget) setRight(!right); }}>
+          <button type="button" title="Template settings" aria-label="Template settings" aria-pressed={right} onClick={() => setRight(!right)} className={railBtn(right)}><svg viewBox="0 0 24 24" className="w-6 h-6 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" aria-hidden><path d={SET_ICON} /></svg></button>
+        </nav>
+        {right && <aside className="absolute right-[52px] top-0 bottom-0 w-[320px] bg-surface border-l border-line z-[5] flex flex-col">
+          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">Template settings</b><button type="button" className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => setRight(false)} aria-label="Close panel">✕</button></div>
+          <div className="flex-1 overflow-auto p-3.5 grid gap-3 content-start text-[13px]">
+            <label className="text-xs text-ink-2 font-medium">Name<input aria-label="Template name" disabled={ro} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink" value={name} onChange={(e) => setName(e.target.value)} onBlur={() => name !== t.name && persist({ name })} /></label>
+            <label className="text-xs text-ink-2 font-medium">Description<textarea aria-label="Template description" disabled={ro} rows={3} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink" value={desc} onChange={(e) => setDesc(e.target.value)} onBlur={() => desc !== t.desc && persist({ desc })} placeholder="What is this template for?" /></label>
+            <label className="text-xs text-ink-2 font-medium">Folder<select disabled={ro} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink bg-surface" value={folder} onChange={(e) => { setFolder(e.target.value); void persist({ folder: e.target.value }); }}>{folders.map((f) => <option key={f}>{f}</option>)}</select></label>
+            <div className="border border-line rounded-lg p-3 bg-surface-2"><div className="text-xs text-ink-2 font-medium mb-1">Always on the page</div><p className="text-[12.5px] text-ink-3">HSBC menu, breadcrumb and footer. They come from the site and are the same on every page.</p></div>
+            <div className="border border-line rounded-lg p-3"><div className="text-xs text-ink-2 font-medium mb-1">Blocks, top to bottom</div>
+              {blocks.length ? <ol className="grid gap-0.5">{blocks.map((b, i) => <li key={`${b}-${i}`}><button type="button" onClick={() => setSel(i)} className={`w-full flex items-center gap-2 text-left rounded px-1.5 py-1 ${sel === i ? "bg-accent-soft text-accent-hover font-semibold" : "hover:bg-surface-2"}`}><span className="w-5 h-5 rounded-full grid place-items-center text-[10.5px] bg-surface-3 text-ink-2 flex-none">{i + 1}</span><span className="truncate">{BLOCK_BY_TYPE[b]?.name ?? b}</span></button></li>)}</ol> : <p className="text-[12.5px] text-ink-3">No blocks yet.</p>}</div>
+            <p className="text-[12px] text-ink-3">Used by {used} page{used === 1 ? "" : "s"}. Changing the template does not change pages already created with it.</p>
+            {!ro && t.id !== "blank" && <button className="btn btn-sm text-crit justify-center" onClick={del}>Delete template</button>}
+          </div>
+        </aside>}
       </div>
       {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] z-50">{toast}</div>}
     </div>
