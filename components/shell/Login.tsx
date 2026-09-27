@@ -28,6 +28,10 @@ export function Login({ users, next, demo }: { users: User[]; next: string; demo
         <img src="/hsbc-logo-white.svg" alt="HSBC" className="h-12 mb-8" />
         <h1 className="text-[28px] font-semibold leading-tight">Unified Content Management</h1>
         <p className="text-[14px] text-white/60 mt-2">One place to author and publish for every HSBC market</p>
+        <div role="note" className="mt-6 w-full rounded-lg border border-white/15 bg-white/5 px-4 py-3 text-left">
+          <div className="flex items-center gap-2"><span className="text-[10.5px] font-bold tracking-[.12em] uppercase bg-warn text-[#0F1013] rounded px-1.5 py-0.5">Test</span><b className="text-[13.5px]">Clickable mockup for testing</b></div>
+          <p className="text-[12.5px] text-white/65 mt-1.5 leading-relaxed">This is a prototype to try the authoring flow. Data is sample content and may reset at any time. Nothing here reaches customers until you publish.</p>
+        </div>
 
         {!picker ? <>
           <button type="button" onClick={() => { setErr(null); setPicker(true); }} className="mt-10 w-full h-12 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold text-[15px] inline-flex items-center justify-center gap-2.5 transition-colors">
