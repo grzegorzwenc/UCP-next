@@ -40,6 +40,25 @@ function Thumb({ a, className = "", badge = true }: { a: Asset; className?: stri
       </div>;
 }
 
+const STATUS_WORD: Record<string, string> = { published: "live", review: "in review", approved: "approved", draft: "draft", scheduled: "scheduled", failed: "failed" };
+const FIRST = 5;
+/** "Used on N pages": folded to one line with a status summary; opens to the first few pages, then all. */
+function UsedOnPages({ used, hrefOf }: { used: { path: string; title: string; status: string }[]; hrefOf: (path: string) => string }) {
+  const [open, setOpen] = useState(false); const [all, setAll] = useState(false);
+  if (!used.length) return <p className="text-[13px] text-ink-3 mt-4 pt-3 border-t border-line"><b className="text-ink font-semibold">Used on</b> · not used on any page yet</p>;
+  const counts = Object.entries(used.reduce<Record<string, number>>((m, p) => ((m[p.status] = (m[p.status] ?? 0) + 1), m), {})).sort((x, y) => y[1] - x[1]);
+  const shown = all ? used : used.slice(0, FIRST);
+  return <section className="mt-4 border-t border-line pt-1">
+    <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="w-full flex items-center gap-2 py-2 text-left rounded hover:bg-surface-2 -mx-1 px-1">
+      <span className="min-w-0 flex-1"><b className="block text-[13px] font-semibold">Used on {used.length} page{used.length === 1 ? "" : "s"}</b>
+        <small className="block text-[12px] text-ink-3 truncate">{counts.map(([st, n]) => `${n} ${STATUS_WORD[st] ?? st}`).join(" · ")}</small></span>
+      <span className="text-[12px] font-semibold text-ink-2 whitespace-nowrap">{open ? "Hide" : "Show"}</span><span aria-hidden className={`text-ink-3 text-[11px] transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
+    </button>
+    {open && <><ul className="text-[13px] mt-1">{shown.map((p) => <li key={p.path}><Link href={hrefOf(p.path)} className="flex items-center gap-2 py-1.5 border-b border-line last:border-0 hover:bg-surface-2"><Pill status={p.status} /><span className="truncate">{p.title}</span><span className="ml-auto text-ink-3">›</span></Link></li>)}</ul>
+      {used.length > FIRST && <button type="button" className="btn btn-sm btn-quiet mt-1.5" onClick={() => setAll(!all)}>{all ? "Show fewer" : `Show all ${used.length}`}</button>}</>}
+  </section>;
+}
+
 export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, folders, usage, locales, folder, view }: Props) {
   const router = useRouter(); const { can, marketRoot, user } = useSession();
   /** Assets that still miss accessibility info (alt text, or title/language/tagged for documents). */
@@ -125,8 +144,7 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
             <div className="font-mono text-[12px] text-ink-3">{a.width && a.height ? `${a.width}×${a.height} · ` : ""}{a.size} · {a.folder}</div>
             {(a.uploadedBy || a.uploaded) && <div className="text-[12px] text-ink-3 mt-0.5">Uploaded{a.uploadedBy ? ` by ${who(a.uploadedBy)}` : ""}{a.uploaded ? ` ${when(a.uploaded)}` : ""}</div>}
             <A11yPanel key={`${a.id}:${JSON.stringify(a.a11y ?? {})}`} asset={a} locales={locales} canEdit={canEdit} busy={busy === "a11y"} onSave={saveA11y} />
-            <h3 className="text-[13px] font-semibold mt-4 mb-1.5">Used on {used.length} page{used.length === 1 ? "" : "s"}</h3>
-            <ul className="text-[13px]">{used.length ? used.map((p) => <li key={p.path}><Link href={`${base}/page${p.path.replace(root, "")}`} className="flex items-center gap-2 py-1.5 border-b border-line hover:bg-surface-2"><Pill status={p.status} /><span className="truncate">{p.title}</span><span className="ml-auto text-ink-3">›</span></Link></li>) : <li className="text-ink-3">Not used on any page yet.</li>}</ul>
+            <UsedOnPages key={a.id} used={used} hrefOf={(p) => `${base}/page${p.replace(root, "")}`} />
             <div className="flex flex-wrap gap-1.5 mt-4">
               {canEdit && <><button className="btn btn-sm" disabled={!!busy} onClick={() => replRef.current?.click()}>{busy === "replace" ? "Replacing…" : "Replace"}</button>
               <label className="btn btn-sm gap-1.5">Move to <select className="bg-transparent border-0 text-[inherit]" value={a.folder} disabled={!!busy} onChange={(e) => move(e.target.value)} aria-label="Move to folder">{folders.map((f) => <option key={f} value={f}>{f}</option>)}</select></label>
