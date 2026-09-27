@@ -60,7 +60,7 @@ export function Login({ users, next, demo }: { users: User[]; next: string; demo
             <span className="text-[12px] text-white/60">{busy === u.id ? "Signing in…" : "Sign in →"}</span></button></li>))}</ul>}
         {err && <div role="alert" className="mt-4 w-full text-[12.5px] bg-crit/20 border border-crit/40 text-white px-3 py-2 rounded">{err}</div>}
       </div>
-      <p className="text-[12px] text-white/35 mt-12">Nothing here reaches customers until you publish. © HSBC Group</p>
+      <p className="text-[12px] text-white/35 mt-12">© HSBC Group</p>
     </main>
   );
 }
