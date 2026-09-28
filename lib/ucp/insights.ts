@@ -30,7 +30,7 @@ export const COMPLIANCE_WORDS = ["guaranteed", "risk-free", "risk free", "best r
 const TEXT_KEYS = ["heading", "intro", "body", "text", "cta", "note", "items", "rows"];
 const DISCLAIMER_TEMPLATES = ["rates", "campaign"];
 
-const str = (v: unknown) => (typeof v === "string" ? v : "");
+const str = (v: unknown) => (typeof v === "string" ? toPlain(v) : ""); // formatted text is checked as plain text
 const name = (b: Block) => BLOCK_BY_TYPE[b.type]?.name ?? b.type;
 const setProp = (blocks: Block[], id: string, k: string, v: unknown): Block[] => blocks.map((b) => (b.id === id ? { ...b, props: { ...b.props, [k]: v } } : b));
 /** First clause of a sentence: cut at the first punctuation or connective, else at the last space before the limit. */

@@ -23,7 +23,7 @@ import { InsightsPanel, VersionHistory, TranslateModal, pageInsights } from "@/c
 import { LeftPanel } from "./LeftPanel";
 import { LockedVeil } from "./LockedVeil";
 import { FormatBar, RichField, useFormatState, prepareEditable } from "./RichTextEditor";
-import { sanitizeRich, toPlain } from "@/lib/blocks/richtext";
+import { normalizeRich, cellSafe, toPlain } from "@/lib/blocks/richtext";
 import { useRouter } from "next/navigation";
 import { permForStatus } from "@/lib/ucp/perms";
 
@@ -192,7 +192,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   function commitInline(save: boolean) {
     const el = editingEl.current; if (!editing || !el) return; const { key, original } = editing; editingEl.current = null; setTokTyped(false); el.contentEditable = "false"; el.classList.remove("editing"); scrollGuard.current?.(); scrollGuard.current = null;
     // formatted text: save the cleaned markup; cancelling remounts it from the stored value
-    if (el.dataset.rich !== undefined) { setInlineGen((g) => g + 1); if (save) { const [id, f] = key.split("|"); setProp(id, f, sanitizeRich(el.innerHTML)); } setEditing(null); return; }
+    if (el.dataset.rich !== undefined) { setInlineGen((g) => g + 1);
+      if (save) { const [id, f, r, c] = key.split("|"); const v = normalizeRich(el.innerHTML, el.dataset.rich !== "inline"); const b = blocks.find((x) => x.id === id);
+        if (r === undefined) setProp(id, f, v); else if (b) { const rows = lines(b.props[f]); if (rows[Number(r)]) { rows[Number(r)][Number(c)] = cellSafe(v); setProp(id, f, joinLines(rows)); } } }
+      setEditing(null); return; }
     if (el.dataset.raw !== undefined || hasTokens(el.innerText)) setInlineGen((g) => g + 1); // token spans change shape (raw ↔ resolved): remount them instead of patching the DOM the browser edited
     if (!save) { el.innerText = original; setEditing(null); return; }
     const [id, f, r, c] = key.split("|"); const v = el.innerText.replace(/\n+$/, "").replace(/\|/g, "/");
@@ -207,9 +210,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   useEffect(() => { if (!editing) return; const h = () => { const el = editingEl.current; const sel = window.getSelection(); if (el && sel && sel.rangeCount && el.contains(sel.getRangeAt(0).startContainer)) caret.current = sel.getRangeAt(0).cloneRange(); }; document.addEventListener("selectionchange", h); return () => document.removeEventListener("selectionchange", h); }, [editing]);
   const onInlineInput = () => { const el = editingEl.current; const sel = window.getSelection(); if (!el || !sel?.rangeCount) return; const r = sel.getRangeAt(0); const n = r.startContainer; if (n.nodeType === 3 && el.contains(n) && (n.textContent ?? "").slice(0, r.startOffset).endsWith("{{")) { setTokTyped(true); setContentPick({ target: "inline", label: "this text" }); } };
   /* Icon floating next to the text being edited: opens Choose content. Follows the text when the canvas scrolls. */
-  const [inlinePos, setInlinePos] = useState<{ top: number; left: number; barTop: number; barLeft: number; rich: boolean } | null>(null);
+  const [inlinePos, setInlinePos] = useState<{ top: number; left: number; barTop: number; barLeft: number; rich: boolean; lists: boolean } | null>(null);
   const getEditingEl = useCallback(() => editingEl.current, []); const fmt = useFormatState(getEditingEl, !!editing);
-  useEffect(() => { if (!editing) return; const place = () => { const el = editingEl.current; if (!el) { setInlinePos(null); return; } const r = el.getBoundingClientRect(); setInlinePos({ top: r.top + r.height / 2 - 14, left: Math.min(window.innerWidth - 40, r.right + 8), barTop: r.bottom + 52 < window.innerHeight - 70 ? r.bottom + 8 : Math.max(8, r.top - 44), /* under the text (the block toolbar sits above it), above when there is no room */ barLeft: Math.max(8, Math.min(window.innerWidth - 300, r.left)), rich: el.dataset.rich !== undefined }); };
+  useEffect(() => { if (!editing) return; const place = () => { const el = editingEl.current; if (!el) { setInlinePos(null); return; } const r = el.getBoundingClientRect(); setInlinePos({ top: r.top + r.height / 2 - 14, left: Math.min(window.innerWidth - 40, r.right + 8), barTop: r.bottom + 52 < window.innerHeight - 70 ? r.bottom + 8 : Math.max(8, r.top - 44), /* under the text (the block toolbar sits above it), above when there is no room */ barLeft: Math.max(8, Math.min(window.innerWidth - 300, r.left)), rich: el.dataset.rich !== undefined, lists: el.dataset.rich === "block" }); };
     const raf = requestAnimationFrame(place); const c = canvasRef.current; c?.addEventListener("scroll", place); window.addEventListener("resize", place); document.addEventListener("input", place);
     return () => { cancelAnimationFrame(raf); c?.removeEventListener("scroll", place); window.removeEventListener("resize", place); document.removeEventListener("input", place); setInlinePos(null); }; }, [editing]);
   /** Use a field of an entity here: the entity is added to the page (if needed) and the text inherits the field as a {{alias.field}} token. */
@@ -324,7 +327,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (contentPick || previewCheck) return; // a dialog is open: it handles its own keys
     if (e.key === "Escape") { e.preventDefault(); if (editing) commitInline(false); else if (ctaPop || pop) { setCtaPop(null); setPop(null); } else if (mode === "edit") setMode("select"); else select(null); return; }
     if (!editing) return;
-    const rich = editingEl.current?.dataset.rich !== undefined;
+    const rich = editingEl.current?.dataset.rich === "block"; // one-line texts save on Enter; paragraphs and lists need ⌘/Ctrl+Enter
     if (e.key === "Enter" && ((rich && (e.metaKey || e.ctrlKey)) || (!rich && !e.shiftKey && !editing.key.includes("|p|")))) { e.preventDefault(); commitInline(true); say("Saved"); }
   }
 
@@ -472,7 +475,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         </aside>}
         {focus && <div aria-live="polite" className={`fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-[#0F1013]/85 text-white text-[12px] px-3 py-1.5 rounded-full transition-opacity duration-700 ${fsHint ? "opacity-100" : "opacity-0 pointer-events-none"}`}>Preview · this is what visitors see · press Esc to go back to editing</div>}
         {/* formatting bar over the text being edited (long text fields only) */}
-        {editing && inlinePos?.rich && !contentPick && <div data-ui className="fixed z-30 bg-[#0F1013] rounded-lg p-1 shadow-xl" style={{ top: inlinePos.barTop, left: inlinePos.barLeft }}><FormatBar getRoot={getEditingEl} state={fmt} dark /></div>}
+        {editing && inlinePos?.rich && !contentPick && <div data-ui className="fixed z-30 bg-[#0F1013] rounded-lg p-1 shadow-xl" style={{ top: inlinePos.barTop, left: inlinePos.barLeft }}><FormatBar getRoot={getEditingEl} state={fmt} dark lists={inlinePos.lists} /></div>}
         {editing && inlinePos && !contentPick && <button type="button" data-ui className="fixed z-30 w-7 h-7 rounded-full grid place-items-center bg-info text-white shadow-lg hover:scale-105 transition-transform" style={{ top: inlinePos.top, left: inlinePos.left }} onMouseDown={(e) => e.preventDefault()} onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }} title="Choose content from an entity" aria-label="Choose content from an entity"><ContentIcon className="w-3.5 h-3.5" /></button>}
         {previewCheck && <ModalShell title="Does everything look right?" width={480} onClose={() => setPreviewCheck(false)}
           footer={<><button className="btn" onClick={() => { setPreviewCheck(false); void goEdit("content"); }}>No, keep editing</button><button className="btn btn-primary" onClick={() => { setPreviewCheck(false); openSend(); }}>Yes, send for review</button></>}>
@@ -560,7 +563,8 @@ function ConfigForm({ block: selected, index, count, marketId, setProp, entities
   return <div className="flex flex-col gap-3">
     <div><b className="text-sm">{def.name}</b><div className="text-[11px] text-ink-3">Block {index + 1} of {count} · {def.desc}</div></div>
     <Section t="Content">{def.fields.map((f) => { const v = selected.props[f.k]; const invalid = f.req && !toPlain(v).trim(); return <div key={f.k}><label className="flex items-center text-xs text-ink-2 font-medium mb-1">{f.l}{(f.t === "text" || f.t === "textarea") && canEdit ? <button type="button" className="ml-auto mr-2 w-6 h-6 rounded grid place-items-center text-info hover:bg-info-soft" onMouseDown={(e) => e.preventDefault()} onClick={() => onChoose(f.k, f.l)} title="Choose content from an entity" aria-label={`Choose content from an entity for ${f.l}`}><ContentIcon /></button> : <span className="ml-auto" />}{f.req && <small className="font-mono text-[10.5px] text-ink-4">required</small>}</label>
-      {f.t === "text" ? <input className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${f.mono ? "font-mono" : ""} ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
+      {f.t === "text" && !f.mono ? <RichField inline value={v} label={f.l} invalid={invalid} disabled={!canEdit} onChange={(html) => setProp(f.k, html)} onFocus={() => onFieldFocus(f.k, f.l, 0, 0)} />
+      : f.t === "text" ? <input className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${f.mono ? "font-mono" : ""} ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
       : f.t === "textarea" && f.rich ? <RichField value={v} label={f.l} invalid={invalid} disabled={!canEdit} onChange={(html) => setProp(f.k, html)} onFocus={() => onFieldFocus(f.k, f.l, 0, 0)} />
       : f.t === "textarea" ? <textarea rows={4} className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
       : f.t === "lines" ? <ListEditor rows={lines(v)} hint={f.hint} onChange={(rows) => setProp(f.k, joinLines(rows))} />
@@ -578,9 +582,11 @@ function ConfigForm({ block: selected, index, count, marketId, setProp, entities
 
 function ListEditor({ rows, hint, onChange }: { rows: string[][]; hint?: string; onChange: (rows: string[][]) => void }) {
   const cols = (hint ?? "Value").split("|").map((c) => c.trim());
-  const set = (r: number, c: number, v: string) => { const n = rows.map((x) => x.slice()); while (n[r].length <= c) n[r].push(""); n[r][c] = v.replace(/\|/g, "/"); onChange(n); };
+  const set = (r: number, c: number, v: string) => { const n = rows.map((x) => x.slice()); while (n[r].length <= c) n[r].push(""); n[r][c] = cellSafe(v); onChange(n); };
   return <div className="flex flex-col gap-2">{rows.map((r, ri) => <div key={ri} className="border border-line bg-surface-2 p-2.5 rounded-md"><div className="flex justify-between items-center mb-1"><b className="text-[12.5px]">Item {ri + 1}</b><span className="flex gap-0.5"><button className="btn btn-quiet btn-sm" disabled={ri === 0} onClick={() => { const n = rows.slice(); [n[ri - 1], n[ri]] = [n[ri], n[ri - 1]]; onChange(n); }} aria-label="Move up">↑</button><button className="btn btn-quiet btn-sm" disabled={ri === rows.length - 1} onClick={() => { const n = rows.slice(); [n[ri + 1], n[ri]] = [n[ri], n[ri + 1]]; onChange(n); }} aria-label="Move down">↓</button><button className="btn btn-quiet btn-sm" onClick={() => onChange(rows.filter((_, i) => i !== ri))} aria-label="Remove">✕</button></span></div>
-    {cols.map((c, ci) => <label key={ci} className="block mt-1.5 text-[11.5px] text-ink-3">{c}{c.toLowerCase().includes("text") || c.toLowerCase().includes("answer") ? <textarea rows={2} className="mt-0.5 w-full border border-line-2 rounded px-2 py-1 text-[13px] text-ink" value={r[ci] ?? ""} onChange={(e) => set(ri, ci, e.target.value)} /> : <input className="mt-0.5 w-full border border-line-2 rounded px-2 py-1 text-[13px] text-ink" value={r[ci] ?? ""} onChange={(e) => set(ri, ci, e.target.value)} />}</label>)}</div>)}
+    {cols.map((c, ci) => { const n = c.toLowerCase(); const plain = /icon|style|link|url/.test(n); const block = n.includes("text") || n.includes("answer");
+      return <div key={ci} className="mt-1.5 text-[11.5px] text-ink-3">{plain ? <label className="block">{c}<input className="mt-0.5 w-full border border-line-2 rounded px-2 py-1 text-[13px] text-ink" value={r[ci] ?? ""} onChange={(e) => set(ri, ci, e.target.value)} /></label>
+        : <><span className="block mb-0.5">{c}</span><RichField inline={!block} compact value={r[ci] ?? ""} label={`${c}, item ${ri + 1}`} onChange={(html) => set(ri, ci, html)} /></>}</div>; })}</div>)}
     <button className="btn btn-sm justify-center" onClick={() => onChange([...rows, cols.map(() => "")])}>＋ Add item</button></div>;
 }
 

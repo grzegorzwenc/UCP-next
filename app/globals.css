@@ -151,3 +151,6 @@ body.focus .cms-shell > div { grid-template-columns: 1fr; }
 .rt a { color: #DB0011; text-decoration: underline; text-underline-offset: 2px; } .rt strong { font-weight: 600; } .rt em { font-style: italic; } .rt u { text-decoration: underline; }
 .rt:empty::before { content: attr(aria-label); color: var(--ink-4); }
 .rte:empty::before { content: "Write here…"; color: var(--ink-4); }
+.rti a { color: #DB0011; text-decoration: underline; text-underline-offset: 2px; } .rti strong { font-weight: 700; } .rti em { font-style: italic; } .rti u { text-decoration: underline; }
+.s-cta .rti a, .hs-lnk .rti a { color: inherit; }
+.rte-line:empty::before { content: " "; }

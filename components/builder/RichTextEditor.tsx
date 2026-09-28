@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { sanitizeRich, safeHref, toRichHtml } from "@/lib/blocks/richtext";
+import { normalizeRich, sanitizeInline, sanitizeRich, safeHref, toInlineHtml, toRichHtml } from "@/lib/blocks/richtext";
 
 /*
  * Formatting for long text fields: bold, italic, underline, link, bullet list, numbered list, clear formatting.
@@ -71,7 +71,7 @@ const LABEL: Record<Cmd | "link" | "clear", string> = { bold: "Bold (⌘B)", ita
  * The toolbar. `getRoot` is the editable element it works on; buttons never take the focus away from it (mousedown is prevented),
  * except the link field, which remembers the selection and puts it back before the link is made.
  */
-export function FormatBar({ getRoot, state, dark = false, onChange }: { getRoot: () => HTMLElement | null; state: FormatState; dark?: boolean; onChange?: () => void }) {
+export function FormatBar({ getRoot, state, dark = false, lists = true, onChange }: { getRoot: () => HTMLElement | null; state: FormatState; dark?: boolean; lists?: boolean; onChange?: () => void }) {
   const [linking, setLinking] = useState<string | null>(null); const saved = useRef<Range | null>(null);
   const run = (cmd: Cmd | "clear") => { const root = getRoot(); if (!root) return; if (!inside(root)) root.focus();
     if (cmd === "clear") { exec("removeFormat"); exec("unlink"); const l = listAt(root); if (l) toggleList(root, l.tagName === "OL" ? "ol" : "ul"); }
@@ -95,26 +95,29 @@ export function FormatBar({ getRoot, state, dark = false, onChange }: { getRoot:
   return <div role="toolbar" aria-label="Text formatting" className="flex items-center gap-0.5" onMouseDown={(e) => e.preventDefault()}>
     {(["bold", "italic", "underline"] as const).map((c) => <button key={c} type="button" className={btn(state[c])} aria-pressed={state[c]} title={LABEL[c]} aria-label={LABEL[c]} onClick={() => run(c)}>{ICON[c]}</button>)}
     <button type="button" className={btn(state.link)} aria-pressed={state.link} title={state.link ? "Remove link" : LABEL.link} aria-label={state.link ? "Remove link" : LABEL.link} onClick={startLink}>{ICON.link}</button>
-    {sep}
-    {(["insertUnorderedList", "insertOrderedList"] as const).map((c) => <button key={c} type="button" className={btn(state[c])} aria-pressed={state[c]} title={LABEL[c]} aria-label={LABEL[c]} onClick={() => run(c)}>{ICON[c]}</button>)}
+    {lists && sep}
+    {lists && (["insertUnorderedList", "insertOrderedList"] as const).map((c) => <button key={c} type="button" className={btn(state[c])} aria-pressed={state[c]} title={LABEL[c]} aria-label={LABEL[c]} onClick={() => run(c)}>{ICON[c]}</button>)}
     {sep}
     <button type="button" className={btn(false)} title={LABEL.clear} aria-label={LABEL.clear} onClick={() => run("clear")}>{ICON.clear}</button>
   </div>;
 }
 
 /** Rich field for the Configure panel: toolbar + editable box showing the text as it will look. */
-export function RichField({ value, onChange, onFocus, invalid, disabled, label }: { value: unknown; onChange: (html: string) => void; onFocus?: () => void; invalid?: boolean; disabled?: boolean; label: string }) {
+/** `inline`: one line (bold, italic, underline, link; Enter does nothing). `compact`: smaller box, toolbar only while focused (list cells). */
+export function RichField({ value, onChange, onFocus, invalid, disabled, label, inline = false, compact = false }: { value: unknown; onChange: (html: string) => void; onFocus?: () => void; invalid?: boolean; disabled?: boolean; label: string; inline?: boolean; compact?: boolean }) {
   const ref = useRef<HTMLDivElement>(null); const last = useRef<string | null>(null);
   const getRoot = useCallback(() => ref.current, []);
   const [focused, setFocused] = useState(false); const state = useFormatState(getRoot, focused);
   // Show changes made elsewhere (inline edit on the page, AI, version restore). What this box emitted itself comes back equal, so typing is never reset.
-  useEffect(() => { const el = ref.current; if (!el) return; const html = toRichHtml(value); if (html !== last.current) { el.innerHTML = html; last.current = html; } }, [value]);
-  const emit = () => { const el = ref.current; if (!el) return; const v = sanitizeRich(el.innerHTML); last.current = toRichHtml(v); onChange(v); };
+  useEffect(() => { const el = ref.current; if (!el) return; const html = inline ? toInlineHtml(value) : toRichHtml(value); if (html !== last.current) { el.innerHTML = html; last.current = html; } }, [value, inline]);
+  const emit = () => { const el = ref.current; if (!el) return; const v = normalizeRich(el.innerHTML, !inline); last.current = inline ? toInlineHtml(v) : toRichHtml(v); onChange(v); };
+  const showBar = !disabled && (!compact || focused);
   return <div className={`rounded-md border bg-surface ${invalid ? "border-crit" : focused ? "border-ink-3" : "border-line-2"}`}>
-    {!disabled && <div className="flex items-center px-1 py-0.5 border-b border-line bg-surface-2 rounded-t-md"><FormatBar getRoot={getRoot} state={state} onChange={emit} /></div>}
+    {showBar && <div className="flex items-center px-1 py-0.5 border-b border-line bg-surface-2 rounded-t-md"><FormatBar getRoot={getRoot} state={state} lists={!inline} onChange={emit} /></div>}
     <div ref={ref} role="textbox" aria-multiline="true" aria-label={label} contentEditable={!disabled} suppressContentEditableWarning
-      className="rt rte min-h-[96px] max-h-[320px] overflow-auto px-2.5 py-2 text-[13px] text-ink outline-none"
+      className={`${inline ? "rti rte-line" : "rt rte"} ${inline ? "min-h-[32px] px-2.5 py-1.5" : compact ? "min-h-[56px] max-h-[220px] px-2 py-1.5" : "min-h-[96px] max-h-[320px] px-2.5 py-2"} overflow-auto text-[13px] text-ink outline-none`}
       onFocus={() => { onFocus?.(); prepareEditable(); setFocused(true); }} onBlur={() => { setFocused(false); emit(); }} onInput={emit}
-      onPaste={(e) => { e.preventDefault(); const html = e.clipboardData.getData("text/html"); const text = e.clipboardData.getData("text/plain"); exec("insertHTML", html ? sanitizeRich(html) : toRichHtml(text)); emit(); }} />
+      onKeyDown={(e) => { if (inline && e.key === "Enter") e.preventDefault(); }}
+      onPaste={(e) => { e.preventDefault(); const html = e.clipboardData.getData("text/html"); const text = e.clipboardData.getData("text/plain"); exec("insertHTML", inline ? (html ? sanitizeInline(html) : toInlineHtml(text.replace(/\s*\n\s*/g, " "))) : html ? sanitizeRich(html) : toRichHtml(text)); emit(); }} />
   </div>;
 }

@@ -48,3 +48,20 @@ export function toPlain(v: unknown): string {
   const s = String(v ?? ""); if (!isRich(s)) return s;
   return decode(s.replace(/<li\b[^>]*>/gi, "• ").replace(/<\/(p|div)>/gi, "\n\n").replace(/<br\s*\/?>|<\/li>/gi, "\n").replace(/<[^>]+>/g, "")).replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
 }
+
+/** One-line fields (headings, buttons, tile and table cells): bold, italic, underline and links only; paragraphs and lists fold into the line. */
+export function sanitizeInline(html: string): string {
+  return sanitizeRich(html).replace(/<\/p>\s*<p>|<\/li>\s*<li>/g, " ").replace(/<\/?(p|ul|ol|li)>/g, "").replace(/<br>/g, " ").replace(/\s{2,}/g, " ").trim();
+}
+/** One-line value → safe inline HTML (plain text is escaped). */
+export function toInlineHtml(v: unknown): string { const s = String(v ?? ""); return isRich(s) ? sanitizeInline(s) : escPlain(s); }
+/**
+ * What the editor produced → what is stored. Text without any formatting is stored as plain text (as before), so headings,
+ * labels and table values stay clean for search, the API and translation; formatted text is stored as sanitised HTML.
+ */
+export function normalizeRich(html: string, block: boolean): string {
+  const s = block ? sanitizeRich(html) : sanitizeInline(html);
+  return isRich(s) ? s : decode(s.replace(/<[^>]+>/g, "")).replace(/ /g, " ").replace(/[ \t]+/g, " ").trim();
+}
+/** A list cell ("A | B" rows) must not contain the separators: pipes become an entity, line breaks go. */
+export const cellSafe = (v: string) => (isRich(v) ? v.replace(/\|/g, "&#124;") : v.replace(/\|/g, "/")).replace(/\n+/g, " ");

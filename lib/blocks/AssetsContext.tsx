@@ -1,7 +1,7 @@
 "use client";
 import { createContext, useContext } from "react";
 import { TOKEN_RE, hasTokens, resolveTokens, type ResolvedEntities } from "@/lib/ucp/tokens";
-import { toRichHtml, toPlain } from "./richtext";
+import { toRichHtml, toInlineHtml, toPlain } from "./richtext";
 
 /** Asset id → stored picture (data URL) so the canvas can show real uploaded photos. Empty outside the builder. */
 export const AssetsContext = createContext<Record<string, { data?: string; alt?: string; decorative?: boolean }>>({});
@@ -53,11 +53,15 @@ function tokensHtml(html: string, ents: ResolvedEntities, raw: boolean): string 
     return raw ? `<span class="${ok ? "tok tok-raw" : "tok-bad tok-raw"}" data-token="${escHtml(tok)}" title="${title}">${escHtml(tok)}</span>` : ok ? `<span class="tok" data-token="${escHtml(tok)}" title="${title}">${escHtml(toPlain(r))}</span>` : `<span class="tok-bad" title="${title}">${escHtml(tok)}</span>`; });
 }
 /**
- * Formatted text block (paragraphs, bold, italic, underline, links, lists). Rendered from sanitised HTML only.
- * While the builder edits it the markup stays as is (no re-render), so the caret and the browser's edits are kept.
+ * Formatted text the builder can edit in place. `block`: paragraphs and lists (long text, FAQ answers, tile texts); otherwise one line
+ * with bold, italic, underline and links (headings, buttons, cells). Rendered from sanitised HTML only. While the builder edits it the
+ * markup is left alone (no re-render), so the caret and the browser's edits are kept.
  */
-export function RichText({ k, value, className = "" }: { k: string; value: unknown; className?: string }) {
+export function RichInline({ k, value, block = false, className = "" }: { k: string; value: unknown; block?: boolean; className?: string }) {
   const { gen, raw } = useContext(InlineEditContext); const ents = useContext(EntitiesContext);
-  const html = tokensHtml(toRichHtml(value), ents, !!raw);
-  return <div key={`g${gen}`} className={`ie rt ${className}`} data-inline={k} data-rich="" dangerouslySetInnerHTML={{ __html: html }} />;
+  const html = tokensHtml(block ? toRichHtml(value) : toInlineHtml(value), ents, !!raw);
+  return block ? <div key={`g${gen}`} className={`ie rt ${className}`} data-inline={k} data-rich="block" dangerouslySetInnerHTML={{ __html: html }} />
+    : <span key={`g${gen}`} className={`ie rti ${className}`} data-inline={k} data-rich="inline" dangerouslySetInnerHTML={{ __html: html }} />;
 }
+/** Long text field (paragraphs and lists). */
+export const RichText = ({ k, value, className = "" }: { k: string; value: unknown; className?: string }) => <RichInline k={k} value={value} block className={className} />;
