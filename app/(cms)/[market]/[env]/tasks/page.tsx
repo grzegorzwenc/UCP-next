@@ -9,5 +9,5 @@ export default async function Page({ params, searchParams }: PageProps<"/[market
   const s = (v: unknown) => (typeof v === "string" ? v : "");
   const tasks = await listTasks(mid);
   const sort = ["due", "name", "kind"].includes(s(sp.sort)) ? (s(sp.sort) as "due" | "name" | "kind") : "due";
-  return <Tasks marketId={mid} envId={eid} root={mk.root} marketName={mk.name} tasks={tasks} q={s(sp.q)} kind={s(sp.kind)} sort={sort} canAssign={repo().kind !== "contentlibre"} />;
+  return <Tasks marketId={mid} envId={eid} root={mk.root} marketName={mk.name} tasks={tasks} q={s(sp.q)} kind={s(sp.kind)} sort={sort} assignable={repo().kind === "contentlibre" ? ["Review"] : undefined} />;
 }

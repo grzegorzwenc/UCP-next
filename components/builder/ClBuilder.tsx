@@ -3,6 +3,9 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Pill } from "@/components/ui/Pill";
 import { useSession } from "@/components/shell/Session";
+import { PublishDialog } from "@/components/pages/PublishDialog";
+import { ucpApi } from "@/lib/api";
+import type { ReviewerOption } from "@/lib/ucp/types";
 
 /**
  * The page builder on ContentLIBRE (UCP_BACKEND=contentlibre).
@@ -12,6 +15,7 @@ import { useSession } from "@/components/shell/Session";
  * goes through the backend's composition validator - whatever this screen offers, the backend decides.
  *
  * Edits land in a draft (publication.mode=drafts): "Edit" opens one, "Publish" makes it live, "Discard" drops it.
+ * An approved draft can also be scheduled; the backend publishes it when it is due, or says on the draft why not.
  */
 
 type FieldDef = { name: string; type: string; default?: unknown };
@@ -24,8 +28,9 @@ type Model = {
   components: Record<string, { label: string; fields: FieldDef[] }>;
   values: Record<string, unknown>;
 };
-type Review = { state: "IN_REVIEW" | "APPROVED" | "CHANGES_REQUESTED" | "OUTDATED"; requestedBy?: string; requestedAt?: string; assignee?: string; due?: string; note?: string; decidedBy?: string; decidedAt?: string; comment?: string };
-type Draft = { id: string; state: string; label?: string; revision?: string; stale: boolean; createdBy?: string; modified?: string; review?: Review };
+type Review = { state: "IN_REVIEW" | "APPROVED" | "CHANGES_REQUESTED" | "OUTDATED"; requestedBy?: string; requestedAt?: string; assignee?: string; due?: string; note?: string; decidedBy?: string; decidedAt?: string; comment?: string; assignedBy?: string; remindedAt?: string; remindedBy?: string };
+type Schedule = { publishAt?: string; scheduledBy?: string; failed?: string; failedAt?: string };
+type Draft = { id: string; state: string; label?: string; revision?: string; stale: boolean; createdBy?: string; modified?: string; review?: Review; schedule?: Schedule };
 type Drafts = { page: string; publication?: string | null; publishedBy?: string; publishedAt?: string; draftsMode: boolean; reviewRequired: boolean; open: Draft[]; archived: Draft[] };
 type PageDoc = { path: string; title?: string; description?: string; navTitle?: string; hideInNav?: boolean; status?: string; permissions?: { edit: boolean; delete: boolean } };
 type Problem = { title?: string; detail?: string; status?: number };
@@ -37,7 +42,9 @@ async function call<T>(url: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 const nameOf = (path: string) => path.split("/").pop() ?? path;
-const STATUS_PILL: Record<string, string> = { published: "published", modified: "modified", draft: "draft", unpublished: "draft", review: "review", approved: "approved" };
+const STATUS_PILL: Record<string, string> = { published: "published", modified: "modified", draft: "draft", unpublished: "draft", review: "review", approved: "approved", scheduled: "scheduled", failed: "failed" };
+/** The backend's own interval between two reminders of one review. */
+const REMIND_MS = 15 * 60_000;
 const qs = (params: Record<string, string | undefined>) => new URLSearchParams(Object.entries(params).filter(([, v]) => v) as [string, string][]).toString();
 
 type Loaded = { drafts: Drafts; page: PageDoc; model: Model | null };
@@ -53,7 +60,7 @@ async function fetchPage(path: string): Promise<Loaded> {
   return { drafts, page, model };
 }
 
-export function ClBuilder({ path, listUrl }: { path: string; listUrl: string }) {
+export function ClBuilder({ path, listUrl, marketId }: { path: string; listUrl: string; marketId: string }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   /** Bumped after every successful action: reloads structure, preview and the inspector. */
   const [version, setVersion] = useState(0);
@@ -70,10 +77,16 @@ export function ClBuilder({ path, listUrl }: { path: string; listUrl: string }) 
   const q = (extra: Record<string, string | undefined> = {}) => qs({ path, ...extra });
   const inspected = selected && selModel?.node === selected ? selModel.model : null;
   const { user } = useSession();
-  const [reviewForm, setReviewForm] = useState<null | "request" | "changes">(null);
+  const [reviewForm, setReviewForm] = useState<null | "request" | "changes" | "assign">(null);
+  const [scheduling, setScheduling] = useState(false);
   const review = draft?.review; const reviewState = review?.state;
   // The backend decides (approver groups, never your own request); this only hides what it would refuse.
   const canDecide = reviewState === "IN_REVIEW" && (user.role === "admin" || (user.role === "reviewer" && review?.requestedBy !== user.id));
+  // Changing the reviewer: whoever asked, an approver or an administrator (the backend checks the same).
+  const canReassign = reviewState === "IN_REVIEW" && (user.role === "admin" || user.role === "reviewer" || review?.requestedBy === user.id);
+  const schedule = draft?.schedule;
+  const [clock] = useState(() => Date.now());
+  const remindedRecently = !!review?.remindedAt && clock - Date.parse(review.remindedAt) < REMIND_MS;
   const publishBlocked = reviewState === "IN_REVIEW" ? "Waiting for review" : reviewState === "CHANGES_REQUESTED" ? "Changes were requested" : reviewState === "OUTDATED" ? "Changed after approval: send for review again" : drafts?.reviewRequired && reviewState !== "APPROVED" ? "This site publishes reviewed drafts only" : null;
 
   useEffect(() => {
@@ -111,7 +124,7 @@ export function ClBuilder({ path, listUrl }: { path: string; listUrl: string }) 
 
   if (!drafts || !page) return <div className="p-10 text-ink-3">{note?.kind === "err" ? note.text : "Loading the page…"}</div>;
   // The review, when there is one, is what the page is waiting on; otherwise its publication status.
-  const status = reviewState === "IN_REVIEW" ? "review" : reviewState === "APPROVED" ? "approved" : page.status ?? "draft";
+  const status = schedule?.failed ? "failed" : schedule?.publishAt ? "scheduled" : reviewState === "IN_REVIEW" ? "review" : reviewState === "APPROVED" ? "approved" : page.status ?? "draft";
   const previewSrc = `/api/cl/preview?${q({ draft: draft?.id })}&v=${version}`;
 
   return (
@@ -127,15 +140,24 @@ export function ClBuilder({ path, listUrl }: { path: string; listUrl: string }) 
           {draft && <>
             <button className="btn btn-sm" disabled={busy} onClick={() => void discard()}>Discard draft</button>
             {reviewState !== "IN_REVIEW" && <button className="btn btn-sm" disabled={busy} onClick={() => setReviewForm(reviewForm === "request" ? null : "request")}>Send for review</button>}
+            {reviewState === "IN_REVIEW" && editable && <button className="btn btn-sm" disabled={busy || remindedRecently} title={remindedRecently ? "A reminder was sent less than 15 minutes ago" : undefined}
+              onClick={() => void act("Reminder sent to the reviewer.", () => call(`/api/cl/drafts/review/remind?${q()}`, { method: "POST", body: JSON.stringify({ draft: draft.id }) }))}>Remind reviewer</button>}
+            {canReassign && <button className="btn btn-sm" disabled={busy} onClick={() => setReviewForm(reviewForm === "assign" ? null : "assign")}>Change reviewer</button>}
             {canDecide && <>
               <button className="btn btn-sm" disabled={busy} onClick={() => setReviewForm(reviewForm === "changes" ? null : "changes")}>Request changes</button>
               <button className="btn btn-sm on" disabled={busy} onClick={() => void act("Approved. It can be published now.", () => call(`/api/cl/drafts/decision?${q()}`, { method: "POST", body: JSON.stringify({ draft: draft.id, decision: "approve" }) }))}>Approve</button>
             </>}
-            <button className="btn btn-sm on" disabled={busy || !!publishBlocked} title={publishBlocked ?? undefined} onClick={() => void publish(false)}>Publish</button>
+            {(reviewState === "APPROVED" || schedule) && <button className="btn btn-sm" disabled={busy} onClick={() => setScheduling(true)}>{schedule?.publishAt ? "Change schedule" : "Schedule…"}</button>}
+            <button className="btn btn-sm on" disabled={busy || !!publishBlocked} title={publishBlocked ?? undefined} onClick={() => void publish(false)}>Publish now</button>
           </>}
         </div>
       </div>
       {draft && review && <ReviewBanner review={review} />}
+      {draft && schedule && <ScheduleBanner schedule={schedule} />}
+      {draft && reviewForm === "assign" && <AssignForm marketId={marketId} path={path} current={review?.assignee} busy={busy} onCancel={() => setReviewForm(null)}
+        onSend={(assignee) => act(assignee ? `${assignee} is now asked to review.` : "Any approver can review it now.", () => call(`/api/cl/drafts/review/assign?${q()}`, { method: "POST", body: JSON.stringify({ draft: draft.id, assignee: assignee || undefined }) }), () => setReviewForm(null))} />}
+      {scheduling && <PublishDialog marketId={marketId} envName="this site" pages={[{ path, title: page.title ?? nameOf(path), status: schedule?.failed && reviewState === "APPROVED" ? "approved" : status, publishAt: schedule?.publishAt }]} mayPublish={() => true}
+        onClose={() => setScheduling(false)} onDone={(r) => { setScheduling(false); const x = r[0]; setNote(x?.ok ? { kind: "ok", text: x.status === "scheduled" ? "Scheduled. The page goes live at the time you picked." : x.status === "published" ? "Published. The page is live." : "Schedule cancelled." } : { kind: "err", text: x?.reason ?? "Nothing changed." }); setVersion((v) => v + 1); }} />}
       {draft && reviewForm === "request" && <ReviewRequestForm busy={busy} onCancel={() => setReviewForm(null)} onSend={(body) => act("Sent for review.", () => call(`/api/cl/drafts/review?${q()}`, { method: "POST", body: JSON.stringify({ draft: draft.id, ...body }) }), () => setReviewForm(null))} />}
       {draft && reviewForm === "changes" && <ChangesForm busy={busy} onCancel={() => setReviewForm(null)} onSend={(comment) => act("Changes requested. The author has been asked to update the draft.", () => call(`/api/cl/drafts/decision?${q()}`, { method: "POST", body: JSON.stringify({ draft: draft.id, decision: "request-changes", comment }) }), () => setReviewForm(null))} />}
       {(note || stalePublish) && <div role="status" className={`px-5 py-2 text-[13px] border-b border-line ${note?.kind === "err" ? "bg-crit/10 text-crit" : "bg-good-soft text-good"}`}>
@@ -256,6 +278,32 @@ function PageMeta({ page, editable, busy, onSave }: { page: PageDoc; editable: b
 
 const when = (iso?: string) => iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
 
+/** A scheduled publication, or why it did not happen when it was due. */
+function ScheduleBanner({ schedule }: { schedule: Schedule }) {
+  if (schedule.failed) return <div className="px-5 py-2 text-[13px] border-b border-line bg-crit/10 text-crit" role="alert">
+    The scheduled publication did not happen{schedule.failedAt ? ` (${when(schedule.failedAt)})` : ""}: {schedule.failed}
+  </div>;
+  return <div className="px-5 py-2 text-[13px] border-b border-line bg-info-soft text-info" role="note">
+    Scheduled to go live {when(schedule.publishAt)}{schedule.scheduledBy ? `, published as ${schedule.scheduledBy}` : ""}. Changing the draft now stops it from going live until it is scheduled again.
+  </div>;
+}
+
+/** Ask somebody else to review, from the people who may review this page; the request itself stays. */
+function AssignForm({ marketId, path, current, busy, onSend, onCancel }: { marketId: string; path: string; current?: string; busy: boolean; onSend: (assignee: string) => void; onCancel: () => void }) {
+  const [people, setPeople] = useState<ReviewerOption[] | null>(null); const [pick, setPick] = useState(current ?? "");
+  useEffect(() => { let live = true; ucpApi.reviewers(marketId, path).then((p) => { if (live) setPeople(p); }, () => { if (live) setPeople([]); }); return () => { live = false; }; }, [marketId, path]);
+  return <form className="px-5 py-3 border-b border-line bg-surface-2 flex flex-wrap items-end gap-3" onSubmit={(e) => { e.preventDefault(); onSend(pick); }}>
+    <label className="grid gap-1 text-[12px] text-ink-3">Reviewer
+      <select id="cl-review-reassign" className="border border-line rounded px-2 py-1 text-[13px] bg-surface min-w-[220px]" value={pick} onChange={(e) => setPick(e.target.value)} disabled={!people}>
+        <option value="">Any approver</option>
+        {(people ?? []).map((p) => <option key={p.id} value={p.id}>{p.name}{p.activeReviews ? ` · ${p.activeReviews} in review` : ""}</option>)}
+      </select>
+    </label>
+    <button type="submit" className="btn btn-sm on" disabled={busy || !people || pick === (current ?? "")}>Change reviewer</button>
+    <button type="button" className="btn btn-sm" onClick={onCancel}>Cancel</button>
+  </form>;
+}
+
 /** Where the draft stands in review, in one line: who asked whom, by when, and what was decided. */
 function ReviewBanner({ review }: { review: Review }) {
   const tone = review.state === "APPROVED" ? "bg-good-soft text-good" : review.state === "IN_REVIEW" ? "bg-info-soft text-info" : "bg-warn-soft text-warn";
@@ -265,7 +313,7 @@ function ReviewBanner({ review }: { review: Review }) {
     : review.state === "CHANGES_REQUESTED" ? `Changes requested by ${review.decidedBy ?? "?"} ${when(review.decidedAt)}. Make them, then send for review again.`
     : "Approved, then changed. Send it for review again before publishing.";
   return <div className={`px-5 py-2 text-[13px] border-b border-line ${tone}`} role="note">
-    {text}{review.note && review.state === "IN_REVIEW" && <span className="block text-ink-2">Note: {review.note}</span>}{review.comment && review.state !== "IN_REVIEW" && <span className="block text-ink-2">Reviewer: {review.comment}</span>}
+    {text}{review.state === "IN_REVIEW" && review.remindedAt && <span className="block text-ink-2">Reminded by {review.remindedBy ?? "?"} {when(review.remindedAt)}.</span>}{review.note && review.state === "IN_REVIEW" && <span className="block text-ink-2">Note: {review.note}</span>}{review.comment && review.state !== "IN_REVIEW" && <span className="block text-ink-2">Reviewer: {review.comment}</span>}
   </div>;
 }
 

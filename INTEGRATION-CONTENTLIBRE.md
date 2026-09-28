@@ -70,17 +70,17 @@ UCP_BACKEND=contentlibre CONTENTLIBRE_URL=http://localhost:6727 npm run dev -- -
 `main` (46 commits: publish dialog with scheduling, review reminders, task assignment, rich text,
 content picker, phone layout, no Repository screen) is merged. On `UCP_BACKEND=contentlibre`:
 
-- Publish dialog (builder and page list) publishes each page's **approved draft** through
-  `content/v1/drafts/publish`; **Schedule** is refused per page with a reason (no backend support yet),
-  and scheduled pages are never polled (`publishDue` is a no-op there).
-- **Remind reviewer** works; the 15-minute limit reads the audit trail (the review lives on the draft,
-  where this app has nowhere to write).
-- **Task assignment** is read-only on the Tasks screen and `task/assign` / `review/assign` answer `501`.
+- Publish dialog (builder and page list): **Publish now** publishes the approved draft, **Schedule** calls
+  `content/v1/drafts/schedule` - the backend publishes it when it is due, as the person who scheduled - and
+  **Cancel schedule** removes it. A scheduled page shows `scheduled` (a Check task); one the backend could not
+  publish shows `failed` with the reason (a Fix task).
+- **Remind reviewer** and **Change reviewer** go to the backend (`drafts/review/remind`, `drafts/review/assign`);
+  the Tasks screen lets admins change the reviewer, other task kinds answer `501`.
 - The Repository Manager link moved to API & delivery.
 
 Still to do on this side:
 
-- [ ] `ClBuilder`: Remind button, "Ready to publish" wording, the publish dialog instead of the plain
-      Publish button, and hiding **Schedule** while the backend cannot do it.
+- [x] `ClBuilder` (28.09): Remind reviewer, Change reviewer (list of people who may review), Schedule… / Change
+      schedule (the publish dialog), banners for a schedule and for a failed one, "Publish now".
 - [ ] Rich text in `ClBuilder` once components declare a rich-text field.
 - [ ] Re-run the Playwright suite and a mock-mode pass after the merge (only type check and lint were run).

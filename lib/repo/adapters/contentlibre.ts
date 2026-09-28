@@ -84,6 +84,9 @@ const STATUS: Record<NonNullable<ClPage["status"]>, PageStatus> = { published: "
  * publication status - the draft needs work again - and say why in `libre:reviewState`.
  */
 function statusOf(p: ClPage): PageStatus {
+  // A schedule outranks the review it was made on; a failed one is what the author has to act on.
+  if (p.schedule?.failed) return "failed";
+  if (p.schedule?.publishAt) return "scheduled";
   if (p.review?.state === "IN_REVIEW") return "review";
   if (p.review?.state === "APPROVED") return "approved";
   return p.status ? STATUS[p.status] : "draft";
@@ -99,6 +102,8 @@ const toView = (p: ClPage): PageView => ({
     // The workflow fields the CMS's task list reads (lib/server/ucp.ts listTasks), from the backend's review.
     "libre:reviewState": p.review?.state, "libre:reviewDecidedBy": p.review?.decidedBy, "libre:reviewComment": p.review?.comment,
     "ucp:sentBy": p.review?.requestedBy, "ucp:sentAt": p.review?.requestedAt, "ucp:assignee": p.review?.assignee, "ucp:due": p.review?.due,
+    "ucp:remindedAt": p.review?.remindedAt, "ucp:remindedBy": p.review?.remindedBy, "ucp:approvedBy": p.review?.decidedBy,
+    "ucp:publishAt": p.schedule?.publishAt, "libre:scheduledBy": p.schedule?.scheduledBy, "libre:scheduleFailed": p.schedule?.failed,
   },
   components: [],
 });

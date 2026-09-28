@@ -29,6 +29,10 @@ async function done(result: unknown, path: string, type: "content" | "publishing
  *   POST   /api/cl/drafts/publish?path=            { draft, revision?, force? }
  *   POST   /api/cl/drafts/review?path=             { draft, assignee?, due?, note? }   send for review
  *   POST   /api/cl/drafts/decision?path=           { draft, decision: approve|request-changes, comment? }
+ *   POST   /api/cl/drafts/review/assign?path=      { draft, assignee? }     a different reviewer, same request
+ *   POST   /api/cl/drafts/review/remind?path=      { draft }                at most every 15 minutes (429)
+ *   POST   /api/cl/drafts/schedule?path=           { draft, at, revision? } publish later
+ *   DELETE /api/cl/drafts/schedule?path=&draft=    off the schedule
  *   GET    /api/cl/reviews?root=                   the review queue below a root
  *   GET    /api/cl/page?path=&draft=               page document, content fields from the draft
  *   PATCH  /api/cl/page?path=&draft=               { title?, description?, navTitle?, hideInNav? }
@@ -71,6 +75,10 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     if (o === "drafts/publish" && req.method === "POST") return done(await clApi("POST", "content/v1/drafts/publish", { path }, await req.json()), path!, "publishing", "published");
     if (o === "drafts/review" && req.method === "POST") return done(await clApi("POST", "content/v1/drafts/review", { path }, await req.json()), path!, "publishing", "sent for review");
     if (o === "drafts/decision" && req.method === "POST") { const b = await req.json() as { decision?: string }; return done(await clApi("POST", "content/v1/drafts/decision", { path }, b), path!, "publishing", b.decision === "approve" ? "approved" : "requested changes to"); }
+    if (o === "drafts/review/assign" && req.method === "POST") { const b = await req.json() as { assignee?: string }; return done(await clApi("POST", "content/v1/drafts/review/assign", { path }, b), path!, "content", b.assignee ? `asked ${b.assignee} to review` : "opened the review to any approver of"); }
+    if (o === "drafts/review/remind" && req.method === "POST") return done(await clApi("POST", "content/v1/drafts/review/remind", { path }, await req.json()), path!, "content", "reminded the reviewer of");
+    if (o === "drafts/schedule" && req.method === "POST") return done(await clApi("POST", "content/v1/drafts/schedule", { path }, await req.json()), path!, "publishing", "scheduled the publication of");
+    if (o === "drafts/schedule" && req.method === "DELETE") return done(await clApi("DELETE", "content/v1/drafts/schedule", { path, draft }), path!, "publishing", "cancelled the scheduled publication of");
     if (o === "reviews" && req.method === "GET") return NextResponse.json(await clApi("GET", "content/v1/drafts/reviews", { root: q.get("root") ?? undefined }));
     if (o === "page" && req.method === "GET") return NextResponse.json(await clApi("GET", "content/v1/page", { path, draft }));
     if (o === "page" && req.method === "PATCH") return done(await clApi("PATCH", "content/v1/page", { path, draft }, await req.json(), "application/merge-patch+json"), path!, "content", "edited the details of");

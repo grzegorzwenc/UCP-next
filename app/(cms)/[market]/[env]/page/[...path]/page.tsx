@@ -16,7 +16,7 @@ export default async function PageBuilderRoute({ params }: PageProps<"/[market]/
   // ContentLIBRE renders its own components: the builder previews the server's render and edits through drafts.
   if (backend() === "contentlibre") {
     const parent = path.length > 1 ? `/${path.slice(0, -1).join("/")}` : "";
-    return <ClBuilder path={pagePath} listUrl={`/${mid}/${eid}/pages${parent}`} />;
+    return <ClBuilder path={pagePath} listUrl={`/${mid}/${eid}/pages${parent}`} marketId={mid} />;
   }
   // Linked content resolves on the server too, so the first paint already shows real values instead of {{tokens}}.
   const [users, models, entities] = await Promise.all([listUsers(), listModels(), resolveBindings(bindingsOf(page.meta)).catch(() => ({}))]);

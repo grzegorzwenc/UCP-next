@@ -384,7 +384,7 @@ export async function publishPages(marketId: string, paths: string[], opts: { at
 }
 /** Scheduled pages whose time has come go live. Called when CMS screens load (a real backend would run this as a job). */
 export async function publishDue(marketId: string): Promise<number> {
-  if (repo().kind === "contentlibre") return 0; // nothing is scheduled there (publishOnContentLibre refuses it), so skip reading every page on each screen
+  if (repo().kind === "contentlibre") return 0; // the backend publishes scheduled drafts itself (ScheduledPublisher)
   const mk = await getMarket(marketId); const now = Date.now(); let n = 0;
   for (const p of await allPages(mk.root).catch(() => [])) {
     const at = typeof p.meta?.["ucp:publishAt"] === "string" ? Date.parse(String(p.meta["ucp:publishAt"])) : NaN;
@@ -395,28 +395,50 @@ export async function publishDue(marketId: string): Promise<number> {
   return n;
 }
 
-type ClDraftDoc = { id: string; revision?: string; review?: { state?: string } };
+/** ContentLIBRE: remind the reviewer of, or change the reviewer of, the page's draft that is waiting for review. */
+export async function clReviewAction(path: string, action: "remind" | "assign", assignee?: string | null): Promise<{ remindedAt?: string }> {
+  const d = await clApi<{ open: ClDraftDoc[] }>("GET", "content/v1/drafts", { path });
+  const draft = d.open.find((x) => x.review?.state === "IN_REVIEW");
+  if (!draft) throw new RepoError(409, "The page is not in review any more");
+  const r = await clApi<ClDraftDoc>("POST", `content/v1/drafts/review/${action}`, { path }, action === "remind" ? { draft: draft.id } : { draft: draft.id, assignee: assignee ?? undefined });
+  return { remindedAt: r.review?.remindedAt };
+}
+
+type ClDraftDoc = { id: string; revision?: string; review?: { state?: string; remindedAt?: string }; schedule?: { publishAt?: string; failed?: string } };
 /**
- * ContentLIBRE: a page goes live by publishing its approved draft (content/v1/drafts/publish), which runs the backend's
- * own checks - permission, review, a stale publication. Scheduling has no backend support yet, so it is refused per page.
+ * ContentLIBRE: a page goes live by publishing its approved draft (content/v1/drafts/publish), later by scheduling it
+ * (content/v1/drafts/schedule: the backend publishes it when it is due, as the person who scheduled), and a schedule is
+ * cancelled on the draft. Every rule - permission, review, a stale publication - is the backend's, and its refusal is
+ * the reason shown for that page.
  */
 async function publishOnContentLibre(marketId: string, paths: string[], opts: { at?: string; cancel?: boolean }, u: User): Promise<PublishResult[]> {
   const at = opts.at ? new Date(opts.at) : undefined; if (at && isNaN(at.getTime())) throw new RepoError(400, "That date is not valid", opts.at);
   const schedule = !!at && at.getTime() > Date.now() + 60_000; const out: PublishResult[] = [];
+  const when = (d: Date) => d.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" });
   for (const path of [...new Set(paths)]) {
     const pg = await repo().getPage(path).catch(() => undefined);
     if (!pg) { out.push({ path, title: path, ok: false, reason: "Page not found" }); continue; }
     const r = { path, title: pg.title };
-    if (opts.cancel) { out.push({ ...r, ok: false, reason: "Not scheduled" }); continue; }
-    if (schedule) { out.push({ ...r, ok: false, reason: "Scheduled publishing is not available on this backend yet - publish now instead" }); continue; }
     try {
       const d = await clApi<{ open: ClDraftDoc[] }>("GET", "content/v1/drafts", { path });
+      if (opts.cancel) {
+        const scheduled = d.open.find((x) => x.schedule?.publishAt || x.schedule?.failed);
+        if (!scheduled) { out.push({ ...r, ok: false, reason: "Not scheduled" }); continue; }
+        await clApi("DELETE", "content/v1/drafts/schedule", { path, draft: scheduled.id });
+        await logEvent(marketId, { type: "publishing", who: u.id, text: `cancelled the scheduled publish of ${pg.title}`, target: path });
+        out.push({ ...r, ok: true, status: "approved" }); continue;
+      }
       const draft = d.open.find((x) => x.review?.state === "APPROVED");
       if (!draft) { out.push({ ...r, ok: false, reason: pg.status === "published" ? "Already live" : pg.status === "review" ? "Still in review" : "Needs approval first" }); continue; }
+      if (schedule) {
+        await clApi("POST", "content/v1/drafts/schedule", { path }, { draft: draft.id, at: at!.toISOString(), revision: draft.revision });
+        await logEvent(marketId, { type: "publishing", who: u.id, text: `scheduled ${pg.title} for ${when(at!)}`, target: path });
+        out.push({ ...r, ok: true, status: "scheduled" }); continue;
+      }
       await clApi("POST", "content/v1/drafts/publish", { path }, { draft: draft.id, revision: draft.revision });
       await logEvent(marketId, { type: "publishing", who: u.id, text: `published ${pg.title}`, target: path });
       out.push({ ...r, ok: true, status: "published" });
-    } catch (e) { out.push({ ...r, ok: false, reason: e instanceof RepoError ? (e.detail ? `${e.message}: ${e.detail}` : e.message) : "The backend refused" }); }
+    } catch (e) { out.push({ ...r, ok: false, reason: e instanceof RepoError ? (e.detail ?? e.message) : "The backend refused" }); }
   }
   return out;
 }

@@ -184,12 +184,15 @@ export type ClPermissions = { edit: boolean; delete: boolean; createChildren: bo
 export type ClReview = {
   state: "IN_REVIEW" | "APPROVED" | "CHANGES_REQUESTED" | "OUTDATED"; requestedBy?: string; requestedAt?: string; assignee?: string;
   due?: string; note?: string; decidedBy?: string; decidedAt?: string; comment?: string;
+  assignedBy?: string; remindedAt?: string; remindedBy?: string;
 };
+/** A scheduled publication of an open draft, or why one did not happen when it was due. */
+export type ClSchedule = { publishAt?: string; scheduledBy?: string; failed?: string; failedAt?: string };
 export type ClPage = {
   path: string; name: string; title?: string; description?: string; navTitle?: string; hideInNav?: boolean;
   locale?: string; template?: string; created?: string; lastModified?: string;
   status?: "published" | "modified" | "draft" | "unpublished"; publishedAt?: string; publishedBy?: string;
-  openDrafts?: number; hasChildren?: boolean; permissions?: ClPermissions; review?: ClReview;
+  openDrafts?: number; hasChildren?: boolean; permissions?: ClPermissions; review?: ClReview; schedule?: ClSchedule;
 };
 export type ClPageList = { items: ClPage[]; offset: number; limit: number; more: boolean };
 export type ClSiteLocale = { binding: string; locale?: string; contentRoot: string; publicUrl: string; canonical: boolean; readable: boolean };
