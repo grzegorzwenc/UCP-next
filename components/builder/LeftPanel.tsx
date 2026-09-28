@@ -3,13 +3,14 @@ import { useMemo, useState } from "react";
 import type { Block } from "@/lib/api/types";
 import { BLOCKS, GROUPS, makeBlock } from "@/lib/blocks/registry";
 import { RenderBlock } from "@/lib/blocks/Render";
+import { LockedVeil } from "./LockedVeil";
 
 /**
  * Left panel of the builder: the component library with live thumbnails; one click adds the block below the selected one.
  */
-type Props = { phone?: boolean; width?: number; onResizeStart?: (e: React.MouseEvent) => void; canEdit: boolean; onAdd: (type: string) => void; onClose: () => void };
+type Props = { phone?: boolean; width?: number; onResizeStart?: (e: React.MouseEvent) => void; canEdit: boolean; onAdd: (type: string) => void; onClose: () => void; lockedReason?: string; onEdit?: () => void };
 
-export function LeftPanel({ phone, width = 320, onResizeStart, canEdit, onAdd, onClose }: Props) {
+export function LeftPanel({ phone, width = 320, onResizeStart, canEdit, onAdd, onClose, lockedReason, onEdit }: Props) {
   const [q, setQ] = useState("");
   const filtered = BLOCKS.filter((b) => !q || b.name.toLowerCase().includes(q.toLowerCase()) || b.desc.toLowerCase().includes(q.toLowerCase()));
   // Stable ids: the same markup on the server and in the browser (random ids would trip hydration).
@@ -21,7 +22,7 @@ export function LeftPanel({ phone, width = 320, onResizeStart, canEdit, onAdd, o
         <b className="text-[13.5px]">Add a component</b>
         <button type="button" className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={onClose} aria-label="Close panel">✕</button>
       </div>
-      <>
+      <LockedVeil on={!!lockedReason} reason={lockedReason ?? ""} onEdit={onEdit}>
         <div className="p-3 border-b border-line"><input className="w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px]" placeholder="Find a component…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a component" /></div>
         <div className="flex-1 overflow-auto p-2">
           {!canEdit && <div className="m-1 mb-2 text-[12px] text-ink-3 bg-surface-3 border border-line rounded-md px-2.5 py-2">Read-only: you can look, but not add.</div>}
@@ -35,7 +36,7 @@ export function LeftPanel({ phone, width = 320, onResizeStart, canEdit, onAdd, o
           </div>; })}
           {!filtered.length && <div className="p-6 text-center text-ink-3 text-[13px]">Nothing matches “{q}”.</div>}
         </div>
-      </>
+      </LockedVeil>
     </aside>
   );
 }
