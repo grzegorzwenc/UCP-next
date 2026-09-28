@@ -115,7 +115,7 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
   const pages = (all ?? await allPages(PATHS.content(marketId))).filter((p) => !p.isFolder); const user = await me(); const meId = user.id; const now = new Date();
   const admin = user.role === "admin" || !!user.perms.root?.manage; const root = (await getMarket(marketId)).root;
   /* Visibility: admins see every task; everyone else only what they can act on or what they started. */
-  const mine = (p: PageSummary, kind: TaskKind) => admin || str(p.meta?.["ucp:sentBy"]) === meId || (p.lastModifiedBy ?? ME) === meId || (kind === "Review" && (str(p.meta?.["ucp:assignee"]) ? str(p.meta?.["ucp:assignee"]) === meId : can(user, "review", p.path, root))) || ((kind === "Publish" || kind === "Fix" || kind === "Check") && can(user, "publish", p.path, root));
+  const mine = (p: PageSummary, kind: TaskKind) => admin || str(p.meta?.["ucp:sentBy"]) === meId || str(p.meta?.["ucp:requestedBy"]) === meId || (p.lastModifiedBy ?? ME) === meId || (kind === "Review" && (str(p.meta?.["ucp:assignee"]) ? str(p.meta?.["ucp:assignee"]) === meId : can(user, "review", p.path, root))) || ((kind === "Publish" || kind === "Fix" || kind === "Check") && (taskAssignee(p, kind) ? taskAssignee(p, kind) === meId : can(user, "publish", p.path, root)));
   const dueOf = (p: PageSummary) => { const d = p.meta?.["ucp:due"]; if (typeof d === "string" && d) return new Date(d);
     // A real review without a due date is due three days after it was requested - never a made-up date.
     const sent = p.meta?.["ucp:sentAt"]; if (repo().kind !== "mock" && typeof sent === "string" && sent) { const x = new Date(sent); x.setDate(x.getDate() + 3); return x; } const off = (hash(p.path) % 9) - 2; const x = new Date(now); x.setDate(x.getDate() + off); return x; };
@@ -123,21 +123,24 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
   const sender = async (p: PageSummary, fallback: string) => { const s = str(p.meta?.["ucp:sentBy"]); return s ? await userName(s) : fallback; };
   const out: Task[] = [];
   for (const p of pages) {
-    if (p.status === "review") { const t = await mk(p, "Review", "Review and approve", await sender(p, await userName(p.lastModifiedBy ?? ME))); const a = str(p.meta?.["ucp:assignee"]); if (a) { t.assignee = a; t.assigneeName = await userName(a); } out.push(t); }
-    else if (p.status === "approved") out.push(await mk(p, "Publish", "Publish approved page", `${await sender(p, "Rachel Hughes")} (approved)`));
+    if (p.status === "review") { const t = await mk(p, "Review", "Review and approve", await sender(p, await userName(p.lastModifiedBy ?? ME))); const a = str(p.meta?.["ucp:assignee"]); if (a) { t.assignee = a; t.assigneeName = await userName(a); } const rm = str(p.meta?.["ucp:remindedAt"]); if (rm) { t.remindedAt = rm; t.remindedBy = await userName(str(p.meta?.["ucp:remindedBy"])); } out.push(t); }
+    else if (p.status === "approved") { const by = str(p.meta?.["ucp:approvedBy"]); out.push(await mk(p, "Publish", "Review done · ready to publish", `${by ? await userName(by) : await sender(p, "Rachel Hughes")} (approved)`)); }
     else if (p.status === "failed") out.push(await mk(p, "Fix", "Fix failed publish", "System"));
     else if (p.status === "scheduled") out.push(await mk(p, "Check", "Check scheduled publish", await sender(p, "Michael Osei")));
     else if (p.meta?.["libre:reviewState"] === "CHANGES_REQUESTED") out.push(await mk(p, "Fix", "Make the changes the reviewer asked for", await userName(str(p.meta?.["libre:reviewDecidedBy"], "Reviewer"))));
     else if (p.meta?.["libre:reviewState"] === "OUTDATED") out.push(await mk(p, "Finish", "Changed after approval - send for review again", "You"));
     else if (p.status === "draft" && (p.lastModifiedBy ?? ME) === meId) out.push(await mk(p, "Finish", "Finish draft and send for review", "You"));
   }
+  for (const t of out) { const a = taskAssignee(pages.find((p) => p.path === t.page.path)!, t.kind); if (a) { t.assignee = a; t.assigneeName = await userName(a); } }
   return out.filter((t) => mine(pages.find((p) => p.path === t.page.path)!, t.kind)).sort((a, b) => a.due.localeCompare(b.due));
 }
 export async function notifications(marketId: string): Promise<Notification[]> {
-  const [tasks, log, meId] = await Promise.all([listTasks(marketId), readLog(marketId, 20), me().then((u) => u.id)]);
+  const [all, log, meUser] = await Promise.all([listTasks(marketId), readLog(marketId, 20), me()]); const meId = meUser.id;
+  const tasks = all.filter((x) => !(x.kind === "Publish" && x.from.startsWith(`${meUser.name} (`))); // no "you finished the review" for the reviewer
   const rel = (iso: string) => { const d = new Date(iso); const diff = Math.round((Date.now() - d.getTime()) / 60000); return diff < 60 ? `${Math.max(diff, 0)} min ago` : diff < 1440 ? `${Math.round(diff / 60)} h ago` : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
-  const t = tasks.filter((x) => x.kind !== "Review" || !x.assignee || x.assignee === meId).sort((a, b) => Number(b.assignee === meId) - Number(a.assignee === meId) || (b.sentAt ?? "").localeCompare(a.sentAt ?? "")).slice(0, 4).map((x) => ({ text: `${x.from} ${x.kind === "Review" ? (x.assignee === meId ? "assigned you to review" : "asked for a review of") : x.kind === "Publish" ? "approved" : x.kind === "Fix" ? "reported a failed publish of" : "is waiting on"} ${x.page.title}`, when: x.overdueDays > 0 ? `${x.overdueDays} day${x.overdueDays === 1 ? "" : "s"} overdue` : x.overdueDays === 0 ? "Due today" : `Due ${new Date(x.due).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`, target: x.page.path, level: x.overdueDays > 0 ? "crit" : x.overdueDays === 0 ? "warn" : "" }));
-  const l: Notification[] = []; for (const e of log.filter((e) => e.who !== meId).slice(0, 3)) l.push({ text: `${await userName(e.who)} ${e.text}`, when: rel(e.time), target: e.target, level: e.level });
+  const t = tasks.filter((x) => x.kind !== "Review" || !x.assignee || x.assignee === meId).sort((a, b) => Number(!!b.remindedAt) - Number(!!a.remindedAt) || Number(b.assignee === meId) - Number(a.assignee === meId) || (b.sentAt ?? "").localeCompare(a.sentAt ?? "")).slice(0, 4).map((x) => ({ text: x.remindedAt && x.kind === "Review" ? `Reminder: ${x.remindedBy} is waiting for ${x.assignee === meId ? "your review" : "a review"} of ${x.page.title}` : x.kind === "Finish" ? `Your draft of ${x.page.title} is waiting to be sent for review` : `${x.from.replace(/ \(.*\)$/, "")} ${x.kind === "Review" ? (x.assignee === meId ? "assigned you to review" : "asked for a review of") : x.kind === "Publish" ? "finished the review of" : x.kind === "Fix" ? "reported a failed publish of" : "is waiting on"} ${x.page.title}${x.kind === "Publish" ? " · ready to publish" : ""}`, when: x.overdueDays > 0 ? `${x.overdueDays} day${x.overdueDays === 1 ? "" : "s"} overdue` : x.overdueDays === 0 ? "Due today" : `Due ${new Date(x.due).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`, target: x.page.path, level: x.overdueDays > 0 ? "crit" : x.overdueDays === 0 || (x.remindedAt && x.kind === "Review") ? "warn" : "" }));
+  const taskTargets = new Set(t.map((x) => x.target)); // a task already says it; skip the matching audit line
+  const l: Notification[] = []; for (const e of log.filter((e) => e.who !== meId && !(e.target && taskTargets.has(e.target))).slice(0, 3)) l.push({ text: `${await userName(e.who)} ${e.text}`, when: rel(e.time), target: e.target, level: e.level });
   return [...t, ...l];
 }
 
@@ -327,10 +330,65 @@ export async function resolveBindings(b: Bindings, published = false): Promise<R
 }
 
 /* ---------------- review assignment ---------------- */
-export async function reviewerOptions(marketId: string, pagePath: string): Promise<ReviewerOption[]> {
+export async function reviewerOptions(marketId: string, pagePath: string, perm: "review" | "publish" = "review"): Promise<ReviewerOption[]> {
   const [users, pages] = await Promise.all([listUsers(), allPages(PATHS.content(marketId))]); const root = (await getMarket(marketId)).root;
-  const active = (id: string) => pages.filter((p) => p.status === "review" && str(p.meta?.["ucp:assignee"]) === id).length;
-  return users.filter((u) => can(u, "review", pagePath, root)).map((u) => ({ id: u.id, name: u.name, team: u.team, activeReviews: active(u.id) })).sort((a, b) => a.activeReviews - b.activeReviews || a.name.localeCompare(b.name));
+  const active = (id: string) => pages.filter((p) => (p.status === "review" && str(p.meta?.["ucp:assignee"]) === id) || (p.status !== "review" && str(p.meta?.["ucp:taskAssignee"]) === id && str(p.meta?.["ucp:taskKind"]) === KIND_OF_STATUS[p.status])).length;
+  return users.filter((u) => can(u, perm, pagePath, root)).map((u) => ({ id: u.id, name: u.name, team: u.team, activeReviews: active(u.id) })).sort((a, b) => a.activeReviews - b.activeReviews || a.name.localeCompare(b.name));
 }
+/** Which task a page status stands for (tasks other than Review keep their assignee in ucp:taskAssignee + ucp:taskKind). */
+export const KIND_OF_STATUS: Record<string, TaskKind> = { review: "Review", approved: "Publish", failed: "Fix", scheduled: "Check" };
+/** The permission someone needs to take a task of this kind. */
+export const permOfKind = (k: TaskKind): "review" | "publish" => (k === "Review" ? "review" : "publish");
+/** Assignee of a non-review task, only while the page is still in the state that created it. */
+const taskAssignee = (p: PageSummary, kind: TaskKind) => (kind !== "Review" && str(p.meta?.["ucp:taskKind"]) === kind ? str(p.meta?.["ucp:taskAssignee"]) : "");
 /** Pick the reviewer with the fewest active reviews (never the sender when someone else is available). */
 export async function autoAssignee(marketId: string, pagePath: string, senderId: string): Promise<ReviewerOption | undefined> { const opts = await reviewerOptions(marketId, pagePath); return opts.find((o) => o.id !== senderId) ?? opts[0]; }
+
+/* ---------------- publishing: now or at a date, one page or many ---------------- */
+export type PublishResult = { path: string; title: string; ok: boolean; status?: string; reason?: string };
+const PUBLISHABLE = ["approved", "scheduled"];
+/**
+ * Publish pages now (`at` empty or in the past) or schedule them for `at`. Only approved or already scheduled pages
+ * can go live, and the person needs Publish on each page. Every page is handled on its own; the result says why one was skipped.
+ */
+export async function publishPages(marketId: string, paths: string[], opts: { at?: string; cancel?: boolean }, u: User): Promise<PublishResult[]> {
+  const mk = await getMarket(marketId); const now = new Date(); const at = opts.at ? new Date(opts.at) : undefined;
+  if (at && isNaN(at.getTime())) throw new RepoError(400, "That date is not valid", opts.at);
+  const schedule = !!at && at.getTime() > now.getTime() + 60_000; const out: PublishResult[] = [];
+  for (const path of [...new Set(paths)]) {
+    const pg = await repo().getPage(path).catch(() => undefined);
+    if (!pg) { out.push({ path, title: path, ok: false, reason: "Page not found" }); continue; }
+    const r = { path, title: pg.title };
+    if (!can(u, "publish", path, mk.root)) { out.push({ ...r, ok: false, reason: "You don't have Publish on this page" }); continue; }
+    if (opts.cancel) {
+      if (pg.status !== "scheduled") { out.push({ ...r, ok: false, reason: "Not scheduled" }); continue; }
+      await repo().updateContent(path, { status: "approved" }); await repo().setProps(`${path}/jcr:content`, { "ucp:publishAt": null });
+      await logEvent(marketId, { type: "publishing", who: u.id, text: `cancelled the scheduled publish of ${pg.title}`, target: path }); out.push({ ...r, ok: true, status: "approved" }); continue;
+    }
+    if (!PUBLISHABLE.includes(pg.status)) { out.push({ ...r, ok: false, reason: pg.status === "published" ? "Already live" : pg.status === "review" ? "Still in review" : "Needs approval first" }); continue; }
+    const stamp = new Date().toISOString();
+    if (schedule) {
+      await snapshotVersion(path, "before: scheduled for publishing", u.id);
+      await repo().updateContent(path, { status: "scheduled" }); await repo().setProps(`${path}/jcr:content`, { "ucp:publishAt": at!.toISOString(), "ucp:sentBy": u.id, "ucp:sentAt": stamp, "ucp:due": null });
+      await logEvent(marketId, { type: "publishing", who: u.id, text: `scheduled ${pg.title} for ${at!.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/London" })}`, target: path });
+      out.push({ ...r, ok: true, status: "scheduled" });
+    } else {
+      await snapshotVersion(path, "before: published", u.id);
+      await repo().updateContent(path, { status: "published" }); await repo().setProps(`${path}/jcr:content`, { "ucp:publishAt": null, "ucp:publishedAt": stamp, "ucp:publishedBy": u.id, "ucp:sentBy": u.id, "ucp:sentAt": stamp, "ucp:due": null });
+      await logEvent(marketId, { type: "publishing", who: u.id, text: `published ${pg.title}`, target: path });
+      out.push({ ...r, ok: true, status: "published" });
+    }
+  }
+  return out;
+}
+/** Scheduled pages whose time has come go live. Called when CMS screens load (a real backend would run this as a job). */
+export async function publishDue(marketId: string): Promise<number> {
+  const mk = await getMarket(marketId); const now = Date.now(); let n = 0;
+  for (const p of await allPages(mk.root).catch(() => [])) {
+    const at = typeof p.meta?.["ucp:publishAt"] === "string" ? Date.parse(String(p.meta["ucp:publishAt"])) : NaN;
+    if (p.status !== "scheduled" || isNaN(at) || at > now) continue;
+    await repo().updateContent(p.path, { status: "published" }); await repo().setProps(`${p.path}/jcr:content`, { "ucp:publishAt": null, "ucp:publishedAt": new Date().toISOString(), "ucp:publishedBy": "system" });
+    await logEvent(marketId, { type: "publishing", who: "system", text: `published ${p.title} (scheduled)`, target: p.path }); n++;
+  }
+  return n;
+}

@@ -64,7 +64,7 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
   const bySection = folders.map((f) => ({ f, n: all.filter((p) => p.path.startsWith(f.path + "/")).length })).sort((a, b) => b.n - a.n); const secMax = bySection[0]?.n || 1;
   const rel = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); const diff = Math.round((now() - d.getTime()) / 60000); return diff < 60 ? `${Math.max(diff, 0)} min ago` : diff < 1440 ? `${Math.round(diff / 60)} h ago` : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
   return (
-    <div className="p-7 pb-14">
+    <div className="p-4 md:p-7 pb-14">
       <div className="flex flex-wrap items-center gap-4 mb-6 p-5 bg-surface border border-line border-l-[5px] border-l-accent">
         <div className="text-[40px] leading-none" aria-hidden>{mk.flag}</div>
         <div><h1 className="text-2xl font-semibold leading-tight">{mk.name}</h1><div className="text-[13px] text-ink-3 mt-1 flex gap-1.5 items-center"><span className="font-mono">{mk.domain}</span> · {mk.locales.join(", ")} · <Pill status={mk.status === "Live on UCP" ? "published" : mk.status === "On AEM" ? "draft" : "scheduled"} label={mk.status} /></div></div>
@@ -81,7 +81,7 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
         {tiles.map((t) => <Link key={t.l} href={t.href} className="bg-surface border border-line p-6 min-h-[150px] flex flex-col gap-1.5 hover:border-ink-3 hover:shadow-md" style={{ borderTop: `4px solid ${t.color}` }}><span className="text-[13px] text-ink-2">{t.l}</span><span className="text-[44px] font-light leading-none tabular-nums" style={{ color: t.color === "var(--crit)" ? t.color : undefined }}>{t.v}</span><span className="text-[13px] text-ink-3">{t.sub}</span><span className="text-[13px] font-medium mt-auto">{t.go} <span className="text-accent font-bold">›</span></span></Link>)}
       </div>
       <div className="grid md:grid-cols-2 gap-3.5 mb-3.5">
-        <Card title="Content by status"><StatusViz total={n} parts={[{ l: "Published", n: c("published"), c: "var(--good)" }, { l: "Published, changes pending", n: c("modified"), c: "var(--warn)" }, { l: "Approved", n: c("approved"), c: "var(--info)" }, { l: "In review", n: c("review"), c: "var(--review)" }, { l: "Scheduled", n: c("scheduled"), c: "var(--sched)" }, { l: "Draft", n: c("draft"), c: "var(--neutral)" }, { l: "Publish failed", n: c("failed"), c: "var(--crit)" }].filter((p) => p.n)} /></Card>
+        <Card title="Content by status"><StatusViz total={n} parts={[{ l: "Published", n: c("published"), c: "var(--good)" }, { l: "Published, changes pending", n: c("modified"), c: "var(--warn)" }, { l: "Ready to publish", n: c("approved"), c: "var(--info)" }, { l: "In review", n: c("review"), c: "var(--review)" }, { l: "Scheduled", n: c("scheduled"), c: "var(--sched)" }, { l: "Draft", n: c("draft"), c: "var(--neutral)" }, { l: "Publish failed", n: c("failed"), c: "var(--crit)" }].filter((p) => p.n)} /></Card>
         <Card title="Content activity" right={<span className="font-normal text-ink-3">Last 30 days</span>}>{demo ? <LineChart /> : activity.flat().some((v) => v > 0) ? <LineChart data={activity} /> : <p className="text-ink-3 text-[13px] py-6">No activity in the last 30 days.</p>}</Card>
       </div>
       <div className="grid md:grid-cols-2 gap-3.5 mb-3.5">

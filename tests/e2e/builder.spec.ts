@@ -12,17 +12,21 @@ test.describe("builder", () => {
     await page.goto(`${BASE}/page/banking/savings/fixed-rate-bonds`);
     const blocks = page.locator(".cblk");
     await expect(blocks.nth(1)).toBeVisible();
-    await blocks.nth(1).click({ position: { x: 20, y: 20 } });
-    const bar = page.getByRole("toolbar");
+    // Clicking a text edits it straight away, so select the block by clicking next to its texts (bottom-right corner).
+    const box = (await blocks.nth(1).boundingBox())!;
+    await blocks.nth(1).click({ position: { x: box.width - 8, y: box.height - 6 } });
+    const bar = page.getByRole("toolbar", { name: / actions$/ }); // the block toolbar (Configure has its own formatting toolbar)
     await expect(bar).toBeVisible();
     await expect(bar.getByRole("button", { name: "✎ Edit" })).toBeVisible();
-    await expect(bar.getByRole("button", { name: "⚙ Configure" })).toBeVisible();
+    // desktop: clicking the block opens Configure on its own, so the toolbar has no Configure button
+    await expect(page.getByText(/^Configure · /)).toBeVisible();
+    await expect(bar.getByRole("button", { name: "⚙ Configure" })).toHaveCount(0);
     await expect(bar.getByRole("button", { name: "✨ AI" })).toBeVisible();
 
     // The mast heading is the first inline-editable text of the first block.
     const heading = blocks.first().locator(".ie").first();
     const before = (await heading.innerText()).trim();
-    await heading.dblclick();
+    await heading.click(); // one click is enough to edit a text
     await expect(heading).toHaveClass(/editing/);
     await caretToEnd(heading);
     await page.keyboard.type(" ✓");
@@ -30,20 +34,23 @@ test.describe("builder", () => {
     await expect(heading).not.toHaveClass(/editing/);
     await expect(heading).toHaveText(`${before} ✓`);
 
-    const save = page.getByRole("button", { name: "Save", exact: true });
-    await expect(save).toBeEnabled();
-    await save.click();
-    await expect(page.getByText("Saved just now")).toBeVisible();
+    // No Save button: the draft saves itself shortly after the change.
+    const status = page.getByTitle("Changes are saved automatically");
+    await expect(status).toHaveText("✓ Saved", { timeout: 5000 });
+    await page.reload();
+    await expect(heading).toHaveText(`${before} ✓`);
 
     // Put the heading back so the seed stays tidy for other tests.
-    await heading.dblclick();
+    await heading.click();
     await expect(heading).toHaveClass(/editing/);
     await caretToEnd(heading);
     await page.keyboard.press("Backspace");
     await page.keyboard.press("Backspace");
     await page.keyboard.press("Enter");
     await expect(heading).toHaveText(before);
-    await save.click();
-    await expect(page.getByText("Saved just now")).toBeVisible();
+    await expect(status).toHaveText("Saving…");
+    await expect(status).toHaveText("✓ Saved", { timeout: 5000 });
+    await page.reload();
+    await expect(heading).toHaveText(before);
   });
 });

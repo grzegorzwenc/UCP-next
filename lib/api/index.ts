@@ -1,5 +1,5 @@
 import type { PageView, PageSummary, CreatePageInput, PageContentPatch, ComponentNode, Identity, Problem, RepoNode, NodeProps } from "./types";
-import type { Task, Notification, Asset, AuditEvent, User, Template, Model, ModelField, ModelVersion, Entity, EntityValues, Bindings, ReviewerOption } from "@/lib/ucp/types";
+import type { Task, Notification, Asset, AuditEvent, User, Template, Model, ModelField, ModelVersion, Entity, EntityValues, Bindings, ReviewerOption, TaskKind } from "@/lib/ucp/types";
 import type { ResolvedEntities } from "@/lib/ucp/tokens";
 import { ApiError } from "./types";
 export * from "./types";
@@ -60,12 +60,15 @@ export const ucpApi = {
   modelFolder: (market: string, act: "create" | "rename" | "delete", body: { name?: string; from?: string; to?: string }) => U<string[]>(`models/folders/${act}`, { method: "POST", query: { market }, body: JSON.stringify(body) }),
   moveModel: (market: string, id: string, to: { group?: string; before?: string }) => U<Model>("models/move", { method: "POST", query: { market, id }, body: JSON.stringify(to) }),
   deleteModel: (market: string, id: string) => U<{ ok: true }>("models/delete", { method: "POST", query: { market, id }, body: "{}" }),
+  /** Publish now (no `at`), schedule (`at` in the future) or cancel a schedule, for one page or many. */
+  publish: (market: string, paths: string[], opts: { at?: string; cancel?: boolean } = {}) => U<{ path: string; title: string; ok: boolean; status?: string; reason?: string }[]>("publish", { method: "POST", query: { market }, body: JSON.stringify({ paths, ...opts }) }),
   /* content entities */
   entities: (market: string, model?: string) => U<Entity[]>("entities", { query: { market, model } }),
   entity: (market: string, path: string) => U<Entity>("entities/get", { query: { market, path } }),
   createEntity: (market: string, model: string, title: string, values: EntityValues = {}, folder = "") => U<Entity>("entities/create", { method: "POST", query: { market }, body: JSON.stringify({ model, title, values, folder }) }),
   saveEntity: (market: string, path: string, patch: { title?: string; values?: EntityValues }) => U<Entity>("entities/save", { method: "POST", query: { market, path }, body: JSON.stringify(patch) }),
   publishEntity: (market: string, path: string) => U<Entity>("entities/publish", { method: "POST", query: { market, path }, body: "{}" }),
+  entityFolders: (market: string) => U<Record<string, string[]>>("entities/folders", { query: { market } }),
   entityFolder: (market: string, act: "create" | "rename" | "delete", body: { model: string; name?: string; from?: string; to?: string }) => U<string[]>(`entities/folders/${act}`, { method: "POST", query: { market }, body: JSON.stringify(body) }),
   moveEntity: (market: string, path: string, to: { model?: string; before?: string; folder?: string }) => U<{ entity: Entity; rebound: number; missing: string[] }>("entities/move", { method: "POST", query: { market, path }, body: JSON.stringify(to) }),
   deleteEntity: (market: string, path: string) => U<{ ok: true }>("entities/delete", { method: "POST", query: { market, path }, body: "{}" }),
@@ -74,6 +77,11 @@ export const ucpApi = {
   /* review assignment */
   reviewers: (market: string, path: string) => U<ReviewerOption[]>("reviewers", { query: { market, path } }),
   sendForReview: (market: string, path: string, body: { assignee?: string; auto?: boolean; note?: string }) => U<{ assignee: string; assigneeName: string; auto: boolean }>("review/send", { method: "POST", query: { market, path }, body: JSON.stringify(body) }),
+  /** Nudge the reviewer of a page in review ("I'm waiting"); at most once every 15 minutes. */
+  remindReviewer: (market: string, path: string) => U<{ remindedAt: string; reviewer: string }>("review/remind", { method: "POST", query: { market, path }, body: "{}" }),
   reassignReview: (market: string, path: string, body: { assignee?: string; auto?: boolean }) => U<{ assignee: string; assigneeName: string }>("review/assign", { method: "POST", query: { market, path }, body: JSON.stringify(body) }),
+  /* task assignment (site admins) */
+  taskPeople: (market: string, path: string, kind: TaskKind) => U<ReviewerOption[]>("task/people", { query: { market, path, kind } }),
+  assignTask: (market: string, path: string, kind: TaskKind, assignee: string | null) => U<{ assignee: string | null; assigneeName: string | null }>("task/assign", { method: "POST", query: { market, path }, body: JSON.stringify({ kind, assignee }) }),
   translate: (market: string, body: { pages: string[]; langs: string[]; review?: boolean; dest?: string; mode?: "ai" | "vendor" }) => U<{ created: string[] }>("translate", { method: "POST", query: { market }, body: JSON.stringify(body) }),
 };

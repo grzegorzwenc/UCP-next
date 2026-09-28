@@ -22,18 +22,18 @@ export const relativeTime = (iso: string, now = Date.now()) => {
 
 function Row({ v, isLatest, comparing, currentBlocks, onRestore, busy }: { v: Version; isLatest: boolean; comparing: boolean; currentBlocks: number; onRestore: (v: Version) => void; busy: boolean }) {
   const delta = v.blocks - currentBlocks;
-  return <li className="flex items-center gap-3 py-2.5 border-b border-line last:border-0">
-    <Avatar name={whoName(v.who)} size={28} />
+  return <li className="flex items-start gap-2.5 py-2.5 border-b border-line last:border-0">
+    <Avatar name={whoName(v.who)} size={26} />
     <div className="min-w-0 flex-1">
-      <div className="flex items-center gap-2 text-[13px] text-ink"><span className="font-medium truncate">{whoName(v.who)}</span><span className="text-ink-3 truncate">{v.note || "saved"}</span></div>
-      <div className="flex items-center gap-2 mt-0.5 text-[12px] text-ink-3">
+      <div className="text-[13px] text-ink leading-snug"><span className="font-medium">{whoName(v.who)}</span> <span className="text-ink-3">{v.note || "saved"}</span></div>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-[12px] text-ink-3">
         <time dateTime={v.time} title={fullTime(v.time)}>{relativeTime(v.time)}</time>
-        <span aria-hidden="true">·</span><Pill status={v.status} />
-        <span aria-hidden="true">·</span><span>{v.blocks} block{v.blocks === 1 ? "" : "s"}</span>
+        <Pill status={v.status} />
+        <span>{v.blocks} block{v.blocks === 1 ? "" : "s"}</span>
         {comparing && <span className={`font-mono ${delta === 0 ? "text-ink-4" : delta > 0 ? "text-info" : "text-warn"}`}>{delta === 0 ? "same count as now" : `${delta > 0 ? "+" : ""}${delta} vs now`}</span>}
       </div>
     </div>
-    {isLatest ? <span className="text-[11px] text-ink-3 px-2">Latest</span> : <button type="button" className="btn btn-sm" disabled={busy} onClick={() => onRestore(v)}>Restore</button>}
+    {isLatest ? <span className="flex-none text-[11px] font-semibold text-ink-3 bg-surface-2 rounded-full px-2 py-0.5 mt-0.5">Latest</span> : <button type="button" className="btn btn-sm flex-none" disabled={busy} onClick={() => onRestore(v)}>Restore</button>}
   </li>;
 }
 
@@ -58,15 +58,16 @@ export function VersionHistory({ marketId, path, currentBlocks, onRestored }: Pr
   }
 
   return <div className="grid gap-3 text-ink">
-    <header className="flex items-start gap-2">
-      <div><h2 className="text-[15px] font-semibold">Version history</h2><p className="text-[12px] text-ink-3 mt-0.5">Every save and status change creates a version. Restoring keeps a copy of the current page first.</p></div>
-      {!!list?.length && <button type="button" className={`btn btn-sm ml-auto flex-none ${compare ? "on" : ""}`} aria-pressed={compare} onClick={() => setCompare(!compare)}>Compare with current</button>}
+    {/* the panel header already says "Version history" */}
+    <header className="grid gap-2">
+      <p className="text-[12px] text-ink-3 leading-relaxed">Every save and status change creates a version. Restoring keeps a copy of the current page first.</p>
+      {!!list?.length && <label className="inline-flex items-center gap-2 text-[12.5px] text-ink-2 cursor-pointer justify-self-start"><input type="checkbox" className="accent-[var(--accent)]" checked={compare} onChange={() => setCompare(!compare)} />Compare block count with the current page</label>}
     </header>
     {compare && <div className="text-[12px] text-ink-3 bg-surface-2 rounded-md px-3 py-2">The page now has <b className="text-ink">{currentBlocks} block{currentBlocks === 1 ? "" : "s"}</b>. Each version shows how its block count differs.</div>}
     {err && <div className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</div>}
     {list === null && <div className="text-[13px] text-ink-3 p-4">Loading versions…</div>}
     {list !== null && !list.length && <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg text-[13px]">No versions yet — every save and status change creates one.</div>}
-    {!!list?.length && <ul className="border border-line rounded-lg bg-surface px-3">{list.map((v, i) => <Row key={v.id} v={v} isLatest={i === 0} comparing={compare} currentBlocks={currentBlocks} onRestore={setConfirm} busy={busy} />)}</ul>}
+    {!!list?.length && <ul className="border border-line rounded-lg bg-surface px-3 min-w-0">{list.map((v, i) => <Row key={v.id} v={v} isLatest={i === 0} comparing={compare} currentBlocks={currentBlocks} onRestore={setConfirm} busy={busy} />)}</ul>}
 
     {confirm && <div className="fixed inset-0 bg-black/45 grid place-items-center z-50" onClick={(e) => { if (e.target === e.currentTarget && !busy) setConfirm(null); }}>
       <div role="dialog" aria-label="Restore this version?" className="bg-surface rounded-xl w-[min(480px,94vw)] shadow-2xl">

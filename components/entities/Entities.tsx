@@ -1,4 +1,5 @@
 "use client";
+import { SideTree } from "@/components/ui/SideTree";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -18,7 +19,7 @@ import { detailLink, entitiesLink, entityLink, whoName, TEXT_TYPES, type UsedPag
 import { EntityEditor } from "./EntityEditor";
 import { NewEntityModal } from "./NewEntityModal";
 
-export type EntitiesProps = { base: string; marketId: string; marketRoot: string; models: Model[]; entities: Entity[]; usage: Record<string, UsedPage[]>; names: Record<string, string>; viewerId: string; modelId: string; entityId: string; folders: Record<string, string[]>; folder: string };
+export type EntitiesProps = { base: string; marketId: string; marketRoot: string; marketName: string; flag: string; models: Model[]; entities: Entity[]; usage: Record<string, UsedPage[]>; names: Record<string, string>; viewerId: string; modelId: string; entityId: string; folders: Record<string, string[]>; folder: string };
 type Sort = "title" | "model" | "status" | "used" | "modified";
 const STATUS_ORDER: Record<Entity["status"], number> = { draft: 0, modified: 1, published: 2 };
 
@@ -87,18 +88,18 @@ export function Entities(p: EntitiesProps) {
   const onCreated = (m: Model, e: Entity) => { setCreating(false); say(`Created “${e.title}” (draft). Fill in the content, then save.`); router.push(entityLink(p.base, m.id, e.id)); router.refresh(); };
 
   let body: React.ReactNode;
-  if (md && ent) body = <EntityEditor key={`${ent.path}:${ent.lastModified ?? ""}:${ent.status}`} base={p.base} marketId={p.marketId} marketRoot={p.marketRoot} model={md} entity={ent} entities={p.entities} models={p.models} usedOn={p.usage[ent.path] ?? []} names={p.names} viewerId={p.viewerId} canEdit={canEdit} go={go} say={say} setDirty={setDirty} saveRef={saveRef} />;
-  else if (md && p.entityId) body = <div className="p-7"><Crumbs items={[{ label: "Content entities", href: entitiesLink(p.base), onClick: () => go(entitiesLink(p.base)) }, { label: md.name, href: entitiesLink(p.base, md.id), onClick: () => go(entitiesLink(p.base, md.id)) }, { label: "Not found" }]} /><div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl"><b className="block text-[15px]">This entity no longer exists</b><p className="text-ink-3 text-[13px] mt-1">It may have been deleted. <button className="underline text-ink" onClick={() => go(entitiesLink(p.base, md.id))}>Back to {md.name} entities</button></p></div></div>;
+  if (md && ent) body = <EntityEditor key={`${ent.path}:${ent.lastModified ?? ""}:${ent.status}`} base={p.base} marketId={p.marketId} marketRoot={p.marketRoot} marketName={p.marketName} flag={p.flag} model={md} entity={ent} entities={p.entities} models={p.models} usedOn={p.usage[ent.path] ?? []} names={p.names} viewerId={p.viewerId} canEdit={canEdit} go={go} say={say} setDirty={setDirty} saveRef={saveRef} />;
+  else if (md && p.entityId) body = <div className="p-4 md:p-7"><Crumbs items={[{ label: "Content entities", href: entitiesLink(p.base), onClick: () => go(entitiesLink(p.base)) }, { label: md.name, href: entitiesLink(p.base, md.id), onClick: () => go(entitiesLink(p.base, md.id)) }, { label: "Not found" }]} /><div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl"><b className="block text-[15px]">This entity no longer exists</b><p className="text-ink-3 text-[13px] mt-1">It may have been deleted. <button className="underline text-ink" onClick={() => go(entitiesLink(p.base, md.id))}>Back to {md.name} entities</button></p></div></div>;
   else body = <Overview key={md?.id ?? ""} p={p} md={md} byModel={byModel} models={models} canEdit={canEdit} go={go} onCreate={() => setCreating(true)} onNewFolder={(m) => setFolderDlg({ model: m })} />;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] grid-rows-[auto_1fr] md:grid-rows-1 h-full min-h-0">
-      <aside className="bg-surface border-b md:border-b-0 md:border-r border-line p-3 md:overflow-auto">
+      <SideTree label="Entities" current={ent?.title ?? md?.name ?? "All entities"}>
         <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mb-2">Content entities</h6>{canEdit && <p className="text-[11.5px] text-ink-4 px-2 -mt-1 mb-2">Drag an entity to reorder it or move it to another folder.</p>}
         <label className="flex items-center gap-2 border border-line-2 rounded-md px-2.5 py-1.5 mb-2 bg-surface"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px] bg-transparent min-w-0" placeholder="Find an entity" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find an entity" /></label>
         <FolderList key={ql ? `q:${ql}` : `sel:${md?.id ?? ""}`} root={{ label: "All entities", count: p.entities.length, active: !md, onClick: () => go(entitiesLink(p.base)) }} items={items} extra={ql && !items.length ? <div className="text-[12.5px] text-ink-4 px-2 py-1">Nothing matches “{q}”</div> : undefined} />
-        {canEdit && <button className="btn btn-quiet btn-sm mt-2.5 ml-1" onClick={() => setCreating(true)}>＋ Create entity</button>}
-      </aside>
+        {canEdit && <button className="btn btn-quiet btn-sm mt-2.5 ml-1" onClick={() => setCreating(true)}>＋ New entity</button>}
+      </SideTree>
       <div className="overflow-y-auto overflow-x-hidden min-w-0 min-h-0">{body}</div>
       {creating && canEdit && <NewEntityModal marketId={p.marketId} models={models} initial={md} folder={p.folder} onClose={() => setCreating(false)} onDone={onCreated} />}
       {pending && <UnsavedModal what={ent ? `“${ent.title}”` : "this entity"} busy={busy === "guard"} onStay={() => setPending(null)} onDiscard={() => { const h = pending; setPending(null); setDirty(false); router.push(h); }} onSave={async () => { setBusy("guard"); const ok = await saveRef.current?.(); setBusy(""); if (ok) { const h = pending; setPending(null); setDirty(false); router.push(h); } }} />}
@@ -125,7 +126,6 @@ function Overview({ p, md, byModel, models, canEdit, go, onCreate, onNewFolder }
   const [q, setQ] = useState(""); const [status, setStatus] = useState(""); const [sort, setSort] = useState<Sort>("title"); const [dir, setDir] = useState<"asc" | "desc">("asc");
   const modelOf = useMemo(() => Object.fromEntries(p.models.map((m) => [m.id, m])), [p.models]);
   const scope = useMemo(() => (md ? (byModel[md.id] ?? []).filter((e) => !p.folder || e.folder === p.folder) : p.entities), [md, byModel, p.entities, p.folder]);
-  const used = (e: Entity) => (p.usage[e.path] ?? []).length;
   const rows = useMemo(() => {
     const s = q.trim().toLowerCase();
     const r = scope.filter((e) => (!status || e.status === status) && (!s || `${e.title} ${e.id} ${firstText(e, modelOf[e.model])}`.toLowerCase().includes(s)));
@@ -140,10 +140,10 @@ function Overview({ p, md, byModel, models, canEdit, go, onCreate, onNewFolder }
   }, [scope, modelOf, p.usage, q, status, sort, dir]);
   const sortBy = (k: Sort) => { if (sort === k) setDir((d) => (d === "asc" ? "desc" : "asc")); else { setSort(k); setDir("asc"); } };
   const filtered = !!(q || status); const sel = "border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface";
-  const createBtn = canEdit ? <>{!p.folder && <button className="btn" onClick={() => onNewFolder(md)}>＋ New folder</button>}<button className="btn btn-primary" onClick={onCreate}>＋ Create entity</button></> : null;
+  const createBtn = canEdit ? <>{!p.folder && <button className="btn" onClick={() => onNewFolder(md)}>＋ New folder</button>}<button className="btn btn-primary" onClick={onCreate}>＋ New entity</button></> : null;
   const nav = (href: string) => ({ href, onClick: (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); go(href); } });
 
-  return <div className="p-7">
+  return <div className="p-4 md:p-7">
     {md && <Crumbs items={[{ label: "Content entities", href: entitiesLink(p.base), onClick: () => go(entitiesLink(p.base)) }, ...(p.folder ? [{ label: md.name, href: entitiesLink(p.base, md.id), onClick: () => go(entitiesLink(p.base, md.id)) }, { label: p.folder }] : [{ label: md.name }])]} />}
     <div className="flex flex-wrap items-end gap-4 mb-5"><div><h1 className="text-2xl font-semibold">{md ? (p.folder ? p.folder : `${md.name} entities`) : "Content entities"}</h1><p className="text-ink-3 text-[13px] mt-1">Concrete content built from a content model. Pages reuse it with {"{{tokens}}"}.{md && <> · <Link {...nav(detailLink(p.base, md.id))} className="underline hover:text-ink">View the {md.name} model</Link></>}</p></div>
       <div className="ml-auto flex gap-2 items-center">{createBtn ?? <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="You need Edit on this site to create content."><span aria-hidden="true">🔒</span>Read-only</span>}</div></div>
@@ -151,18 +151,18 @@ function Overview({ p, md, byModel, models, canEdit, go, onCreate, onNewFolder }
       <label className="flex items-center gap-2 bg-surface border border-line-2 rounded-md px-2.5 py-1.5 min-w-[260px]"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px]" placeholder="Search entities" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search entities" /></label>
       <select className={sel} value={md?.id ?? ""} onChange={(e) => go(entitiesLink(p.base, e.target.value || undefined))} aria-label="Content model"><option value="">All models</option>{models.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
       <select className={sel} value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status"><option value="">All statuses</option><option value="draft">Draft</option><option value="published">Published</option><option value="modified">Modified</option></select>
-      <select className={sel} value={sort} onChange={(e) => { setSort(e.target.value as Sort); setDir("asc"); }} aria-label="Sort by"><option value="title">Sort: title</option><option value="modified">Sort: last modified</option><option value="status">Sort: status</option><option value="model">Sort: model</option><option value="used">Sort: used on</option></select>
       <span className="ml-auto text-[12.5px] text-ink-3">{rows.length} of {scope.length}</span></div>}
-    {rows.length ? <div className="bg-surface border border-line rounded-xl overflow-hidden"><div className="overflow-auto"><table className="w-full text-[13.5px] [&_tr>*:nth-child(5)]:hidden 2xl:[&_tr>*:nth-child(5)]:table-cell [&_tr>*:nth-child(6)]:hidden 2xl:[&_tr>*:nth-child(6)]:table-cell">
-      <thead className="bg-surface-2"><tr className="text-left text-[11px] uppercase tracking-[.08em] text-ink-3"><Th k="title" s={sort} d={dir} on={sortBy}>Entity</Th><Th k="model" s={sort} d={dir} on={sortBy} className="w-[170px]">Model</Th><Th k="status" s={sort} d={dir} on={sortBy} className="w-[120px]">Status</Th><Th k="used" s={sort} d={dir} on={sortBy} className="w-[110px]">Used on</Th><Th k="modified" s={sort} d={dir} on={sortBy} className="w-[140px]">Last modified</Th><Th className="w-[170px]">By</Th></tr></thead>
-      <tbody>{rows.map((e) => { const m = modelOf[e.model]; const href = entityLink(p.base, e.model, e.id); const by = e.lastModifiedBy ? whoName(e.lastModifiedBy, p.names) : ""; const t = firstText(e, m); const n = used(e);
-        return <tr key={e.path} className="hover:bg-surface-2 cursor-pointer border-t border-line" onClick={() => go(href)}>
-          <td className="px-4 py-3"><Link {...nav(href)} className="font-semibold hover:underline">{e.title}</Link>{t ? <div className="text-[12.5px] text-ink-3 truncate max-w-[420px]" title={t}>{t}</div> : <div className="font-mono text-[11.5px] text-ink-4">{e.id}</div>}</td>
-          <td className="px-4 py-3">{m && <span className="inline-flex items-center gap-1.5 border border-line-2 rounded-full pl-1 pr-2.5 py-0.5 text-[12.5px] max-w-full"><ModelIcon m={m} /><span className="truncate">{m.name}</span></span>}</td>
+    {rows.length ? <div className="bg-surface border border-line rounded-xl overflow-hidden"><div className="overflow-auto"><table className="w-full table-fixed text-[13.5px] [&_tr>.col-upd]:hidden 2xl:[&_tr>.col-upd]:table-cell [&_tr>.col-model]:hidden 2xl:[&_tr>.col-model]:table-cell [&_tr>.col-used]:hidden xl:[&_tr>.col-used]:table-cell">
+      <thead className="bg-surface-2"><tr className="text-left text-[11px] uppercase tracking-[.08em] text-ink-3"><Th k="title" s={sort} d={dir} on={sortBy}>Entity</Th>{!md && <Th k="model" s={sort} d={dir} on={sortBy} className="w-[130px] col-model">Model</Th>}<Th k="status" s={sort} d={dir} on={sortBy} className="w-[120px]">Status</Th><Th k="used" s={sort} d={dir} on={sortBy} className="w-[160px] col-used">Used on</Th><Th k="modified" s={sort} d={dir} on={sortBy} className="w-[170px] col-upd">Updated</Th><Th className="w-[80px]"><span className="sr-only">Actions</span></Th></tr></thead>
+      <tbody>{rows.map((e) => { const m = modelOf[e.model]; const href = entityLink(p.base, e.model, e.id); const by = e.lastModifiedBy ? whoName(e.lastModifiedBy, p.names) : ""; const t = firstText(e, m); const pages = p.usage[e.path] ?? [];
+        return <tr key={e.path} className="group hover:bg-surface-2 cursor-pointer border-t border-line" onClick={() => go(href)}>
+          <td className="px-4 py-3"><div className="flex items-center gap-3 min-w-0">{m && <ModelIcon m={m} />}<div className="min-w-0"><div className="flex items-center gap-2 min-w-0"><Link {...nav(href)} className="font-semibold hover:underline truncate">{e.title}</Link>{e.folder && <span className="flex-none inline-flex items-center gap-1 text-[11px] text-ink-3 bg-surface-3 rounded px-1.5 py-px" title={`In folder ${e.folder}`}>📁 {e.folder}</span>}</div>
+            <div className="text-[12.5px] text-ink-3 truncate" title={t || e.id}>{t || <span className="font-mono text-[11.5px] text-ink-4">{e.id}</span>}</div></div></div></td>
+          {!md && <td className="px-4 py-3 col-model">{m && <span className="inline-flex items-center border border-line-2 rounded-full px-2.5 py-0.5 text-[12.5px] max-w-full truncate">{m.name}</span>}</td>}
           <td className="px-4 py-3"><StatusPill status={e.status} /></td>
-          <td className="px-4 py-3 text-ink-2 text-[12.5px]">{n} page{n === 1 ? "" : "s"}</td>
-          <td className="px-4 py-3 text-ink-2"><When iso={e.lastModified} /></td>
-          <td className="px-4 py-3">{by ? <span className="inline-flex items-center gap-2"><Avatar name={by} size={22} /><span className="text-[13px] truncate">{e.lastModifiedBy === p.viewerId ? "You" : by}</span></span> : <span className="text-ink-4">—</span>}</td>
+          <td className="px-4 py-3 text-[12.5px] col-used">{pages.length ? <span className="flex items-center gap-1.5 min-w-0"><Link href={`${p.base}/page${pages[0].path.replace(p.marketRoot, "")}`} onClick={(ev) => ev.stopPropagation()} className="truncate text-ink-2 hover:underline" title={pages.map((x) => x.title).join(", ")}>{pages[0].title}</Link>{pages.length > 1 && <span className="flex-none text-ink-3" title={pages.slice(1).map((x) => x.title).join(", ")}>+{pages.length - 1}</span>}</span> : <span className="text-ink-4">Not used yet</span>}</td>
+          <td className="px-4 py-3 col-upd">{e.lastModified ? <span className="flex items-center gap-2 min-w-0">{by && <Avatar name={by} size={22} />}<span className="min-w-0 leading-tight"><span className="block text-[12.5px] text-ink-2"><When iso={e.lastModified} /></span>{by && <span className="block text-[11.5px] text-ink-3 truncate">{e.lastModifiedBy === p.viewerId ? "You" : by}</span>}</span></span> : <span className="text-ink-4">—</span>}</td>
+          <td className="px-4 py-3 text-right"><Link {...nav(href)} className="btn btn-sm">{canEdit ? "Edit" : "View"}</Link></td>
         </tr>; })}</tbody></table></div></div>
       : <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl">{filtered ? <><b className="block text-[15px]">No entities match</b><p className="text-ink-3 text-[13px] mt-1"><button className="underline text-ink" onClick={() => { setQ(""); setStatus(""); }}>Clear filters</button></p></>
         : md ? <><b className="block text-[15px]">No {md.name} entities yet</b><p className="text-ink-3 text-[13px] mt-1 mb-4">{md.status === "draft" ? "Publish the model first, then fill in its fields to create reusable content." : "Fill in this model’s fields to create reusable content."}</p>{md.status !== "draft" && createBtn}</>

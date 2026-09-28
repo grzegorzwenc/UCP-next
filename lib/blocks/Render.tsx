@@ -1,6 +1,6 @@
 import type { Block } from "@/lib/api/types";
 import { BLOCK_BY_TYPE, lines } from "./registry";
-import { AssetsContext, EntitiesContext, InlineEditContext, InlineText, MastSurface } from "./AssetsContext";
+import { AssetsContext, EntitiesContext, InlineEditContext, MastSurface, RichInline, RichText } from "./AssetsContext";
 export { AssetsContext, EntitiesContext, InlineEditContext };
 
 const ICONS: Record<string, string> = {
@@ -13,9 +13,10 @@ const ICONS: Record<string, string> = {
 };
 
 /** Text span that the builder can make editable in place. `f` = prop key, optional row/col for list cells. {{alias.field}} tokens resolve via EntitiesContext. */
-function T({ id, f, r, c, children }: { id: string; f: string; r?: number | string; c?: number; children: React.ReactNode }) {
+/** Every text is formattable: one line (bold, italic, underline, link) by default, `block` adds paragraphs and lists. */
+function T({ id, f, r, c, block, children }: { id: string; f: string; r?: number | string; c?: number; block?: boolean; children: React.ReactNode }) {
   const key = [id, f, r, c].filter((x) => x !== undefined).join("|");
-  return <InlineText k={key}>{children}</InlineText>;
+  return <RichInline k={key} value={typeof children === "string" || typeof children === "number" ? String(children) : ""} block={block} />;
 }
 
 export function RenderBlock({ b }: { b: Block }) {
@@ -25,29 +26,29 @@ export function RenderBlock({ b }: { b: Block }) {
     case "mast":
       return <MastSurface image={p.image}><div className="box"><h1><T id={id} f="heading">{p.heading}</T></h1>{p.intro && <p><T id={id} f="intro">{p.intro}</T></p>}{p.cta && <span className="s-cta"><T id={id} f="cta">{p.cta}</T></span>}</div></MastSurface>;
     case "contentmaster":
-      return <div><h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2><p className="s-p"><T id={id} f="body">{p.body}</T></p></div>;
+      return <div><h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2><RichText k={`${id}|body`} value={p.body} className="s-p" /></div>;
     case "icontiles":
-      return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-icons">{lines(p.items).map(([ic, t, d], i) => <div key={i}><svg viewBox="0 0 24 24"><path d={ICONS[ic] || ICONS.star} /></svg><h3><T id={id} f="items" r={i} c={1}>{t}</T></h3><p><T id={id} f="items" r={i} c={2}>{d}</T></p></div>)}</div></div>;
+      return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-icons">{lines(p.items).map(([ic, t, d], i) => <div key={i}><svg viewBox="0 0 24 24"><path d={ICONS[ic] || ICONS.star} /></svg><h3><T id={id} f="items" r={i} c={1}>{t}</T></h3><T id={id} f="items" r={i} c={2} block>{d}</T></div>)}</div></div>;
     case "mastertiles":
-      return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-tiles">{lines(p.items).map(([st, nm, tx, pr, apr, btn], i) => <div className="s-tile" key={i}><div className="tv"><div className={`cardv ${st || "red"}`}><svg className="lg" viewBox="0 0 40 20"><polygon points="0,0 20,10 0,20" fill="#DB0011" /><polygon points="40,0 20,10 40,20" fill="#DB0011" /></svg><span className="chip" /><span className="nm">HSBC</span></div></div><div className="tb"><h3><span className="hs-lnk"><T id={id} f="items" r={i} c={1}>{nm}</T></span></h3><p><T id={id} f="items" r={i} c={2}>{tx}</T></p><div className="rep"><b>Representative example</b>Purchase rate: <T id={id} f="items" r={i} c={3}>{pr}</T><br />Representative: <T id={id} f="items" r={i} c={4}>{apr}</T></div><span className="s-cta"><T id={id} f="items" r={i} c={5}>{btn || "Apply now"}</T></span></div></div>)}</div>{p.note && <p className="s-disc" style={{ marginTop: 12 }}><T id={id} f="note">{p.note}</T></p>}</div>;
+      return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-tiles">{lines(p.items).map(([st, nm, tx, pr, apr, btn], i) => <div className="s-tile" key={i}><div className="tv"><div className={`cardv ${st || "red"}`}><svg className="lg" viewBox="0 0 40 20"><polygon points="0,0 20,10 0,20" fill="#DB0011" /><polygon points="40,0 20,10 40,20" fill="#DB0011" /></svg><span className="chip" /><span className="nm">HSBC</span></div></div><div className="tb"><h3><span className="hs-lnk"><T id={id} f="items" r={i} c={1}>{nm}</T></span></h3><T id={id} f="items" r={i} c={2} block>{tx}</T><div className="rep"><b>Representative example</b>Purchase rate: <T id={id} f="items" r={i} c={3}>{pr}</T><br />Representative: <T id={id} f="items" r={i} c={4}>{apr}</T></div><span className="s-cta"><T id={id} f="items" r={i} c={5}>{btn || "Apply now"}</T></span></div></div>)}</div>{p.note && <p className="s-disc" style={{ marginTop: 12 }}><T id={id} f="note">{p.note}</T></p>}</div>;
     case "linktiles":
-      return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-ltiles">{lines(p.items).map(([t, d], i) => <div className="lt" key={i}><h3><span className="hs-lnk"><T id={id} f="items" r={i} c={0}>{t}</T></span></h3><p><T id={id} f="items" r={i} c={1}>{d}</T></p></div>)}</div></div>;
+      return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-ltiles">{lines(p.items).map(([t, d], i) => <div className="lt" key={i}><h3><span className="hs-lnk"><T id={id} f="items" r={i} c={0}>{t}</T></span></h3><T id={id} f="items" r={i} c={1} block>{d}</T></div>)}</div></div>;
     case "footnotes":
       return <div className="s-foot"><h3><T id={id} f="heading">{p.heading || "Additional information"}</T></h3><ol>{lines(p.items).map((r, i) => <li key={i}><T id={id} f="items" r={i} c={0}>{r.join(" | ")}</T></li>)}</ol></div>;
     case "banner":
       return <div className={`s-banner ${p.style === "light" ? "light" : ""}`}><div><h3><T id={id} f="heading">{p.heading}</T></h3><p><T id={id} f="text">{p.text}</T></p></div>{p.cta && <span className="s-cta"><T id={id} f="cta">{p.cta}</T></span>}</div>;
     case "text":
-      return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-p">{String(p.body || "").split(/\n\s*\n/).map((para, i) => <p key={i}><T id={id} f="body" r="p" c={i}>{para}</T></p>)}</div></div>;
+      return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<RichText k={`${id}|body`} value={p.body} className="s-p" /></div>;
     case "facts":
       return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-facts">{lines(p.items).map(([l, v], i) => <div key={i}><b><T id={id} f="items" r={i} c={0}>{l}</T></b><span><T id={id} f="items" r={i} c={1}>{v}</T></span></div>)}</div></div>;
     case "faq":
-      return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-faq">{lines(p.items).map(([q, a], i) => <details key={i} open={i === 0}><summary><T id={id} f="items" r={i} c={0}>{q}</T></summary><p><T id={id} f="items" r={i} c={1}>{a}</T></p></details>)}</div></div>;
+      return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-faq">{lines(p.items).map(([q, a], i) => <details key={i} open={i === 0}><summary><T id={id} f="items" r={i} c={0}>{q}</T></summary><T id={id} f="items" r={i} c={1} block>{a}</T></details>)}</div></div>;
     case "rates":
       return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<table className="s-table"><thead><tr><th>Term</th><th>AER</th><th>Gross</th></tr></thead><tbody>{lines(p.rows).map((r, i) => <tr key={i}>{r.map((c, ci) => <td key={ci}><T id={id} f="rows" r={i} c={ci}>{c}</T></td>)}</tr>)}</tbody></table>{p.note && <p className="s-disc" style={{ marginTop: 8 }}><T id={id} f="note">{p.note}</T></p>}</div>;
     case "form":
       return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-form"><div><label>First name</label><i /></div><div><label>Last name</label><i /></div><div><label>Email</label><i /></div><div><label>Phone</label><i /></div><div className="full"><span className="s-cta">Continue</span></div><div className="full s-disc" style={{ fontFamily: "var(--font-mono)" }}>Forms service · {p.form}</div></div></div>;
     case "disclaimer":
-      return <div className="s-disc"><T id={id} f="text">{p.text}</T></div>;
+      return <RichText k={`${id}|text`} value={p.text} className="s-disc" />;
     default:
       return <div className="s-disc">Unknown block: {b.type}</div>;
   }

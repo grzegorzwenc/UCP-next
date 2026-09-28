@@ -4,7 +4,7 @@ import { SideNav } from "@/components/shell/SideNav";
 import { Palette } from "@/components/shell/Palette";
 import { SessionProvider } from "@/components/shell/Session";
 import { MarketsProvider } from "@/components/shell/Markets";
-import { me } from "@/lib/server/ucp";
+import { me, publishDue } from "@/lib/server/ucp";
 import { getMarkets } from "@/lib/server/markets";
 import { pickMarket } from "@/lib/markets";
 import { RepoError, repo } from "@/lib/repo";
@@ -12,7 +12,8 @@ import { RepoError, repo } from "@/lib/repo";
 export default async function CmsLayout({ children, params }: LayoutProps<"/[market]/[env]">) {
   const { market: mid, env } = await params;
   let user, markets;
-  try { [user, markets] = await Promise.all([me(), getMarkets()]); }
+  // publishDue: scheduled pages whose time has come go live
+  try { [user, markets] = await Promise.all([me(), getMarkets(), publishDue(mid).catch(() => 0)]); }
   catch (e) {
     // The backend session ended (expired, signed out elsewhere, server restarted): sign in again.
     if (e instanceof RepoError && e.status === 401) redirect(`/login?next=${encodeURIComponent(`/${mid}/${env}/dashboard`)}`);

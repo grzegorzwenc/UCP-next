@@ -24,6 +24,7 @@ export default async function Page({ params, searchParams }: PageProps<"/[market
   return (<>
     <div className="px-7 pt-7 grid gap-3 max-w-[1100px]">
       <BackendTool title="ContentLIBRE Management API" text="Pages, sites and identity, as this CMS uses them. Swagger UI with the OpenAPI 3.1 document." href={`${origin}/api/management/docs/`} action="Open Swagger" />
+      <BackendTool title="Repository Manager" text="The raw repository (this CMS has no JCR screen): browse and search, stage changes and apply them in one save, packages." href={`${origin}/manage/repository?path=${encodeURIComponent(mk.root)}`} action="Open Repository Manager" />
       <BackendTool title="Repository Manager API" text="Browse, query, change sets and packages. OpenAPI 3.1 document." href={`${origin}/api/manage/repostiory/v1/openapi.json`} action="Open OpenAPI" />
     </div>
     {explorer}

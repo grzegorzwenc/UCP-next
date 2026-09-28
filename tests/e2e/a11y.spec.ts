@@ -42,19 +42,20 @@ test.describe("keyboard and shell", () => {
     await expect(nav).toHaveClass(/w-\[264px\]/);
   });
 
-  test("repository row menu is a keyboard-operable ARIA menu", async ({ page }) => {
-    await page.goto(`${BASE}/repo`);
-    const trigger = page.getByRole("button", { name: /More actions for/ }).first();
+  test("action menu is a keyboard-operable ARIA menu", async ({ page }) => {
+    await login(page, "super.admin");
+    await page.goto(`${BASE}/models?model=product&edit=1`);
+    const trigger = page.getByRole("button", { name: "More actions" });
     await trigger.focus();
     await page.keyboard.press("ArrowDown");
     const menu = page.getByRole("menu");
     await expect(menu).toBeVisible();
     await expect(trigger).toHaveAttribute("aria-expanded", "true");
-    await expect(menu.getByRole("menuitem", { name: "Copy path" })).toBeFocused();
+    await expect(menu.getByRole("menuitem", { name: "Duplicate" })).toBeFocused();
     await page.keyboard.press("End");
-    await expect(menu.getByRole("menuitem", { name: "Open in builder" })).toBeFocused();
+    await expect(menu.getByRole("menuitem", { name: "Duplicate" })).not.toBeFocused();
     await page.keyboard.press("Home");
-    await expect(menu.getByRole("menuitem", { name: "Copy path" })).toBeFocused();
+    await expect(menu.getByRole("menuitem", { name: "Duplicate" })).toBeFocused();
     await page.keyboard.press("Escape");
     await expect(menu).toHaveCount(0);
     await expect(trigger).toBeFocused();

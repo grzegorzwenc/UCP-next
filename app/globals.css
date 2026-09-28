@@ -75,6 +75,8 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 .ie { border-radius: 2px; } .cblk.editmode .ie { box-shadow: 0 0 0 1px rgba(219,0,17,.35); cursor: text; background: rgba(219,0,17,.03); }
 .cblk.editmode .ie:hover { background: #FDECEE; } .cblk.editmode .ie::after { content: '✎'; font-size: 11px; color: #DB0011; margin-left: 5px; opacity: .55; vertical-align: super; }
 .cblk.editmode { border-style: dashed; }
+/* texts can be edited with one click: show it on hover without switching the block to edit mode first */
+.can-edit .cblk:not(.locked) .ie { cursor: text; } .can-edit .cblk:not(.locked) .ie:hover { background: #FDECEE; box-shadow: 0 0 0 1px rgba(219,0,17,.35); }
 .cblk.hidden-blk > *:not(.tag) { opacity: .4; } .cblk.hidden-blk::before { content: 'Hidden'; position: absolute; top: 8px; right: 10px; font-size: 11px; color: #4D6474; background: #F3F3F3; border: 1px solid #D7D8D6; padding: 1px 6px; border-radius: 3px; }
 .cblk.locked { cursor: default; }
 .ie.editing { outline: 2px solid #DB0011; outline-offset: 2px; background: #fff; } .cblk.editmode .ie.editing::after { content: none; }
@@ -82,6 +84,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 .tok { background: rgba(55,103,152,.10); box-shadow: inset 0 -1px 0 rgba(55,103,152,.55); border-radius: 2px; }
 .tok-bad { text-decoration: underline dashed #DB0011; text-underline-offset: 3px; }
 .preview .tok { background: none; box-shadow: none; } .preview .tok-bad { text-decoration: none; }
+.tok-raw { font-family: var(--font-mono); font-size: .82em; padding: 0 .25em; border-radius: 4px; white-space: nowrap; } .tok.tok-raw { background: rgba(55,103,152,.12); color: #2b567f; box-shadow: none; } .tok-bad.tok-raw { background: #FDECEE; color: #AF000D; text-decoration: none; }
 .s-h2 { font-size: 26px; font-weight: 300; margin: 0 0 10px; }
 .s-p { font-size: 13.5px; color: #404040; margin: 0; max-width: 66ch; }
 .s-cta { display: inline-block; background: #DB0011; color: #fff; font-size: 14px; font-weight: 500; padding: 11px 20px; }
@@ -141,3 +144,14 @@ body.focus .cms-shell > div { grid-template-columns: 1fr; }
 .site.mobile .s-cta { display: block; text-align: center; width: 100%; box-sizing: border-box; }
 .site.mobile .s-rates { font-size: 12px; } .site.mobile table { display: block; overflow-x: auto; }
 .site.mobile .s-ltiles, .site.mobile .s-tiles, .site.mobile .s-icons { grid-template-columns: 1fr; }
+
+/* rich text (long text fields): paragraphs, lists, links — on the page and in the Configure editor */
+.rt p { margin: 0 0 .65em; } .rt p:last-child { margin-bottom: 0; }
+.rt ul, .rt ol { margin: .35em 0 .7em; padding-left: 1.4em; } .rt ul { list-style: disc; } .rt ol { list-style: decimal; }
+.rt li { margin: .2em 0; } .rt li > p { margin: 0; }
+.rt a { color: #DB0011; text-decoration: underline; text-underline-offset: 2px; } .rt strong { font-weight: 600; } .rt em { font-style: italic; } .rt u { text-decoration: underline; }
+.rt:empty::before { content: attr(aria-label); color: var(--ink-4); }
+.rte:empty::before { content: "Write here…"; color: var(--ink-4); }
+.rti a { color: #DB0011; text-decoration: underline; text-underline-offset: 2px; } .rti strong { font-weight: 700; } .rti em { font-style: italic; } .rti u { text-decoration: underline; }
+.s-cta .rti a, .hs-lnk .rti a { color: inherit; }
+.rte-line:empty::before { content: " "; }

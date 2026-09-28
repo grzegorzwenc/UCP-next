@@ -41,9 +41,9 @@ export function ApiExplorer(p: Props) {
   const rows = p.pages.filter((x) => !q || (x.title + " " + route(x.path)).toLowerCase().includes(q.toLowerCase()));
   const mrows = p.models.filter((x) => !q || (x.name + " " + x.id).toLowerCase().includes(q.toLowerCase()));
   return (
-    <div className="p-7">
+    <div className="p-4 md:p-7">
       <div className="mb-5"><h1 className="text-2xl font-semibold">API &amp; delivery</h1><p className="text-ink-3 text-[13px] mt-1">Every saved page and model is available as JSON. Pick one to see its endpoint and payload.</p></div>
-      <div className="grid grid-cols-4 gap-3.5 mb-4">{STATS.map(([v, l, c]) => <div key={l} className="bg-surface border border-line rounded-lg p-4"><div className={`text-[26px] font-semibold leading-none ${c ?? ""}`}>{v}</div><div className="text-[12.5px] text-ink-3 mt-1.5">{l}</div></div>)}</div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-4">{STATS.map(([v, l, c]) => <div key={l} className="bg-surface border border-line rounded-lg p-4"><div className={`text-[26px] font-semibold leading-none ${c ?? ""}`}>{v}</div><div className="text-[12.5px] text-ink-3 mt-1.5">{l}</div></div>)}</div>
       <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-4 items-start">
         <aside className="bg-surface border border-line rounded-lg p-2.5">
           <div className="flex gap-1 border-b border-line mb-2 px-1">{(["pages", "models", "endpoints"] as ApiTab[]).map((t) => <Link key={t} href={tabLink(t)} className={`px-2.5 py-2 text-[13px] -mb-px border-b-2 ${p.tab === t ? "border-accent text-ink font-semibold" : "border-transparent text-ink-3 hover:text-ink"}`}>{t === "pages" ? "Pages" : t === "models" ? "Models" : "All endpoints"}</Link>)}</div>

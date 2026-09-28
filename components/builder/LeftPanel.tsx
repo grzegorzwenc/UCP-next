@@ -1,17 +1,16 @@
 "use client";
 import { useMemo, useState } from "react";
 import type { Block } from "@/lib/api/types";
-import { BLOCKS, BLOCK_BY_TYPE, GROUPS, makeBlock, missingRequired } from "@/lib/blocks/registry";
+import { BLOCKS, GROUPS, makeBlock } from "@/lib/blocks/registry";
 import { RenderBlock } from "@/lib/blocks/Render";
+import { LockedVeil } from "./LockedVeil";
 
 /**
- * Left panel of the builder: "Add" (component library with live thumbnails, one click adds) and
- * "Outline" (the blocks already on the page: jump, reorder, remove). No jargon, one action per row.
+ * Left panel of the builder: the component library with live thumbnails; one click adds the block below the selected one.
  */
-type Props = { tab: "add" | "outline"; setTab: (t: "add" | "outline") => void; phone?: boolean; width?: number; onResizeStart?: (e: React.MouseEvent) => void; blocks: Block[]; sel: string | null; canEdit: boolean; onAdd: (type: string) => void; onSelect: (id: string) => void; onMove: (id: string, d: number) => void; onRemove: (id: string) => void; onClose: () => void };
-const SNIPPET_KEYS = ["heading", "intro", "body", "text", "note", "question"];
+type Props = { phone?: boolean; width?: number; onResizeStart?: (e: React.MouseEvent) => void; canEdit: boolean; onAdd: (type: string) => void; onClose: () => void; lockedReason?: string; onEdit?: () => void };
 
-export function LeftPanel({ tab, setTab, phone, width = 320, onResizeStart, blocks, sel, canEdit, onAdd, onSelect, onMove, onRemove, onClose }: Props) {
+export function LeftPanel({ phone, width = 320, onResizeStart, canEdit, onAdd, onClose, lockedReason, onEdit }: Props) {
   const [q, setQ] = useState("");
   const filtered = BLOCKS.filter((b) => !q || b.name.toLowerCase().includes(q.toLowerCase()) || b.desc.toLowerCase().includes(q.toLowerCase()));
   // Stable ids: the same markup on the server and in the browser (random ids would trip hydration).
@@ -20,10 +19,10 @@ export function LeftPanel({ tab, setTab, phone, width = 320, onResizeStart, bloc
     <aside data-ui style={phone ? undefined : { width }} className={phone ? "absolute inset-x-0 top-0 bottom-12 bg-surface flex flex-col z-[5]" : "absolute left-[52px] top-0 bottom-0 max-w-[calc(100%-52px)] bg-surface border-r border-line flex flex-col z-[5] shadow-xl md:shadow-none"}>
       {!phone && onResizeStart && <div role="separator" aria-orientation="vertical" aria-label="Resize panel" title="Drag to resize" onMouseDown={onResizeStart} className="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize hover:bg-accent/30 active:bg-accent/40 z-10" />}
       <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line">
-        <b className="text-[13.5px]">{tab === "add" ? "Add a component" : `Page outline · ${blocks.length} block${blocks.length === 1 ? "" : "s"}`}</b>
+        <b className="text-[13.5px]">Add a component</b>
         <button type="button" className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={onClose} aria-label="Close panel">✕</button>
       </div>
-      {tab === "add" ? <>
+      <LockedVeil on={!!lockedReason} reason={lockedReason ?? ""} onEdit={onEdit}>
         <div className="p-3 border-b border-line"><input className="w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px]" placeholder="Find a component…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a component" /></div>
         <div className="flex-1 overflow-auto p-2">
           {!canEdit && <div className="m-1 mb-2 text-[12px] text-ink-3 bg-surface-3 border border-line rounded-md px-2.5 py-2">Read-only: you can look, but not add.</div>}
@@ -37,15 +36,7 @@ export function LeftPanel({ tab, setTab, phone, width = 320, onResizeStart, bloc
           </div>; })}
           {!filtered.length && <div className="p-6 text-center text-ink-3 text-[13px]">Nothing matches “{q}”.</div>}
         </div>
-      </> : <div className="flex-1 overflow-auto p-2">
-        {blocks.length ? <ol className="flex flex-col gap-0.5">{blocks.map((b, i) => { const def = BLOCK_BY_TYPE[b.type]; const on = sel === b.id; const missing = missingRequired(b).length; const snippet = SNIPPET_KEYS.map((k) => b.props[k]).find((v) => typeof v === "string" && v.trim()) as string | undefined;
-          return <li key={b.id} className={`group grid grid-cols-[22px_1fr_auto] items-center gap-2 rounded-lg px-2 py-1.5 ${on ? "bg-accent-soft" : "hover:bg-surface-2"}`}>
-            <span className={`w-[22px] h-[22px] rounded-full grid place-items-center text-[11px] font-semibold ${on ? "bg-accent text-white" : "bg-surface-3 text-ink-2"}`}>{i + 1}</span>
-            <button type="button" onClick={() => onSelect(b.id)} className="min-w-0 text-left"><b className={`block text-[13px] truncate ${on ? "text-accent-hover" : "text-ink"}`}>{def.name}{b.props.hidden ? <small className="ml-1.5 font-normal text-ink-3">hidden</small> : null}{b.props.locked ? <small className="ml-1.5 font-normal text-ink-3">🔒</small> : null}{missing ? <small className="ml-1.5 font-normal text-crit">{missing} required</small> : null}</b><small className="block text-[11.5px] text-ink-3 truncate">{snippet ?? def.desc}</small></button>
-            {canEdit && <span className="flex opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"><button type="button" className="w-6 h-6 rounded text-ink-3 hover:bg-surface-3 disabled:opacity-30" disabled={i === 0} onClick={() => onMove(b.id, -1)} aria-label="Move up">↑</button><button type="button" className="w-6 h-6 rounded text-ink-3 hover:bg-surface-3 disabled:opacity-30" disabled={i === blocks.length - 1} onClick={() => onMove(b.id, 1)} aria-label="Move down">↓</button><button type="button" className="w-6 h-6 rounded text-ink-3 hover:bg-crit-soft hover:text-crit" onClick={() => onRemove(b.id)} aria-label="Remove">✕</button></span>}
-          </li>; })}</ol>
-        : <div className="p-6 text-center text-ink-3 text-[13px]">No blocks yet. <button type="button" className="underline text-ink" onClick={() => setTab("add")}>Add the first one</button>.</div>}
-      </div>}
+      </LockedVeil>
     </aside>
   );
 }

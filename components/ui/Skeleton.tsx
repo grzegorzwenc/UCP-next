@@ -6,7 +6,7 @@ export function Skeleton({ className = "" }: { className?: string }) {
 /** Header bar (title + subtitle + action) followed by rows or tiles. */
 export function SectionSkeleton({ section, rows = 8, tiles = false, sidebar = false }: { section: string; rows?: number; tiles?: boolean; sidebar?: boolean }) {
   const body = (
-    <div className="p-7" role="status" aria-live="polite" aria-label={`Loading ${section}`}>
+    <div className="p-4 md:p-7" role="status" aria-live="polite" aria-label={`Loading ${section}`}>
       <div className="flex items-end gap-4 mb-6"><div className="grid gap-2"><Skeleton className="h-7 w-[260px]" /><Skeleton className="h-3.5 w-[380px]" /></div><div className="ml-auto flex gap-2"><Skeleton className="h-9 w-[110px]" /><Skeleton className="h-9 w-[140px]" /></div></div>
       <div className="flex gap-2 mb-4"><Skeleton className="h-9 w-[280px]" /><Skeleton className="h-9 w-[120px]" /></div>
       {tiles
