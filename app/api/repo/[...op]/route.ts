@@ -28,7 +28,7 @@ const problem = (e: unknown) => {
   return NextResponse.json({ type: "about:blank", title: err.message, status: err.status, detail: err.detail }, { status: err.status, headers: { "Content-Type": "application/problem+json", "X-Request-Id": err.requestId ?? crypto.randomUUID() } });
 };
 const marketOf = (path: string) => path.match(/^\/content\/(?:dam\/)?([a-z]{2})(\/|$)/)?.[1] ?? path.match(/^\/var\/audit\/ucp\/([a-z]{2})/)?.[1] ?? "uk";
-const STATUS_TEXT: Record<PageStatus, string> = { draft: "reopened {t} as a draft", review: "sent {t} for review", approved: "approved {t}", scheduled: "scheduled {t} for publishing", published: "published {t}", failed: "publish of {t} failed" };
+const STATUS_TEXT: Record<PageStatus, string> = { draft: "reopened {t} as a draft", review: "sent {t} for review", approved: "approved {t} · ready to publish", scheduled: "scheduled {t} for publishing", published: "published {t}", failed: "publish of {t} failed" };
 
 async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }> }) {
   const { op } = await ctx.params; const o = op.join("/"); const q = req.nextUrl.searchParams; const path = q.get("path") ?? ""; const r = repo(); const rid = crypto.randomUUID();
@@ -54,7 +54,8 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       const p = await r.updateContent(path, patch);
       if (patch.status && before && patch.status !== before.status) {
         const meId = who.id; const meta: Record<string, unknown> = { "ucp:sentBy": meId, "ucp:sentAt": new Date().toISOString() };
-        if (patch.status === "review") { const d = new Date(); d.setDate(d.getDate() + 3); meta["ucp:due"] = d.toISOString(); } else meta["ucp:due"] = null;
+        if (patch.status === "review") { const d = new Date(); d.setDate(d.getDate() + 3); meta["ucp:due"] = d.toISOString(); meta["ucp:requestedBy"] = meId; } else meta["ucp:due"] = null;
+        if (patch.status === "approved") meta["ucp:approvedBy"] = meId; // the author (ucp:requestedBy) keeps getting the "ready to publish" task
         await r.setProps(`${path}/jcr:content`, meta).catch(() => {});
         await audit(patch.status === "published" || patch.status === "approved" || patch.status === "scheduled" ? "publishing" : "content", STATUS_TEXT[patch.status as PageStatus].replace("{t}", p.title), path, patch.status === "failed" ? "crit" : "");
       } else if (patch.title && before && patch.title !== before.title) await audit("content", `renamed “${before.title}” to “${patch.title}”`, path);

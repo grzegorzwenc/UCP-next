@@ -56,7 +56,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       if (!pick) return problem(new RepoError(400, "Nobody can review this page", "Ask a site admin to grant Review & approve on this folder"));
       const r = repo(); const before = await r.getPage(path); if (!before) return problem(new RepoError(404, "Page not found", path));
       const due = new Date(); due.setDate(due.getDate() + 3);
-      await r.updateContent(path, { status: "review" }); await r.setProps(`${path}/jcr:content`, { "ucp:sentBy": u.id, "ucp:sentAt": new Date().toISOString(), "ucp:due": due.toISOString(), "ucp:assignee": pick.id, "ucp:assignedBy": u.id, "ucp:reviewNote": note || null });
+      await r.updateContent(path, { status: "review" }); await r.setProps(`${path}/jcr:content`, { "ucp:sentBy": u.id, "ucp:requestedBy": u.id, "ucp:sentAt": new Date().toISOString(), "ucp:due": due.toISOString(), "ucp:assignee": pick.id, "ucp:assignedBy": u.id, "ucp:reviewNote": note || null });
       await logEvent(mid, { type: "content", text: `sent ${before.title} for review to ${pick.name}${auto || !assignee ? " (assigned automatically)" : ""}`, target: path, requestId: rid });
       return ok({ assignee: pick.id, assigneeName: pick.name, auto: !!(auto || !assignee) });
     }

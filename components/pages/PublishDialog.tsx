@@ -10,7 +10,7 @@ export type PublishOutcome = { path: string; title: string; ok: boolean; status?
 
 /** Why a page cannot be published right now (checked again on the server). */
 export const publishBlock = (p: PublishItem, mayPublish: (path: string) => boolean): string =>
-  !mayPublish(p.path) ? "You don't have Publish here" : p.status === "approved" || p.status === "scheduled" ? "" : p.status === "published" ? "Already live" : p.status === "review" ? "Still in review" : "Needs approval first";
+  !mayPublish(p.path) ? "You don't have Publish here" : p.status === "approved" || p.status === "scheduled" ? "" : p.status === "published" ? "Already live" : p.status === "review" ? "Still in review" : "Needs review first";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const toLocalInput = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -54,7 +54,7 @@ export function PublishDialog({ marketId, envName, pages, mayPublish, onClose, o
     {single?.status === "scheduled" && single.publishAt && <p className="text-[13px] bg-info-soft rounded-md px-3 py-2 mb-3">Scheduled for <b>{fmt(single.publishAt)}</b>. Change the time, publish it now, or cancel the schedule.</p>}
     {pages.length > 1 && <div className="mb-3"><p className="text-[12.5px] text-ink-3 mb-1.5">{ready.length} of {pages.length} can be published{ready.length < pages.length ? ". The others are skipped:" : "."}</p>
       <ul className="grid gap-1 max-h-[180px] overflow-auto">{pages.map((p) => { const why = publishBlock(p, mayPublish); return <li key={p.path} className={`flex items-center gap-2 text-[13px] border rounded-md px-3 py-1.5 ${why ? "border-line bg-surface-2 text-ink-3" : "border-line"}`}><span className="truncate flex-1">{p.title}</span><Pill status={p.status} />{why && <span className="text-[11.5px] text-warn whitespace-nowrap">{why}</span>}</li>; })}</ul></div>}
-    {single && publishBlock(single, mayPublish) && <p className="text-[13px] bg-warn-soft rounded-md px-3 py-2 mb-3">{publishBlock(single, mayPublish)}. Only approved pages can be published.</p>}
+    {single && publishBlock(single, mayPublish) && <p className="text-[13px] bg-warn-soft rounded-md px-3 py-2 mb-3">{publishBlock(single, mayPublish)}. Only pages that passed review (Ready to publish) can go live.</p>}
     <div role="radiogroup" aria-label="When" className="grid gap-2">
       <label className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer ${mode === "now" ? "border-accent bg-accent-soft" : "border-line hover:bg-surface-2"}`}><input type="radio" name="pub-when" className="mt-1 accent-[var(--accent)]" checked={mode === "now"} onChange={() => setMode("now")} /><span><b className="block text-[13.5px]">Publish now</b><small className="text-ink-3 text-[12.5px]">Live for customers straight away.</small></span></label>
       <label className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer ${mode === "schedule" ? "border-accent bg-accent-soft" : "border-line hover:bg-surface-2"}`}><input type="radio" name="pub-when" className="mt-1 accent-[var(--accent)]" checked={mode === "schedule"} onChange={() => setMode("schedule")} /><span className="flex-1 min-w-0"><b className="block text-[13.5px]">Schedule</b><small className="text-ink-3 text-[12.5px]">Goes live automatically at the time you pick.</small>
