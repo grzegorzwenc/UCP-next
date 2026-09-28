@@ -64,3 +64,23 @@ UCP_BACKEND=contentlibre CONTENTLIBRE_URL=http://localhost:6727 npm run dev -- -
 - [ ] Branding: HSBC logos and wording are still the mock's.
 - [ ] Pre-existing lint error in the folder tree component (`react-hooks/set-state-in-effect`), not
       introduced by this branch.
+
+## Upstream update (28.09)
+
+`main` (46 commits: publish dialog with scheduling, review reminders, task assignment, rich text,
+content picker, phone layout, no Repository screen) is merged. On `UCP_BACKEND=contentlibre`:
+
+- Publish dialog (builder and page list) publishes each page's **approved draft** through
+  `content/v1/drafts/publish`; **Schedule** is refused per page with a reason (no backend support yet),
+  and scheduled pages are never polled (`publishDue` is a no-op there).
+- **Remind reviewer** works; the 15-minute limit reads the audit trail (the review lives on the draft,
+  where this app has nowhere to write).
+- **Task assignment** is read-only on the Tasks screen and `task/assign` / `review/assign` answer `501`.
+- The Repository Manager link moved to API & delivery.
+
+Still to do on this side:
+
+- [ ] `ClBuilder`: Remind button, "Ready to publish" wording, the publish dialog instead of the plain
+      Publish button, and hiding **Schedule** while the backend cannot do it.
+- [ ] Rich text in `ClBuilder` once components declare a rich-text field.
+- [ ] Re-run the Playwright suite and a mock-mode pass after the merge (only type check and lint were run).

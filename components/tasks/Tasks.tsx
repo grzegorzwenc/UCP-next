@@ -12,7 +12,7 @@ import { PageIcon } from "@/components/ui/Icons";
 import { AssignDialog } from "./AssignDialog";
 
 type Sort = "due" | "name" | "kind" | "from" | "assignee" | "waiting";
-type Props = { marketId: string; envId: string; root: string; marketName: string; tasks: Task[]; q: string; kind: string; sort: Sort };
+type Props = { marketId: string; envId: string; root: string; marketName: string; tasks: Task[]; q: string; kind: string; sort: Sort; /** false: the backend cannot change who does a task (ContentLIBRE) */ canAssign?: boolean };
 
 /** Due chip copy: overdueDays > 0 = overdue, 0 = today, -1 = tomorrow, else the date. */
 export function dueLabel(t: Task): { t: string; c: "crit" | "warn" | "" } {
@@ -40,7 +40,7 @@ function Th({ k, sort, dir, onSort, children, className = "" }: { k?: Sort; sort
   return <th className={`px-4 py-2.5 border-b border-line ${className}`} aria-sort={k && sort === k ? (dir === "asc" ? "ascending" : "descending") : undefined}>{k ? <button type="button" onClick={() => onSort(k)} className={`inline-flex items-center gap-1 uppercase tracking-[.08em] text-[11px] hover:text-ink ${sort === k ? "text-ink font-semibold" : ""}`}>{children}<span aria-hidden className={`text-[10px] ${sort === k ? "opacity-100" : "opacity-30"}`}>{sort === k && dir === "desc" ? "▼" : "▲"}</span></button> : children}</th>;
 }
 
-export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: kind0, sort: sort0 }: Props) {
+export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: kind0, sort: sort0, canAssign = true }: Props) {
   const router = useRouter(); const { can, user } = useSession(); const isAdmin = user.role === "admin" || !!user.perms.root?.manage;
   const [who, setWho] = useState(""); // admins: filter by the person a task is assigned to ("" = everyone, "-" = not assigned to a person)
   const people = useMemo(() => [...new Set(tasks.map((t) => t.assigneeName).filter((x): x is string => !!x))].sort(), [tasks]);
@@ -66,7 +66,7 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
 
   /** Admins see who does each task and can assign or change the person; everyone else gets the read-only wording. */
   function assignee(t: Task, phone = false) {
-    if (!isAdmin || t.kind === "Finish") return t.assigneeName ? <span className="inline-flex items-center gap-2"><Avatar name={t.assigneeName} size={phone ? 18 : 24} /><span>{phone ? <>Assigned to <b className="font-semibold">{t.assigneeName}</b></> : t.assigneeName}</span></span> : <span className="text-ink-3">{t.kind === "Finish" ? "The page’s author" : unassigned(t)}</span>;
+    if (!isAdmin || !canAssign || t.kind === "Finish") return t.assigneeName ? <span className="inline-flex items-center gap-2"><Avatar name={t.assigneeName} size={phone ? 18 : 24} /><span>{phone ? <>Assigned to <b className="font-semibold">{t.assigneeName}</b></> : t.assigneeName}</span></span> : <span className="text-ink-3">{t.kind === "Finish" ? "The page’s author" : unassigned(t)}</span>;
     const open = (e: React.MouseEvent) => { e.stopPropagation(); setAssigning(t); };
     const label = `${t.assigneeName ? `Assigned to ${t.assigneeName}. Change who does` : "Waiting for assignment. Assign"} ${t.what.toLowerCase()} on ${t.page.title}`;
     // one clickable chip: the person (click to change) or a dashed "waiting" chip (click to assign)

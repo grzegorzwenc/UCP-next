@@ -352,6 +352,7 @@ const PUBLISHABLE = ["approved", "scheduled"];
  * can go live, and the person needs Publish on each page. Every page is handled on its own; the result says why one was skipped.
  */
 export async function publishPages(marketId: string, paths: string[], opts: { at?: string; cancel?: boolean }, u: User): Promise<PublishResult[]> {
+  if (repo().kind === "contentlibre") return publishOnContentLibre(marketId, paths, opts, u);
   const mk = await getMarket(marketId); const now = new Date(); const at = opts.at ? new Date(opts.at) : undefined;
   if (at && isNaN(at.getTime())) throw new RepoError(400, "That date is not valid", opts.at);
   const schedule = !!at && at.getTime() > now.getTime() + 60_000; const out: PublishResult[] = [];
@@ -383,6 +384,7 @@ export async function publishPages(marketId: string, paths: string[], opts: { at
 }
 /** Scheduled pages whose time has come go live. Called when CMS screens load (a real backend would run this as a job). */
 export async function publishDue(marketId: string): Promise<number> {
+  if (repo().kind === "contentlibre") return 0; // nothing is scheduled there (publishOnContentLibre refuses it), so skip reading every page on each screen
   const mk = await getMarket(marketId); const now = Date.now(); let n = 0;
   for (const p of await allPages(mk.root).catch(() => [])) {
     const at = typeof p.meta?.["ucp:publishAt"] === "string" ? Date.parse(String(p.meta["ucp:publishAt"])) : NaN;
@@ -391,4 +393,30 @@ export async function publishDue(marketId: string): Promise<number> {
     await logEvent(marketId, { type: "publishing", who: "system", text: `published ${p.title} (scheduled)`, target: p.path }); n++;
   }
   return n;
+}
+
+type ClDraftDoc = { id: string; revision?: string; review?: { state?: string } };
+/**
+ * ContentLIBRE: a page goes live by publishing its approved draft (content/v1/drafts/publish), which runs the backend's
+ * own checks - permission, review, a stale publication. Scheduling has no backend support yet, so it is refused per page.
+ */
+async function publishOnContentLibre(marketId: string, paths: string[], opts: { at?: string; cancel?: boolean }, u: User): Promise<PublishResult[]> {
+  const at = opts.at ? new Date(opts.at) : undefined; if (at && isNaN(at.getTime())) throw new RepoError(400, "That date is not valid", opts.at);
+  const schedule = !!at && at.getTime() > Date.now() + 60_000; const out: PublishResult[] = [];
+  for (const path of [...new Set(paths)]) {
+    const pg = await repo().getPage(path).catch(() => undefined);
+    if (!pg) { out.push({ path, title: path, ok: false, reason: "Page not found" }); continue; }
+    const r = { path, title: pg.title };
+    if (opts.cancel) { out.push({ ...r, ok: false, reason: "Not scheduled" }); continue; }
+    if (schedule) { out.push({ ...r, ok: false, reason: "Scheduled publishing is not available on this backend yet - publish now instead" }); continue; }
+    try {
+      const d = await clApi<{ open: ClDraftDoc[] }>("GET", "content/v1/drafts", { path });
+      const draft = d.open.find((x) => x.review?.state === "APPROVED");
+      if (!draft) { out.push({ ...r, ok: false, reason: pg.status === "published" ? "Already live" : pg.status === "review" ? "Still in review" : "Needs approval first" }); continue; }
+      await clApi("POST", "content/v1/drafts/publish", { path }, { draft: draft.id, revision: draft.revision });
+      await logEvent(marketId, { type: "publishing", who: u.id, text: `published ${pg.title}`, target: path });
+      out.push({ ...r, ok: true, status: "published" });
+    } catch (e) { out.push({ ...r, ok: false, reason: e instanceof RepoError ? (e.detail ? `${e.message}: ${e.detail}` : e.message) : "The backend refused" }); }
+  }
+  return out;
 }

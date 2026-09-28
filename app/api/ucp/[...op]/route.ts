@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
+import { KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLog, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
 import { can } from "@/lib/ucp/perms";
 import { SESSION_COOKIE } from "@/lib/server/session";
 import { CL_SESSION_COOKIE, contentLibreSignIn, contentLibreSignOut } from "@/lib/server/contentlibre";
@@ -69,13 +69,17 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       if (!pg) return problem(new RepoError(404, "Page not found", path));
       if (pg.status !== "review") return problem(new RepoError(409, "The page is not in review any more"));
       if (!can(u, "edit", path, (await getMarket(mid)).root)) return problem(new RepoError(403, "Only people who edit this page can send reminders", `Signed in as ${u.name}`));
-      const last = typeof pg.meta?.["ucp:remindedAt"] === "string" ? Date.parse(String(pg.meta["ucp:remindedAt"])) : 0;
+      // ContentLIBRE keeps the review on the draft, where this app has nowhere to write: the audit trail remembers the last reminder
+      const cl = repo().kind === "contentlibre"; const lastCl = cl ? (await readLog(mid, 200)).find((e) => e.target === path && e.text.startsWith("reminded ")) : undefined;
+      const last = cl ? (lastCl ? Date.parse(lastCl.time) : 0) : typeof pg.meta?.["ucp:remindedAt"] === "string" ? Date.parse(String(pg.meta["ucp:remindedAt"])) : 0;
       if (last && Date.now() - last < 15 * 60_000) return problem(new RepoError(429, "A reminder was sent a few minutes ago", "Give the reviewer a moment before sending another"));
       const rid2 = typeof pg.meta?.["ucp:assignee"] === "string" ? String(pg.meta["ucp:assignee"]) : ""; const reviewer = rid2 ? await userName(rid2) : "the reviewers";
-      const at = new Date().toISOString(); await repo().setProps(`${path}/jcr:content`, { "ucp:remindedAt": at, "ucp:remindedBy": u.id });
+      const at = new Date().toISOString(); if (!cl) await repo().setProps(`${path}/jcr:content`, { "ucp:remindedAt": at, "ucp:remindedBy": u.id });
       await logEvent(mid, { type: "content", text: `reminded ${reviewer} that ${pg.title} is waiting for review`, target: path, requestId: rid });
       return ok({ remindedAt: at, reviewer });
     }
+    // ContentLIBRE: the reviewer is part of the review request on the draft, and the backend has no other task assignments yet
+    if (o === "review/assign" && req.method === "POST" && repo().kind === "contentlibre") return problem(new RepoError(501, "Changing who does a task is not available on this backend yet", "Send the page for review again with the right reviewer"));
     if (o === "review/assign" && req.method === "POST") {
       const u = await me(); if (!(u.role === "admin" || u.perms.root?.manage)) return problem(new RepoError(403, "Only site admins can change the reviewer", `Signed in as ${u.name}`));
       const path = q.get("path") ?? ""; const { assignee, auto } = await req.json() as { assignee?: string; auto?: boolean };
@@ -89,6 +93,8 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     }
     /* ---- task assignment (site admins): who should pick up a Review, Publish, Fix or Check task ---- */
     if (o === "task/people" && req.method === "GET") { const k = (q.get("kind") ?? "Review") as TaskKind; return ok(await reviewerOptions(mid, q.get("path") ?? "", permOfKind(k))); }
+    // ContentLIBRE: the reviewer is part of the review request on the draft, and the backend has no other task assignments yet
+    if (o === "task/assign" && req.method === "POST" && repo().kind === "contentlibre") return problem(new RepoError(501, "Changing who does a task is not available on this backend yet", "Send the page for review again with the right reviewer"));
     if (o === "task/assign" && req.method === "POST") {
       const u = await me(); if (!(u.role === "admin" || u.perms.root?.manage)) return problem(new RepoError(403, "Only site admins can assign tasks", `Signed in as ${u.name}`));
       const path = q.get("path") ?? ""; const { kind, assignee } = await req.json() as { kind: TaskKind; assignee?: string | null };
