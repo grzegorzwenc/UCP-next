@@ -517,7 +517,7 @@ function ContextBar({ block: b, index, count, mode, pop, setPop, clipboard, aiSe
   const ask = (p: string) => { setPrompt(p); setProposal(proposeAi(p, b)); };
   // A prompt from the palette (aiSeed) pre-fills and runs the popover once per seed: state adjusted during render, no effect needed.
   const [seenSeed, setSeenSeed] = useState(""); if (pop === "ai" && aiSeed && aiSeed !== seenSeed) { setSeenSeed(aiSeed); setPrompt(aiSeed); setProposal(proposeAi(aiSeed, b)); }
-  const items: [MoreAction, string, boolean?][] = [["duplicate", "Duplicate"], ["copy", "Copy"], ["paste", "Paste after", !clipboard], ["up", "Move up", index === 0], ["down", "Move down", index === count - 1], ["hide", b.props.hidden ? "Show" : "Hide"], ["lock", locked ? "Unlock" : "Lock"], ["history", "Version history"], ["delete", "Delete"]];
+  const items: [MoreAction, string, boolean?][] = [["duplicate", "Duplicate"], ["copy", "Copy"], ["paste", "Paste after", !clipboard], ["hide", b.props.hidden ? "Show" : "Hide"], ["lock", locked ? "Unlock" : "Lock"], ["history", "Version history"], ["delete", "Delete"]];
   return <div data-ui className="absolute -top-5 left-3 z-[4]" onMouseDown={(e) => { e.stopPropagation(); if (!(e.target as HTMLElement).closest("input, textarea")) e.preventDefault(); }} onDoubleClick={(e) => e.stopPropagation()}>
     <div role="toolbar" aria-label={`${BLOCK_BY_TYPE[b.type].name} actions`} className="flex items-center gap-0.5 bg-[#0F1013] text-white rounded-lg p-1 shadow-xl">
       <b className="px-2 text-[12px] text-white/70 border-r border-white/15 mr-0.5">{BLOCK_BY_TYPE[b.type].name}{locked ? " 🔒" : ""}{b.props.hidden ? " · hidden" : ""}</b>
