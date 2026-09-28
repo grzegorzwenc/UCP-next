@@ -50,11 +50,14 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     if (o === "page" && req.method === "PATCH") {
       const patch = await req.json(); const before = await r.getPage(path);
       const who = await guard(patch.status && before && patch.status !== before.status ? permForStatus[patch.status] ?? "edit" : "edit", path);
+      // an assigned review is approved by that reviewer only (site admins included; they can reassign instead)
+      const assigned = typeof before?.meta?.["ucp:assignee"] === "string" ? String(before.meta["ucp:assignee"]) : "";
+      if (patch.status === "approved" && before?.status === "review" && assigned && assigned !== who.id) throw new RepoError(403, "Only the assigned reviewer can approve this page", "Reassign the review if someone else should approve it");
       if (patch.status && before && patch.status !== before.status) await snapshotVersion(path, `before: ${STATUS_TEXT[patch.status as PageStatus].replace("{t}", "").trim()}`, who.id);
       const p = await r.updateContent(path, patch);
       if (patch.status && before && patch.status !== before.status) {
         const meId = who.id; const meta: Record<string, unknown> = { "ucp:sentBy": meId, "ucp:sentAt": new Date().toISOString() };
-        if (patch.status === "review") { const d = new Date(); d.setDate(d.getDate() + 3); meta["ucp:due"] = d.toISOString(); meta["ucp:requestedBy"] = meId; } else meta["ucp:due"] = null;
+        if (patch.status === "review") { const d = new Date(); d.setDate(d.getDate() + 3); meta["ucp:due"] = d.toISOString(); meta["ucp:requestedBy"] = meId; meta["ucp:remindedAt"] = null; } // "send back to review" keeps the same reviewer else meta["ucp:due"] = null;
         if (patch.status === "approved") meta["ucp:approvedBy"] = meId; // the author (ucp:requestedBy) keeps getting the "ready to publish" task
         await r.setProps(`${path}/jcr:content`, meta).catch(() => {});
         await audit(patch.status === "published" || patch.status === "approved" || patch.status === "scheduled" ? "publishing" : "content", STATUS_TEXT[patch.status as PageStatus].replace("{t}", p.title), path, patch.status === "failed" ? "crit" : "");

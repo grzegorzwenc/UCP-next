@@ -113,7 +113,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   if (lockedSeen !== locked) { setLockedSeen(locked); if (locked) { setPreviewRaw(true); setSel(null); setMode("select"); setPop(null); } else if (canEdit) setPreviewRaw(false); }
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(null), 2200); };
   /** In review only the assigned reviewer (or a site admin) approves; unassigned legacy reviews fall back to the Review permission. */
-  const mayApprove = mayStatus("approved") && (!assignee || assignee === user.id || isAdmin);
+  const mayApprove = mayStatus("approved") && (!assignee || assignee === user.id); // site admins reassign, they do not approve for someone else
   const waitingFor = assigneeName ? `Waiting for ${assigneeName}` : "Waiting for a reviewer";
 
   const mutate = useCallback((fn: (b: Block[]) => Block[]) => { setBlocks((b) => fn(b)); setDirty(true); setSaving("Unsaved"); }, []);
