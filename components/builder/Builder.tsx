@@ -360,8 +360,15 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
       {!focus && <div className="flex items-center gap-3 px-2.5 bg-surface border-b border-line overflow-x-auto overflow-y-hidden">
         {!focus && <Link href={`/${marketId}/${envId}/pages${rel.replace(/\/[^/]+$/, "")}`} className="btn btn-quiet btn-sm">‹ Pages</Link>}
         <div className="min-w-0 flex-1"><b className="block text-[14.5px] truncate">{title}</b><span className="hidden sm:block text-[11.5px] text-ink-3 truncate font-mono">{flag} {locale} · {domain}{rel}</span></div>
-        {status === "review" && !mayApprove && canEdit ? <button type="button" onClick={() => flowClick(4)} title="Remind the reviewer" className="rounded-full hover:ring-2 hover:ring-info/30"><Pill status={status} /></button> : <Pill status={status} />}
-        {status === "review" && assignee && <AssigneeChip name={assigneeName} admin={isAdmin} marketId={marketId} pagePath={page.path} meId={user.id} onReassigned={(r) => { setAssignee(r.assignee); say(`Reassigned to ${r.assigneeName}`); router.refresh(); }} />}
+        {/* status, who has it, and what it is waiting for, in one group (the waiting line sits under the chips) */}
+        <div className="flex flex-col items-start gap-0.5 flex-none">
+          <div className="flex items-center gap-2">
+            {status === "review" && !mayApprove && canEdit ? <button type="button" onClick={() => flowClick(4)} title="Remind the reviewer" className="rounded-full hover:ring-2 hover:ring-info/30"><Pill status={status} /></button> : <Pill status={status} />}
+            {status === "review" && assignee && <AssigneeChip name={assigneeName} admin={isAdmin} marketId={marketId} pagePath={page.path} meId={user.id} onReassigned={(r) => { setAssignee(r.assignee); say(`Reassigned to ${r.assigneeName}`); router.refresh(); }} />}
+          </div>
+          {status === "review" && !mayApprove && <span className="hidden sm:inline text-[11px] text-ink-3 whitespace-nowrap pl-1">{assigneeName ? `Waiting for ${assigneeName.split(" ")[0]} to approve` : "Waiting for a reviewer"}{canEdit && <> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => flowClick(4)}>Remind</button></>}</span>}
+          {(status === "approved" || status === "scheduled") && !mayStatus("published") && <span className="hidden sm:inline text-[11px] text-ink-3 whitespace-nowrap pl-1">Waiting for a publisher</span>}
+        </div>
         <div className="hidden sm:inline-flex border border-line-2 rounded-lg overflow-hidden">{(["desktop", "tablet", "mobile"] as const).map((d) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 text-[13px] ${device === d ? "bg-ink text-white" : "text-ink-3"}`} title={d}>{d === "desktop" ? "🖥" : d === "tablet" ? "▭" : "📱"}</button>)}</div>
         <div className="ml-auto flex items-center gap-2.5">
           {saving === "Save failed" ? <button className="hidden sm:inline text-xs text-crit bg-crit-soft rounded-full px-2.5 py-1 hover:underline" onClick={() => save().then(() => say("Saved")).catch(() => {})} title="Your last changes were not saved">Not saved · Retry</button>
@@ -369,8 +376,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           <div className="hidden md:flex gap-1 pl-2.5 border-l border-line"><button className={`btn btn-icon btn-sm ${left ? "on" : ""}`} onClick={() => setLeft(!left)} title="Components panel" aria-pressed={left}>▤</button><button className={`btn btn-icon btn-sm ${right ? "on" : ""}`} onClick={() => { if (right) closeConfigure(true); else { setRightTab(sel ? "block" : "page"); setRight(true); } }} title="Page settings panel" aria-pressed={right}>▥</button><button className={`btn btn-sm ${focus ? "on" : ""}`} onClick={() => (focus ? leavePreview() : setFocusMode(true))} title="Preview the page as visitors see it (⌘⇧F)" aria-pressed={focus}>{focus ? "✕ Exit preview" : "👁 Preview"}</button></div>
           <div className="flex gap-1 pl-2.5 border-l border-line">{!canEdit ? <span className="text-xs text-ink-3 px-2 self-center" title="Ask a site admin for Edit on this folder">🔒 Read-only</span> : locked ? <button className="btn btn-sm" onClick={() => void goEdit("blocks")} title={status === "published" ? "Change the page; the live version stays online until you publish again" : "Take the page back to editing"}>✎ Edit</button> : null}
             {(status === "draft" || status === "failed") && mayStatus("review") && <button className="btn btn-sm btn-primary" onClick={openSend}>Send for review</button>}
-            {status === "review" && (mayApprove ? <button className="btn btn-sm btn-primary" onClick={() => transition("approved", "Approved · ready to publish")}>Approve</button> : <span className="text-xs text-ink-3 self-center whitespace-nowrap">{waitingFor}</span>)}
-            {(status === "approved" || status === "scheduled") && (mayStatus("published") ? <button className="btn btn-sm btn-primary" onClick={() => { if (dirty) save().catch(() => {}); setPublishing(true); }}>{status === "scheduled" ? "Publish / reschedule" : "Publish"}</button> : <span className="text-xs text-ink-3">Waiting for a publisher</span>)}
+            {status === "review" && mayApprove && <button className="btn btn-sm btn-primary" onClick={() => transition("approved", "Approved · ready to publish")}>Approve</button>}
+            {(status === "approved" || status === "scheduled") && (mayStatus("published") ? <button className="btn btn-sm btn-primary" onClick={() => { if (dirty) save().catch(() => {}); setPublishing(true); }}>{status === "scheduled" ? "Publish / reschedule" : "Publish"}</button> : null)}
             </div>
         </div>
       </div>}
