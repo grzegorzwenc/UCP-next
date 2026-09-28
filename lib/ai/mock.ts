@@ -1,5 +1,6 @@
 import type { Block } from "@/lib/api/types";
 import { BLOCK_BY_TYPE, lines, joinLines } from "@/lib/blocks/registry";
+import { toPlain } from "@/lib/blocks/richtext";
 
 /**
  * Block-scoped AI proposals. This is a deterministic stand-in: it never calls a model. Each suggestion returns
@@ -18,7 +19,7 @@ export function proposeAi(prompt: string, b: Block): AiProposal {
   const textFields = def.fields.filter((f) => f.t === "text" || f.t === "textarea").map((f) => f.k);
   const ctaFields = def.fields.filter((f) => f.k === "cta" || f.l.toLowerCase().includes("button label")).map((f) => f.k);
   if (p.includes("concise") || p.includes("shorter")) {
-    for (const k of textFields) { const v = String(b.props[k] ?? ""); if (v.length > 60) { const s = firstSentence(v); if (s !== v) props[k] = s; } }
+    for (const k of textFields) { const v = toPlain(b.props[k]); if (v.length > 60) { const s = firstSentence(v); if (s !== v) props[k] = s; } }
     if (def.fields.some((f) => f.t === "lines")) { const k = def.fields.find((f) => f.t === "lines")!.k; const rows = lines(b.props[k]).map((r) => r.map((c) => (c.length > 60 ? firstSentence(c) : c))); const j = joinLines(rows); if (j !== String(b.props[k] ?? "")) props[k] = j; }
     return { prompt, note: Object.keys(props).length ? "Kept the first sentence of each long text. Review before applying." : "Nothing here is long enough to shorten.", props };
   }
@@ -29,7 +30,7 @@ export function proposeAi(prompt: string, b: Block): AiProposal {
   }
   if (p.includes("alternative") || p.includes("rewrite") || p.includes("variant")) {
     const h = String(b.props.heading ?? ""); if (h) props.heading = h.endsWith("?") ? h : `${h}: what you need to know`;
-    const sub = textFields.find((k) => k !== "heading" && b.props[k]); if (sub) props[sub] = `Compare options, check eligibility and apply online in minutes. ${firstSentence(String(b.props[sub]))}`;
+    const sub = textFields.find((k) => k !== "heading" && b.props[k]); if (sub) props[sub] = `Compare options, check eligibility and apply online in minutes. ${firstSentence(toPlain(b.props[sub]))}`;
     return { prompt, note: "One alternative. Ask again for another variant.", props };
   }
   if (p.includes("german") || p.includes("translate")) {

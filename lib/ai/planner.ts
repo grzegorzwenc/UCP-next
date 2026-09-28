@@ -1,6 +1,7 @@
 import type { Block } from "@/lib/api/types";
 import { BLOCK_BY_TYPE, makeBlock, lines, joinLines, missingRequired, TEMPLATES } from "@/lib/blocks/registry";
 import { CY } from "@/lib/ucp/seed";
+import { toPlain } from "@/lib/blocks/richtext";
 
 /**
  * Page-level AI planner. Pure and deterministic: it never calls a model. It reads the prompt and the current
@@ -23,7 +24,7 @@ export type Plan = { title: string; understanding: string; ops: Op[]; note?: str
 export const AI_PAGE_SUGGESTIONS = ["Improve this page", "Create a promotional section for the new Premier Banking offer", "Translate this page", "Create mobile version", "Check accessibility", "Optimise SEO", "Design a landing page for Premier Banking"];
 
 const nameOf = (b: Block) => BLOCK_BY_TYPE[b.type]?.name ?? b.type;
-const str = (v: unknown) => (typeof v === "string" ? v : v == null ? "" : String(v));
+const str = (v: unknown) => toPlain(typeof v === "string" ? v : v == null ? "" : String(v)); // formatted text is read as plain text (lengths, sentences, meta description)
 const firstSentence = (s: string) => { const m = s.match(/^[^.!?]+[.!?]/); return m ? m[0].trim() : s; };
 const shorten = (t: string, isHeading: boolean) => { if (!isHeading && /[.!?]/.test(t.slice(0, -1))) return firstSentence(t); const w = t.split(/\s+/); if (w.length <= 6) return t; return w.slice(0, Math.max(4, Math.ceil(w.length * 0.6))).join(" ").replace(/[,;:]$/, "") + (isHeading ? "" : "."); };
 const CTA_MAP: Record<string, string> = { "find out more": "See what you could get", "learn more": "See how it works", "click here": "Apply now", "read more": "See the details", "more": "See the details" };

@@ -143,3 +143,11 @@ body.focus .cms-shell > div { grid-template-columns: 1fr; }
 .site.mobile .s-cta { display: block; text-align: center; width: 100%; box-sizing: border-box; }
 .site.mobile .s-rates { font-size: 12px; } .site.mobile table { display: block; overflow-x: auto; }
 .site.mobile .s-ltiles, .site.mobile .s-tiles, .site.mobile .s-icons { grid-template-columns: 1fr; }
+
+/* rich text (long text fields): paragraphs, lists, links — on the page and in the Configure editor */
+.rt p { margin: 0 0 .65em; } .rt p:last-child { margin-bottom: 0; }
+.rt ul, .rt ol { margin: .35em 0 .7em; padding-left: 1.4em; } .rt ul { list-style: disc; } .rt ol { list-style: decimal; }
+.rt li { margin: .2em 0; } .rt li > p { margin: 0; }
+.rt a { color: #DB0011; text-decoration: underline; text-underline-offset: 2px; } .rt strong { font-weight: 600; } .rt em { font-style: italic; } .rt u { text-decoration: underline; }
+.rt:empty::before { content: attr(aria-label); color: var(--ink-4); }
+.rte:empty::before { content: "Write here…"; color: var(--ink-4); }

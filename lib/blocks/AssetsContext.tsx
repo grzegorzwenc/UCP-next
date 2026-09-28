@@ -1,6 +1,7 @@
 "use client";
 import { createContext, useContext } from "react";
 import { TOKEN_RE, hasTokens, resolveTokens, type ResolvedEntities } from "@/lib/ucp/tokens";
+import { toRichHtml, toPlain } from "./richtext";
 
 /** Asset id → stored picture (data URL) so the canvas can show real uploaded photos. Empty outside the builder. */
 export const AssetsContext = createContext<Record<string, { data?: string; alt?: string; decorative?: boolean }>>({});
@@ -43,4 +44,20 @@ export function InlineText({ k, children }: { k: string; children: React.ReactNo
     return <span key={`g${gen}`} className="ie" data-inline={k} data-raw={children}>{editing === k ? children : <TokenText text={children} />}</span>;
   }
   return <span key={`g${gen}`} className="ie" data-inline={k}>{children}</span>;
+}
+
+const escHtml = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+/** Tokens inside rich HTML → the same chips as TokenText (raw token in the builder, entity value in preview). The token text stays inside the chip, so editing keeps it. */
+function tokensHtml(html: string, ents: ResolvedEntities, raw: boolean): string {
+  return html.replace(new RegExp(TOKEN_RE.source, "g"), (tok, alias: string) => { const r = resolveTokens(tok, ents); const ok = r !== tok; const title = escHtml(ok ? `From ${ents[alias]?.title ?? "linked content"} · ${tok}` : "Not linked to an entity on this page");
+    return raw ? `<span class="${ok ? "tok tok-raw" : "tok-bad tok-raw"}" data-token="${escHtml(tok)}" title="${title}">${escHtml(tok)}</span>` : ok ? `<span class="tok" data-token="${escHtml(tok)}" title="${title}">${escHtml(toPlain(r))}</span>` : `<span class="tok-bad" title="${title}">${escHtml(tok)}</span>`; });
+}
+/**
+ * Formatted text block (paragraphs, bold, italic, underline, links, lists). Rendered from sanitised HTML only.
+ * While the builder edits it the markup stays as is (no re-render), so the caret and the browser's edits are kept.
+ */
+export function RichText({ k, value, className = "" }: { k: string; value: unknown; className?: string }) {
+  const { gen, raw } = useContext(InlineEditContext); const ents = useContext(EntitiesContext);
+  const html = tokensHtml(toRichHtml(value), ents, !!raw);
+  return <div key={`g${gen}`} className={`ie rt ${className}`} data-inline={k} data-rich="" dangerouslySetInnerHTML={{ __html: html }} />;
 }

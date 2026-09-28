@@ -22,6 +22,8 @@ import { useShellMode } from "@/components/shell/SideNav";
 import { InsightsPanel, VersionHistory, TranslateModal, pageInsights } from "@/components/builder";
 import { LeftPanel } from "./LeftPanel";
 import { LockedVeil } from "./LockedVeil";
+import { FormatBar, RichField, useFormatState, prepareEditable } from "./RichTextEditor";
+import { sanitizeRich, toPlain } from "@/lib/blocks/richtext";
 import { useRouter } from "next/navigation";
 import { permForStatus } from "@/lib/ucp/perms";
 
@@ -180,7 +182,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [ctaPop, setCtaPop] = useState<{ id: string; labelKey: string; linkKey?: string } | null>(null);
   const scrollGuard = useRef<(() => void) | null>(null);
   function startInline(ie: HTMLElement) {
-    ie.contentEditable = "true"; ie.classList.add("editing"); ie.focus({ preventScroll: true }); editingEl.current = ie; setEditing({ key: ie.dataset.inline!, original: ie.dataset.raw ?? ie.innerText });
+    const rich = ie.dataset.rich !== undefined; if (rich) prepareEditable();
+    ie.contentEditable = "true"; ie.classList.add("editing"); ie.focus({ preventScroll: true }); editingEl.current = ie; setEditing({ key: ie.dataset.inline!, original: rich ? ie.innerHTML : ie.dataset.raw ?? ie.innerText });
     // Text with {{tokens}} switches to its raw form on the next render; put the caret at the end once it is there.
     if (ie.dataset.raw !== undefined) setTimeout(() => { if (editingEl.current !== ie) return; const r = document.createRange(); r.selectNodeContents(ie); r.collapse(false); const s = window.getSelection(); s?.removeAllRanges(); s?.addRange(r); }, 0);
     // the caret must never drag the 1:1 canvas sideways while typing
@@ -188,6 +191,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   }
   function commitInline(save: boolean) {
     const el = editingEl.current; if (!editing || !el) return; const { key, original } = editing; editingEl.current = null; setTokTyped(false); el.contentEditable = "false"; el.classList.remove("editing"); scrollGuard.current?.(); scrollGuard.current = null;
+    // formatted text: save the cleaned markup; cancelling remounts it from the stored value
+    if (el.dataset.rich !== undefined) { setInlineGen((g) => g + 1); if (save) { const [id, f] = key.split("|"); setProp(id, f, sanitizeRich(el.innerHTML)); } setEditing(null); return; }
     if (el.dataset.raw !== undefined || hasTokens(el.innerText)) setInlineGen((g) => g + 1); // token spans change shape (raw ↔ resolved): remount them instead of patching the DOM the browser edited
     if (!save) { el.innerText = original; setEditing(null); return; }
     const [id, f, r, c] = key.split("|"); const v = el.innerText.replace(/\n+$/, "").replace(/\|/g, "/");
@@ -202,8 +207,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   useEffect(() => { if (!editing) return; const h = () => { const el = editingEl.current; const sel = window.getSelection(); if (el && sel && sel.rangeCount && el.contains(sel.getRangeAt(0).startContainer)) caret.current = sel.getRangeAt(0).cloneRange(); }; document.addEventListener("selectionchange", h); return () => document.removeEventListener("selectionchange", h); }, [editing]);
   const onInlineInput = () => { const el = editingEl.current; const sel = window.getSelection(); if (!el || !sel?.rangeCount) return; const r = sel.getRangeAt(0); const n = r.startContainer; if (n.nodeType === 3 && el.contains(n) && (n.textContent ?? "").slice(0, r.startOffset).endsWith("{{")) { setTokTyped(true); setContentPick({ target: "inline", label: "this text" }); } };
   /* Icon floating next to the text being edited: opens Choose content. Follows the text when the canvas scrolls. */
-  const [inlinePos, setInlinePos] = useState<{ top: number; left: number } | null>(null);
-  useEffect(() => { if (!editing) return; const place = () => { const el = editingEl.current; if (!el) { setInlinePos(null); return; } const r = el.getBoundingClientRect(); setInlinePos({ top: r.top + r.height / 2 - 14, left: Math.min(window.innerWidth - 40, r.right + 8) }); };
+  const [inlinePos, setInlinePos] = useState<{ top: number; left: number; barTop: number; barLeft: number; rich: boolean } | null>(null);
+  const getEditingEl = useCallback(() => editingEl.current, []); const fmt = useFormatState(getEditingEl, !!editing);
+  useEffect(() => { if (!editing) return; const place = () => { const el = editingEl.current; if (!el) { setInlinePos(null); return; } const r = el.getBoundingClientRect(); setInlinePos({ top: r.top + r.height / 2 - 14, left: Math.min(window.innerWidth - 40, r.right + 8), barTop: r.bottom + 52 < window.innerHeight - 70 ? r.bottom + 8 : Math.max(8, r.top - 44), /* under the text (the block toolbar sits above it), above when there is no room */ barLeft: Math.max(8, Math.min(window.innerWidth - 300, r.left)), rich: el.dataset.rich !== undefined }); };
     const raf = requestAnimationFrame(place); const c = canvasRef.current; c?.addEventListener("scroll", place); window.addEventListener("resize", place); document.addEventListener("input", place);
     return () => { cancelAnimationFrame(raf); c?.removeEventListener("scroll", place); window.removeEventListener("resize", place); document.removeEventListener("input", place); setInlinePos(null); }; }, [editing]);
   /** Use a field of an entity here: the entity is added to the page (if needed) and the text inherits the field as a {{alias.field}} token. */
@@ -215,6 +221,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (target.target === "field") { setProp(target.blockId, target.k, token); say(`${target.l} now shows ${c.entity.title} · ${c.field.l}`); return; }
     const el = editingEl.current; if (!el) return; el.focus({ preventScroll: true }); const sel = window.getSelection();
     if (tokTyped) { const r = caret.current && el.contains(caret.current.startContainer) ? caret.current : null; if (r && r.startContainer.nodeType === 3 && r.startOffset >= 2 && (r.startContainer.textContent ?? "").slice(r.startOffset - 2, r.startOffset) === "{{") { r.setStart(r.startContainer, r.startOffset - 2); r.deleteContents(); const t = document.createTextNode(token); r.insertNode(t); r.setStartAfter(t); r.collapse(true); sel?.removeAllRanges(); sel?.addRange(r); setTokTyped(false); say(`Inserted ${c.entity.title} · ${c.field.l}. Press ✓ Save.`); return; } }
+    if (el.dataset.rich !== undefined) { const r0 = caret.current && el.contains(caret.current.startContainer) ? caret.current : null; if (r0) { sel?.removeAllRanges(); sel?.addRange(r0); } document.execCommand("insertText", false, token); setTokTyped(false); say(`Inserted ${c.entity.title} · ${c.field.l}. Click outside or ✓ Save.`); return; }
     setTokTyped(false); el.innerText = token; const r = document.createRange(); r.selectNodeContents(el); r.collapse(false); sel?.removeAllRanges(); sel?.addRange(r);
     say(`This text now shows ${c.entity.title} · ${c.field.l}. Press ✓ Save.`);
   }
@@ -317,7 +324,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (contentPick || previewCheck) return; // a dialog is open: it handles its own keys
     if (e.key === "Escape") { e.preventDefault(); if (editing) commitInline(false); else if (ctaPop || pop) { setCtaPop(null); setPop(null); } else if (mode === "edit") setMode("select"); else select(null); return; }
     if (!editing) return;
-    if (e.key === "Enter" && !e.shiftKey && !editing.key.includes("|p|")) { e.preventDefault(); commitInline(true); say("Saved"); }
+    const rich = editingEl.current?.dataset.rich !== undefined;
+    if (e.key === "Enter" && ((rich && (e.metaKey || e.ctrlKey)) || (!rich && !e.shiftKey && !editing.key.includes("|p|")))) { e.preventDefault(); commitInline(true); say("Saved"); }
   }
 
   const nextTxt = cur === 0 ? (blocks.length ? "Structure is ready · click Fill in content" : "Add your first block") : cur === 1 ? (missing ? `Fill in ${missing} required field${missing === 1 ? "" : "s"}` : "Content is complete · click Preview") : cur === 2 ? "Happy with it? Click Send for review" : cur === 4 ? (mayApprove ? "Approve it, or click Edit to change it" : waitingFor) : cur === 5 ? (mayStatus("published") ? "Approved · click Publish" : "Waiting for a publisher") : `Live on ${domain}`;
@@ -463,6 +471,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {rightTab === "block" && selected && !lockReason && <div className="flex justify-end gap-2 px-3.5 py-2.5 border-t border-line bg-surface"><button className="btn btn-sm" onClick={() => closeConfigure(false)}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => { closeConfigure(true); say("Component updated · Save the page when you're done"); }}>Save</button></div>}
         </aside>}
         {focus && <div aria-live="polite" className={`fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-[#0F1013]/85 text-white text-[12px] px-3 py-1.5 rounded-full transition-opacity duration-700 ${fsHint ? "opacity-100" : "opacity-0 pointer-events-none"}`}>Preview · this is what visitors see · press Esc to go back to editing</div>}
+        {/* formatting bar over the text being edited (long text fields only) */}
+        {editing && inlinePos?.rich && !contentPick && <div data-ui className="fixed z-30 bg-[#0F1013] rounded-lg p-1 shadow-xl" style={{ top: inlinePos.barTop, left: inlinePos.barLeft }}><FormatBar getRoot={getEditingEl} state={fmt} dark /></div>}
         {editing && inlinePos && !contentPick && <button type="button" data-ui className="fixed z-30 w-7 h-7 rounded-full grid place-items-center bg-info text-white shadow-lg hover:scale-105 transition-transform" style={{ top: inlinePos.top, left: inlinePos.left }} onMouseDown={(e) => e.preventDefault()} onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }} title="Choose content from an entity" aria-label="Choose content from an entity"><ContentIcon className="w-3.5 h-3.5" /></button>}
         {previewCheck && <ModalShell title="Does everything look right?" width={480} onClose={() => setPreviewCheck(false)}
           footer={<><button className="btn" onClick={() => { setPreviewCheck(false); void goEdit("content"); }}>No, keep editing</button><button className="btn btn-primary" onClick={() => { setPreviewCheck(false); openSend(); }}>Yes, send for review</button></>}>
@@ -523,7 +533,7 @@ function ContextBar({ block: b, index, count, mode, pop, setPop, clipboard, aiSe
       {!proposal && <div className="flex flex-col gap-1 mb-2.5">{AI_SUGGESTIONS.map((s) => <button key={s} onMouseDown={(e) => e.preventDefault()} className="text-left px-2.5 py-1.5 rounded-md border border-line hover:border-ink hover:bg-surface-2" onClick={(e) => { e.stopPropagation(); ask(s); }}>“{s}”</button>)}</div>}
       {proposal && <div className="mb-2.5">
         <div className="text-[11.5px] text-ink-3 mb-1.5">{proposal.note}</div>
-        {Object.entries(proposal.props).length > 0 && <div className="border border-line rounded-md divide-y divide-line max-h-60 overflow-auto">{Object.entries(proposal.props).map(([k, v]) => <div key={k} className="p-2"><div className="text-[10.5px] uppercase tracking-[.06em] text-ink-3 font-semibold">{k}</div><div className="line-through text-ink-3 text-[12px] break-words">{String(b.props[k] ?? "")}</div><div className="text-[12.5px] break-words">{String(v)}</div></div>)}</div>}
+        {Object.entries(proposal.props).length > 0 && <div className="border border-line rounded-md divide-y divide-line max-h-60 overflow-auto">{Object.entries(proposal.props).map(([k, v]) => <div key={k} className="p-2"><div className="text-[10.5px] uppercase tracking-[.06em] text-ink-3 font-semibold">{k}</div><div className="line-through text-ink-3 text-[12px] break-words">{toPlain(b.props[k])}</div><div className="text-[12.5px] break-words">{toPlain(v)}</div></div>)}</div>}
         <div className="flex justify-end gap-2 mt-2.5"><button className="btn btn-sm" onClick={(e) => { e.stopPropagation(); setProposal(null); }}>Discard</button>{Object.keys(proposal.props).length > 0 && <button className="btn btn-sm btn-primary" onClick={(e) => { e.stopPropagation(); onAi(proposal); setProposal(null); setPop(null); }}>Apply</button>}</div>
       </div>}
       <form className="flex gap-1.5" onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); if (prompt.trim()) ask(prompt.trim()); }}><input className="flex-1 border border-line-2 rounded-md px-2.5 py-1.5 text-[13px]" placeholder="Ask AI…" value={prompt} onChange={(e) => setPrompt(e.target.value)} /><button className="btn btn-sm btn-primary">Ask</button></form>
@@ -549,8 +559,9 @@ function ConfigForm({ block: selected, index, count, marketId, setProp, entities
   const def = BLOCK_BY_TYPE[selected.type]; const P = selected.props;
   return <div className="flex flex-col gap-3">
     <div><b className="text-sm">{def.name}</b><div className="text-[11px] text-ink-3">Block {index + 1} of {count} · {def.desc}</div></div>
-    <Section t="Content">{def.fields.map((f) => { const v = selected.props[f.k]; const invalid = f.req && !v; return <div key={f.k}><label className="flex items-center text-xs text-ink-2 font-medium mb-1">{f.l}{(f.t === "text" || f.t === "textarea") && canEdit ? <button type="button" className="ml-auto mr-2 w-6 h-6 rounded grid place-items-center text-info hover:bg-info-soft" onMouseDown={(e) => e.preventDefault()} onClick={() => onChoose(f.k, f.l)} title="Choose content from an entity" aria-label={`Choose content from an entity for ${f.l}`}><ContentIcon /></button> : <span className="ml-auto" />}{f.req && <small className="font-mono text-[10.5px] text-ink-4">required</small>}</label>
+    <Section t="Content">{def.fields.map((f) => { const v = selected.props[f.k]; const invalid = f.req && !toPlain(v).trim(); return <div key={f.k}><label className="flex items-center text-xs text-ink-2 font-medium mb-1">{f.l}{(f.t === "text" || f.t === "textarea") && canEdit ? <button type="button" className="ml-auto mr-2 w-6 h-6 rounded grid place-items-center text-info hover:bg-info-soft" onMouseDown={(e) => e.preventDefault()} onClick={() => onChoose(f.k, f.l)} title="Choose content from an entity" aria-label={`Choose content from an entity for ${f.l}`}><ContentIcon /></button> : <span className="ml-auto" />}{f.req && <small className="font-mono text-[10.5px] text-ink-4">required</small>}</label>
       {f.t === "text" ? <input className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${f.mono ? "font-mono" : ""} ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
+      : f.t === "textarea" && f.rich ? <RichField value={v} label={f.l} invalid={invalid} disabled={!canEdit} onChange={(html) => setProp(f.k, html)} onFocus={() => onFieldFocus(f.k, f.l, 0, 0)} />
       : f.t === "textarea" ? <textarea rows={4} className={`w-full border rounded-md px-2.5 py-1.5 text-[13px] ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
       : f.t === "lines" ? <ListEditor rows={lines(v)} hint={f.hint} onChange={(rows) => setProp(f.k, joinLines(rows))} />
       : f.t === "select" ? <div className="flex gap-1">{f.o!.map((o) => <button key={o} className={`btn btn-sm capitalize ${v === o ? "on" : ""}`} onClick={() => setProp(f.k, o)}>{o}</button>)}</div>

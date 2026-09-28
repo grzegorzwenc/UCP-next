@@ -1,7 +1,9 @@
 import type { Block } from "@/lib/api/types";
+import { toPlain } from "./richtext";
 
 export type FieldType = "text" | "textarea" | "lines" | "select" | "bool" | "asset" | "form";
-export type Field = { k: string; l: string; t: FieldType; req?: boolean; mono?: boolean; hint?: string; o?: string[] };
+/** `rich`: long text with formatting (bold, italic, underline, links, bullet and numbered lists), stored as safe HTML. */
+export type Field = { k: string; l: string; t: FieldType; req?: boolean; mono?: boolean; hint?: string; o?: string[]; rich?: boolean };
 export type BlockDef = { type: string; name: string; group: string; desc: string; fields: Field[]; defaults: Record<string, unknown> };
 
 /** The HSBC block library (translated AEM dialogs in the real platform). Same catalogue as the prototype. */
@@ -10,7 +12,7 @@ export const BLOCKS: BlockDef[] = [
     fields: [{ k: "heading", l: "Heading", t: "text", req: true }, { k: "intro", l: "Sub-heading", t: "text" }, { k: "cta", l: "Button label", t: "text" }, { k: "link", l: "Button link", t: "text", mono: true }, { k: "image", l: "Photo", t: "asset" }],
     defaults: { heading: "Your heading here", intro: "One sentence that explains what this page is for.", cta: "", link: "#", image: "hero-cards" } },
   { type: "contentmaster", group: "HSBC tiles", name: "Content master", desc: "Light 28px heading with a paragraph",
-    fields: [{ k: "heading", l: "Heading", t: "text", req: true }, { k: "body", l: "Paragraph", t: "textarea" }],
+    fields: [{ k: "heading", l: "Heading", t: "text", req: true }, { k: "body", l: "Paragraph", t: "textarea", rich: true }],
     defaults: { heading: "What is a rewards credit card?", body: "Rewards cards earn you points as you use them. Then you can spend your points on shopping, travel and much more." } },
   { type: "icontiles", group: "HSBC tiles", name: "Icon tiles", desc: "Three benefits with red line icons",
     fields: [{ k: "heading", l: "Heading", t: "text" }, { k: "items", l: "Tiles", t: "lines", hint: "Icon | Title | Text" }],
@@ -28,7 +30,7 @@ export const BLOCKS: BlockDef[] = [
     fields: [{ k: "heading", l: "Heading", t: "text", req: true }, { k: "text", l: "Text", t: "text" }, { k: "cta", l: "Button label", t: "text" }, { k: "link", l: "Button link", t: "text", mono: true }, { k: "style", l: "Style", t: "select", o: ["dark", "light"] }],
     defaults: { heading: "Ready to get started?", text: "It takes about five minutes to apply online.", cta: "Apply now", link: "#", style: "dark" } },
   { type: "text", group: "Content", name: "Rich text", desc: "Heading and paragraphs",
-    fields: [{ k: "heading", l: "Heading", t: "text" }, { k: "body", l: "Body", t: "textarea", hint: "Blank line starts a new paragraph." }],
+    fields: [{ k: "heading", l: "Heading", t: "text" }, { k: "body", l: "Body", t: "textarea", rich: true, hint: "Enter starts a new paragraph. Use the toolbar for bold, links and lists." }],
     defaults: { heading: "About this account", body: "Write your paragraphs here.\n\nA blank line starts a new paragraph." } },
   { type: "facts", group: "Content", name: "Key facts", desc: "Three to six label / value tiles",
     fields: [{ k: "heading", l: "Heading", t: "text" }, { k: "items", l: "Facts", t: "lines", hint: "Label | Value" }],
@@ -43,7 +45,7 @@ export const BLOCKS: BlockDef[] = [
     fields: [{ k: "form", l: "Form", t: "form", req: true }, { k: "heading", l: "Heading", t: "text" }],
     defaults: { form: "apply-card", heading: "Apply online" } },
   { type: "disclaimer", group: "Content", name: "Disclaimer", desc: "Small print, regulatory text",
-    fields: [{ k: "text", l: "Text", t: "textarea", req: true }],
+    fields: [{ k: "text", l: "Text", t: "textarea", req: true, rich: true }],
     defaults: { text: "Rates are variable and correct as at the date shown. AER stands for Annual Equivalent Rate." } },
 ];
 export const BLOCK_BY_TYPE: Record<string, BlockDef> = Object.fromEntries(BLOCKS.map((b) => [b.type, b]));
@@ -53,7 +55,7 @@ export const uid = () => Math.random().toString(36).slice(2, 9);
 export const makeBlock = (type: string, props: Record<string, unknown> = {}): Block => ({ id: uid(), type, props: { ...BLOCK_BY_TYPE[type].defaults, ...props } });
 export const lines = (s: unknown): string[][] => String(s ?? "").split("\n").map((l) => l.trim()).filter(Boolean).map((l) => l.split("|").map((x) => x.trim()));
 export const joinLines = (rows: string[][]) => rows.map((r) => r.join(" | ")).join("\n");
-export const missingRequired = (b: Block) => BLOCK_BY_TYPE[b.type].fields.filter((f) => f.req && !b.props[f.k]);
+export const missingRequired = (b: Block) => BLOCK_BY_TYPE[b.type].fields.filter((f) => f.req && !toPlain(b.props[f.k]).trim());
 
 export const TEMPLATES: { id: string; name: string; desc: string; blocks: string[] }[] = [
   { id: "blank", name: "Blank page", desc: "Start with nothing", blocks: [] },

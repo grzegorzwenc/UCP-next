@@ -1,6 +1,6 @@
 import type { Block } from "@/lib/api/types";
 import { BLOCK_BY_TYPE, lines } from "./registry";
-import { AssetsContext, EntitiesContext, InlineEditContext, InlineText, MastSurface } from "./AssetsContext";
+import { AssetsContext, EntitiesContext, InlineEditContext, InlineText, MastSurface, RichText } from "./AssetsContext";
 export { AssetsContext, EntitiesContext, InlineEditContext };
 
 const ICONS: Record<string, string> = {
@@ -25,7 +25,7 @@ export function RenderBlock({ b }: { b: Block }) {
     case "mast":
       return <MastSurface image={p.image}><div className="box"><h1><T id={id} f="heading">{p.heading}</T></h1>{p.intro && <p><T id={id} f="intro">{p.intro}</T></p>}{p.cta && <span className="s-cta"><T id={id} f="cta">{p.cta}</T></span>}</div></MastSurface>;
     case "contentmaster":
-      return <div><h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2><p className="s-p"><T id={id} f="body">{p.body}</T></p></div>;
+      return <div><h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2><RichText k={`${id}|body`} value={p.body} className="s-p" /></div>;
     case "icontiles":
       return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-icons">{lines(p.items).map(([ic, t, d], i) => <div key={i}><svg viewBox="0 0 24 24"><path d={ICONS[ic] || ICONS.star} /></svg><h3><T id={id} f="items" r={i} c={1}>{t}</T></h3><p><T id={id} f="items" r={i} c={2}>{d}</T></p></div>)}</div></div>;
     case "mastertiles":
@@ -37,7 +37,7 @@ export function RenderBlock({ b }: { b: Block }) {
     case "banner":
       return <div className={`s-banner ${p.style === "light" ? "light" : ""}`}><div><h3><T id={id} f="heading">{p.heading}</T></h3><p><T id={id} f="text">{p.text}</T></p></div>{p.cta && <span className="s-cta"><T id={id} f="cta">{p.cta}</T></span>}</div>;
     case "text":
-      return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-p">{String(p.body || "").split(/\n\s*\n/).map((para, i) => <p key={i}><T id={id} f="body" r="p" c={i}>{para}</T></p>)}</div></div>;
+      return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<RichText k={`${id}|body`} value={p.body} className="s-p" /></div>;
     case "facts":
       return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-facts">{lines(p.items).map(([l, v], i) => <div key={i}><b><T id={id} f="items" r={i} c={0}>{l}</T></b><span><T id={id} f="items" r={i} c={1}>{v}</T></span></div>)}</div></div>;
     case "faq":
@@ -47,7 +47,7 @@ export function RenderBlock({ b }: { b: Block }) {
     case "form":
       return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-form"><div><label>First name</label><i /></div><div><label>Last name</label><i /></div><div><label>Email</label><i /></div><div><label>Phone</label><i /></div><div className="full"><span className="s-cta">Continue</span></div><div className="full s-disc" style={{ fontFamily: "var(--font-mono)" }}>Forms service · {p.form}</div></div></div>;
     case "disclaimer":
-      return <div className="s-disc"><T id={id} f="text">{p.text}</T></div>;
+      return <RichText k={`${id}|text`} value={p.text} className="s-disc" />;
     default:
       return <div className="s-disc">Unknown block: {b.type}</div>;
   }

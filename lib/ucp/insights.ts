@@ -1,6 +1,7 @@
 import type { Block } from "@/lib/api/types";
 import { BLOCK_BY_TYPE, makeBlock, missingRequired, lines } from "@/lib/blocks/registry";
 import { TOKEN_RE, resolveTokens, type ResolvedEntities } from "@/lib/ucp/tokens";
+import { toPlain } from "@/lib/blocks/richtext";
 
 /* Pure, client-safe page checks. Port of the prototype's insightsPanel() with fixes that return new blocks. */
 
@@ -41,10 +42,10 @@ export const firstClause = (s: string, max = HEADING_MAX) => {
 };
 const paragraphs = (b: Block): { field: string; text: string }[] => {
   const out: { field: string; text: string }[] = [];
-  for (const k of ["intro", "body", "text"]) { const v = str(b.props[k]); if (!v) continue; for (const p of v.split(/\n\s*\n/)) if (p.trim()) out.push({ field: k, text: p.trim() }); }
+  for (const k of ["intro", "body", "text"]) { const v = toPlain(b.props[k]); if (!v) continue; for (const p of v.split(/\n\s*\n/)) if (p.trim()) out.push({ field: k, text: p.trim() }); }
   return out;
 };
-const allText = (b: Block) => TEXT_KEYS.map((k) => str(b.props[k])).filter(Boolean).join(" ");
+const allText = (b: Block) => TEXT_KEYS.map((k) => toPlain(b.props[k])).filter(Boolean).join(" ");
 const ctaLabels = (b: Block): { field: string; label: string; row?: number }[] => {
   const out: { field: string; label: string; row?: number }[] = [];
   if (str(b.props.cta)) out.push({ field: "cta", label: str(b.props.cta) });
