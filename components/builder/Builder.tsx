@@ -48,7 +48,7 @@ const STEPS = [["Add blocks", "Click: build the page structure"], ["Fill in cont
 /**
  * Interaction model (three levels):
  *   hover        → subtle outline + component name
- *   click        → select; contextual toolbar appears at the block: ✎ Edit · ⚙ Configure · ✨ AI · ⋯ More
+ *   click        → select; Configure opens on the right; contextual toolbar at the block: ✎ Edit · ✨ AI · ⋯ More (⚙ Configure on phones)
  *   double-click → straight into inline edit
  * Edit never opens the right panel; Configure does (with Cancel / Save).
  */
@@ -416,8 +416,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               {blocks.length ? blocks.map((b, i) => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""}`} tabIndex={0}>
                 <span className="tag">{def.name}{b.props.locked ? " · 🔒 locked" : ""}{b.props.hidden ? " · hidden" : ""}</span>
                 {isSel && !preview && <ContextBar block={b} index={i} count={blocks.length} mode={mode} pop={pop} setPop={setPop} clipboard={clipboard} aiSeed={aiSeed}
-                  onEdit={() => (mode === "edit" ? (commitInline(true), setMode("select")) : enterEdit(b.id))} onConfigure={() => configure(b.id)}
-                  onMore={(a) => { setPop(null); if (a === "duplicate") duplicate(b); else if (a === "copy") { setClipboard(b); say("Copied"); } else if (a === "paste" && clipboard) { mutate((bl) => { const c = bl.slice(); c.splice(i + 1, 0, { ...clipboard, id: makeBlock(clipboard.type).id, props: { ...clipboard.props } }); return c; }); } else if (a === "up") move(b.id, -1); else if (a === "down") move(b.id, 1); else if (a === "hide") setProp(b.id, "hidden", !b.props.hidden); else if (a === "lock") { setProp(b.id, "locked", !b.props.locked); if (!b.props.locked) setMode("select"); } else if (a === "delete") remove(b.id); else if (a === "usage") say(`Used on 1 page: ${title}`); else if (a === "history") say("Version history comes from JCR (jcr:versionHistory) once the Sling backend is connected"); }}
+                  onEdit={() => (mode === "edit" ? (commitInline(true), setMode("select")) : enterEdit(b.id))} onConfigure={phone ? () => configure(b.id) : undefined /* desktop: clicking the block already opens Configure */}
+                  onMore={(a) => { setPop(null); if (a === "duplicate") duplicate(b); else if (a === "copy") { setClipboard(b); say("Copied"); } else if (a === "paste" && clipboard) { mutate((bl) => { const c = bl.slice(); c.splice(i + 1, 0, { ...clipboard, id: makeBlock(clipboard.type).id, props: { ...clipboard.props } }); return c; }); } else if (a === "up") move(b.id, -1); else if (a === "down") move(b.id, 1); else if (a === "hide") setProp(b.id, "hidden", !b.props.hidden); else if (a === "lock") { setProp(b.id, "locked", !b.props.locked); if (!b.props.locked) setMode("select"); } else if (a === "delete") remove(b.id); else if (a === "history") { if (phone) setLeftRaw(false); setRightTab("history"); setRight(true); } }}
                   onAi={(p) => { mutate((bl) => bl.map((x) => (x.id === b.id ? { ...x, props: { ...x.props, ...p.props } } : x))); say("AI changes applied"); }} />}
                 <RenderBlock b={b} /></div>; })
               : <div className="m-7 p-11 border-2 border-dashed border-line-2 rounded-xl text-center text-ink-2 text-[15px]">How do you want to start this page?<small className="block text-[13px] text-ink-3 mt-1.5">Pick a layout, or add components one by one from the left.</small><div className="grid grid-cols-3 gap-3 mt-4 text-left">{TEMPLATES.filter((t) => t.blocks.length).slice(0, 3).map((t) => <button key={t.id} className="border border-line-2 bg-surface p-3.5 text-left hover:border-ink" onClick={() => mutate(() => t.blocks.map((x) => makeBlock(x, x === "mast" ? { heading: title } : {})))}><b className="block text-[13.5px]">{t.name}</b><small className="text-ink-3">{t.desc}</small></button>)}</div></div>}
@@ -464,7 +464,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               <div className="text-xs text-ink-3">Created {page.created?.slice(0, 10)} · Last modified {page.lastModified?.slice(0, 16).replace("T", " ")}</div>
               <div className="border-t border-line pt-3 flex flex-col gap-2"><b className="text-xs text-ink-2">Languages</b><span className="text-[12px] text-ink-3">This page is {locale}. Create a translated copy in another locale.</span><button className="btn btn-sm justify-center" onClick={() => setTranslating(true)}>🌐 Translate this page…</button></div>
             </div>
-            : !selected ? <div className="text-ink-3 p-2"><b className="block text-sm text-ink mb-1.5">Nothing selected</b>Click a block on the page, then ⚙ Configure.<div className="mt-3.5 flex flex-col gap-1.5">{blocks.slice(0, 8).map((k, ix) => <button key={k.id} className="btn btn-sm justify-start" onClick={() => configure(k.id)}>{ix + 1}. {BLOCK_BY_TYPE[k.type].name}</button>)}</div></div>
+            : !selected ? <div className="text-ink-3 p-2"><b className="block text-sm text-ink mb-1.5">Nothing selected</b>Click a block on the page to see its settings here.<div className="mt-3.5 flex flex-col gap-1.5">{blocks.slice(0, 8).map((k, ix) => <button key={k.id} className="btn btn-sm justify-start" onClick={() => configure(k.id)}>{ix + 1}. {BLOCK_BY_TYPE[k.type].name}</button>)}</div></div>
             : <ConfigForm block={selected} index={blocks.indexOf(selected)} count={blocks.length} marketId={marketId} setProp={(k, v) => setProp(selected.id, k, v)} entities={entities} canEdit={canEdit && !locked} onFieldFocus={(k, l, start, end) => { if (editing) commitInline(true); lastField.current = { blockId: selected.id, k, l, start, end }; }} onChoose={(k, l) => setContentPick({ target: "field", blockId: selected.id, k, l })} />}
           </div>}
           </LockedVeil>
@@ -505,21 +505,21 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   );
 }
 
-/* ---- contextual toolbar at the selected block: ✎ Edit · ⚙ Configure · ✨ AI · ⋯ More ---- */
+/* ---- contextual toolbar at the selected block: ✎ Edit · ✨ AI · ⋯ More (+ ⚙ Configure on phones, where clicking only selects) ---- */
 function Btn({ children, on, onClick, disabled, title }: { children: React.ReactNode; on?: boolean; onClick: () => void; disabled?: boolean; title: string }) { return <button title={title} disabled={disabled} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); onClick(); }} className={`px-2.5 py-1.5 rounded-md text-[12.5px] font-medium whitespace-nowrap disabled:opacity-40 ${on ? "bg-accent text-white" : "hover:bg-white/15"}`}>{children}</button>; }
-type MoreAction = "duplicate" | "copy" | "paste" | "up" | "down" | "hide" | "lock" | "delete" | "usage" | "history";
-function ContextBar({ block: b, index, count, mode, pop, setPop, clipboard, aiSeed, onEdit, onConfigure, onMore, onAi }: { block: Block; index: number; count: number; mode: "select" | "edit"; pop: "ai" | "more" | null; setPop: (p: "ai" | "more" | null) => void; clipboard: Block | null; aiSeed?: string; onEdit: () => void; onConfigure: () => void; onMore: (a: MoreAction) => void; onAi: (p: AiProposal) => void }) {
+type MoreAction = "duplicate" | "copy" | "paste" | "up" | "down" | "hide" | "lock" | "delete" | "history";
+function ContextBar({ block: b, index, count, mode, pop, setPop, clipboard, aiSeed, onEdit, onConfigure, onMore, onAi }: { block: Block; index: number; count: number; mode: "select" | "edit"; pop: "ai" | "more" | null; setPop: (p: "ai" | "more" | null) => void; clipboard: Block | null; aiSeed?: string; onEdit: () => void; onConfigure?: () => void; onMore: (a: MoreAction) => void; onAi: (p: AiProposal) => void }) {
   const locked = !!b.props.locked; const editing = mode === "edit";
   const [prompt, setPrompt] = useState(""); const [proposal, setProposal] = useState<AiProposal | null>(null);
   const ask = (p: string) => { setPrompt(p); setProposal(proposeAi(p, b)); };
   // A prompt from the palette (aiSeed) pre-fills and runs the popover once per seed: state adjusted during render, no effect needed.
   const [seenSeed, setSeenSeed] = useState(""); if (pop === "ai" && aiSeed && aiSeed !== seenSeed) { setSeenSeed(aiSeed); setPrompt(aiSeed); setProposal(proposeAi(aiSeed, b)); }
-  const items: [MoreAction, string, boolean?][] = [["duplicate", "Duplicate"], ["copy", "Copy"], ["paste", "Paste after", !clipboard], ["up", "Move up", index === 0], ["down", "Move down", index === count - 1], ["hide", b.props.hidden ? "Show" : "Hide"], ["lock", locked ? "Unlock" : "Lock"], ["usage", "View usage"], ["history", "Version history"], ["delete", "Delete"]];
+  const items: [MoreAction, string, boolean?][] = [["duplicate", "Duplicate"], ["copy", "Copy"], ["paste", "Paste after", !clipboard], ["up", "Move up", index === 0], ["down", "Move down", index === count - 1], ["hide", b.props.hidden ? "Show" : "Hide"], ["lock", locked ? "Unlock" : "Lock"], ["history", "Version history"], ["delete", "Delete"]];
   return <div data-ui className="absolute -top-5 left-3 z-[4]" onMouseDown={(e) => { e.stopPropagation(); if (!(e.target as HTMLElement).closest("input, textarea")) e.preventDefault(); }} onDoubleClick={(e) => e.stopPropagation()}>
     <div role="toolbar" aria-label={`${BLOCK_BY_TYPE[b.type].name} actions`} className="flex items-center gap-0.5 bg-[#0F1013] text-white rounded-lg p-1 shadow-xl">
       <b className="px-2 text-[12px] text-white/70 border-r border-white/15 mr-0.5">{BLOCK_BY_TYPE[b.type].name}{locked ? " 🔒" : ""}{b.props.hidden ? " · hidden" : ""}</b>
       <Btn title={editing ? "Finish editing text" : "Edit text, images and buttons in place"} on={editing} onClick={onEdit} disabled={locked}>{editing ? "✓ Done" : "✎ Edit"}</Btn>
-      <Btn title="All properties, layout and behaviour" onClick={onConfigure}>⚙ Configure</Btn>
+      {onConfigure && <Btn title="All properties, layout and behaviour" onClick={onConfigure}>⚙ Configure</Btn>}
       <Btn title="Ask AI to change this block" on={pop === "ai"} onClick={() => { setPop(pop === "ai" ? null : "ai"); setProposal(null); }} disabled={locked}>✨ AI</Btn>
       <span className="w-px h-5 bg-white/20 mx-0.5" aria-hidden />
       <Btn title="Move up" onClick={() => onMore("up")} disabled={index === 0 || locked}><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 19V5M5 12l7-7 7 7" /></svg></Btn>

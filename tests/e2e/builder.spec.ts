@@ -18,7 +18,9 @@ test.describe("builder", () => {
     const bar = page.getByRole("toolbar");
     await expect(bar).toBeVisible();
     await expect(bar.getByRole("button", { name: "✎ Edit" })).toBeVisible();
-    await expect(bar.getByRole("button", { name: "⚙ Configure" })).toBeVisible();
+    // desktop: clicking the block opens Configure on its own, so the toolbar has no Configure button
+    await expect(page.getByText(/^Configure · /)).toBeVisible();
+    await expect(bar.getByRole("button", { name: "⚙ Configure" })).toHaveCount(0);
     await expect(bar.getByRole("button", { name: "✨ AI" })).toBeVisible();
 
     // The mast heading is the first inline-editable text of the first block.
