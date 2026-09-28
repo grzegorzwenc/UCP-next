@@ -95,6 +95,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [assignee, setAssignee] = useState(() => { const a = page.meta?.["ucp:assignee"]; return typeof a === "string" ? a : ""; });
   const assigneeName = assignee ? names[assignee] ?? assignee : "";
   const [sending, setSending] = useState(false);
+  const [remind, setRemind] = useState(0); const [reminding, setReminding] = useState(false); // in review: "remind the reviewer you're waiting?"
+  const [remindedAt, setRemindedAt] = useState(() => { const v = page.meta?.["ucp:remindedAt"]; return typeof v === "string" ? v : ""; });
   const [backToReview, setBackToReview] = useState(false); // confirm: the review is done, send it back anyway?
   const [publishing, setPublishing] = useState(false); const [publishAt, setPublishAt] = useState<string | undefined>(() => (typeof page.meta?.["ucp:publishAt"] === "string" ? String(page.meta["ucp:publishAt"]) : undefined));
 
@@ -330,7 +332,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (i === 2) { if (locked) { setFocusMode(true); return; } setStage("content"); setFocusMode(true); return; }
     if ((i === 3 || i === 4) && (status === "approved" || status === "scheduled")) { if (!canEdit) { say("Review is done"); return; } setBackToReview(true); return; }
     if (i === 3) { openSend(); return; }
-    if (i === 4) { if (status === "review") { if (mayApprove) transition("approved", "Approved · ready to publish"); else say(`${waitingFor} to approve`); } else say(status === "draft" || status === "failed" ? "Send the page for review first" : "Review is done"); return; }
+    if (i === 4) { if (status === "review") { if (mayApprove) transition("approved", "Approved · ready to publish"); else if (canEdit) setRemind(new Date().getTime()); else say(`${waitingFor} to approve`); } else say(status === "draft" || status === "failed" ? "Send the page for review first" : "Review is done"); return; }
     if (i === 5) { if (status === "approved" || status === "scheduled") { if (mayStatus("published")) { if (dirty) save().catch(() => {}); setPublishing(true); } else say("Waiting for a publisher"); } else say(status === "published" ? "Already published" : "The page must be approved first"); return; }
     if (i === 6) { say(status === "published" ? `Live on ${domain}${rel}` : "Not published yet"); }
   };
@@ -357,7 +359,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
       {!focus && <div className="flex items-center gap-3 px-2.5 bg-surface border-b border-line overflow-x-auto overflow-y-hidden">
         {!focus && <Link href={`/${marketId}/${envId}/pages${rel.replace(/\/[^/]+$/, "")}`} className="btn btn-quiet btn-sm">‹ Pages</Link>}
         <div className="min-w-0 flex-1"><b className="block text-[14.5px] truncate">{title}</b><span className="hidden sm:block text-[11.5px] text-ink-3 truncate font-mono">{flag} {locale} · {domain}{rel}</span></div>
-        <Pill status={status} />
+        {status === "review" && !mayApprove && canEdit ? <button type="button" onClick={() => flowClick(4)} title="Remind the reviewer" className="rounded-full hover:ring-2 hover:ring-info/30"><Pill status={status} /></button> : <Pill status={status} />}
         {status === "review" && assignee && <AssigneeChip name={assigneeName} admin={isAdmin} marketId={marketId} pagePath={page.path} meId={user.id} onReassigned={(r) => { setAssignee(r.assignee); say(`Reassigned to ${r.assigneeName}`); router.refresh(); }} />}
         <div className="hidden sm:inline-flex border border-line-2 rounded-lg overflow-hidden">{(["desktop", "tablet", "mobile"] as const).map((d) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 text-[13px] ${device === d ? "bg-ink text-white" : "text-ink-3"}`} title={d}>{d === "desktop" ? "🖥" : d === "tablet" ? "▭" : "📱"}</button>)}</div>
         <div className="ml-auto flex items-center gap-2.5">
@@ -451,6 +453,14 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {insightBadge > 0 && <p className="text-[12.5px] bg-warn-soft rounded-md px-3 py-2 mt-3">Page insights found {insightBadge} thing{insightBadge === 1 ? "" : "s"} to fix. You can still send it, but the reviewer will see them.</p>}
         </ModalShell>}
         {contentPick && <ContentPicker marketId={marketId} marketName={marketName} flag={flag} locale={locale} models={models} current={contentPick.target === "field" ? contentPick.l : undefined} onClose={() => { setContentPick(null); setTokTyped(false); editingEl.current?.focus({ preventScroll: true }); }} onPick={(c) => void applyContent(c)} />}
+        {remind > 0 && (() => { const sent = typeof page.meta?.["ucp:sentAt"] === "string" ? String(page.meta["ucp:sentAt"]) : ""; const recent = !!remindedAt && remind - Date.parse(remindedAt) < 15 * 60_000; const who = assigneeName || "the reviewers";
+          const sendIt = async () => { setReminding(true); try { const r = await ucpApi.remindReviewer(marketId, page.path); setRemindedAt(r.remindedAt); setRemind(0); say(`Reminder sent to ${r.reviewer}`); } catch (e) { say(e instanceof ApiError ? e.message : "Could not send the reminder"); } finally { setReminding(false); } };
+          return <ModalShell title={`Remind ${assigneeName ? assigneeName.split(" ")[0] : "the reviewers"}?`} width={480} onClose={() => setRemind(0)}
+            footer={<><button className="btn" onClick={() => setRemind(0)}>Cancel</button><button className="btn btn-primary" disabled={reminding || recent} onClick={sendIt}>{reminding ? "Sending…" : "Yes, send a reminder"}</button></>}>
+            <p className="text-[13.5px]"><b>{title}</b> is waiting for {assigneeName ? <b>{assigneeName}</b> : "a reviewer"} to review it{sent ? <> since <span suppressHydrationWarning>{new Date(sent).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}</span></> : null}.</p>
+            <p className="text-[13.5px] mt-2">Send {who} a reminder that you are waiting? It shows up in their notifications and at the top of their tasks.</p>
+            {remindedAt && <p className={`text-[12.5px] rounded-md px-3 py-2 mt-3 ${recent ? "bg-warn-soft" : "bg-surface-2 text-ink-2"}`} suppressHydrationWarning>{recent ? "You sent a reminder a few minutes ago. Give them a moment before sending another." : `Last reminder: ${new Date(remindedAt).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" })}`}</p>}
+          </ModalShell>; })()}
         {backToReview && <ModalShell title="Review is already done" width={500} onClose={() => setBackToReview(false)}
           footer={<><button className="btn" onClick={() => setBackToReview(false)}>Keep approval</button><button className="btn btn-primary" onClick={async () => { const wasScheduled = status === "scheduled"; setBackToReview(false); await transition("review", `Back in review${assigneeName ? ` with ${assigneeName}` : ""}`); if (wasScheduled) { await repoApi.setProps(`${page.path}/jcr:content`, { "ucp:publishAt": null }).catch(() => {}); setPublishAt(undefined); } router.refresh(); }}>Send back to review</button></>}>
           <p className="text-[13.5px]">This page is <b>approved</b> and ready to publish.</p>

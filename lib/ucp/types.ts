@@ -31,7 +31,7 @@ export type AuditType = "content" | "publishing" | "permissions" | "system";
 export type AuditEvent = { id: string; path: string; time: string; type: AuditType; who: string; text: string; target?: string; level?: "crit" | ""; requestId?: string };
 
 export type TaskKind = "Review" | "Publish" | "Fix" | "Check" | "Finish";
-export type Task = { kind: TaskKind; what: string; from: string; sentAt?: string; due: string; overdueDays: number; assignee?: string; assigneeName?: string; page: { path: string; title: string; status: string; template?: string } };
+export type Task = { kind: TaskKind; what: string; from: string; sentAt?: string; due: string; overdueDays: number; assignee?: string; assigneeName?: string; remindedAt?: string; remindedBy?: string; page: { path: string; title: string; status: string; template?: string } };
 
 /** A concrete content item built from a content model (e.g. Product → "HSBC Savings Account"). */
 export type EntityValues = Record<string, unknown>;

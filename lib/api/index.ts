@@ -75,6 +75,8 @@ export const ucpApi = {
   /* review assignment */
   reviewers: (market: string, path: string) => U<ReviewerOption[]>("reviewers", { query: { market, path } }),
   sendForReview: (market: string, path: string, body: { assignee?: string; auto?: boolean; note?: string }) => U<{ assignee: string; assigneeName: string; auto: boolean }>("review/send", { method: "POST", query: { market, path }, body: JSON.stringify(body) }),
+  /** Nudge the reviewer of a page in review ("I'm waiting"); at most once every 15 minutes. */
+  remindReviewer: (market: string, path: string) => U<{ remindedAt: string; reviewer: string }>("review/remind", { method: "POST", query: { market, path }, body: "{}" }),
   reassignReview: (market: string, path: string, body: { assignee?: string; auto?: boolean }) => U<{ assignee: string; assigneeName: string }>("review/assign", { method: "POST", query: { market, path }, body: JSON.stringify(body) }),
   /* task assignment (site admins) */
   taskPeople: (market: string, path: string, kind: TaskKind) => U<ReviewerOption[]>("task/people", { query: { market, path, kind } }),
