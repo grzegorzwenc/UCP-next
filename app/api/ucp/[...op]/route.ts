@@ -63,11 +63,11 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     if (o === "review/remind" && req.method === "POST") {
       const u = await me(); const path = q.get("path") ?? ""; const pg = await repo().getPage(path);
       if (!pg) return problem(new RepoError(404, "Page not found", path));
-      if (pg.status !== "review") return problem(new RepoError(409, "The page is not in review any more"));
+      if (pg.status !== "review" && pg.status !== "bizreview") return problem(new RepoError(409, "The page is not in review any more"));
       if (!can(u, "edit", path, market(mid).root)) return problem(new RepoError(403, "Only people who edit this page can send reminders", `Signed in as ${u.name}`));
       const last = typeof pg.meta?.["ucp:remindedAt"] === "string" ? Date.parse(String(pg.meta["ucp:remindedAt"])) : 0;
       if (last && Date.now() - last < 15 * 60_000) return problem(new RepoError(429, "A reminder was sent a few minutes ago", "Give the reviewer a moment before sending another"));
-      const rid2 = typeof pg.meta?.["ucp:assignee"] === "string" ? String(pg.meta["ucp:assignee"]) : ""; const reviewer = rid2 ? await userName(rid2) : "the reviewers";
+      const rid2 = pg.status === "bizreview" ? (pg.meta?.["ucp:taskKind"] === "BizReview" && typeof pg.meta?.["ucp:taskAssignee"] === "string" ? String(pg.meta["ucp:taskAssignee"]) : "") : typeof pg.meta?.["ucp:assignee"] === "string" ? String(pg.meta["ucp:assignee"]) : ""; const reviewer = rid2 ? await userName(rid2) : pg.status === "bizreview" ? "the business reviewers" : "the reviewers";
       const at = new Date().toISOString(); await repo().setProps(`${path}/jcr:content`, { "ucp:remindedAt": at, "ucp:remindedBy": u.id });
       await logEvent(mid, { type: "content", text: `reminded ${reviewer} that ${pg.title} is waiting for review`, target: path, requestId: rid });
       return ok({ remindedAt: at, reviewer });

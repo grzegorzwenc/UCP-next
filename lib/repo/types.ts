@@ -13,7 +13,8 @@ export type RepoNode = {
   children?: RepoNode[];        // present when fetched with depth > 0
 };
 
-export type PageStatus = "draft" | "review" | "approved" | "scheduled" | "published" | "failed";
+/** review = author's review (assigned reviewer), bizreview = business review (sign-off), approved = ready to publish. */
+export type PageStatus = "draft" | "review" | "bizreview" | "approved" | "scheduled" | "published" | "failed";
 
 /** Component instance = child node of jcr:content/root. `resourceType` maps 1:1 to the block registry. */
 export type ComponentNode = { name: string; resourceType: string; props: NodeProps };

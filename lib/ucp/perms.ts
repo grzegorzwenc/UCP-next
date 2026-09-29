@@ -18,5 +18,5 @@ export function can(user: Pick<User, "role" | "perms"> | null | undefined, perm:
   return Object.keys(p).length === 0 ? !!ROLES[user.role]?.perms[perm] : false;
 }
 /** Which permission a status transition needs. */
-export const permForStatus: Record<string, PermKey> = { draft: "edit", review: "edit", approved: "review", scheduled: "publish", published: "publish", failed: "publish" };
+export const permForStatus: Record<string, PermKey> = { draft: "edit", review: "edit", bizreview: "review", approved: "review", scheduled: "publish", published: "publish", failed: "publish" };
 export const PERM_LABEL: Record<PermKey, string> = { read: "Read", edit: "Edit", review: "Review & approve", publish: "Publish", manage: "Manage" };

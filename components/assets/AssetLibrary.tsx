@@ -40,7 +40,7 @@ function Thumb({ a, className = "", badge = true }: { a: Asset; className?: stri
       </div>;
 }
 
-const STATUS_WORD: Record<string, string> = { published: "live", review: "in review", approved: "approved", draft: "draft", scheduled: "scheduled", failed: "failed" };
+const STATUS_WORD: Record<string, string> = { published: "live", review: "in author's review", bizreview: "in business review", approved: "ready to publish", draft: "draft", scheduled: "scheduled", failed: "failed" };
 const FIRST = 5;
 /** "Used on N pages": folded to one line with a status summary; opens to the first few pages, then all. */
 function UsedOnPages({ used, hrefOf }: { used: { path: string; title: string; status: string }[]; hrefOf: (path: string) => string }) {

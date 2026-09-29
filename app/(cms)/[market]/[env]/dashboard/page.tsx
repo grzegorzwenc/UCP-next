@@ -49,7 +49,7 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
   const waitingDays = oldest?.sentAt ? Math.max(0, Math.round((now() - new Date(oldest.sentAt).getTime()) / 86400000)) : 0;
   const tiles = [
     { l: `Pages on ${mk.name}`, v: n, sub: `${c("published")} published · ${c("draft") + c("failed")} in draft`, href: `${base}/pages`, go: "View pages", color: "var(--accent)" },
-    { l: "Waiting for review", v: c("review"), sub: c("review") ? `Oldest waiting ${waitingDays} day${waitingDays === 1 ? "" : "s"}` : "Nothing waiting. Nice.", href: `${base}/tasks?kind=Review`, go: "Open reviews", color: "var(--review)" },
+    { l: "Waiting for review", v: c("review") + c("bizreview"), sub: c("review") + c("bizreview") ? `${c("review")} author's · ${c("bizreview")} business${c("review") ? ` · oldest ${waitingDays} day${waitingDays === 1 ? "" : "s"}` : ""}` : "Nothing waiting. Nice.", href: `${base}/tasks`, go: "Open reviews", color: "var(--review)" },
     { l: "Published", v: c("published"), sub: `${pct(c("published"), n)}% of the site is live`, href: `${base}/pages`, go: "See published pages", color: "var(--good)" },
     { l: `Delivery · ${ev.name}`, v: c("failed") ? `${c("failed")} failed` : health[0], sub: c("failed") ? "A publish failed and needs action" : `Uptime · ${health[1]} typical response`, href: `${base}/api`, go: "Delivery details", color: c("failed") ? "var(--crit)" : "var(--info)" },
   ];
@@ -74,7 +74,7 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
         {tiles.map((t) => <Link key={t.l} href={t.href} className="bg-surface border border-line p-6 min-h-[150px] flex flex-col gap-1.5 hover:border-ink-3 hover:shadow-md" style={{ borderTop: `4px solid ${t.color}` }}><span className="text-[13px] text-ink-2">{t.l}</span><span className="text-[44px] font-light leading-none tabular-nums" style={{ color: t.color === "var(--crit)" ? t.color : undefined }}>{t.v}</span><span className="text-[13px] text-ink-3">{t.sub}</span><span className="text-[13px] font-medium mt-auto">{t.go} <span className="text-accent font-bold">›</span></span></Link>)}
       </div>
       <div className="grid md:grid-cols-2 gap-3.5 mb-3.5">
-        <Card title="Content by status"><StatusViz total={n} parts={[{ l: "Published", n: c("published"), c: "var(--good)" }, { l: "Ready to publish", n: c("approved"), c: "var(--info)" }, { l: "In review", n: c("review"), c: "var(--review)" }, { l: "Scheduled", n: c("scheduled"), c: "var(--sched)" }, { l: "Draft", n: c("draft"), c: "var(--neutral)" }, { l: "Publish failed", n: c("failed"), c: "var(--crit)" }].filter((p) => p.n)} /></Card>
+        <Card title="Content by status"><StatusViz total={n} parts={[{ l: "Published", n: c("published"), c: "var(--good)" }, { l: "Ready to publish", n: c("approved"), c: "var(--info)" }, { l: "Author's review", n: c("review"), c: "var(--review)" }, { l: "Business review", n: c("bizreview"), c: "var(--warn)" }, { l: "Scheduled", n: c("scheduled"), c: "var(--sched)" }, { l: "Draft", n: c("draft"), c: "var(--neutral)" }, { l: "Publish failed", n: c("failed"), c: "var(--crit)" }].filter((p) => p.n)} /></Card>
         <Card title="Content activity" right={<span className="font-normal text-ink-3">Last 30 days</span>}><LineChart /></Card>
       </div>
       <div className="grid md:grid-cols-2 gap-3.5 mb-3.5">

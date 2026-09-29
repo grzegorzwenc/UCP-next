@@ -10,7 +10,7 @@ export type PublishOutcome = { path: string; title: string; ok: boolean; status?
 
 /** Why a page cannot be published right now (checked again on the server). */
 export const publishBlock = (p: PublishItem, mayPublish: (path: string) => boolean): string =>
-  !mayPublish(p.path) ? "You don't have Publish here" : p.status === "approved" || p.status === "scheduled" ? "" : p.status === "published" ? "Already live" : p.status === "review" ? "Still in review" : "Needs review first";
+  !mayPublish(p.path) ? "You don't have Publish here" : p.status === "approved" || p.status === "scheduled" ? "" : p.status === "published" ? "Already live" : p.status === "review" ? "Still in author's review" : p.status === "bizreview" ? "Still in business review" : "Needs review first";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const toLocalInput = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
