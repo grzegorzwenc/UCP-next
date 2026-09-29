@@ -24,20 +24,10 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey }: 
 
   const run = async (fn: () => Promise<PageComment[]>) => { setBusy(true); setErr(null); try { setList(await fn()); return true; } catch (e) { setErr(errText(e)); return false; } finally { setBusy(false); } };
   const add = async () => { if (!text.trim() || busy) return; if (await run(() => ucpApi.addComment(marketId, path, text, about ?? undefined))) { setText(""); onClearAbout(); } };
-  const shown = list ? (all ? list : list.slice(0, Math.max(FIRST, list.filter((c) => c.pinned).length))) : [];
-
-  return <section aria-labelledby="cm-h" className="grid gap-2">
-    <div className="flex items-baseline gap-2"><h3 id="cm-h" className="text-[13px] font-semibold">Comments</h3>{!!list?.length && <span className="text-[12px] text-ink-3">{list.length}</span>}</div>
-    {mayWrite && <div className="border border-line-2 rounded-lg bg-surface focus-within:border-ink-3">
-      {about && <div className="flex items-center gap-2 px-2.5 pt-2 text-[11.5px]"><span className="inline-flex items-center gap-1 rounded-full bg-info-soft text-info px-2 py-0.5 min-w-0"><span className="truncate">About the version from {about.label}</span></span><button type="button" className="text-ink-3 hover:text-ink flex-none" onClick={onClearAbout} aria-label="Not about a version">✕</button></div>}
-      <textarea ref={box} rows={2} value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} placeholder={about ? "What about this version?" : "Add a comment for the team…"} aria-label="New comment"
-        onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void add(); } }} className="block w-full resize-y bg-transparent px-2.5 py-2 text-[13px] outline-none" />
-      <div className="flex items-center gap-2 px-2 pb-2"><span className="text-[11px] text-ink-4">⌘/Ctrl + Enter to post</span><button type="button" className="btn btn-sm btn-primary ml-auto" disabled={!text.trim() || busy} onClick={add}>{busy ? "Posting…" : "Add comment"}</button></div>
-    </div>}
-    {err && <div className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</div>}
-    {list === null ? <p className="text-[12.5px] text-ink-3">Loading comments…</p> : !list.length ? <p className="text-[12.5px] text-ink-3">No comments yet.{mayWrite ? " Leave a note for the next person who edits or reviews this page." : ""}</p>
-      : <ul className="grid gap-1.5">{shown.map((c) => { const mine = c.who === user.id;
-        return <li key={c.id} className={`rounded-lg border px-2.5 py-2 ${c.pinned ? "border-warn/40 bg-warn-soft/60" : "border-line bg-surface"}`}>
+  const pinned = list?.filter((c) => c.pinned) ?? [];
+  const rest = list?.filter((c) => !c.pinned) ?? []; const shown = all ? rest : rest.slice(0, FIRST);
+  const renderItem = (c: PageComment) => { const mine = c.who === user.id;
+    return <li key={c.id} className={`rounded-lg border px-2.5 py-2 ${c.pinned ? "border-warn/40 bg-warn-soft/60" : "border-line bg-surface"}`}>
           <div className="flex items-start gap-2">
             <Avatar name={c.whoName} size={24} />
             <div className="min-w-0 flex-1">
@@ -54,8 +44,25 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey }: 
                 : <button type="button" className="w-7 h-7 rounded grid place-items-center text-ink-3 hover:bg-surface-3 hover:text-crit" onClick={() => setAsk(c.id)} title="Delete comment" aria-label="Delete comment"><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.6} strokeLinecap="round" aria-hidden><path d="M5 7h14M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg></button>)}
             </div>}
           </div>
-        </li>; })}</ul>}
-    {list && list.length > shown.length && <button type="button" className="btn btn-sm btn-quiet justify-self-start" onClick={() => setAll(true)}>Show all {list.length} comments</button>}
-    {all && list && list.length > FIRST && <button type="button" className="btn btn-sm btn-quiet justify-self-start" onClick={() => setAll(false)}>Show fewer</button>}
-  </section>;
+        </li>; };
+
+  // A fragment on purpose: the pinned strip is a direct child of the whole panel's content, so `sticky` keeps it at the top of the panel
+  // for the full scroll (inside the short comments section it would leave with the section).
+  return <>
+    {pinned.length > 0 && <div className="sticky -top-3.5 z-10 -mx-3.5 -mt-3.5 -mb-1 px-3.5 pt-3.5 pb-2 bg-surface border-b border-line shadow-[0_6px_12px_-10px_rgba(0,0,0,.35)]"><ul className="grid gap-1.5" aria-label="Pinned comments">{pinned.map(renderItem)}</ul></div>}
+  <section aria-labelledby="cm-h" className="grid gap-2">
+    <div className="flex items-baseline gap-2"><h3 id="cm-h" className="text-[13px] font-semibold">Comments</h3>{!!list?.length && <span className="text-[12px] text-ink-3">{list.length}</span>}</div>
+    {mayWrite && <div className="border border-line-2 rounded-lg bg-surface focus-within:border-ink-3">
+      {about && <div className="flex items-center gap-2 px-2.5 pt-2 text-[11.5px]"><span className="inline-flex items-center gap-1 rounded-full bg-info-soft text-info px-2 py-0.5 min-w-0"><span className="truncate">About the version from {about.label}</span></span><button type="button" className="text-ink-3 hover:text-ink flex-none" onClick={onClearAbout} aria-label="Not about a version">✕</button></div>}
+      <textarea ref={box} rows={2} value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} placeholder={about ? "What about this version?" : "Add a comment for the team…"} aria-label="New comment"
+        onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void add(); } }} className="block w-full resize-y bg-transparent px-2.5 py-2 text-[13px] outline-none" />
+      <div className="flex items-center gap-2 px-2 pb-2"><span className="text-[11px] text-ink-4">⌘/Ctrl + Enter to post</span><button type="button" className="btn btn-sm btn-primary ml-auto" disabled={!text.trim() || busy} onClick={add}>{busy ? "Posting…" : "Add comment"}</button></div>
+    </div>}
+    {err && <div className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</div>}
+    {list === null ? <p className="text-[12.5px] text-ink-3">Loading comments…</p> : !list.length ? <p className="text-[12.5px] text-ink-3">No comments yet.{mayWrite ? " Leave a note for the next person who edits or reviews this page." : ""}</p>
+      : <ul className="grid gap-1.5">{shown.filter((c) => !c.pinned).map(renderItem)}</ul>}
+    {rest.length > shown.length && <button type="button" className="btn btn-sm btn-quiet justify-self-start" onClick={() => setAll(true)}>Show all {rest.length} comments</button>}
+    {all && rest.length > FIRST && <button type="button" className="btn btn-sm btn-quiet justify-self-start" onClick={() => setAll(false)}>Show fewer</button>}
+  </section>
+  </>;
 }
