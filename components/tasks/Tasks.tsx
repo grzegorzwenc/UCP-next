@@ -10,10 +10,13 @@ import { Pill } from "@/components/ui/Pill";
 import { Avatar } from "@/components/ui/Avatar";
 import { PageIcon } from "@/components/ui/Icons";
 import { AssignDialog } from "./AssignDialog";
+import { MARKETS, market as marketById } from "@/lib/markets";
 
-type Sort = "due" | "name" | "kind" | "from" | "assignee" | "waiting";
+type Sort = "due" | "name" | "kind" | "market" | "from" | "assignee" | "waiting";
 type Props = { marketId: string; envId: string; root: string; marketName: string; tasks: Task[]; q: string; kind: string; sort: Sort };
 
+/** The market a page belongs to, from its repository path (/content/<market>/…). */
+const marketOfPath = (path: string) => MARKETS.find((m) => path === m.root || path.startsWith(`${m.root}/`)) ?? marketById("");
 /** Due chip copy: overdueDays > 0 = overdue, 0 = today, -1 = tomorrow, else the date. */
 export function dueLabel(t: Task): { t: string; c: "crit" | "warn" | "" } {
   const d = t.overdueDays;
@@ -41,13 +44,17 @@ function Th({ k, sort, dir, onSort, children, className = "" }: { k?: Sort; sort
   return <th className={`px-4 py-2.5 border-b border-line ${className}`} aria-sort={k && sort === k ? (dir === "asc" ? "ascending" : "descending") : undefined}>{k ? <button type="button" onClick={() => onSort(k)} className={`inline-flex items-center gap-1 uppercase tracking-[.08em] text-[11px] hover:text-ink ${sort === k ? "text-ink font-semibold" : ""}`}>{children}<span aria-hidden className={`text-[10px] ${sort === k ? "opacity-100" : "opacity-30"}`}>{sort === k && dir === "desc" ? "▼" : "▲"}</span></button> : children}</th>;
 }
 
-export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: kind0, sort: sort0 }: Props) {
+export function Tasks({ marketId, envId, tasks: allTasks, q: q0, kind: kind0, sort: sort0 }: Props) {
   const router = useRouter(); const { can, user } = useSession(); const isAdmin = user.role === "admin" || !!user.perms.root?.manage;
   const [who, setWho] = useState(""); // admins: filter by the person a task is assigned to ("" = everyone, "-" = not assigned to a person)
+  /* tasks come from every market; the Market filter narrows them (tiles, counts and rows follow) */
+  const [mkt, setMkt] = useState("");
+  const marketsWithTasks = useMemo(() => MARKETS.map((m) => ({ m, n: allTasks.filter((t) => marketOfPath(t.page.path).id === m.id).length })).filter((x) => x.n), [allTasks]);
+  const tasks = useMemo(() => (mkt ? allTasks.filter((t) => marketOfPath(t.page.path).id === mkt) : allTasks), [allTasks, mkt]);
   const people = useMemo(() => [...new Set(tasks.map((t) => t.assigneeName).filter((x): x is string => !!x))].sort(), [tasks]);
   const base = `/${marketId}/${envId}`;
-  const routeOf = (path: string) => path.replace(root, "") || "/";
-  const builderHref = (path: string) => `${base}/page${routeOf(path)}`;
+  const routeOf = (path: string) => path.replace(marketOfPath(path).root, "") || "/";
+  const builderHref = (path: string) => `/${marketOfPath(path).id}/${envId}/page${routeOf(path)}`; // opens the page in its own market
   const [q, setQ] = useState(q0); const [kind, setKind] = useState(kind0); const [sort, setSort] = useState<Sort>(sort0); const [dir, setDir] = useState<"asc" | "desc">("asc"); const [when, setWhen] = useState<"" | "overdue" | "today" | "later">("");
   const [assigning, setAssigning] = useState<Task | null>(null); // admins: the task whose person is being picked
   const [busy, setBusy] = useState<string | null>(null); const [toast, setToast] = useState<string | null>(null);
@@ -58,9 +65,9 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
   const rows = useMemo(() => {
     const s = q.toLowerCase().trim();
     const r = tasks.filter((t) => (!kind || t.kind === kind) && (!who || (who === "-" ? !t.assigneeName : t.assigneeName === who)) && (!when || (when === "overdue" ? t.overdueDays > 0 : when === "today" ? t.overdueDays === 0 : t.overdueDays < 0)) && (!s || `${t.page.title} ${t.what} ${t.from} ${t.assigneeName ?? ""} ${routeOf(t.page.path)}`.toLowerCase().includes(s)));
-    const cmp = (a: Task, b: Task) => sort === "name" ? a.page.title.localeCompare(b.page.title) : sort === "kind" ? a.kind.localeCompare(b.kind) || a.due.localeCompare(b.due) : sort === "from" ? a.from.localeCompare(b.from) : sort === "assignee" ? (+!a.assigneeName - +!b.assigneeName || (a.assigneeName ?? "").localeCompare(b.assigneeName ?? "")) : sort === "waiting" ? (a.sentAt ?? "").localeCompare(b.sentAt ?? "") : a.due.localeCompare(b.due);
+    const cmp = (a: Task, b: Task) => sort === "name" ? a.page.title.localeCompare(b.page.title) : sort === "kind" ? a.kind.localeCompare(b.kind) || a.due.localeCompare(b.due) : sort === "market" ? marketOfPath(a.page.path).name.localeCompare(marketOfPath(b.page.path).name) || a.due.localeCompare(b.due) : sort === "from" ? a.from.localeCompare(b.from) : sort === "assignee" ? (+!a.assigneeName - +!b.assigneeName || (a.assigneeName ?? "").localeCompare(b.assigneeName ?? "")) : sort === "waiting" ? (a.sentAt ?? "").localeCompare(b.sentAt ?? "") : a.due.localeCompare(b.due);
     return r.sort((a, b) => (dir === "asc" ? cmp(a, b) : -cmp(a, b)));
-  }, [tasks, q, kind, sort, dir, when, who]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tasks, q, kind, sort, dir, when, who]);
   const sortBy = (k: Sort) => { if (sort === k) setDir((d) => (d === "asc" ? "desc" : "asc")); else { setSort(k); setDir("asc"); } };
   const thp = { sort, dir, onSort: sortBy };
   const overdue = tasks.filter((t) => t.overdueDays > 0).length;
@@ -97,7 +104,7 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
   return (
     <div className="p-4 md:p-7">
       <div className="flex flex-wrap items-end gap-x-4 gap-y-3 mb-5">
-        <div><h1 className="text-2xl font-semibold">My tasks</h1><p className="text-ink-3 text-[13px] mt-1">{tasks.length} open on {marketName}{overdue > 0 && <> · <span className="text-crit font-semibold">{overdue} overdue</span></>}</p></div>
+        <div><h1 className="text-2xl font-semibold">My tasks</h1><p className="text-ink-3 text-[13px] mt-1">{tasks.length} open {mkt ? `on ${marketById(mkt).name}` : `across ${marketsWithTasks.length} market${marketsWithTasks.length === 1 ? "" : "s"}`}{overdue > 0 && <> · <span className="text-crit font-semibold">{overdue} overdue</span></>}</p></div>
         <div className="ml-auto flex gap-2"><Link href={`${base}/audit`} className="btn">What changed recently</Link></div>
       </div>
       {/* Summary tiles (same style as the dashboard tiles); click one to filter */}
@@ -111,19 +118,21 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
       </div>
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <label className="flex items-center gap-2 bg-surface border border-line-2 rounded-md px-2.5 py-1.5 min-w-[260px]"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px]" placeholder="Search tasks, pages, people" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search tasks" /></label>
+        <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface" value={mkt} onChange={(e) => setMkt(e.target.value)} aria-label="Filter by market"><option value="">All markets</option>{marketsWithTasks.map(({ m, n }) => <option key={m.id} value={m.id}>{m.flag} {m.name} ({n})</option>)}</select>
         {isAdmin && <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface" value={who} onChange={(e) => setWho(e.target.value)} aria-label="Assigned to"><option value="">Assigned to: everyone</option>{people.map((n) => <option key={n} value={n}>{n}</option>)}<option value="-">Waiting for assignment</option></select>}
         <span className="ml-auto text-[12.5px] text-ink-3">{rows.length} of {tasks.length}</span>
       </div>
       {rows.length ? (
-        <div className="bg-surface border border-line rounded-xl overflow-hidden"><div className="overflow-auto"><table className={`w-full text-[13.5px] max-sm:[&_td]:px-3 max-sm:[&_th]:px-3 ${isAdmin ? "[&_tr>*:nth-child(4)]:hidden md:[&_tr>*:nth-child(4)]:table-cell" : "[&_tr>*:nth-child(4)]:hidden 2xl:[&_tr>*:nth-child(4)]:table-cell"} [&_tr>*:nth-child(1)]:hidden md:[&_tr>*:nth-child(1)]:table-cell [&_tr>*:nth-child(6)]:hidden sm:[&_tr>*:nth-child(6)]:table-cell [&_tr>*:nth-child(3)]:hidden 2xl:[&_tr>*:nth-child(3)]:table-cell [&_tr>*:nth-child(5)]:hidden 2xl:[&_tr>*:nth-child(5)]:table-cell`}>
-          <thead className="bg-surface-2"><tr className="text-left text-[11px] uppercase tracking-[.08em] text-ink-3"><Th {...thp} k="kind" className="w-[130px]">Type</Th><Th {...thp} k="name">Page · what to do</Th><Th {...thp} k="from" className="w-[200px]">Sent by</Th><Th {...thp} k="assignee" className="w-[240px]">Assigned to</Th><Th {...thp} k="waiting" className="w-[110px]">Waiting</Th><Th {...thp} k="due" className="w-[170px]">Due · sent</Th><Th {...thp} className="w-[150px] text-right">Action</Th></tr></thead>
+        <div className="bg-surface border border-line rounded-xl overflow-hidden"><div className="overflow-auto"><table className={`w-full text-[13.5px] max-sm:[&_td]:px-3 max-sm:[&_th]:px-3 [&_tr>*:nth-child(1)]:hidden min-[1800px]:[&_tr>*:nth-child(1)]:table-cell [&_tr>*:nth-child(3)]:hidden xl:[&_tr>*:nth-child(3)]:table-cell [&_tr>*:nth-child(4)]:hidden 2xl:[&_tr>*:nth-child(4)]:table-cell ${isAdmin ? "[&_tr>*:nth-child(5)]:hidden md:[&_tr>*:nth-child(5)]:table-cell" : "[&_tr>*:nth-child(5)]:hidden 2xl:[&_tr>*:nth-child(5)]:table-cell"} [&_tr>*:nth-child(6)]:hidden min-[1800px]:[&_tr>*:nth-child(6)]:table-cell [&_tr>*:nth-child(7)]:hidden lg:[&_tr>*:nth-child(7)]:table-cell`}>
+          <thead className="bg-surface-2"><tr className="text-left text-[11px] uppercase tracking-[.08em] text-ink-3"><Th {...thp} k="kind" className="w-[130px]">Type</Th><Th {...thp} k="name">Page · what to do</Th><Th {...thp} k="market" className="w-[150px]">Market</Th><Th {...thp} k="from" className="w-[200px]">Sent by</Th><Th {...thp} k="assignee" className="w-[240px]">Assigned to</Th><Th {...thp} k="waiting" className="w-[110px]">Waiting</Th><Th {...thp} k="due" className="w-[170px]">Due · sent</Th><Th {...thp} className="w-[150px] text-right">Action</Th></tr></thead>
           <tbody>{([["Overdue", (t: Task) => t.overdueDays > 0, "text-crit"], ["Due today", (t: Task) => t.overdueDays === 0, "text-warn"], ["Coming up", (t: Task) => t.overdueDays < 0, "text-ink-3"]] as const).map(([title, pred, cls]) => { const grouped = sort === "due" && dir === "asc"; const list = grouped ? rows.filter(pred) : (title === "Overdue" ? rows : []); if (!list.length) return null; return <Fragment key={title}>
-            {grouped && <tr><td colSpan={7} className={`px-4 pt-3 pb-1.5 text-[10.5px] uppercase tracking-[.1em] font-semibold ${cls}`}>{title} · {list.length}</td></tr>}
+            {grouped && <tr><td colSpan={8} className={`px-4 pt-3 pb-1.5 text-[10.5px] uppercase tracking-[.1em] font-semibold ${cls}`}>{title} · {list.length}</td></tr>}
             {list.map((t) => { const d = dueLabel(t); const primary = t.kind === "Review" || t.kind === "BizReview" || t.kind === "Publish"; const label = t.kind === "Review" || t.kind === "BizReview" ? "Review" : t.kind === "Publish" ? "Publish" : t.kind === "Fix" ? "Retry publish" : t.kind === "Check" ? "Check" : "Continue";
               const needs = t.kind === "Publish" || t.kind === "Fix" ? "publish" : t.kind === "Review" || t.kind === "BizReview" ? "review" : null; const allowed = !needs || can(needs, t.page.path); const waiting = needs === "publish" ? "Waiting for a publisher" : "Waiting for a reviewer"; const w = waitingLabel(t.sentAt); const sender = t.from.replace(/ \(.*\)$/, "");
               return <tr key={t.page.path + t.kind} className="hover:bg-surface-2 cursor-pointer border-t border-line" onClick={() => router.push(builderHref(t.page.path))}>
                 <td className="px-4 py-3"><Pill status={t.page.status} label={KIND_LABEL[t.kind] ?? t.kind} /></td>
-                <td className="px-4 py-3"><div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} onClick={(e) => e.stopPropagation()} className="truncate font-bold hover:underline underline-offset-2">{t.page.title}</Link><span className="hidden 2xl:inline font-mono text-[11.5px] text-ink-3 truncate">{routeOf(t.page.path)}</span></div><div className="text-[12.5px] text-ink-2 mt-0.5 pl-[26px]">{t.what}{t.remindedAt && <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-warn-soft text-warn px-2 py-px text-[11px] font-semibold align-middle" title={`${t.remindedBy} sent a reminder`} suppressHydrationWarning>🔔 Reminder from {t.remindedBy?.split(" ")[0]}</span>}</div>{isAdmin && <div className="md:hidden mt-1.5 pl-[26px] text-[12px] text-ink-2">{assignee(t, true)}</div>}<div className="sm:hidden mt-1.5 pl-[26px] flex flex-wrap items-center gap-1.5 text-[11.5px] text-ink-3" suppressHydrationWarning><span className={`inline-block font-semibold px-2 py-0.5 rounded-full ${DUE_CLS[d.c]}`}>{d.t}</span>Due {taskDate(t.due)}</div></td>
+                <td className="px-4 py-3 max-w-0 w-full"><div className="flex items-center gap-2 min-w-0"><PageIcon /><span className="hidden lg:inline xl:hidden text-[13px]" title={marketOfPath(t.page.path).name} aria-label={marketOfPath(t.page.path).name}>{marketOfPath(t.page.path).flag}</span><Link href={builderHref(t.page.path)} onClick={(e) => e.stopPropagation()} className="truncate font-bold hover:underline underline-offset-2">{t.page.title}</Link><span className="hidden 2xl:inline font-mono text-[11.5px] text-ink-3 truncate">{routeOf(t.page.path)}</span></div><div className="text-[12.5px] text-ink-2 mt-0.5 pl-[26px]">{t.what}{t.remindedAt && <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-warn-soft text-warn px-2 py-px text-[11px] font-semibold align-middle" title={`${t.remindedBy} sent a reminder`} suppressHydrationWarning>🔔 Reminder from {t.remindedBy?.split(" ")[0]}</span>}</div>{isAdmin && <div className="md:hidden mt-1.5 pl-[26px] text-[12px] text-ink-2">{assignee(t, true)}</div>}<div className="lg:hidden mt-1.5 pl-[26px] flex flex-wrap items-center gap-1.5 text-[11.5px] text-ink-3" suppressHydrationWarning><span>{marketOfPath(t.page.path).flag} {marketOfPath(t.page.path).name.replace(/^HSBC /, "")}</span><span aria-hidden>·</span><span className={`inline-block font-semibold px-2 py-0.5 rounded-full ${DUE_CLS[d.c]}`}>{d.t}</span>Due {taskDate(t.due)}</div></td>
+                <td className="px-4 py-3 whitespace-nowrap"><span className="inline-flex items-center gap-1.5 text-[13px]"><span aria-hidden>{marketOfPath(t.page.path).flag}</span>{marketOfPath(t.page.path).name.replace(/^HSBC /, "")}</span></td>
                 <td className="px-4 py-3"><span className="inline-flex items-center gap-2"><Avatar name={sender} size={24} /><span className="text-[13px]">{t.from}</span></span></td>
                 <td className="px-4 py-3 text-[13px]">{assignee(t)}</td>
                 <td className="px-4 py-3 text-ink-3">{w}</td>
@@ -134,9 +143,9 @@ export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: k
           </Fragment>; })}</tbody>
         </table></div></div>
       ) : (
-        <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl"><b className="block text-[15px]">{q || kind || when ? "No tasks match" : "All clear"}</b><p className="text-ink-3 text-[13px] mt-1">{q || kind || when ? <button className="underline text-ink" onClick={() => { setQ(""); setKind(""); setWhen(""); }}>Clear filters</button> : "Nothing is waiting on you. New review and publish requests will show up here."}</p></div>
+        <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl"><b className="block text-[15px]">{q || kind || when || mkt ? "No tasks match" : "All clear"}</b><p className="text-ink-3 text-[13px] mt-1">{q || kind || when || mkt ? <button className="underline text-ink" onClick={() => { setQ(""); setKind(""); setWhen(""); setMkt(""); }}>Clear filters</button> : "Nothing is waiting on you. New review and publish requests will show up here."}</p></div>
       )}
-      {assigning && <AssignDialog marketId={marketId} task={assigning} pageHref={builderHref(assigning.page.path)} onClose={() => setAssigning(null)} onDone={(name) => { setToast(name ? `${assigning.page.title}: assigned to ${name}` : `${assigning.page.title}: waiting for assignment`); setAssigning(null); router.refresh(); }} />}
+      {assigning && <AssignDialog marketId={marketOfPath(assigning.page.path).id} task={assigning} pageHref={builderHref(assigning.page.path)} onClose={() => setAssigning(null)} onDone={(name) => { setToast(name ? `${assigning.page.title}: assigned to ${name}` : `${assigning.page.title}: waiting for assignment`); setAssigning(null); router.refresh(); }} />}
       {toast && <div role="status" className="fixed bottom-5 left-1/2 -translate-x-1/2 w-max max-w-[calc(100vw-32px)] flex items-center gap-2.5 bg-[#0F1013] text-white pl-3 pr-4 py-2.5 rounded-xl text-[13px] shadow-xl z-50"><span aria-hidden className="grid place-items-center w-5 h-5 rounded-full bg-white/15 text-[11px] flex-none">✓</span><span className="min-w-0">{toast}</span></div>}
     </div>
   );
