@@ -11,6 +11,8 @@
   "preview_urls": false,
   // Cost guard: no single request may use more than 5 s CPU
   "limits": { "cpu_ms": 5000 },
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // Shared repository state between Worker isolates (lib/repo/adapters/shared.ts); without it every isolate had its own copy
+  "kv_namespaces": [{ "binding": "UCP_STATE", "id": "d816e42fe8f14c2187a2c8861ff02118" }]
   // DEMO_USER / DEMO_PASSWORD are Worker secrets (wrangler secret put), never in this file
 }
