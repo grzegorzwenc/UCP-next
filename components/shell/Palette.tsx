@@ -44,7 +44,7 @@ export function Palette({ marketId, envId }: { marketId: string; envId: string }
     const t = setTimeout(() => inputRef.current?.focus(), 0);
     return () => { clearTimeout(t); const el = restoreRef.current; restoreRef.current = null; setTimeout(() => el?.focus?.(), 0); };
   }, [open]);
-  useEffect(() => { if (!open) return; const s = q.trim(); const t = setTimeout(() => ucpApi.search(marketId, s || "/").then((r) => { setPages(s ? r.pages : r.pages.slice(0, 6)); setSel(0); }).catch(() => setPages([])), s ? 150 : 0); return () => clearTimeout(t); }, [q, open, marketId]);
+  useEffect(() => { if (!open) return; const s = q.trim(); const t = setTimeout(() => ucpApi.search(marketId, s || "/").then((r) => { setPages(s ? r.pages : r.pages.slice(0, 6)); }).catch(() => setPages([])), s ? 150 : 0); return () => clearTimeout(t); }, [q, open, marketId]);
 
   const items = useMemo<Item[]>(() => {
     const s = q.toLowerCase().trim(); const has = (x: string) => !s || x.toLowerCase().includes(s); const out: Item[] = [];

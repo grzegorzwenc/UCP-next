@@ -9,6 +9,7 @@ import type { AuditEvent, PermKey, Perms, Role, User } from "@/lib/ucp/types";
 import { PERM_COLS, ROLES } from "@/lib/ucp/seed";
 import { Avatar } from "@/components/ui/Avatar";
 import { resolveTarget, whenOf } from "@/lib/ucp/auditView";
+import { useConfirm } from "@/components/ui/Confirm";
 
 type Folder = { key: string; title: string; path: string };
 type Props = { users: User[]; folders: Folder[]; log: AuditEvent[]; pageTitles: Record<string, string>; base: string; root: string; marketName: string; marketFlag: string; envName: string; selectedId: string };
@@ -32,6 +33,7 @@ function PermButton({ state, onClick, disabled }: { state: PermState; onClick: (
 }
 
 export function Users({ users: initialUsers, folders, log, pageTitles, base, root, marketName, marketFlag, selectedId }: Props) {
+  const ask = useConfirm();
   const router = useRouter(); const { user: viewer } = useSession();
   const isAdmin = viewer.role === "admin" || !!viewer.perms?.root?.manage;
   // Server props win whenever they change (after router.refresh()); local copies give optimistic updates in between.
@@ -67,7 +69,7 @@ export function Users({ users: initialUsers, folders, log, pageTitles, base, roo
     catch (e) { setErr(errText(e)); } finally { setBusy(false); }
   };
   const remove = async () => {
-    if (!u || !confirm(`Remove all access for ${u.name}?`)) return; setBusy(true); setErr(null);
+    if (!u || !(await ask({ title: `Remove all access for ${u.name}?`, danger: true, confirmLabel: "Remove access" }))) return; setBusy(true); setErr(null);
     try { await repoApi.deleteNode(u.path, { text: `removed all access for ${u.name}`, type: "permissions", target: "users" }); const rest = users.filter((x) => x.id !== u.id); setUsers(rest); if (rest[0]) select(rest[0].id); router.refresh(); notify("Access removed"); }
     catch (e) { setErr(errText(e)); } finally { setBusy(false); }
   };

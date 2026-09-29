@@ -18,6 +18,7 @@ import { useUnsaved } from "@/components/models/useUnsaved";
 import { detailLink, entitiesLink, entityLink, whoName, TEXT_TYPES, type UsedPage } from "@/components/models/fieldMeta";
 import { EntityEditor } from "./EntityEditor";
 import { NewEntityModal } from "./NewEntityModal";
+import { useConfirm } from "@/components/ui/Confirm";
 
 export type EntitiesProps = { base: string; marketId: string; marketRoot: string; marketName: string; flag: string; models: Model[]; entities: Entity[]; usage: Record<string, UsedPage[]>; names: Record<string, string>; viewerId: string; modelId: string; entityId: string; folders: Record<string, string[]>; folder: string };
 type Sort = "title" | "model" | "status" | "used" | "modified";
@@ -37,6 +38,7 @@ function firstText(e: Entity, m?: Model): string {
  * list or entity editor on the right. Creating an entity: pick a model, give it a title, then fill in the fields.
  */
 export function Entities(p: EntitiesProps) {
+  const ask = useConfirm();
   const router = useRouter(); const { can, marketRoot } = useSession(); const canEdit = can("edit", marketRoot);
   const md = p.models.find((m) => m.id === p.modelId);
   const ent = md && p.entityId ? p.entities.find((e) => e.model === md.id && e.id === p.entityId) : undefined;
@@ -65,7 +67,7 @@ export function Entities(p: EntitiesProps) {
   /* ---- tree: all entities → one folder per content model → entities ---- */
   const ql = q.trim().toLowerCase();
   const [folderDlg, setFolderDlg] = useState<{ model?: Model; name?: string } | null>(null); const [folderModel, setFolderModel] = useState("");
-  const removeFolder = async (m: Model, f: string) => { if (!confirm(`Delete the folder “${f}”?`)) return; try { await ucpApi.entityFolder(p.marketId, "delete", { model: m.id, name: f }); say(`Deleted folder ${f}`); if (md?.id === m.id && p.folder === f) router.push(entitiesLink(p.base, m.id)); router.refresh(); } catch (e) { say(errorText(e)); } };
+  const removeFolder = async (m: Model, f: string) => { if (!(await ask({ title: `Delete the folder “${f}”?`, danger: true, confirmLabel: "Delete folder" }))) return; try { await ucpApi.entityFolder(p.marketId, "delete", { model: m.id, name: f }); say(`Deleted folder ${f}`); if (md?.id === m.id && p.folder === f) router.push(entitiesLink(p.base, m.id)); router.refresh(); } catch (e) { say(errorText(e)); } };
   const menuBtn = "w-6 h-6 rounded grid place-items-center text-ink-3 hover:bg-surface-3 text-[14px] leading-none";
   const entRow = (m: Model, e: Entity, folder: string): FolderItem => { const on = !!ent && ent.path === e.path; return { key: e.path, label: e.title, icon: "page", active: on, title: canEdit ? `${e.title} · ${e.status} · drag to move` : `${e.title} · ${e.status}`, onClick: () => go(entityLink(p.base, m.id, e.id)),
     dragId: canEdit ? e.path : undefined, onDrop: canEdit ? (path) => moveEntity(path, m.id, e.path, folder) : undefined, accepts: canDrop,

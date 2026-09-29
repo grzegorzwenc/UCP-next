@@ -3,6 +3,7 @@ import Link from "next/link";
 import { PublishDialog } from "@/components/pages/PublishDialog";
 import { env } from "@/lib/markets";
 import { useRouter } from "next/navigation";
+import { useConfirm } from "@/components/ui/Confirm";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PageSummary } from "@/lib/api/types";
 import { repoApi, ucpApi } from "@/lib/api";
@@ -96,7 +97,7 @@ function TranslateModal({ pages, marketId, base, root, marketName, tree, rel, fo
 
 /* ---------------- explorer ---------------- */
 export function Explorer({ marketId, envId, root, marketName, flag, folder, items, tree, allPages, templates, openNew, newTemplate }: Props) {
-  const router = useRouter();
+  const router = useRouter(); const ask = useConfirm();
   const { can } = useSession();
   const base = `/${marketId}/${envId}`;
   const rel = (p: string) => p.replace(root, "") || "/";
@@ -142,8 +143,18 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
     catch (e) { say(errText(e)); }
   }
   async function remove(pages: PageSummary[]) {
-    const msg = pages.length === 1 ? `Delete ${pages[0].isFolder ? "folder" : "page"} “${pages[0].title}”${pages[0].isFolder ? " and everything in it" : ""}? This cannot be undone.` : `Delete ${pages.length} items? Folders are deleted with everything in them. This cannot be undone.`;
-    if (!confirm(msg)) return;
+    /* what goes with each item: pages inside folders, and which of them are live for customers */
+    const inside = (p: PageSummary) => allPages.filter((x) => x.path.startsWith(`${p.path}/`) && !x.isFolder);
+    const info = pages.map((p) => { const kids = inside(p); const live = [...(p.isFolder ? [] : [p]), ...kids].filter((x) => x.status === "published").length; return { p, kids: kids.length, live }; });
+    const live = info.reduce((n, x) => n + x.live, 0); const kids = info.reduce((n, x) => n + x.kids, 0);
+    const one = pages.length === 1 ? pages[0] : null;
+    const ok = await ask({
+      title: one ? `Delete ${one.isFolder ? "folder" : "page"} “${one.title}”?` : `Delete ${pages.length} items?`, danger: true, confirmLabel: one ? `Delete ${one.isFolder ? "folder" : "page"}` : `Delete ${pages.length} items`,
+      body: <>{kids > 0 ? <>Everything inside {one ? "this folder" : "the selected folders"} is deleted too: <b>{kids} page{kids === 1 ? "" : "s"}</b>. </> : null}{live > 0 ? <><b className="text-crit">{live} live page{live === 1 ? " goes" : "s go"} offline</b> for customers. </> : null}This cannot be undone.</>,
+      items: info.map(({ p, kids: k, live: l }) => ({ label: p.title, note: [p.isFolder ? `folder · ${k} page${k === 1 ? "" : "s"}` : rel(p.path), l ? `${l} live` : ""].filter(Boolean).join(" · "), warn: l > 0 })),
+      typeToConfirm: live > 0 || kids > 0 ? "delete" : undefined,
+    });
+    if (!ok) return;
     try { for (const p of pages) await repoApi.deletePage(p.path, true); setSel([]); say(`Deleted ${pages.length} item${pages.length === 1 ? "" : "s"}`); router.refresh(); }
     catch (e) { say(errText(e)); }
   }

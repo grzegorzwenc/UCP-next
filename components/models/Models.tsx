@@ -25,6 +25,7 @@ import { UsedOn } from "./UsedOn";
 import { Dot, ModelIcon, When, Toast, chip, Crumbs } from "./bits";
 import { useUnsaved } from "./useUnsaved";
 import { isAdminUser, isBlockModel, whoName, detailLink, editLink, groupLink, type ModelTab, type UsedPage } from "./fieldMeta";
+import { useConfirm } from "@/components/ui/Confirm";
 export type { ModelTab, UsedPage } from "./fieldMeta";
 export { camel } from "./fieldMeta";
 
@@ -33,6 +34,7 @@ type Sort = "name" | "modified" | "status" | "fields";
 const STATUS_ORDER: Record<Model["status"], number> = { draft: 0, modified: 1, published: 2 };
 
 export function Models(p: Props) {
+  const ask = useConfirm();
   const router = useRouter(); const { user } = useSession(); const isAdmin = isAdminUser(user);
   const md = p.models.find((m) => m.id === p.selectedId);
   const [q, setQ] = useState(""); const [toast, setToast] = useState(""); const [wizard, setWizard] = useState(false); const [busy, setBusy] = useState("");
@@ -44,7 +46,7 @@ export function Models(p: Props) {
   const go = (href: string) => { if (dirty) setPending(href); else router.push(href); };
   const groups = useMemo(() => [...new Set([...p.folders, ...p.models.map((m) => m.group)])].sort((a, b) => (a === "Core" ? -1 : b === "Core" ? 1 : a.localeCompare(b))), [p.folders, p.models]);
   const [folderDlg, setFolderDlg] = useState<{ mode: "create" } | { mode: "rename"; name: string } | null>(null);
-  const removeFolder = (g: string) => { if (!confirm(`Delete the folder “${g}”?`)) return; run("folder", () => ucpApi.modelFolder(p.marketId, "delete", { name: g }), () => { say(`Deleted folder ${g}`); if (p.group === g) go(`${p.base}/models`); }); };
+  const removeFolder = async (g: string) => { if (!(await ask({ title: `Delete the folder “${g}”?`, danger: true, confirmLabel: "Delete folder" }))) return; run("folder", () => ucpApi.modelFolder(p.marketId, "delete", { name: g }), () => { say(`Deleted folder ${g}`); if (p.group === g) go(`${p.base}/models`); }); };
 
   async function run<T>(label: string, fn: () => Promise<T>, after?: (r: T) => void) { setBusy(label); try { const r = await fn(); after?.(r); router.refresh(); } catch (e) { say(errorText(e)); } finally { setBusy(""); } }
   const duplicate = (m: Model) => run("dup", () => ucpApi.duplicateModel(p.marketId, m.id), (n) => { say(`Duplicated as “${n.name}” (draft)`); go(detailLink(p.base, n.id)); });
@@ -52,7 +54,7 @@ export function Models(p: Props) {
   const [moving, setMoving] = useState<Model | null>(null);
   const canMove = (id: string) => { const m = p.models.find((x) => x.id === id); return !!m && !isBlockModel(m); };
   const moveTo = (id: string, group: string, before?: string) => { const m = p.models.find((x) => x.id === id); if (!m || (m.group === group && !before)) return; run("move", () => ucpApi.moveModel(p.marketId, id, { group, before }), (n) => say(n.group !== m.group ? `Moved ${n.name} to ${n.group}` : `Reordered ${n.group}`)); };
-  const remove = (m: Model) => { if (!confirm(`Delete content model “${m.name}”? Content using it keeps its data but loses validation. This cannot be undone.`)) return; run("del", () => ucpApi.deleteModel(p.marketId, m.id), () => { say(`Deleted ${m.name}`); if (md?.id === m.id) { setDirty(false); router.push(`${p.base}/models`); } }); };
+  const remove = async (m: Model) => { if (!(await ask({ title: `Delete content model “${m.name}”? Content using it keeps its data but loses validation. This cannot be undone.`, danger: true, confirmLabel: "Delete model" }))) return; run("del", () => ucpApi.deleteModel(p.marketId, m.id), () => { say(`Deleted ${m.name}`); if (md?.id === m.id) { setDirty(false); router.push(`${p.base}/models`); } }); };
 
   /* ---- tree: categories → models (entities live in their own section) ---- */
   const ql = q.trim().toLowerCase();
@@ -103,11 +105,12 @@ function Th({ k, s, d, on, children, className = "" }: { k?: Sort; s?: Sort; d?:
   return <th className={`px-4 py-2.5 border-b border-line ${className}`} aria-sort={k ? (active ? (d === "asc" ? "ascending" : "descending") : "none") : undefined}>{k ? <button type="button" onClick={() => on?.(k)} className={`inline-flex items-center gap-1 uppercase tracking-[.08em] text-[11px] hover:text-ink ${active ? "text-ink font-semibold" : ""}`}>{children}<span aria-hidden className={`text-[10px] ${active ? "opacity-100" : "opacity-30"}`}>{active && d === "desc" ? "▼" : "▲"}</span></button> : children}</th>;
 }
 function Overview({ p, isAdmin, go, say, onCreate, onNewFolder }: { p: Props; isAdmin: boolean; go: (href: string) => void; say: (t: string) => void; onCreate: () => void; onNewFolder: () => void }) {
+  const ask = useConfirm();
   const router = useRouter();
   const sp = useSearchParams(); const pathname = usePathname(); const view = sp.get("view") === "map" ? "map" : "table";
   const pickView = (v: "table" | "map") => { const n = new URLSearchParams(sp.toString()); if (v === "map") n.set("view", "map"); else n.delete("view"); router.replace(`${pathname}${n.size ? `?${n}` : ""}`, { scroll: false }); };
   const saveFields = async (m: Model, fields: ModelField[], msg: string) => { try { await ucpApi.saveModel(p.marketId, m.id, { fields }); say(msg); router.refresh(); } catch (e) { say(errorText(e)); } };
-  const removeRel = (r: Relation) => { const m = p.models.find((x) => x.id === r.from); if (!m) return; const to = p.models.find((x) => x.id === r.to)?.name ?? r.to; if (!confirm(`Remove the connection ${m.name} → ${to}?`)) return; saveFields(m, m.fields.filter((f) => f.k !== r.key), `Removed the connection ${m.name} → ${to}`); };
+  const removeRel = async (r: Relation) => { const m = p.models.find((x) => x.id === r.from); if (!m) return; const to = p.models.find((x) => x.id === r.to)?.name ?? r.to; if (!(await ask({ title: `Remove the connection ${m.name} → ${to}?`, danger: true, confirmLabel: "Remove connection" }))) return; saveFields(m, m.fields.filter((f) => f.k !== r.key), `Removed the connection ${m.name} → ${to}`); };
   const cat = p.folders.includes(p.group) || p.models.some((m) => m.group === p.group) ? p.group : "";
   const [q, setQ] = useState(""); const [status, setStatus] = useState(""); const [group, setGroup] = useState(cat); const [sort, setSort] = useState<Sort>("name"); const [dir, setDir] = useState<"asc" | "desc">("asc");
   const groups = [...new Set([...p.folders, ...p.models.map((m) => m.group)])];

@@ -2,6 +2,7 @@ import { TopBar } from "@/components/shell/TopBar";
 import { SideNav } from "@/components/shell/SideNav";
 import { Palette } from "@/components/shell/Palette";
 import { SessionProvider } from "@/components/shell/Session";
+import { ConfirmProvider } from "@/components/ui/Confirm";
 import { me, publishDue } from "@/lib/server/ucp";
 import { market } from "@/lib/markets";
 
@@ -9,7 +10,7 @@ export default async function CmsLayout({ children, params }: LayoutProps<"/[mar
   const { market: mid, env } = await params;
   const [user] = await Promise.all([me(), publishDue(mid).catch(() => 0)]); // scheduled pages whose time has come go live
   return (
-    <SessionProvider user={user} marketRoot={market(mid).root}>
+    <SessionProvider user={user} marketRoot={market(mid).root}><ConfirmProvider>
       <div className="cms-shell h-dvh grid grid-rows-[52px_1fr]">
         <TopBar marketId={mid} envId={env} />
         <Palette marketId={mid} envId={env} />
@@ -18,6 +19,6 @@ export default async function CmsLayout({ children, params }: LayoutProps<"/[mar
           <main className="overflow-auto min-w-0">{children}</main>
         </div>
       </div>
-    </SessionProvider>
+    </ConfirmProvider></SessionProvider>
   );
 }
