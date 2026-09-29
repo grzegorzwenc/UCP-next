@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
+import { listComments, addComment, setCommentPin, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
 import { can } from "@/lib/ucp/perms";
 import { SESSION_COOKIE } from "@/lib/server/session";
 import { PATHS } from "@/lib/ucp/paths";
@@ -116,6 +116,18 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     }
     if (o === "login" && req.method === "POST") { const { id } = await req.json(); const u = (await listUsers()).find((x) => x.id === id); if (!u) return problem(new RepoError(401, "Unknown user", id)); const res = ok({ ok: true, user: u }); res.cookies.set(SESSION_COOKIE, u.id, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 12 }); await logEvent(mid, { type: "system", who: u.id, text: "signed in (SSO stand-in)", target: `user:${u.id}`, requestId: rid }); return res; }
     if (o === "logout" && req.method === "POST") { const res = ok({ ok: true }); res.cookies.set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 }); return res; }
+    /* ---- page comments (Version history panel): reading needs Read; writing needs Edit or Review on the page ---- */
+    if (o.startsWith("comments")) {
+      const u = await me(); const path = q.get("path") ?? ""; const root = market(mid).root; const admin = u.role === "admin" || !!u.perms.root?.manage;
+      if (!can(u, "read", path, root)) return problem(new RepoError(403, "You can't see this page", `Signed in as ${u.name}`));
+      if (o === "comments" && req.method === "GET") return ok(await listComments(path));
+      if (!(admin || can(u, "edit", path, root) || can(u, "review", path, root))) return problem(new RepoError(403, "Only people who edit or review this page can comment"));
+      const b = await req.json() as { text?: string; version?: { id: string; label: string }; id?: string; pinned?: boolean };
+      if (o === "comments/add") { const r = await addComment(path, u, b.text ?? "", b.version); const pg = await repo().getPage(path); await logEvent(mid, { type: "content", text: `commented on ${pg?.title ?? path}: “${String(b.text ?? "").trim().slice(0, 60)}”`, target: path, requestId: rid }); return ok(r); }
+      if (o === "comments/pin") return ok(await setCommentPin(path, u, b.id ?? "", !!b.pinned));
+      if (o === "comments/delete") return ok(await deleteComment(path, u, b.id ?? "", admin));
+      return problem(new RepoError(404, "Unknown operation", o));
+    }
     if (o === "versions" && req.method === "GET") return ok(await listVersions(q.get("path") ?? ""));
     if (o === "versions/restore" && req.method === "POST") { const { id } = await req.json(); const path = q.get("path") ?? ""; const u = await me(); await snapshotVersion(path, "before restore", u.id); await restoreVersion(path, id); await logEvent(mid, { type: "content", text: `restored version ${id} of ${path.split("/").pop()}`, target: path, requestId: rid }); return ok({ ok: true }); }
     if (o === "me") return ok(await me());

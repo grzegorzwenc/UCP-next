@@ -132,6 +132,27 @@ export { modelSchema } from "@/lib/ucp/schema";
 /* ---------------- versions: snapshots under <page>/jcr:content/ucp:versions/<id> (last 20) ---------------- */
 export type PageVersion = { id: string; time: string; who: string; note: string; title: string; status: string; blocks: number };
 const VER = (path: string) => `${path}/jcr:content/ucp:versions`;
+/* ---------------- page comments: a thread on the page's history; pinned ones stay on top ---------------- */
+export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string } };
+const readComments = async (path: string): Promise<PageComment[]> => { const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path); return json<PageComment[]>(pg.meta?.["ucp:comments"], []); };
+const writeComments = (path: string, list: PageComment[]) => repo().setProps(`${path}/jcr:content`, { "ucp:comments": JSON.stringify(list) });
+/** Pinned first (latest pin on top), then newest first. */
+export const sortComments = (l: PageComment[]) => l.slice().sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.time.localeCompare(a.time));
+export async function listComments(path: string): Promise<PageComment[]> { return sortComments(await readComments(path)); }
+export async function addComment(path: string, u: User, text: string, version?: { id: string; label: string }): Promise<PageComment[]> {
+  const t = text.trim(); if (!t) throw new RepoError(400, "Write a comment first"); if (t.length > 2000) throw new RepoError(400, "Keep comments under 2,000 characters");
+  const list = await readComments(path); list.push({ id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, who: u.id, whoName: u.name, time: new Date().toISOString(), text: t, version: version?.id ? { id: version.id, label: String(version.label ?? "").slice(0, 80) } : undefined });
+  await writeComments(path, list); return sortComments(list);
+}
+export async function setCommentPin(path: string, u: User, id: string, pinned: boolean): Promise<PageComment[]> {
+  const list = await readComments(path); const c = list.find((x) => x.id === id); if (!c) throw new RepoError(404, "Comment not found");
+  c.pinned = pinned || undefined; c.pinnedBy = pinned ? u.id : undefined; await writeComments(path, list); return sortComments(list);
+}
+export async function deleteComment(path: string, u: User, id: string, admin: boolean): Promise<PageComment[]> {
+  const list = await readComments(path); const c = list.find((x) => x.id === id); if (!c) throw new RepoError(404, "Comment not found");
+  if (c.who !== u.id && !admin) throw new RepoError(403, "You can only delete your own comments");
+  const next = list.filter((x) => x.id !== id); await writeComments(path, next); return sortComments(next);
+}
 export async function listVersions(path: string): Promise<PageVersion[]> { const v = await kids(VER(path), 1); return v.map((n) => ({ id: n.name, time: str(n.properties["ucp:time"]), who: str(n.properties["ucp:who"]), note: str(n.properties["ucp:note"]), title: str(n.properties["ucp:title"]), status: str(n.properties["ucp:status"]), blocks: json<unknown[]>(n.properties["ucp:components"], []).length })).sort((a, b) => b.time.localeCompare(a.time)); }
 export async function snapshotVersion(path: string, note: string, who: string): Promise<void> {
   const v = await repo().getPage(path); if (!v) return; const time = new Date().toISOString(); const id = `v${time.replace(/[^0-9]/g, "").slice(0, 17)}`;

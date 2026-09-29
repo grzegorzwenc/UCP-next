@@ -2,6 +2,7 @@ import type { PageView, PageSummary, CreatePageInput, PageContentPatch, Componen
 import type { Task, Notification, Asset, AuditEvent, User, Template, Model, ModelField, ModelVersion, Entity, EntityValues, Bindings, ReviewerOption, TaskKind } from "@/lib/ucp/types";
 import type { ResolvedEntities } from "@/lib/ucp/tokens";
 import { ApiError } from "./types";
+export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string } };
 export * from "./types";
 
 type Query = Record<string, string | number | boolean | undefined>;
@@ -46,6 +47,11 @@ export const ucpApi = {
   upload: (market: string, folder: string, files: File[]) => { const fd = new FormData(); files.forEach((f) => fd.append("files", f)); return U<Asset[]>("upload", { method: "POST", query: { market, folder }, body: fd }); },
   login: (id: string) => U<{ ok: true; user: User }>("login", { method: "POST", body: JSON.stringify({ id }) }),
   logout: () => U<{ ok: true }>("logout", { method: "POST", body: "{}" }),
+  /* page comments (Version history panel) */
+  comments: (market: string, path: string) => U<PageComment[]>("comments", { query: { market, path } }),
+  addComment: (market: string, path: string, text: string, version?: { id: string; label: string }) => U<PageComment[]>("comments/add", { method: "POST", query: { market, path }, body: JSON.stringify({ text, version }) }),
+  pinComment: (market: string, path: string, id: string, pinned: boolean) => U<PageComment[]>("comments/pin", { method: "POST", query: { market, path }, body: JSON.stringify({ id, pinned }) }),
+  deleteComment: (market: string, path: string, id: string) => U<PageComment[]>("comments/delete", { method: "POST", query: { market, path }, body: JSON.stringify({ id }) }),
   versions: (path: string) => U<{ id: string; time: string; who: string; note: string; title: string; status: string; blocks: number }[]>("versions", { query: { path } }),
   restoreVersion: (market: string, path: string, id: string) => U<{ ok: true }>("versions/restore", { method: "POST", query: { market, path }, body: JSON.stringify({ id }) }),
   /* content models (admin-only mutations; the server refuses others with 403) */
