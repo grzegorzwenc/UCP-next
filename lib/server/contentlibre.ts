@@ -142,9 +142,11 @@ export async function clSlingJsonOrNone<T>(pathWithExtension: string): Promise<T
  * backend's public origin makes the page's stylesheets, scripts and images load from the backend directly - they are
  * public - and keeps the preview byte-for-byte the backend's render: one renderer, not a second one here.
  */
-export async function clRender(pagePath: string, draft?: string): Promise<string> {
+export async function clRender(pagePath: string, draft?: string, edit = false): Promise<string> {
   const cfg = contentLibreConfig();
-  const res = await fetch(`${cfg.origin}${encodePath(pagePath)}.html${draft ? `?draft=${encodeURIComponent(draft)}` : ""}`, { headers: { Accept: "text/html", ...(await authHeaders(cfg, "GET")) }, cache: "no-store" });
+  // `authoring=edit` asks the backend to mark every component, slot and field (management host, signed-in callers only).
+  const query = new URLSearchParams({ ...(draft ? { draft } : {}), ...(edit ? { authoring: "edit" } : {}) }).toString();
+  const res = await fetch(`${cfg.origin}${encodePath(pagePath)}.html${query ? `?${query}` : ""}`, { headers: { Accept: "text/html", ...(await authHeaders(cfg, "GET")) }, cache: "no-store" });
   if (!res.ok) throw new RepoError(res.status, "The page could not be rendered", pagePath);
   const html = await res.text();
   const base = `<base href="${cfg.publicOrigin}/" target="_blank">`;

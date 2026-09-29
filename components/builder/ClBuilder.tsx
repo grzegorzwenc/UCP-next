@@ -1,11 +1,14 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pill } from "@/components/ui/Pill";
 import { useSession } from "@/components/shell/Session";
 import { PublishDialog } from "@/components/pages/PublishDialog";
 import { ucpApi } from "@/lib/api";
 import type { ReviewerOption } from "@/lib/ucp/types";
+import { toPlain } from "@/lib/blocks/richtext";
+import { ClCanvas, type InlineField } from "./ClCanvas";
+import { RichField } from "./RichTextEditor";
 
 /**
  * The page builder on ContentLIBRE (UCP_BACKEND=contentlibre).
@@ -14,11 +17,16 @@ import type { ReviewerOption } from "@/lib/ucp/types";
  * components. Structure, allowed components and fields come from the backend's `.libre-model.json`, and every write
  * goes through the backend's composition validator - whatever this screen offers, the backend decides.
  *
+ * The preview is rendered in edit mode, so it carries the backend's markers: blocks are selected by clicking them and
+ * text is changed where it stands (ClCanvas). How each field is shown - label, widget, required, hint, options - is the
+ * backend's field description, not a guess made here.
+ *
  * Edits land in a draft (publication.mode=drafts): "Edit" opens one, "Publish" makes it live, "Discard" drops it.
  * An approved draft can also be scheduled; the backend publishes it when it is due, or says on the draft why not.
  */
 
-type FieldDef = { name: string; type: string; default?: unknown };
+/** A field as `.libre-model.json` describes it: the type is what is stored, the widget how it is edited. */
+type FieldDef = { name: string; type: string; default?: unknown; label?: string; widget?: string; required?: boolean; hint?: string; options?: { value: string; label: string }[] };
 type ModelItem = { path: string; resourceType: string; deployed?: boolean };
 type ModelSlot = { id: string; type: string; label: string; maxItems: number; items: ModelItem[] };
 type Model = {
@@ -47,7 +55,8 @@ const STATUS_PILL: Record<string, string> = { published: "published", modified: 
 const REMIND_MS = 15 * 60_000;
 const qs = (params: Record<string, string | undefined>) => new URLSearchParams(Object.entries(params).filter(([, v]) => v) as [string, string][]).toString();
 
-type Loaded = { drafts: Drafts; page: PageDoc; model: Model | null };
+/** `at` tells one load from the next: panels are keyed by it, so a form never keeps values from before a save. */
+type Loaded = { drafts: Drafts; page: PageDoc; model: Model | null; at: number };
 /** Everything the builder shows for one page: its drafts, then the page and structure of the open draft (or the live payload). */
 async function fetchPage(path: string): Promise<Loaded> {
   const drafts = await call<Drafts>(`/api/cl/drafts?${qs({ path })}`);
@@ -57,15 +66,20 @@ async function fetchPage(path: string): Promise<Loaded> {
     call<PageDoc>(`/api/cl/page?${qs({ path, draft: open?.id })}`),
     call<Model>(`/api/cl/model?node=${encodeURIComponent(payload)}`).catch(() => null),
   ]);
-  return { drafts, page, model };
+  return { drafts, page, model, at: Date.now() };
 }
 
-export function ClBuilder({ path, listUrl, marketId }: { path: string; listUrl: string; marketId: string }) {
+/** Widgets a text can be edited with in place; the rest (links, images, choices) belong to the panel. */
+const INLINE_WIDGETS = ["text", "textarea", "richtext"];
+const blank = (v: unknown) => v === undefined || v === null || (typeof v === "string" && !toPlain(v).trim()) || (Array.isArray(v) && !v.some((x) => String(x).trim()));
+const prettify = (name: string) => name.replace(/[-_]+/g, " ").replace(/^./, (c) => c.toUpperCase());
+
+export function ClBuilder({ path, listUrl, marketId, assetOrigin }: { path: string; listUrl: string; marketId: string; assetOrigin: string }) {
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   /** Bumped after every successful action: reloads structure, preview and the inspector. */
   const [version, setVersion] = useState(0);
   const [selected, setSelected] = useState<string | null>(null);
-  const [selModel, setSelModel] = useState<{ node: string; model: Model } | null>(null);
+  const [selModel, setSelModel] = useState<{ node: string; model: Model; at: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [stalePublish, setStalePublish] = useState(false);
@@ -94,26 +108,70 @@ export function ClBuilder({ path, listUrl, marketId }: { path: string; listUrl: 
     fetchPage(path).then((l) => { if (current) setLoaded(l); }, (e: Error) => { if (current) setNote({ kind: "err", text: e.message }); });
     return () => { current = false; };
   }, [path, version]);
+  /** One model fetch per component and version, shared by the inspector, the canvas and the required-field check. */
+  const models = useRef(new Map<string, Promise<Model>>());
+  const labels = useRef(new Map<string, string>());
+  const modelOf = useCallback((node: string) => {
+    let m = models.current.get(node);
+    if (!m) {
+      m = call<Model>(`/api/cl/model?node=${encodeURIComponent(node)}`).then((x) => { for (const [t, c] of Object.entries(x.components)) labels.current.set(t, c.label); return x; });
+      models.current.set(node, m);
+      m.catch(() => models.current.delete(node));
+    }
+    return m;
+  }, []);
+  useEffect(() => { models.current.clear(); }, [version]);
   useEffect(() => {
     if (!selected) return;
     let current = true;
-    call<Model>(`/api/cl/model?node=${encodeURIComponent(selected)}`).then(
-      (m) => { if (current) setSelModel({ node: selected, model: m }); },
+    modelOf(selected).then(
+      (m) => { if (current) setSelModel({ node: selected, model: m, at: Date.now() }); },
       (e: Error) => { if (current) setNote({ kind: "err", text: e.message }); });
     return () => { current = false; };
-  }, [selected, version]);
+  }, [selected, version, modelOf]);
 
   /** Every action: run, report the backend's own words, reload structure and preview. */
-  async function act(label: string, fn: () => Promise<unknown>, after?: () => void) {
+  async function act(label: string, fn: () => Promise<unknown>, after?: () => void): Promise<boolean> {
     setBusy(true); setNote(null);
-    try { await fn(); setNote({ kind: "ok", text: label }); after?.(); setVersion((v) => v + 1); }
+    try { await fn(); setNote({ kind: "ok", text: label }); after?.(); setVersion((v) => v + 1); return true; }
     catch (e) {
       const err = e as Error & { type?: string };
       if (err.type?.endsWith("/draft-stale")) setStalePublish(true);
       setNote({ kind: "err", text: err.message });
+      return false;
     }
     finally { setBusy(false); }
   }
+
+  const fieldOf = async (node: string, name: string) => { const m = await modelOf(node); return m.components[m.resourceType]?.fields.find((f) => f.name === name) ?? null; };
+  /** Whether a marked text can be changed in place: a string field shown as text, a long text or rich text. */
+  const describe = async (node: string, name: string): Promise<InlineField | null> => {
+    const f = await fieldOf(node, name).catch(() => null);
+    if (!f || f.type !== "string" || !INLINE_WIDGETS.includes(f.widget ?? "text")) return null;
+    return { label: f.label ?? f.name, rich: f.widget === "richtext", multiline: f.widget === "textarea" || f.widget === "richtext" };
+  };
+  const inlineSave = async (node: string, name: string, value: string) => {
+    const f = await fieldOf(node, name).catch(() => null);
+    if (!f) return false;
+    return act(`Saved ${f.label ?? f.name}.`, () => call("/api/cl/component/properties", { method: "POST", body: JSON.stringify({ node, values: [{ field: f, value }] }) }));
+  };
+  /** Required fields left empty anywhere on the page, as "Component › Field"; checked before review, like the backend's description asks. */
+  const missingRequired = async (): Promise<string[]> => {
+    const out: string[] = [];
+    const visit = async (m: Model): Promise<void> => {
+      const def = m.components[m.resourceType];
+      for (const f of def?.fields ?? []) if (f.required && blank(m.values[f.name])) out.push(`${def?.label ?? nameOf(m.resourceType)} › ${f.label ?? f.name}`);
+      await Promise.all(m.slots.flatMap((s) => s.items).filter((i) => i.deployed !== false).map(async (i) => visit(await modelOf(i.path))));
+    };
+    if (loaded?.model) await visit(loaded.model);
+    return out;
+  };
+  const sendForReview = async (body: { assignee?: string; due?: string; note?: string }) => {
+    const missing = await missingRequired().catch(() => []);
+    if (missing.length) { setNote({ kind: "err", text: `Fill in the required fields first: ${missing.slice(0, 6).join(", ")}${missing.length > 6 ? ` and ${missing.length - 6} more` : ""}.` }); return; }
+    await act("Sent for review.", () => call(`/api/cl/drafts/review?${q()}`, { method: "POST", body: JSON.stringify({ draft: draft?.id, ...body }) }), () => setReviewForm(null));
+  };
+  const labelOf = (type: string) => labels.current.get(type) ?? loaded?.model?.components[type]?.label ?? prettify(nameOf(type));
 
   const openDraft = () => act("Draft opened. Your changes stay private until you publish.", () => call(`/api/cl/drafts?${q()}`, { method: "POST", body: "{}" }));
   const publish = (force = false) => act("Published. The page is live.", () => call(`/api/cl/drafts/publish?${q()}`, { method: "POST", body: JSON.stringify({ draft: draft?.id, revision: draft?.revision, force }) }), () => { setStalePublish(false); setSelected(null); });
@@ -126,6 +184,7 @@ export function ClBuilder({ path, listUrl, marketId }: { path: string; listUrl: 
   // The review, when there is one, is what the page is waiting on; otherwise its publication status.
   const status = schedule?.failed ? "failed" : schedule?.publishAt ? "scheduled" : reviewState === "IN_REVIEW" ? "review" : reviewState === "APPROVED" ? "approved" : page.status ?? "draft";
   const previewSrc = `/api/cl/preview?${q({ draft: draft?.id })}&v=${version}`;
+  const canvasSrc = `/api/cl/preview?${q({ draft: draft?.id })}&edit=1&v=${version}`;
 
   return (
     <div className="lg:h-full flex flex-col min-h-0">
@@ -158,7 +217,7 @@ export function ClBuilder({ path, listUrl, marketId }: { path: string; listUrl: 
         onSend={(assignee) => act(assignee ? `${assignee} is now asked to review.` : "Any approver can review it now.", () => call(`/api/cl/drafts/review/assign?${q()}`, { method: "POST", body: JSON.stringify({ draft: draft.id, assignee: assignee || undefined }) }), () => setReviewForm(null))} />}
       {scheduling && <PublishDialog marketId={marketId} envName="this site" pages={[{ path, title: page.title ?? nameOf(path), status: schedule?.failed && reviewState === "APPROVED" ? "approved" : status, publishAt: schedule?.publishAt }]} mayPublish={() => true}
         onClose={() => setScheduling(false)} onDone={(r) => { setScheduling(false); const x = r[0]; setNote(x?.ok ? { kind: "ok", text: x.status === "scheduled" ? "Scheduled. The page goes live at the time you picked." : x.status === "published" ? "Published. The page is live." : "Schedule cancelled." } : { kind: "err", text: x?.reason ?? "Nothing changed." }); setVersion((v) => v + 1); }} />}
-      {draft && reviewForm === "request" && <ReviewRequestForm busy={busy} onCancel={() => setReviewForm(null)} onSend={(body) => act("Sent for review.", () => call(`/api/cl/drafts/review?${q()}`, { method: "POST", body: JSON.stringify({ draft: draft.id, ...body }) }), () => setReviewForm(null))} />}
+      {draft && reviewForm === "request" && <ReviewRequestForm busy={busy} onCancel={() => setReviewForm(null)} onSend={(body) => void sendForReview(body)} />}
       {draft && reviewForm === "changes" && <ChangesForm busy={busy} onCancel={() => setReviewForm(null)} onSend={(comment) => act("Changes requested. The author has been asked to update the draft.", () => call(`/api/cl/drafts/decision?${q()}`, { method: "POST", body: JSON.stringify({ draft: draft.id, decision: "request-changes", comment }) }), () => setReviewForm(null))} />}
       {(note || stalePublish) && <div role="status" className={`px-5 py-2 text-[13px] border-b border-line ${note?.kind === "err" ? "bg-crit/10 text-crit" : "bg-good-soft text-good"}`}>
         {note?.text}{stalePublish && <> <button className="btn btn-sm ml-2" disabled={busy} onClick={() => void publish(true)}>Publish anyway</button></>}
@@ -173,14 +232,20 @@ export function ClBuilder({ path, listUrl, marketId }: { path: string; listUrl: 
           {!draft && <p className="text-[12px] text-ink-3 mt-4">This is the live page. Choose <b>Edit</b> to change it in a private draft.</p>}
         </aside>
 
-        <main className="bg-surface-3 min-h-[70vh] lg:min-h-0 p-3">
-          <iframe key={previewSrc} src={previewSrc} title={`Preview of ${page.title ?? path}`} className="w-full h-[70vh] lg:h-full bg-white border border-line rounded" />
+        <main className="bg-surface-3 min-h-[70vh] lg:min-h-0 p-3 flex flex-col gap-2">
+          <p className="text-[12px] text-ink-3">{editable
+            ? "Click a block to select it. Double-click a text to change it where it is: Enter saves (Ctrl+Enter in longer texts), Esc cancels."
+            : "Click a block to see its fields. Choose Edit to change the page."}</p>
+          <div className="flex-1 min-h-0">
+            <ClCanvas src={canvasSrc} title={`Preview of ${page.title ?? path}`} editable={editable && !busy} selected={selected} labelOf={labelOf}
+              onSelect={setSelected} describe={describe} onInlineSave={inlineSave} onNote={(text) => setNote({ kind: "ok", text })} />
+          </div>
         </main>
 
         <aside className="border-t lg:border-t-0 lg:border-l border-line overflow-auto p-4 bg-surface" aria-label="Inspector">
           {selected && inspected
-            ? <Inspector key={`${selected}-${version}`} node={selected} model={inspected} editable={editable} busy={busy} act={act} onClose={() => setSelected(null)} />
-            : <PageMeta key={`${draft?.id}-${version}`} page={page} editable={editable} busy={busy} onSave={(patch) => act("Page details saved to the draft.", () => call(`/api/cl/page?${q({ draft: draft?.id })}`, { method: "PATCH", body: JSON.stringify(patch) }))} />}
+            ? <Inspector key={`${selected}-${selModel?.at}`} node={selected} model={inspected} editable={editable} busy={busy} act={act} onClose={() => setSelected(null)} onSelect={setSelected} assetOrigin={assetOrigin} />
+            : <PageMeta key={`${draft?.id}-${loaded?.at}`} page={page} editable={editable} busy={busy} onSave={(patch) => act("Page details saved to the draft.", () => call(`/api/cl/page?${q({ draft: draft?.id })}`, { method: "PATCH", body: JSON.stringify(patch) }))} />}
           {payload && <p className="font-mono text-[10.5px] text-ink-4 mt-6 break-all">{payload}</p>}
         </aside>
       </div>
@@ -188,7 +253,7 @@ export function ClBuilder({ path, listUrl, marketId }: { path: string; listUrl: 
   );
 }
 
-type Act = (label: string, fn: () => Promise<unknown>, after?: () => void) => Promise<void>;
+type Act = (label: string, fn: () => Promise<unknown>, after?: () => void) => Promise<boolean>;
 
 /** The slots of one component instance, with its items and what may be added - the backend's model, as given. */
 function SlotList({ model, node, editable, busy, selected, onSelect, act }: { model: Model; node: string; editable: boolean; busy: boolean; selected: string | null; onSelect: (p: string) => void; act: Act }) {
@@ -229,7 +294,7 @@ function AddComponent({ allowed, model, busy, onAdd }: { allowed: string[]; mode
 }
 
 /** The fields the backend declares for this component, with its stored values; saved as one Sling POST. */
-function Inspector({ node, model, editable, busy, act, onClose }: { node: string; model: Model; editable: boolean; busy: boolean; act: Act; onClose: () => void }) {
+function Inspector({ node, model, editable, busy, act, onClose, onSelect, assetOrigin }: { node: string; model: Model; editable: boolean; busy: boolean; act: Act; onClose: () => void; onSelect: (p: string) => void; assetOrigin: string }) {
   const def = model.components[model.resourceType];
   const fields = useMemo(() => def?.fields ?? [], [def]);
   const initial = useMemo(() => Object.fromEntries(fields.map((f) => [f.name, model.values[f.name] ?? f.default ?? ""])), [fields, model.values]);
@@ -239,20 +304,53 @@ function Inspector({ node, model, editable, busy, act, onClose }: { node: string
   return <div className="grid gap-3">
     <div className="flex items-center"><h2 className="font-semibold">{def?.label ?? nameOf(model.resourceType)}</h2><button className="ml-auto text-ink-3" aria-label="Close" onClick={onClose}>✕</button></div>
     {!fields.length && <p className="text-ink-3 text-[13px]">This component has no editable fields.</p>}
-    {fields.map((f) => <label key={f.name} className="grid gap-1 text-[12.5px] text-ink-3">{f.name}
-      {f.type === "boolean"
-        ? <input type="checkbox" disabled={!editable} checked={!!values[f.name]} onChange={(e) => setValues({ ...values, [f.name]: e.target.checked })} />
-        : f.type === "long"
-          ? <input type="number" disabled={!editable} className="border border-line rounded px-2 py-1 text-[13px] text-ink bg-surface" value={String(values[f.name] ?? "")} onChange={(e) => setValues({ ...values, [f.name]: Number(e.target.value) })} />
-          : f.type === "readonly"
-            ? <span className="text-ink">{String(values[f.name] ?? "")}</span>
-            : <textarea rows={String(values[f.name] ?? "").length > 60 ? 4 : 1} disabled={!editable} className="border border-line rounded px-2 py-1 text-[13px] text-ink bg-surface" value={Array.isArray(values[f.name]) ? (values[f.name] as unknown[]).join("\n") : String(values[f.name] ?? "")} onChange={(e) => setValues({ ...values, [f.name]: f.type === "string[]" ? e.target.value.split("\n") : e.target.value })} />}
-    </label>)}
+    {fields.map((f) => <FieldRow key={f.name} f={f} value={values[f.name]} editable={editable} assetOrigin={assetOrigin} onChange={(v) => setValues((cur) => ({ ...cur, [f.name]: v }))} />)}
     {editable && fields.length > 0 && <button className="btn btn-sm on justify-self-start" disabled={busy || !changed.length} onClick={() => void save()}>Save {changed.length ? `(${changed.length})` : ""}</button>}
     {model.slots.length > 0 && <div className="border-t border-line pt-3"><h3 className="text-[11px] tracking-[.1em] uppercase text-ink-3 font-semibold mb-2">Inside this component</h3>
-      <SlotList model={model} node={node} editable={editable} busy={busy} selected={null} onSelect={() => undefined} act={act} /></div>}
+      <SlotList model={model} node={node} editable={editable} busy={busy} selected={null} onSelect={onSelect} act={act} /></div>}
     {!editable && <p className="text-[12px] text-ink-3">Read-only: open a draft to edit.</p>}
   </div>;
+}
+
+/** The widget a field is edited with: the backend's, or its type's plain default for an older backend. */
+const widgetOf = (f: FieldDef) => f.widget ?? (f.type === "long" ? "number" : f.type === "boolean" ? "checkbox" : f.type === "string[]" ? "lines" : f.type === "readonly" ? "readonly" : "text");
+
+/** One field, shown as the backend describes it: label, widget, required mark and hint. */
+function FieldRow({ f, value, editable, assetOrigin, onChange }: { f: FieldDef; value: unknown; editable: boolean; assetOrigin: string; onChange: (v: unknown) => void }) {
+  const widget = widgetOf(f); const label = f.label ?? f.name; const id = `cl-field-${f.name.replace(/[^\w-]/g, "-")}`;
+  const missing = editable && !!f.required && blank(value);
+  const text = Array.isArray(value) ? value.join("\n") : String(value ?? "");
+  const box = `border rounded px-2 py-1 text-[13px] text-ink bg-surface ${missing ? "border-crit" : "border-line"}`;
+  const listed = !!f.options?.some((o) => o.value === text);
+  const control =
+    widget === "checkbox" ? <input id={id} type="checkbox" disabled={!editable} checked={!!value} onChange={(e) => onChange(e.target.checked)} />
+    : widget === "readonly" ? <span className="text-ink">{text}</span>
+    : widget === "number" ? <input id={id} type="number" disabled={!editable} className={box} value={text} onChange={(e) => onChange(Number(e.target.value))} />
+    : widget === "select" ? <select id={id} disabled={!editable} className={box} value={text} onChange={(e) => onChange(f.type === "long" ? Number(e.target.value) : e.target.value)}>
+        {(!f.required || !text) && <option value="">{f.required ? "Choose…" : "—"}</option>}
+        {!!text && !listed && <option value={text}>{text} (not in the list)</option>}
+        {f.options?.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    : widget === "richtext" ? <RichField value={value} onChange={onChange} label={label} disabled={!editable} invalid={missing} />
+    : widget === "textarea" || widget === "lines" ? <textarea id={id} rows={widget === "lines" ? Math.max(3, text.split("\n").length) : 4} disabled={!editable} className={box} value={text}
+        onChange={(e) => onChange(widget === "lines" ? e.target.value.split("\n") : e.target.value)} />
+    : <input id={id} type="text" inputMode={widget === "link" ? "url" : undefined} spellCheck={widget !== "link" && widget !== "image"} disabled={!editable} className={box} value={text} onChange={(e) => onChange(e.target.value)} />;
+  return <div className="grid gap-1 text-[12.5px] text-ink-3">
+    <label htmlFor={widget === "richtext" ? undefined : id} className="flex items-baseline gap-1" title={f.name}>{label}{f.required && <span className="text-crit" aria-hidden>*</span>}{f.required && <span className="sr-only">(required)</span>}</label>
+    {control}
+    {widget === "image" && <ImagePreview src={text} origin={assetOrigin} />}
+    {f.hint && <span className="text-[11.5px] text-ink-4">{f.hint}</span>}
+    {missing && <span className="text-[11.5px] text-crit">Required before the page can be sent for review.</span>}
+  </div>;
+}
+
+/** A thumbnail for an image field whose value is a path or an address; a site's logical asset name has none. */
+function ImagePreview({ src, origin }: { src: string; origin: string }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  const url = /^https?:\/\//i.test(src) ? src : src.startsWith("/") ? `${origin}${src}` : null;
+  if (!url || failed === url) return null;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={url} alt="" className="max-h-28 w-auto max-w-full object-contain border border-line rounded bg-surface-2" onError={() => setFailed(url)} />;
 }
 
 /** Page details (title, description, navigation) - written to the draft through content/v1. */

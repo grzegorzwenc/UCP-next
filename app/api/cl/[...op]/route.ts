@@ -41,7 +41,7 @@ async function done(result: unknown, path: string, type: "content" | "publishing
  *   POST   /api/cl/component/properties            { node, entries: [name, value][] }
  *   POST   /api/cl/component/remove                { node }
  *   POST   /api/cl/component/move                  { slot, source, before? }
- *   GET    /api/cl/preview?path=&draft=            the server's render, for the preview iframe
+ *   GET    /api/cl/preview?path=&draft=&edit=1     the server's render, for the preview iframe (edit=1: with component and field markers)
  *
  * Components use the editor's own contracts (model JSON + Sling POST), so the backend's composition validator and
  * publication rules decide every write, exactly as for ContentLIBRE's /edit.
@@ -108,7 +108,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       return done(await clSlingPost(requireEditable(b.slot), entries), b.slot, "content", "reordered");
     }
     if (o === "preview" && req.method === "GET") {
-      const html = await clRender(requireEditable(path), draft);
+      const html = await clRender(requireEditable(path), draft, q.get("edit") === "1");
       return new NextResponse(html, { headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
     }
     return problem(new RepoError(404, "Unknown operation", o));

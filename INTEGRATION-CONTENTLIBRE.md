@@ -82,5 +82,15 @@ Still to do on this side:
 
 - [x] `ClBuilder` (28.09): Remind reviewer, Change reviewer (list of people who may review), Schedule… / Change
       schedule (the publish dialog), banners for a schedule and for a failed one, "Publish now".
-- [ ] Rich text in `ClBuilder` once components declare a rich-text field.
+- [x] **Editable preview** (29.09): `components/builder/ClCanvas.tsx`. The preview is the backend's render in edit
+      mode (`/api/cl/preview?…&edit=1` → `authoring=edit`), read through its markers: click selects a block
+      (outline + name, the inspector opens), double-click on a marked text (`data-libre-field`) edits it in place -
+      Enter (Ctrl+Enter in long and rich texts) or leaving the field saves, Esc cancels. The frame is sandboxed
+      without scripts, so the site's JavaScript does not run while editing.
+- [x] **Fields as the backend describes them** (29.09): label, widget (`text`, `textarea`, `richtext` with the
+      mock's `RichField`, `select`, `image` with a thumbnail, `link`, `number`, `checkbox`, `lines`), required mark
+      and hint. **Send for review** is refused while a required field anywhere on the page is empty. Nested
+      components are selectable from their parent's panel.
+- [ ] Blur-to-save in the preview not tried in a focused browser (the in-app pane was hidden); drag and drop
+      in the preview; an image picker.
 - [ ] Re-run the Playwright suite and a mock-mode pass after the merge (only type check and lint were run).
