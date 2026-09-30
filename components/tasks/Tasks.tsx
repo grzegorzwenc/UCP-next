@@ -149,7 +149,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
               <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.name.replace(/^HSBC /, "")} · {routeOf(t.page.path)} · by {t.authorName ?? t.from.replace(/ \(.*\)$/, "")}{waitingLabel(t.sentAt) !== "—" ? ` · waiting ${waitingLabel(t.sentAt)}` : ""}</div>
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-[26px] md:pl-0 min-w-0">{who(t)}<span suppressHydrationWarning className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span></div>
-            <div className="flex items-center gap-1.5 pl-[26px] md:pl-0 md:justify-end">{acts.length ? acts : <Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link>}</div>
+            <div className="flex items-center gap-1.5 pl-[26px] md:pl-0 md:justify-end">{acts.length ? acts : <><span className="text-[12px] text-ink-4 whitespace-nowrap">No action for you</span><Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link></>}</div>
           </li>; })}
       </ul> : null;
   const pubList = (items: PublishedItem[]) => items.length ? <ul className="bg-surface border border-line rounded-xl divide-y divide-line overflow-hidden">
@@ -191,9 +191,12 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
       </div>
 
       {/* backlog: one list; other stages: yours on top, other people below (authors only see their own; site admins see everyone) */}
-      {view === "all" ? (rows.length ? <div>{VIEWS.filter((v) => v.id !== "all" && v.id !== "published").map((v) => { const g = rows.filter((t) => v.of(t, user.id)); if (!g.length) return null; const st = g[0].page.status;
-          /* the same names as the tabs, in the same order */
-          return <section key={v.id} aria-label={v.label} className="mt-6 first:mt-0"><h3 className="flex items-center gap-2 mb-2"><button type="button" onClick={() => openView(v.id)} title={`Open the ${v.label} tab`} className={`pill pill-${st} hover:underline underline-offset-2`}>{v.label}</button><span className="text-[12px] text-ink-3">{g.length}</span></h3>{taskList(g)}</section>; })}</div> : empty(cur.empty))
+      {view === "all" ? <div>{VIEWS.filter((v) => v.id !== "all").map((v) => {
+          /* every stage, with the same names as the tabs; an empty one says there is nothing for you to do there */
+          const g = v.id === "published" ? [] : rows.filter((t) => v.of(t, user.id)); const p = v.id === "published" ? pub.filter((x) => x.whoId === user.id) : []; const n = g.length + p.length;
+          const st = v.id === "backlog" || v.id === "mine" ? "review" : v.id === "inreview" ? "inreview" : v.id === "sendbiz" ? "reviewed" : v.id === "bizreview" ? "bizreview" : v.id === "ready" ? "approved" : "published";
+          return <section key={v.id} aria-label={v.label} className="mt-6 first:mt-0"><h3 className="flex items-center gap-2 mb-2"><button type="button" onClick={() => openView(v.id)} title={`Open the ${v.label} tab`} className={`pill pill-${st} hover:underline underline-offset-2 ${n ? "" : "opacity-60"}`}>{v.label}</button><span className="text-[12px] text-ink-3">{n}</span></h3>
+            {n ? (v.id === "published" ? pubList(p) : taskList(g)) : <p className="text-[12.5px] text-ink-4 bg-surface border border-dashed border-line-2 rounded-xl px-4 py-2.5">No actions for you at this step.</p>}</section>; })}</div>
         : view === "backlog" ? (taskList(rows) ?? empty(cur.empty))
         : view !== "published" ? split(rows, (t) => t.assignee === user.id || t.author === user.id, taskList)
         : split(pub, (p) => p.whoId === user.id, pubList)}
