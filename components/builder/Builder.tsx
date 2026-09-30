@@ -579,14 +579,15 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {rightTab === "block" && selected && !lockReason && <div className="flex justify-end gap-2 px-3.5 py-2.5 border-t border-line bg-surface"><button className="btn btn-sm" onClick={() => closeConfigure(false)}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => { closeConfigure(true); say("Component updated · Save the page when you're done"); }}>Save</button></div>}
         </aside>}
         {focus && <div aria-live="polite" className={`fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-[#0F1013]/85 text-white text-[12px] px-3 py-1.5 rounded-full transition-opacity duration-700 ${fsHint ? "opacity-100" : "opacity-0 pointer-events-none"}`}>Preview · this is what visitors see · press Esc to go back to editing</div>}
-        {focus && reviewMode && <FloatingPanel title="Comments" count={commentTotal} open={floatOpen} onToggle={setFloatOpen} hint={commentTarget ? undefined : "Click a text, an image or a component on the page to comment on it."}
+        {focus && reviewMode && <FloatingPanel title={status === "bizreview" && bizAssigned && mayBizApprove ? "Review" : "Comments"} count={commentTotal} open={floatOpen} onToggle={setFloatOpen} hint={commentTarget || (status === "bizreview" && bizAssigned && mayBizApprove) ? undefined : "Click a text, an image or a component on the page to comment on it."}
           actions={<button type="button" className="btn btn-sm" onClick={leavePreview} title="Leave full screen (Esc)">Exit full screen</button>}>
-          {status === "bizreview" && bizAssigned && mayBizApprove && <div className="mb-3 rounded-lg border border-line bg-surface-2 p-3 text-[13px]">
-            <b className="block">Your decision</b>
+          {status === "bizreview" && bizAssigned && mayBizApprove && <section aria-labelledby="dec-b" className="mb-3"><h3 id="dec-b" className="text-[11px] font-semibold uppercase tracking-[.08em] text-ink-3">Decision</h3><div className="mt-1.5 rounded-lg border border-line bg-surface-2 p-3 text-[13px]">
+            <p className="text-[12.5px] text-ink-3">Everything right? Sign it off. Something to change? Send it back to the author.</p>
             {askingB ? <><p className="text-[12.5px] mt-1">{askingB === "signoff" ? "Sign off this page? It becomes ready to publish." : "Send it back to the author? The page goes back to Build the page."}</p>
               <div className="flex gap-2 mt-2"><button className={`btn btn-sm ${askingB === "signoff" ? "btn-next" : "btn-primary"}`} onClick={() => void decideFS(askingB)}>{askingB === "signoff" ? "Yes, sign off" : "Yes, reauthor"}</button><button className="btn btn-sm" onClick={() => setAskingB(null)}>Cancel</button></div></>
               : <div className="flex flex-wrap gap-2 mt-2"><button className="btn btn-sm btn-next" onClick={() => setAskingB("signoff")}>Sign off</button><button className="btn btn-sm" onClick={() => setAskingB("reauthor")}>Reauthor</button></div>}
-          </div>}
+          </div></section>}
+          {status === "bizreview" && bizAssigned && mayBizApprove && <h3 className="text-[11px] font-semibold uppercase tracking-[.08em] text-ink-3 mb-2 pt-3 border-t border-line">Comments <span className="normal-case tracking-normal font-normal text-ink-4">· click a text or an image on the page to comment on it</span></h3>}
           <PageComments marketId={marketId} path={page.path} about={null} onClearAbout={() => {}} focusKey={0} bare {...reviewProps} />
         </FloatingPanel>}
         {decidedB && <DecisionOverlay decision={decidedB.decision} title={title} by={user.name} at={decidedB.at} action={<button className="btn btn-primary" onClick={() => { setDecidedB(null); if (focus) setFocusMode(false); }}>Back to the builder</button>} />}

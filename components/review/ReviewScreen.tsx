@@ -94,17 +94,20 @@ export function ReviewScreen(p: Props) {
       </EntitiesContext.Provider></AssetsContext.Provider></Preview></div>
     </section>
     {decided && <DecisionOverlay decision={decided.decision} title={p.title!} by={decided.by} at={decided.at} action={<button className="btn" onClick={() => window.location.reload()}>See the page</button>} />}
-    <FloatingPanel title="Comments" count={list.filter((c) => !c.resolved).length} open={open} onToggle={setOpen} top={76} hint={p.open && !target ? "Click a text, an image or a component on the page to comment on it." : undefined}>
+    <FloatingPanel title={p.stage === "bizreview" && p.open && !decided ? "Review" : "Comments"} count={list.filter((c) => !c.resolved).length} open={open} onToggle={setOpen} top={76} hint={p.open && !target && p.stage !== "bizreview" ? "Click a text, an image or a component on the page to comment on it." : undefined}>
       <div className="flex flex-col gap-3 min-w-0">
-        {p.stage === "bizreview" && p.open && !decided && <div className="rounded-lg border border-line bg-surface-2 p-3">
-          <b className="block text-[13px]">Your decision</b>
-          <p className="text-[12.5px] text-ink-3 mt-0.5">Sign it off when everything is right, or send it back to the author with your comments.</p>
+        {p.stage === "bizreview" && p.open && !decided && <section aria-labelledby="dec-title">
+          <h3 id="dec-title" className="text-[11px] font-semibold uppercase tracking-[.08em] text-ink-3">Decision</h3>
+          <div className="mt-1.5 rounded-lg border border-line bg-surface-2 p-3">
+          <p className="text-[12.5px] text-ink-3">Everything right? Sign it off. Something to change? Send it back to the author.</p>
           {asking ? <div className="mt-2 rounded-md border border-line-2 bg-surface p-2.5">
             <p className="text-[12.5px]">{asking === "signoff" ? "Sign off this page? It becomes ready to publish." : "Send it back to the author? The page goes back to Build the page."}{text.trim() ? " Your comment goes with it." : ""}</p>
             <div className="flex gap-2 mt-2"><button className={`btn btn-sm ${asking === "signoff" ? "btn-next" : "btn-primary"}`} disabled={busy} onClick={() => void decideBiz(asking)}>{busy ? "Saving…" : asking === "signoff" ? "Yes, sign off" : "Yes, reauthor"}</button><button className="btn btn-sm" disabled={busy} onClick={() => setAsking(null)}>Cancel</button></div>
           </div> : <div className="flex flex-wrap gap-2 mt-2"><button className="btn btn-sm btn-next" onClick={() => setAsking("signoff")}>Sign off</button><button className="btn btn-sm" onClick={() => setAsking("reauthor")}><svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14L4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" /></svg>Reauthor</button></div>}
           {guest && <p className="text-[11px] text-ink-4 mt-2">Uses the name and e-mail below.</p>}
-        </div>}
+          </div>
+        </section>}
+        {p.stage === "bizreview" && p.open && !decided && <h3 className="text-[11px] font-semibold uppercase tracking-[.08em] text-ink-3 -mb-1.5 pt-3 border-t border-line">Comments <span className="normal-case tracking-normal font-normal text-ink-4">· click a text or an image on the page to comment on it</span></h3>}
         {p.mayApprove && p.stage === "review" && !done && <div className="rounded-lg border border-line bg-surface-2 p-3"><b className="block text-[13px]">Everything right?</b><p className="text-[12.5px] text-ink-3 mt-0.5">{p.stage === "review" ? "Send it on to the business review, or back to the author if something needs changing." : "Signing off makes the page ready to publish."}</p>
           {p.stage === "review" ? <div className="flex flex-wrap gap-2 mt-2"><button className="btn btn-next btn-sm" disabled={busy} onClick={() => void decide("bizreview")}>Send to business review</button><button className="btn btn-sm" disabled={busy} onClick={() => void decide("draft")}>Reauthor</button></div>
             : <button className="btn btn-next btn-sm mt-2" disabled={busy} onClick={approve}>Sign off</button>}</div>}
