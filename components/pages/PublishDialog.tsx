@@ -50,7 +50,7 @@ export function PublishDialog({ marketId, envName, pages, mayPublish, onClose, o
   </ModalShell>;
 
   const title = single ? `Publish “${single.title}”` : `Publish ${pages.length} pages`;
-  return <ModalShell title={title} subtitle={`Goes live on ${envName}. You can publish now or pick a date and time.`} width={560} onClose={onClose}
+  return <ModalShell title={title} subtitle={`Goes live on ${envName}.`} width={560} onClose={onClose}
     footer={<>{single?.status === "scheduled" && <button className="btn mr-auto text-crit" disabled={busy} onClick={() => run(true)}>Cancel schedule</button>}<button className="btn" onClick={onClose}>Cancel</button>
       <button className="btn btn-primary" disabled={busy || !ready.length || !!whenErr} onClick={() => run()}>{busy ? "Working…" : mode === "now" ? `Publish now${pages.length > 1 ? ` (${ready.length})` : ""}` : `Schedule${pages.length > 1 ? ` (${ready.length})` : ""}`}</button></>}>
     {single?.status === "scheduled" && single.publishAt && <p className="text-[13px] bg-info-soft rounded-md px-3 py-2 mb-3">Scheduled for <b>{fmt(single.publishAt)}</b>. Change the time, publish it now, or cancel the schedule.</p>}

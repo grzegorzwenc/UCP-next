@@ -83,7 +83,7 @@ export function Users({ users: initialUsers, folders, log, pageTitles, base, roo
   };
 
   return (<div className="p-4 md:p-7">
-    <div className="flex flex-wrap items-start gap-x-4 gap-y-3 mb-5"><div><h1 className="text-2xl font-semibold">Users & permissions</h1><p className="text-ink-3 text-[13px] mt-1">Who can see, edit, approve and publish, per folder. Click a user, then tick or untick the boxes.</p></div>
+    <div className="flex flex-wrap items-start gap-x-4 gap-y-3 mb-5"><div><h1 className="text-2xl font-semibold">Users & permissions</h1><p className="text-ink-3 text-[13px] mt-1">Who can see, edit, approve and publish, per folder</p></div>
       <div className="ml-auto flex gap-2"><button className="btn btn-primary" disabled={!isAdmin} title={isAdmin ? undefined : "Only site admins can invite users"} onClick={() => { setErr(null); setInvite(true); }}>＋ Invite user</button></div></div>
     {!isAdmin && <div role="note" className="mb-4 flex items-center gap-2.5 text-[13px] text-ink-2 bg-info-soft border border-info/30 px-3.5 py-2.5 rounded-lg"><span aria-hidden="true">🔒</span>Only site admins can change users and permissions. Ask {adminName}.</div>}
     {err && <div className="mb-4 text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded" role="alert">{err}</div>}
@@ -97,14 +97,14 @@ export function Users({ users: initialUsers, folders, log, pageTitles, base, roo
       {u ? <div className="min-w-0">
         <div className="bg-surface border border-line rounded-lg p-5 mb-3.5 flex gap-4 items-center flex-wrap">
           <Avatar name={u.name} size={56} /><div className="flex-1 min-w-[200px]"><div className="text-[20px] font-semibold">{u.name}</div><div className="font-mono text-ink-3 text-[12.5px]">{u.email} · {u.team} · signs in with company SSO</div></div>
-          <label className="min-w-[220px] text-[12px] text-ink-2 font-medium">Role (sets default permissions)<select disabled={locked} className="mt-1 block w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13.5px] text-ink font-normal bg-surface" value={u.role} onChange={(e) => void setRole(e.target.value as Role)}>{(Object.keys(ROLES) as Role[]).map((k) => <option key={k} value={k}>{ROLES[k].name}</option>)}</select></label>
+          <label className="min-w-[220px] text-[12px] text-ink-2 font-medium">Role<select disabled={locked} className="mt-1 block w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13.5px] text-ink font-normal bg-surface" value={u.role} onChange={(e) => void setRole(e.target.value as Role)}>{(Object.keys(ROLES) as Role[]).map((k) => <option key={k} value={k}>{ROLES[k].name}</option>)}</select></label>
           <button className="btn" disabled={locked} onClick={() => void remove()}>Remove access</button>
         </div>
         <div className="bg-surface border border-line rounded-lg p-5">
-          <h3 className="text-[15px] font-semibold mb-3">Permissions on {marketFlag} {marketName} <span className="font-normal text-ink-3 text-[13px]">Whole-site permissions apply to every folder unless a folder says otherwise</span></h3>
+          <h3 className="text-[15px] font-semibold mb-3">Permissions on {marketFlag} {marketName} <span className="font-normal text-ink-3 text-[13px]"></span></h3>
           <div className="overflow-auto"><table className="w-full text-[13.5px]"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="p-2 border-b border-line-2">Folder</th>{PERM_COLS.map((c) => <th key={c[0]} title={c[2]} className="p-2 border-b border-line-2 text-center">{c[1]}</th>)}</tr></thead>
             <tbody>{rows.map((f) => <tr key={f.key} className={f.key === "root" ? "bg-surface-2" : ""}><td className="p-2 border-b border-line"><span className={`inline-flex items-center gap-2 ${f.key === "root" ? "font-semibold" : ""}`}>{f.key === "root" ? <SiteIcon /> : <FolderIcon />}{f.title}</span></td>
-              {PERM_COLS.map((c) => { const st = permOf(u, f.key, c[0]); return <td key={c[0]} className="p-2 border-b border-line text-center"><PermButton state={st} disabled={locked} onClick={() => toggle(f, c[0], c[1])} />{st === "inherited" && <small className="block text-[10.5px] text-ink-3 leading-tight mt-0.5">inherited</small>}</td>; })}</tr>)}</tbody></table></div>
+              {PERM_COLS.map((c) => { const st = permOf(u, f.key, c[0]); return <td key={c[0]} className="p-2 border-b border-line text-center"><PermButton state={st} disabled={locked} onClick={() => toggle(f, c[0], c[1])} /></td>; })}</tr>)}</tbody></table></div>
           <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 mt-3 text-[12.5px] text-ink-2"><span><i className="inline-block w-[9px] h-[9px] rounded-[2px] mr-1.5 align-[-1px] bg-good" />Granted here</span><span><i className="inline-block w-[9px] h-[9px] rounded-[2px] mr-1.5 align-[-1px] bg-good-soft border border-good" />Inherited from whole site</span><span><i className="inline-block w-[9px] h-[9px] rounded-[2px] mr-1.5 align-[-1px] bg-surface-3 border border-line-2" />Not granted</span></div>
         </div>
         <div className="bg-surface border border-line rounded-lg p-5 mt-3.5">
