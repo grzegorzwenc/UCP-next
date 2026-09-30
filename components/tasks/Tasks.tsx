@@ -113,7 +113,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
       if (can("review", p)) btn("claim", "Assign to me", () => run(t, () => ucpApi.claimReview(mid(t), p), `${t.page.title} is yours · find it in Ready for review`), true);
     } else if (st === "review") { // Ready for review: assigned, not started
       change();
-      if (t.assignee === user.id || isAdmin) btn("release", "Back to backlog", () => run(t, () => ucpApi.releaseReview(mid(t), p), `${t.page.title} is back in the Backlog`));
+      if (t.assignee === user.id || t.author === user.id || isAdmin) btn("release", "Back to backlog", () => run(t, () => ucpApi.releaseReview(mid(t), p), `${t.page.title} is back in the Backlog`));
       if (t.assignee === user.id) btn("start", "Start review", () => run(t, () => status(t, "inreview"), `${t.page.title}: review started`), true);
     } else if (st === "inreview") {
       change();
