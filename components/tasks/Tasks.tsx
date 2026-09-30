@@ -81,7 +81,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   const match = (path: string, title: string, extra = "") => (!mkt || marketOfPath(path).id === mkt) && (!q.trim() || `${title} ${routeOf(path)} ${extra}`.toLowerCase().includes(q.toLowerCase().trim()));
   const byView = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.id, tasks.filter((t) => v.of(t, user.id) && (!onlyMe || t.assignee === user.id)).filter((t) => match(t.page.path, t.page.title, `${t.from} ${t.assigneeName ?? ""}`)).sort((a, b) => (v.id === "all" ? STAGE_ORDER.indexOf(a.page.status) - STAGE_ORDER.indexOf(b.page.status) : 0) || (a.sentAt ?? "").localeCompare(b.sentAt ?? ""))])) as Record<View, Task[]>, [tasks, q, mkt, user.id, onlyMe]); // eslint-disable-line react-hooks/exhaustive-deps
   const pub = useMemo(() => published.filter((p) => (!onlyMe || p.whoId === user.id) && match(p.path, p.title, p.who ?? "")), [published, q, mkt, onlyMe, user.id]); // eslint-disable-line react-hooks/exhaustive-deps
-  const count = (v: View) => (v === "published" ? pub.length : byView[v].length);
+  const count = (v: View) => (v === "published" ? (isAdmin ? pub.length : pub.filter((p) => p.whoId === user.id).length) : byView[v].length);
   /* yours = assigned to you or you are the author; in the Backlog, pages you could take */
   const seenSnap = useSyncExternalStore(subscribeSeen, readSeen, () => "[]"); const seen = useMemo(() => new Set<string>(JSON.parse(seenSnap)), [seenSnap]);
   const yoursOf = (v: View, t: Task) => (v === "all" ? t.assignee === user.id || t.author === user.id : v === "backlog" ? can("review", t.page.path) : t.assignee === user.id || t.author === user.id);
@@ -188,6 +188,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
     </table></div></section>)}</div>;
   const mineT = (t: Task) => t.assignee === user.id || t.author === user.id;
   const splitParts = (items: Task[], emptyYours: string): Part[] => { const a = sortTasks(items.filter(mineT)), b = sortTasks(items.filter((t) => !mineT(t)));
+    if (!isAdmin) return [{ rows: [...a, ...b].map(taskRow), empty: emptyYours }]; // an author only sees their own (and the Backlog they may take) · no Yours / Others split needed
     return [{ label: "Yours", rows: a.map(taskRow), empty: emptyYours }, ...(b.length ? [{ label: othersLabel, rows: b.map(taskRow) }] : [])]; };
 
   return (
@@ -218,11 +219,11 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
           const items = v.id === "published" ? [] : rows.filter((t) => v.of(t, user.id)); const mine = pub.filter((x) => x.whoId === user.id);
           const n = v.id === "published" ? mine.length : items.length;
           const head = <h3 className="flex items-center gap-2.5"><button type="button" onClick={() => openView(v.id)} title={`Open the ${v.label} tab`} className={`pill pill-${st} text-[12.5px] px-3 py-1 hover:underline underline-offset-2 ${n ? "" : "opacity-60"}`}>{v.label}</button><span className="text-[13px] text-ink-3">{n} page{n === 1 ? "" : "s"}</span></h3>;
-          return { key: v.id, head, parts: v.id === "published" ? [{ label: "Yours", rows: mine.map(pubRow), empty: "Nothing of yours published recently." }] : splitParts(items, "No actions for you at this step.") };
+          return { key: v.id, head, parts: v.id === "published" ? [{ label: isAdmin ? "Yours" : undefined, rows: mine.map(pubRow), empty: "Nothing of yours published recently." }] : splitParts(items, "No actions for you at this step.") };
         }))
         : view === "backlog" ? (rows.length ? board([{ key: "b", parts: [{ rows: sortTasks(rows).map(taskRow) }] }]) : empty(cur.empty))
         : view !== "published" ? (rows.length ? board([{ key: "s", parts: splitParts(rows, "Nothing of yours at this stage.") }]) : empty(cur.empty))
-        : pub.length ? board([{ key: "p", parts: [{ label: "Yours", rows: pub.filter((p) => p.whoId === user.id).map(pubRow), empty: "Nothing of yours published recently." }, { label: "Other people", rows: pub.filter((p) => p.whoId !== user.id).map(pubRow) }] }]) : empty(cur.empty)}
+        : pub.length ? board([{ key: "p", parts: isAdmin ? [{ label: "Yours", rows: pub.filter((p) => p.whoId === user.id).map(pubRow), empty: "Nothing of yours published recently." }, { label: "Other people", rows: pub.filter((p) => p.whoId !== user.id).map(pubRow) }] : [{ rows: pub.filter((p) => p.whoId === user.id).map(pubRow), empty: "Nothing of yours published recently." }] }]) : empty(cur.empty)}
 
       {assigning && <AssignDialog marketId={marketOfPath(assigning.page.path).id} task={assigning} pageHref={builderHref(assigning.page.path)} onClose={() => setAssigning(null)} onDone={(name) => { setToast(name ? `${assigning.page.title}: assigned to ${name}` : `${assigning.page.title}: not assigned`); setAssigning(null); router.refresh(); }} />}
       {sharing && <ShareReviewDialog key={sharing.t.page.path + sharing.stage} marketId={marketOfPath(sharing.t.page.path).id} path={sharing.t.page.path} title={sharing.t.page.title} stage={sharing.stage} onClose={() => { setSharing(null); router.refresh(); }} />}
