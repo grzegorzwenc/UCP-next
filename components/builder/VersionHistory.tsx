@@ -21,22 +21,29 @@ export const relativeTime = (iso: string, now = Date.now()) => {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 };
 
+/** "before: sent for review" → "Before it was sent for review"; drops the dangling "of" / "to" left where the page title was. */
+export const versionNote = (n?: string) => { const t = (n || "saved").replace(/\s+(of|to|for|on)\s*$/i, "").trim(); const m = t.match(/^before:?\s*(.*)$/i); return m ? (/^edit$/i.test(m[1]) ? "Before an edit" : `Before: ${m[1]}`) : t.charAt(0).toUpperCase() + t.slice(1); };
+
 function Row({ v, isLatest, comparing, currentBlocks, onRestore, onComment, busy }: { v: Version; isLatest: boolean; comparing: boolean; currentBlocks: number; onRestore: (v: Version) => void; onComment: (v: Version) => void; busy: boolean }) {
   const delta = v.blocks - currentBlocks;
-  return <li className="flex items-start gap-2.5 py-2.5 border-b border-line last:border-0">
-    <Avatar name={whoName(v.who)} size={26} />
-    <div className="min-w-0 flex-1">
-      <div className="text-[13px] text-ink leading-snug"><span className="font-medium">{whoName(v.who)}</span> <span className="text-ink-3">{v.note || "saved"}</span></div>
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-[12px] text-ink-3">
-        <time dateTime={v.time} title={fullTime(v.time)}>{relativeTime(v.time)}</time>
-        <Pill status={v.status} />
-        <span>{v.blocks} block{v.blocks === 1 ? "" : "s"}</span>
-        {comparing && <span className={`font-mono ${delta === 0 ? "text-ink-4" : delta > 0 ? "text-info" : "text-warn"}`}>{delta === 0 ? "same count as now" : `${delta > 0 ? "+" : ""}${delta} vs now`}</span>}
-      </div>
+  /* one column: who and when on top, what happened, the status, then the actions in a row (nothing squeezed to the side) */
+  return <li className="py-3 border-b border-line last:border-0 min-w-0">
+    <div className="flex items-center gap-2 min-w-0">
+      <Avatar name={whoName(v.who)} size={24} />
+      <span className="font-medium text-[13px] truncate">{whoName(v.who)}</span>
+      <time className="ml-auto flex-none text-[11.5px] text-ink-3" dateTime={v.time} title={fullTime(v.time)} suppressHydrationWarning>{relativeTime(v.time)}</time>
     </div>
-    <div className="flex flex-none flex-col items-end gap-1">
-      {isLatest ? <span className="text-[11px] font-semibold text-ink-3 bg-surface-2 rounded-full px-2 py-0.5 mt-0.5">Latest</span> : <button type="button" className="btn btn-sm" disabled={busy} onClick={() => onRestore(v)}>Restore</button>}
-      <button type="button" className="text-[11.5px] text-ink-3 hover:text-ink underline underline-offset-2" onClick={() => onComment(v)} aria-label={`Comment on the version from ${fullTime(v.time)}`}>Comment</button>
+    <div className="pl-8 mt-1 min-w-0">
+      <p className="text-[12.5px] text-ink-2 leading-snug break-words">{versionNote(v.note)}</p>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-[12px] text-ink-3 min-w-0">
+        <span className="max-w-full"><Pill status={v.status} /></span>
+        <span className="whitespace-nowrap">{v.blocks} block{v.blocks === 1 ? "" : "s"}</span>
+        {comparing && <span className={`font-mono whitespace-nowrap ${delta === 0 ? "text-ink-4" : delta > 0 ? "text-info" : "text-warn"}`}>{delta === 0 ? "same as now" : `${delta > 0 ? "+" : ""}${delta} vs now`}</span>}
+      </div>
+      <div className="flex items-center gap-2 mt-2">
+        {isLatest ? <span className="text-[11px] font-semibold text-ink-3 bg-surface-2 rounded-full px-2 py-0.5">Latest</span> : <button type="button" className="btn btn-sm" disabled={busy} onClick={() => onRestore(v)}><svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5" /></svg>Restore</button>}
+        <button type="button" className="btn btn-sm btn-quiet" onClick={() => onComment(v)} aria-label={`Comment on the version from ${fullTime(v.time)}`}><svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16v11H9l-5 4z" /></svg>Comment</button>
+      </div>
     </div>
   </li>;
 }
@@ -81,7 +88,7 @@ export function VersionHistory({ marketId, path, currentBlocks, onRestored, revi
       <div role="dialog" aria-label="Restore this version?" className="bg-surface rounded-xl w-[min(480px,94vw)] shadow-2xl">
         <header className="px-6 pt-5 pb-3"><h2 className="text-lg font-semibold">Restore this version?</h2></header>
         <div className="px-6 pb-2 text-[13.5px] text-ink-2 leading-relaxed">
-          <p>The page will go back to how it was on <b className="text-ink">{fullTime(confirm.time)}</b> ({whoName(confirm.who)}, {confirm.note || "saved"}, {confirm.blocks} block{confirm.blocks === 1 ? "" : "s"}).</p>
+          <p>The page will go back to how it was on <b className="text-ink">{fullTime(confirm.time)}</b> ({whoName(confirm.who)}, {versionNote(confirm.note).toLowerCase()}, {confirm.blocks} block{confirm.blocks === 1 ? "" : "s"}).</p>
           <p className="mt-2 text-ink-3 text-[12.5px]">Unsaved edits in the builder are replaced. A copy of the current page is kept as a new version, so you can come back.</p>
           {err && <div className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded mt-3">{err}</div>}
         </div>
