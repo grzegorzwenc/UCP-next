@@ -49,12 +49,16 @@ export async function publishAssets(marketId: string, ids: string[], u: User): P
   return done;
 }
 /** The files a page uses (image fields hold asset ids). */
-const assetIdsIn = (components: { props: Record<string, unknown> }[]) => [...new Set(components.flatMap((c) => Object.entries(c.props).filter(([k, v]) => (k === "image" || k.endsWith("Image")) && typeof v === "string" && v).map(([, v]) => String(v))))];
+/** Every file a page points at: an image field holding its id, or any text, link or button that mentions its id, file name or address (PDFs linked from the copy). */
+const filesIn = (components: { props: Record<string, unknown> }[], assets: Asset[]) => {
+  const texts = components.flatMap((c) => Object.values(c.props).map((v) => (typeof v === "string" ? v : v && typeof v === "object" ? JSON.stringify(v) : ""))).filter(Boolean);
+  return assets.filter((a) => texts.some((t) => t === a.id || t.includes(`/assets/${a.id}`) || t.includes(a.name) || (a.path && t.includes(a.path)))).map((a) => a.id);
+};
 export type FileRef = { id: string; path?: string; name: string; type: string; status: "draft" | "published"; publishedAt?: string; onlyHere?: boolean };
 /** Files used by these pages, with whether they are live yet (for the Publish dialog). */
 export async function filesForPublish(marketId: string, paths: string[]): Promise<FileRef[]> {
   const assets = await listAssets(marketId); const ids = new Set<string>();
-  for (const p of paths) { const v = await repo().getPage(p).catch(() => undefined); for (const id of assetIdsIn(v?.components ?? [])) ids.add(id); }
+  for (const p of paths) { const v = await repo().getPage(p).catch(() => undefined); for (const id of filesIn(v?.components ?? [], assets)) ids.add(id); }
   return assets.filter((a) => ids.has(a.id)).map((a) => ({ id: a.id, name: a.name, type: a.type, status: a.status, publishedAt: a.publishedAt }));
 }
 /**
@@ -69,8 +73,8 @@ export async function pageReferences(marketId: string, paths: string[]): Promise
   return paths.filter((p) => full.has(p)).map((p) => {
     const route = routeOf(p); const mine = full.get(p)!; const inside = (q: string) => q === p || q.startsWith(p + "/");
     const linkedFrom = [...full.entries()].filter(([q, v]) => !inside(q) && !paths.includes(q) && links(v.components, route)).map(([q, v]) => ({ path: q, title: v.title }));
-    const files = assetIdsIn(mine.components).map((id) => assets.find((a) => a.id === id)).filter((a): a is Asset => !!a).map((a) => ({ id: a.id, path: a.path, name: a.name, type: a.type, status: a.status, publishedAt: a.publishedAt,
-      onlyHere: ![...full.entries()].some(([q, v]) => !paths.includes(q) && q !== p && assetIdsIn(v.components).includes(a.id)) }));
+    const files = filesIn(mine.components, assets).map((id) => assets.find((a) => a.id === id)).filter((a): a is Asset => !!a).map((a) => ({ id: a.id, path: a.path, name: a.name, type: a.type, status: a.status, publishedAt: a.publishedAt,
+      onlyHere: ![...full.entries()].some(([q, v]) => !paths.includes(q) && q !== p && filesIn(v.components, assets).includes(a.id)) }));
     return { path: p, title: mine.title, linkedFrom, files };
   });
 }
@@ -495,7 +499,7 @@ const PUBLISHABLE = ["approved", "scheduled"];
  */
 export async function publishPages(marketId: string, paths: string[], opts: { at?: string; cancel?: boolean; assets?: string[] }, u: User): Promise<PublishResult[]> {
   if (opts.assets?.length && !opts.cancel) await publishAssets(marketId, opts.assets, u); // the files go live with the pages
-  const drafts = new Set((await listAssets(marketId)).filter((a) => a.status === "draft").map((a) => a.id));
+  const allAssets = await listAssets(marketId); const drafts = new Set(allAssets.filter((a) => a.status === "draft").map((a) => a.id));
   const mk = marketOf(marketId); const now = new Date(); const at = opts.at ? new Date(opts.at) : undefined;
   if (at && isNaN(at.getTime())) throw new RepoError(400, "That date is not valid", opts.at);
   const schedule = !!at && at.getTime() > now.getTime() + 60_000; const out: PublishResult[] = [];
@@ -504,7 +508,7 @@ export async function publishPages(marketId: string, paths: string[], opts: { at
     if (!pg) { out.push({ path, title: path, ok: false, reason: "Page not found" }); continue; }
     const r = { path, title: pg.title };
     if (!can(u, "publish", path, mk.root)) { out.push({ ...r, ok: false, reason: "You don't have Publish on this page" }); continue; }
-    const unpublished = opts.cancel ? [] : assetIdsIn(pg.components ?? []).filter((id) => drafts.has(id)); if (unpublished.length) { out.push({ ...r, ok: false, reason: `Uses ${unpublished.length} file${unpublished.length === 1 ? "" : "s"} that ${unpublished.length === 1 ? "is" : "are"} not published yet` }); continue; }
+    const unpublished = opts.cancel ? [] : filesIn(pg.components ?? [], allAssets).filter((id) => drafts.has(id)); if (unpublished.length) { out.push({ ...r, ok: false, reason: `Uses ${unpublished.length} file${unpublished.length === 1 ? "" : "s"} that ${unpublished.length === 1 ? "is" : "are"} not published yet` }); continue; }
     if (opts.cancel) {
       if (pg.status !== "scheduled") { out.push({ ...r, ok: false, reason: "Not scheduled" }); continue; }
       await repo().updateContent(path, { status: "approved" }); await repo().setProps(`${path}/jcr:content`, { "ucp:publishAt": null });
