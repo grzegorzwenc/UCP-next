@@ -134,9 +134,8 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     if (o === "review/release" && req.method === "POST") {
       const u = await me(); const path = q.get("path") ?? ""; const pg = await repo().getPage(path);
       if (!pg) return problem(new RepoError(404, "Page not found", path));
-      // On ContentLIBRE a named reviewer is all "started" means (inreview), so that review can still go back.
       const cl = repo().kind === "contentlibre";
-      if (pg.status !== "review" && !(cl && pg.status === "inreview")) return problem(new RepoError(409, "The review has already started", "Only a review that is not started yet can go back to the Backlog"));
+      if (pg.status !== "review") return problem(new RepoError(409, "The review has already started", "Only a review that is not started yet can go back to the Backlog"));
       const cur = typeof pg.meta?.["ucp:assignee"] === "string" ? String(pg.meta["ucp:assignee"]) : "";
       if (!cur) return problem(new RepoError(409, "The page is already in the Backlog"));
       const admin = u.role === "admin" || !!u.perms.root?.manage;

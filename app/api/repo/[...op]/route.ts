@@ -96,6 +96,14 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     if (o === "page" && req.method === "DELETE") { await guard("edit", path); await lockGuard(path); const before = await r.getPage(path); await r.deletePage(path, q.get("recursive") === "true"); await audit("content", `deleted ${before?.title ?? path}`, path); return new NextResponse(null, { status: 204, headers: { "X-Request-Id": rid } }); }
     if (o === "children") return ok(await r.listChildren(path, { offset: Number(q.get("offset") ?? 0), limit: Number(q.get("limit") ?? 50) }));
     if (o === "pages" && req.method === "POST") { const b = await req.json(); await guard("edit", `${b.parentPath}/${b.name}`); const p = await r.createPage(b); if (b.locale || b.sourcePath) await r.setProps(`${p.path}/jcr:content`, { "jcr:language": b.locale, "ucp:sourcePath": b.sourcePath }).catch(() => {}); if (b.components?.length && r.kind !== "contentlibre") await r.saveComponents(p.path, b.components); await audit("content", `created ${p.title} in ${b.parentPath.split("/").pop()}`, p.path); return ok(await r.getPage(p.path), 201); }
+    if (o === "page/copy" && req.method === "POST") {
+      const { destinationPath, title } = await req.json() as { destinationPath: string; title?: string };
+      await guard("edit", destinationPath); const src = await r.getPage(path); if (!src) throw new RepoError(404, "Page not found", path);
+      const cut = destinationPath.lastIndexOf("/"); const parentPath = destinationPath.slice(0, cut), name = destinationPath.slice(cut + 1);
+      const p = r.copyPage ? await r.copyPage(path, destinationPath, title)
+        : await (async () => { const made = await r.createPage({ parentPath, name, template: src.template ?? "blank", title: title ?? src.title }); if (src.components?.length) await r.saveComponents(made.path, src.components); return made; })();
+      await audit("content", `copied ${src.title} to ${parentPath.split("/").pop()}`, p.path); return ok(await r.getPage(p.path), 201);
+    }
     if (o === "components" && req.method === "PUT") { const comps = await req.json(); const who = await guard("edit", path); await lockGuard(path); await snapshotVersion(path, "before edit", who.id); const p = await r.saveComponents(path, comps); await audit("content", `edited ${comps.length} block${comps.length === 1 ? "" : "s"} on ${p.title}`, path); return ok(p); }
     if (o === "move" && req.method === "POST") { const { destinationPath } = await req.json(); await guard("edit", path); await lockGuard(path); await guard("edit", destinationPath); const p = await r.movePage(path, destinationPath); await audit("content", `moved ${p.title} to ${destinationPath.replace(/\/[^/]+$/, "")}`, destinationPath); return ok(p); }
     return problem(new RepoError(404, "Unknown operation", o));

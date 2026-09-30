@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { RepoError } from "@/lib/repo";
 import { clApi, clRender, clSlingJson, clSlingPost, isEditablePath } from "@/lib/server/contentlibre";
-import { logEvent } from "@/lib/server/ucp";
+import { logEvent, me } from "@/lib/server/ucp";
+import { repo } from "@/lib/repo";
 import { getMarkets } from "@/lib/server/markets";
 
 /** The page a content or draft-payload path belongs to: `/var/pages/drafts/content/x/<id>/jcr:content/...` → `/content/x`. */
@@ -66,10 +67,24 @@ function encode(field: Field, value: unknown): [string, string][] {
   return [[field.name, value === null || value === undefined ? "" : String(value)]];
 }
 
+/** Writes a lock stops (Pages → Lock); the review goes on - asking, reminding and deciding are not edits. */
+const LOCKED = new Set(["drafts:POST", "drafts:DELETE", "drafts/publish:POST", "drafts/schedule:POST", "page:PATCH", "component/insert:POST", "component/properties:POST", "component/remove:POST", "component/move:POST"]);
+/** A locked page is changed only by whoever locked it or a site admin - the same rule the CMS's own routes apply. */
+async function lockGuard(page: string) {
+  const raw = (await repo().getPage(page).catch(() => undefined))?.meta?.["ucp:pageLock"]; if (typeof raw !== "string" || !raw) return;
+  let lk: { by?: string; name?: string } = {}; try { lk = JSON.parse(raw) as typeof lk; } catch { return; }
+  const u = await me(); if (lk.by === u.id || u.role === "admin" || u.perms.root?.manage) return;
+  throw new RepoError(423, `Locked by ${lk.name ?? "someone"}`, "Ask them or a site admin to unlock it in Pages");
+}
+
 async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }> }) {
   const { op } = await ctx.params; const o = op.join("/"); const q = req.nextUrl.searchParams;
   const path = q.get("path") ?? undefined; const draft = q.get("draft") ?? undefined;
   try {
+    if (LOCKED.has(`${o}:${req.method}`)) {
+      const b = o.startsWith("component/") ? await req.clone().json().catch(() => ({})) as { node?: string; slot?: string } : {};
+      const target = path ?? b.node ?? b.slot; if (target) await lockGuard(pageOf(target));
+    }
     if (o === "drafts" && req.method === "GET") return NextResponse.json(await clApi("GET", "content/v1/drafts", { path }));
     if (o === "drafts" && req.method === "POST") return done(await clApi("POST", "content/v1/drafts", { path }, await req.json().catch(() => ({}))), path!, "content", "opened a draft of", 201);
     if (o === "drafts" && req.method === "DELETE") return done(await clApi("DELETE", "content/v1/drafts", { path, draft }), path!, "content", "discarded a draft of");

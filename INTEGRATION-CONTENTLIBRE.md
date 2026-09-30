@@ -113,8 +113,21 @@ Still to do on this side:
       A ContentLIBRE review maps to `review` without a named reviewer and `inreview` with one.
 - [x] My tasks (rewritten upstream) across the backend's markets. Backlog → **Assign to me** and **Back to backlog**
       go to `drafts/review/assign`.
-- [ ] Not on ContentLIBRE yet - they write workflow data into the page and the adapter refuses that with 501:
-      the business review (`reviewed`, `bizreview`, groups, sign-off / reauthor), review links for guests, page
-      comments, page locks, compare with live, Copy to folder (creates an empty page from the template).
-      Each needs a backend decision: which of them become part of the draft's review, and which are the CMS's own data.
+- [x] **The rest of it on ContentLIBRE** (30.09):
+      - What the CMS keeps beside a page - comments, locks, the review stage, review links and groups - lives at
+        `/var/ucp/pages<page>` (backend: `ucp-frontend.json`). The adapter writes a page's `ucp:*` there and merges
+        it back on read; what the backend knows (who asked, who reviews, when, the schedule) always wins.
+      - The two-stage review: `review` / `approved` / `draft` are the backend's (request, approve, request changes -
+        it checks who may); `inreview`, `reviewed`, `bizreview` are the CMS's, stamped with the request they belong to.
+        My tasks and the builder (`ClBuilder`: stage bar, Assign to me, Start review, Mark reviewed, Send to business
+        review, Sign off, Reauthor) drive it; checked end to end, the sign-off leaves the draft APPROVED in the backend.
+      - Comments and history in the builder (`PageComments`, `VersionHistory` - the backend's archived publications).
+      - Locks: the CMS's routes and the builder's own writes (`/api/cl`) refuse a page locked by someone else (423).
+      - Compare with live: `ClCompareView`, the live page and the open draft as the backend renders them, side by side.
+      - Copy to folder and Duplicate: the backend's `content/v1/page/copy` - the source's template seeded with its
+        published payload, as the new page's first draft.
+      - A review link opens the backend's render of the draft for a signed-in person.
+- [ ] A review link for someone without an account: the BFF reads the backend as the signed-in person, so a guest
+      needs an identity for the BFF (a technical account with read on drafts and write on comments) - not decided.
+- [ ] Comments on a text or component (picking in the preview) and the builder's Quality checklist on ContentLIBRE.
 

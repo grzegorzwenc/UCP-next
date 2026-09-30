@@ -9,6 +9,8 @@ import type { ReviewerOption } from "@/lib/ucp/types";
 import { toPlain } from "@/lib/blocks/richtext";
 import { ClCanvas, type InlineField } from "./ClCanvas";
 import { RichField } from "./RichTextEditor";
+import { PageComments } from "./PageComments";
+import { VersionHistory } from "./VersionHistory";
 
 /**
  * The page builder on ContentLIBRE (UCP_BACKEND=contentlibre).
@@ -23,6 +25,10 @@ import { RichField } from "./RichTextEditor";
  *
  * Edits land in a draft (publication.mode=drafts): "Edit" opens one, "Publish" makes it live, "Discard" drops it.
  * An approved draft can also be scheduled; the backend publishes it when it is due, or says on the draft why not.
+ *
+ * The review follows the CMS's stages (the mock's): waiting in the Backlog → in the author's review → reviewed → business
+ * review → ready. Asking, approving and sending back are the backend's decisions on the draft; the stages in between are
+ * the CMS's, kept beside the page (lib/repo/adapters/contentlibre.ts). Comments, history and locks are the CMS's too.
  */
 
 /** A field as `.libre-model.json` describes it: the type is what is stored, the widget how it is edited. */
@@ -50,23 +56,26 @@ async function call<T>(url: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 const nameOf = (path: string) => path.split("/").pop() ?? path;
-const STATUS_PILL: Record<string, string> = { published: "published", modified: "modified", draft: "draft", unpublished: "draft", review: "review", approved: "approved", scheduled: "scheduled", failed: "failed" };
+const STATUS_PILL: Record<string, string> = { published: "published", modified: "modified", draft: "draft", unpublished: "draft", review: "review", inreview: "inreview", reviewed: "reviewed", bizreview: "bizreview", approved: "approved", scheduled: "scheduled", failed: "failed" };
 /** The backend's own interval between two reminders of one review. */
 const REMIND_MS = 15 * 60_000;
 const qs = (params: Record<string, string | undefined>) => new URLSearchParams(Object.entries(params).filter(([, v]) => v) as [string, string][]).toString();
 
 /** `at` tells one load from the next: panels are keyed by it, so a form never keeps values from before a save. */
-type Loaded = { drafts: Drafts; page: PageDoc; model: Model | null; at: number };
+/** The CMS's own view of the page: the stage of the review, and what it keeps beside the page (a lock). */
+type CmsPage = { status: string; meta?: Record<string, unknown> };
+type Loaded = { drafts: Drafts; page: PageDoc; model: Model | null; cms: CmsPage | null; at: number };
 /** Everything the builder shows for one page: its drafts, then the page and structure of the open draft (or the live payload). */
 async function fetchPage(path: string): Promise<Loaded> {
   const drafts = await call<Drafts>(`/api/cl/drafts?${qs({ path })}`);
   const open = drafts.open[0];
   const payload = open ? `/var/pages/drafts${path}/${open.id}/jcr:content` : `${path}/jcr:content`;
-  const [page, model] = await Promise.all([
+  const [page, model, cms] = await Promise.all([
     call<PageDoc>(`/api/cl/page?${qs({ path, draft: open?.id })}`),
     call<Model>(`/api/cl/model?node=${encodeURIComponent(payload)}`).catch(() => null),
+    call<CmsPage>(`/api/repo/page?${qs({ path })}`).catch(() => null),
   ]);
-  return { drafts, page, model, at: Date.now() };
+  return { drafts, page, model, cms, at: Date.now() };
 }
 
 /** Widgets a text can be edited with in place; the rest (links, images, choices) belong to the panel. */
@@ -87,7 +96,7 @@ export function ClBuilder({ path, listUrl, marketId, assetOrigin }: { path: stri
   const drafts = loaded?.drafts; const page = loaded?.page; const model = loaded?.model ?? null;
   const draft = drafts?.open[0];
   const payload = draft ? `/var/pages/drafts${path}/${draft.id}/jcr:content` : `${path}/jcr:content`;
-  const editable = !!draft && page?.permissions?.edit !== false;
+  const editableDraft = !!draft && page?.permissions?.edit !== false;
   const q = (extra: Record<string, string | undefined> = {}) => qs({ path, ...extra });
   const inspected = selected && selModel?.node === selected ? selModel.model : null;
   const { user } = useSession();
@@ -95,7 +104,14 @@ export function ClBuilder({ path, listUrl, marketId, assetOrigin }: { path: stri
   const [scheduling, setScheduling] = useState(false);
   const review = draft?.review; const reviewState = review?.state;
   // The backend decides (approver groups, never your own request); this only hides what it would refuse.
-  const canDecide = reviewState === "IN_REVIEW" && (user.role === "admin" || (user.role === "reviewer" && review?.requestedBy !== user.id));
+  const isAdmin = user.role === "admin" || !!user.perms?.root?.manage;
+  // Reviewers never review their own request (the backend refuses it too); a site admin may.
+  const mayReview = isAdmin || (user.role === "reviewer" && review?.requestedBy !== user.id);
+  const cms = loaded?.cms; const stage = reviewState === "IN_REVIEW" ? (cms?.status ?? "review") : undefined;
+  const lock = (() => { const raw = cms?.meta?.["ucp:pageLock"]; if (typeof raw !== "string" || !raw) return null; try { return JSON.parse(raw) as { by?: string; name?: string }; } catch { return null; } })();
+  const lockedOut = !!lock && lock.by !== user.id && !isAdmin;
+  const editable = editableDraft && !lockedOut;
+  const [panel, setPanel] = useState<"details" | "comments" | "history">("details");
   // Changing the reviewer: whoever asked, an approver or an administrator (the backend checks the same).
   const canReassign = reviewState === "IN_REVIEW" && (user.role === "admin" || user.role === "reviewer" || review?.requestedBy === user.id);
   const schedule = draft?.schedule;
@@ -181,8 +197,11 @@ export function ClBuilder({ path, listUrl, marketId, assetOrigin }: { path: stri
   }, () => setSelected(null));
 
   if (!drafts || !page) return <div className="p-10 text-ink-3">{note?.kind === "err" ? note.text : "Loading the page…"}</div>;
-  // The review, when there is one, is what the page is waiting on; otherwise its publication status.
-  const status = schedule?.failed ? "failed" : schedule?.publishAt ? "scheduled" : reviewState === "IN_REVIEW" ? "review" : reviewState === "APPROVED" ? "approved" : page.status ?? "draft";
+  // The review, when there is one, is what the page is waiting on (at the CMS's stage); otherwise its publication status.
+  const status = schedule?.failed ? "failed" : schedule?.publishAt ? "scheduled" : stage ?? (reviewState === "APPROVED" ? "approved" : page.status ?? "draft");
+  /** A move to the next stage, through the CMS's workflow (the backend decides where a decision is its own). */
+  const toStage = (next: string, done: string) => act(done, () => call(`/api/repo/page?${qs({ market: marketId, path })}`, { method: "PATCH", body: JSON.stringify({ status: next }) }));
+  const claim = () => act("Assigned to you. Start the review when you are ready.", () => call(`/api/ucp/review/claim?${qs({ market: marketId, path })}`, { method: "POST", body: "{}" }));
   const previewSrc = `/api/cl/preview?${q({ draft: draft?.id })}&v=${version}`;
   const canvasSrc = `/api/cl/preview?${q({ draft: draft?.id })}&edit=1&v=${version}`;
 
@@ -202,15 +221,19 @@ export function ClBuilder({ path, listUrl, marketId, assetOrigin }: { path: stri
             {reviewState === "IN_REVIEW" && editable && <button className="btn btn-sm" disabled={busy || remindedRecently} title={remindedRecently ? "A reminder was sent less than 15 minutes ago" : undefined}
               onClick={() => void act("Reminder sent to the reviewer.", () => call(`/api/cl/drafts/review/remind?${q()}`, { method: "POST", body: JSON.stringify({ draft: draft.id }) }))}>Remind reviewer</button>}
             {canReassign && <button className="btn btn-sm" disabled={busy} onClick={() => setReviewForm(reviewForm === "assign" ? null : "assign")}>Change reviewer</button>}
-            {canDecide && <>
-              <button className="btn btn-sm" disabled={busy} onClick={() => setReviewForm(reviewForm === "changes" ? null : "changes")}>Request changes</button>
-              <button className="btn btn-sm on" disabled={busy} onClick={() => void act("Approved. It can be published now.", () => call(`/api/cl/drafts/decision?${q()}`, { method: "POST", body: JSON.stringify({ draft: draft.id, decision: "approve" }) }))}>Approve</button>
-            </>}
+            {stage === "review" && !review?.assignee && mayReview && <button className="btn btn-sm on" disabled={busy} onClick={() => void claim()}>Assign to me</button>}
+            {stage === "review" && review?.assignee && (review.assignee === user.id || isAdmin) && <button className="btn btn-sm on" disabled={busy} onClick={() => void toStage("inreview", "Review started.")}>Start review</button>}
+            {stage === "inreview" && (review?.assignee === user.id || isAdmin) && <button className="btn btn-sm on" disabled={busy} onClick={() => void toStage("reviewed", "Reviewed. The author sends it on to the business review.")}>Mark reviewed</button>}
+            {stage === "reviewed" && (review?.requestedBy === user.id || isAdmin) && <button className="btn btn-sm on" disabled={busy} onClick={() => void toStage("bizreview", "Sent to the business review.")}>Send to business review</button>}
+            {stage === "bizreview" && mayReview && <button className="btn btn-sm on" disabled={busy} onClick={() => void toStage("approved", "Signed off. It can be published now.")}>Sign off</button>}
+            {(stage === "inreview" || stage === "bizreview") && (mayReview || review?.assignee === user.id) && <button className="btn btn-sm" disabled={busy} onClick={() => setReviewForm(reviewForm === "changes" ? null : "changes")}>Reauthor</button>}
             {(reviewState === "APPROVED" || schedule) && <button className="btn btn-sm" disabled={busy} onClick={() => setScheduling(true)}>{schedule?.publishAt ? "Change schedule" : "Schedule…"}</button>}
             <button className="btn btn-sm on" disabled={busy || !!publishBlocked} title={publishBlocked ?? undefined} onClick={() => void publish(false)}>Publish now</button>
           </>}
         </div>
       </div>
+      <StageBar status={status} />
+      {lock && <div className="px-5 py-2 text-[13px] border-b border-line bg-warn-soft text-warn" role="note">Locked by {lock.name ?? "someone"}{lockedOut ? ". Only they or a site admin can change it; ask them to unlock it in Pages." : ". Others cannot change it until it is unlocked in Pages."}</div>}
       {draft && review && <ReviewBanner review={review} />}
       {draft && schedule && <ScheduleBanner schedule={schedule} />}
       {draft && reviewForm === "assign" && <AssignForm marketId={marketId} path={path} current={review?.assignee} busy={busy} onCancel={() => setReviewForm(null)}
@@ -243,10 +266,16 @@ export function ClBuilder({ path, listUrl, marketId, assetOrigin }: { path: stri
         </main>
 
         <aside className="border-t lg:border-t-0 lg:border-l border-line overflow-auto p-4 bg-surface" aria-label="Inspector">
-          {selected && inspected
+          <div role="tablist" aria-label="Panel" className="flex gap-1 mb-3 -mt-1 border-b border-line">
+            {(["details", "comments", "history"] as const).map((k) => <button key={k} role="tab" aria-selected={panel === k} onClick={() => setPanel(k)}
+              className={`px-2.5 py-1.5 text-[12.5px] font-semibold border-b-2 -mb-px ${panel === k ? "border-accent text-ink" : "border-transparent text-ink-3 hover:text-ink"}`}>{k === "details" ? "Details" : k === "comments" ? "Comments" : "History"}</button>)}
+          </div>
+          {panel === "comments" ? <PageComments marketId={marketId} path={path} about={null} onClearAbout={() => undefined} focusKey={0} bare />
+          : panel === "history" ? <VersionHistory marketId={marketId} path={path} currentBlocks={0} onRestored={() => { setNote({ kind: "ok", text: "Restored into a new draft." }); setVersion((v) => v + 1); }} />
+          : selected && inspected
             ? <Inspector key={`${selected}-${selModel?.at}`} node={selected} model={inspected} editable={editable} busy={busy} act={act} onClose={() => setSelected(null)} onSelect={setSelected} assetOrigin={assetOrigin} />
             : <PageMeta key={`${draft?.id}-${loaded?.at}`} page={page} editable={editable} busy={busy} onSave={(patch) => act("Page details saved to the draft.", () => call(`/api/cl/page?${q({ draft: draft?.id })}`, { method: "PATCH", body: JSON.stringify(patch) }))} />}
-          {payload && <p className="font-mono text-[10.5px] text-ink-4 mt-6 break-all">{payload}</p>}
+          {panel === "details" && payload && <p className="font-mono text-[10.5px] text-ink-4 mt-6 break-all">{payload}</p>}
         </aside>
       </div>
     </div>
@@ -375,6 +404,18 @@ function PageMeta({ page, editable, busy, onSave }: { page: PageDoc; editable: b
 }
 
 const when = (iso?: string) => iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "";
+
+const STEPS: [string, string[]][] = [["Draft", ["draft", "modified", "failed"]], ["Author's review", ["review", "inreview"]], ["Reviewed", ["reviewed"]], ["Business review", ["bizreview"]], ["Ready to publish", ["approved", "scheduled"]], ["Live", ["published"]]];
+/** Where the page is in the review flow - the mock's steps, one current. */
+function StageBar({ status }: { status: string }) {
+  const at = Math.max(0, STEPS.findIndex(([, s]) => s.includes(status)));
+  return <ol className="flex flex-wrap items-center gap-x-1 gap-y-1 px-5 py-2 border-b border-line bg-surface-2 text-[12px]" aria-label="Review steps">
+    {STEPS.map(([label], i) => <li key={label} className="flex items-center gap-1" aria-current={i === at ? "step" : undefined}>
+      <span className={`px-2 py-0.5 rounded-full ${i === at ? "bg-ink text-white font-semibold" : i < at ? "text-good" : "text-ink-3"}`}>{i < at ? "✓ " : ""}{label}</span>
+      {i < STEPS.length - 1 && <span aria-hidden className="text-ink-4">›</span>}
+    </li>)}
+  </ol>;
+}
 
 /** A scheduled publication, or why it did not happen when it was due. */
 function ScheduleBanner({ schedule }: { schedule: Schedule }) {

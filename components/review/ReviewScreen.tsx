@@ -15,7 +15,7 @@ import { BLOCK_BY_TYPE } from "@/lib/blocks/registry";
 import { pickAt, flash, markTarget, type PickTarget } from "@/lib/review/pick";
 
 type Props = {
-  missing?: boolean; token?: string; open?: boolean; stage?: "review" | "bizreview"; stageLabel?: string; path?: string; title?: string; status?: string;
+  missing?: boolean; /** ContentLIBRE: a review link needs a signed-in person (the backend is read as them); `next` returns here */ signIn?: string; /** ContentLIBRE: the page is the backend's render, not blocks */ previewSrc?: string; token?: string; open?: boolean; stage?: "review" | "bizreview"; stageLabel?: string; path?: string; title?: string; status?: string;
   market?: { name: string; flag: string; domain: string; route: string }; blocks?: Block[]; entities?: ResolvedEntities; assets?: Record<string, { data?: string; alt?: string; decorative?: boolean }>;
   comments?: PageComment[]; user?: { name: string } | null; mayApprove?: boolean;
   /** the address an e-mailed link went to (prefilled, fixed) · whether this viewer may sign off / reauthor · who the link was sent to */ inviteEmail?: string; canDecide?: boolean; sentTo?: string;
@@ -43,6 +43,7 @@ export function ReviewScreen(p: Props) {
   const pageRef = useRef<HTMLDivElement>(null); const box = useRef<HTMLTextAreaElement>(null);
   useEffect(() => { markTarget(pageRef.current, target); }, [target]); // outline the picked text or image
 
+  if (p.signIn) return <main className="min-h-dvh grid place-items-center bg-bg p-6"><div className="max-w-md text-center"><img src="/hsbc-logo.svg" alt="HSBC" className="h-7 mx-auto mb-6" /><h1 className="text-xl font-semibold">Sign in to review this page</h1><p className="text-ink-3 text-[14px] mt-2">On this site a review link opens for people with an account. Sign in, and the link brings you back here.</p><a className="btn btn-primary mt-5 inline-flex" href={`/login?next=${encodeURIComponent(p.signIn)}`}>Sign in</a></div></main>;
   if (p.missing) return <main className="min-h-dvh grid place-items-center bg-bg p-6"><div className="max-w-md text-center"><img src="/hsbc-logo.svg" alt="HSBC" className="h-7 mx-auto mb-6" /><h1 className="text-xl font-semibold">This review link does not work</h1><p className="text-ink-3 text-[14px] mt-2">It may be mistyped or the page may have been deleted. Ask the person who sent it for a new link.</p></div></main>;
 
   const blockName = (id: string) => { const b = (p.blocks ?? []).find((x) => x.id === id); return (b && BLOCK_BY_TYPE[b.type]?.name) || "Component"; };
@@ -87,12 +88,13 @@ export function ReviewScreen(p: Props) {
     </header>
     <section className="p-3 md:p-6 lg:pr-[412px] min-w-0" aria-label="Page preview">
       {!p.open && <p className="mb-3 text-[13px] bg-warn-soft text-warn rounded-md px-3 py-2">This {p.stageLabel?.toLowerCase()} is finished. You can still read the page and the comments.</p>}
-      <div ref={pageRef} onClick={pick} className={`bg-white shadow-sm rounded-md overflow-hidden ${p.open ? "review-pick" : ""}`}><Preview><AssetsContext.Provider value={p.assets ?? {}}><EntitiesContext.Provider value={p.entities ?? {}}>
+      {p.previewSrc ? <iframe src={p.previewSrc} title={`Preview of ${p.title}`} sandbox="allow-same-origin" className="w-full h-[calc(100dvh-140px)] bg-white shadow-sm rounded-md border border-line" />
+      : <div ref={pageRef} onClick={pick} className={`bg-white shadow-sm rounded-md overflow-hidden ${p.open ? "review-pick" : ""}`}><Preview><AssetsContext.Provider value={p.assets ?? {}}><EntitiesContext.Provider value={p.entities ?? {}}>
         <SiteChrome marketName={p.market!.name} crumbs={[p.title!]} device="desktop">{(p.blocks ?? []).filter((b) => !b.props.hidden).map((b) => <div key={b.id} data-id={b.id} className={`cblk ${target?.id === b.id && !target.field ? "cmt-target" : ""}`}>
           {p.open && <span className="cmt-pick" aria-hidden>{target?.id === b.id ? "Commenting here" : "Click a text or image to comment"}</span>}
           {!!counts[b.id] && <span className="cmt-badge" title={`${counts[b.id]} comment${counts[b.id] === 1 ? "" : "s"}`}>{counts[b.id]}</span>}
           <RenderBlock b={b} /></div>)}</SiteChrome>
-      </EntitiesContext.Provider></AssetsContext.Provider></Preview></div>
+      </EntitiesContext.Provider></AssetsContext.Provider></Preview></div>}
     </section>
     {decided && <DecisionOverlay decision={decided.decision} title={p.title!} by={decided.by} at={decided.at} action={<button className="btn" onClick={() => window.location.reload()}>See the page</button>} />}
     <FloatingPanel title={p.stage === "bizreview" && p.open && !decided && p.canDecide ? "Review" : "Comments"} count={list.filter((c) => !c.resolved).length} open={open} onToggle={setOpen} top={76} hint={p.open && !target && p.stage !== "bizreview" ? "Click a text, an image or a component on the page to comment on it." : undefined}>

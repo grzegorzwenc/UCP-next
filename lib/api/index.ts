@@ -23,6 +23,7 @@ export const repoApi = {
   me: () => R<Identity>("me"),
   getPage: (path: string) => R<PageView>("page", { query: { path } }),
   children: (path: string, offset = 0, limit = 50) => R<{ items: PageSummary[]; more: boolean }>("children", { query: { path, offset, limit } }),
+  copyPage: (path: string, destinationPath: string, title?: string) => R<PageView>("page/copy", { method: "POST", query: { path }, body: JSON.stringify({ destinationPath, title }) }),
   createPage: (input: CreatePageInput & { locale?: string; sourcePath?: string; components?: ComponentNode[] }) => R<PageView>("pages", { method: "POST", body: JSON.stringify(input) }),
   updateContent: (path: string, patch: PageContentPatch) => R<PageView>("page", { method: "PATCH", query: { path }, body: JSON.stringify(patch) }),
   saveComponents: (path: string, components: ComponentNode[]) => R<PageView>("components", { method: "PUT", query: { path }, body: JSON.stringify(components) }),

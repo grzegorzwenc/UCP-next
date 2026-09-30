@@ -60,6 +60,8 @@ export interface ContentRepository {
   getPage(path: string): Promise<PageView | undefined>;
   listChildren(path: string, opts?: { offset?: number; limit?: number }): Promise<{ items: PageSummary[]; more: boolean }>;
   createPage(input: CreatePageInput): Promise<PageView>;
+  /** A backend that copies pages itself (ContentLIBRE: the copy is a new page's first draft); without it the CMS rebuilds the copy from the source's components. */
+  copyPage?(path: string, destinationPath: string, title?: string): Promise<PageView>;
   updateContent(path: string, patch: PageContentPatch): Promise<PageView>;
   saveComponents(path: string, components: ComponentNode[]): Promise<PageView>;
   deletePage(path: string, recursive?: boolean): Promise<void>;

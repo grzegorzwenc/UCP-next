@@ -2,6 +2,7 @@
 import Link from "next/link";
 import { PublishDialog } from "@/components/pages/PublishDialog";
 import { CompareView } from "@/components/pages/CompareView";
+import { ClCompareView } from "@/components/pages/ClCompareView";
 import { env } from "@/lib/markets";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ui/Confirm";
@@ -175,8 +176,8 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
     try {
       let n = 0; const names = (await repoApi.children(parent, 0, 500)).items.map((x) => x.name);
       for (const p of modal.pages.filter((x) => !isFolder(x))) {
-        const full = await repoApi.getPage(p.path); const same = parentOf(p.path) === parent; let name = same ? `${p.name}-copy` : p.name; let i = 2; while (names.includes(name)) name = `${same ? `${p.name}-copy` : p.name}-${i++}`; names.push(name);
-        await repoApi.createPage({ parentPath: parent, name, template: p.template ?? "blank", title: same ? `${p.title} (copy)` : p.title, components: full?.components ?? [] }); n++;
+        const same = parentOf(p.path) === parent; let name = same ? `${p.name}-copy` : p.name; let i = 2; while (names.includes(name)) name = `${same ? `${p.name}-copy` : p.name}-${i++}`; names.push(name);
+        await repoApi.copyPage(p.path, `${parent}/${name}`, same ? `${p.title} (copy)` : p.title); n++;
       }
       setModal(null); setSel([]); say(n ? `Copied ${n} page${n === 1 ? "" : "s"} to ${rel(parent)}` : "Folders are not copied · pick pages"); router.refresh();
     } catch (e) { setErr(errText(e)); } finally { setBusy(false); }
@@ -199,8 +200,8 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
     catch (e) { say(errText(e)); }
   }
   async function duplicate(p: PageSummary) {
-    try { const full = await repoApi.getPage(p.path); const siblings = (await repoApi.children(parentOf(p.path), 0, 200)).items.map((x) => x.name); let name = `${p.name}-copy`; let i = 2; while (siblings.includes(name)) name = `${p.name}-copy-${i++}`;
-      await repoApi.createPage({ parentPath: parentOf(p.path), name, template: p.template ?? "blank", title: `${p.title} (copy)`, components: full?.components ?? [] }); say(`Duplicated “${p.title}”`); router.refresh(); }
+    try { const siblings = (await repoApi.children(parentOf(p.path), 0, 200)).items.map((x) => x.name); let name = `${p.name}-copy`; let i = 2; while (siblings.includes(name)) name = `${p.name}-copy-${i++}`;
+      await repoApi.copyPage(p.path, `${parentOf(p.path)}/${name}`, `${p.title} (copy)`); say(`Duplicated “${p.title}”`); router.refresh(); }
     catch (e) { say(errText(e)); }
   }
   async function remove(pages: PageSummary[]) {
@@ -286,7 +287,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
         <label className="text-xs text-ink-3">New title<input autoFocus className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && title.trim()) rename(); }} /></label>
         <div className="mt-2 text-[12px] text-ink-3">The URL <span className="font-mono">{rel(modal.page.path)}</span> stays the same.</div><Err err={err} /></ModalShell>}
 
-      {comparing && <CompareView marketId={marketId} marketName={marketName} path={comparing} onClose={() => setComparing(null)} />}
+      {comparing && (backendTemplates ? <ClCompareView path={comparing} onClose={() => setComparing(null)} /> : <CompareView marketId={marketId} marketName={marketName} path={comparing} onClose={() => setComparing(null)} />)}
       {modal?.kind === "copy" && <ModalShell title={modal.pages.length === 1 ? `Copy “${modal.pages[0].title}”` : `Copy ${modal.pages.length} pages`} width={460} onClose={() => setModal(null)} footer={<><button className="btn" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={copyTo}>{busy ? "Copying…" : "Copy here"}</button></>}>
         <label className="text-xs text-ink-3">Copy to folder<FolderSelect value={parent} onChange={setParent} root={root} marketName={marketName} tree={tree} rel={rel} exclude={[]} /></label>
         <p className="mt-2 text-[12px] text-ink-3">The copies start as drafts with the same components. In the same folder they are named “… (copy)”.</p>
