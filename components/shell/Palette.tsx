@@ -73,10 +73,10 @@ export function Palette({ marketId, envId }: { marketId: string; envId: string }
   /* Focus trap: Tab cycles between the focusable elements inside the dialog. */
   const trap = (e: React.KeyboardEvent) => {
     if (e.key !== "Tab") return;
-    const f = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>("input, button:not([disabled]), [tabindex]:not([tabindex='-1'])") ?? []); if (!f.length) return;
-    const first = f[0], last = f[f.length - 1]; const a = document.activeElement;
-    if (e.shiftKey && (a === first || !dialogRef.current?.contains(a))) { e.preventDefault(); last.focus(); }
-    else if (!e.shiftKey && a === last) { e.preventDefault(); first.focus(); }
+    // only what can really take focus (visible), and we move focus ourselves so it never slips out past a hidden element
+    const f = Array.from(dialogRef.current?.querySelectorAll<HTMLElement>("input, button:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])") ?? []).filter((el) => el.getClientRects().length > 0); if (!f.length) return;
+    e.preventDefault(); const i = f.indexOf(document.activeElement as HTMLElement);
+    f[(i < 0 ? 0 : i + (e.shiftKey ? -1 : 1) + f.length) % f.length].focus();
   };
   let last = "";
   return (

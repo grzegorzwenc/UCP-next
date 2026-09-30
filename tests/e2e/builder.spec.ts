@@ -34,9 +34,9 @@ test.describe("builder", () => {
     await expect(heading).not.toHaveClass(/editing/);
     await expect(heading).toHaveText(`${before} ✓`);
 
-    // No Save button: the draft saves itself shortly after the change.
-    const status = page.getByTitle("Changes are saved automatically");
-    await expect(status).toHaveText("✓ Saved", { timeout: 5000 });
+    // Autosave: shortly after the change the Save button turns into a greyed-out "Saved".
+    const status = page.getByRole("button", { name: "Saved", exact: true });
+    await expect(status).toBeDisabled({ timeout: 5000 });
     await page.reload();
     await expect(heading).toHaveText(`${before} ✓`);
 
@@ -48,8 +48,7 @@ test.describe("builder", () => {
     await page.keyboard.press("Backspace");
     await page.keyboard.press("Enter");
     await expect(heading).toHaveText(before);
-    await expect(status).toHaveText("Saving…");
-    await expect(status).toHaveText("✓ Saved", { timeout: 5000 });
+    await expect(status).toBeDisabled({ timeout: 5000 }); // "Save" while there are changes, "Saved" once stored
     await page.reload();
     await expect(heading).toHaveText(before);
   });

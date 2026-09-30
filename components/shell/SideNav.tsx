@@ -34,11 +34,12 @@ export function useShellMode() {
 
 export function SideNav({ marketId, envId, forcedMini }: { marketId: string; envId: string; forcedMini?: boolean }) {
   const pathname = usePathname(); const { pref, tablet, phone, drawer } = useShellMode();
-  const mini = !phone && (forcedMini || tablet || pref); const seg = pathname.split("/")[3] || "dashboard"; const active = seg === "page" ? "pages" : seg;
+  const seg = pathname.split("/")[3] || "dashboard"; const inEditor = seg === "page"; // the page builder needs the room: the menu shrinks to icons there
+  const mini = !phone && (forcedMini || inEditor || tablet || pref); const active = seg === "page" ? "pages" : seg;
   if (phone && !drawer) return null;
   const nav = (
     <nav aria-label="Main" className={`relative bg-surface border-r border-line flex flex-col overflow-auto h-full ${mini ? "w-[60px] px-2 py-3" : "w-[264px] px-3.5 pt-4 pb-6"}`}>
-      {!forcedMini && !tablet && !phone && <button type="button" aria-label={mini ? "Expand menu" : "Collapse menu"} aria-expanded={!mini} aria-controls="ucp-sidenav-items" onClick={() => setPref(!mini)} className={`absolute top-2.5 w-7 h-7 border border-line bg-surface rounded-md grid place-items-center text-ink-3 ${mini ? "left-1/2 -translate-x-1/2" : "right-2"}`}><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-2" aria-hidden><path d={mini ? "M9 6l6 6-6 6" : "M15 6l-6 6 6 6"} /></svg></button>}
+      {!forcedMini && !inEditor && !tablet && !phone && <button type="button" aria-label={mini ? "Expand menu" : "Collapse menu"} aria-expanded={!mini} aria-controls="ucp-sidenav-items" onClick={() => setPref(!mini)} className={`absolute top-2.5 w-7 h-7 border border-line bg-surface rounded-md grid place-items-center text-ink-3 ${mini ? "left-1/2 -translate-x-1/2" : "right-2"}`}><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none stroke-2" aria-hidden><path d={mini ? "M9 6l6 6-6 6" : "M15 6l-6 6 6 6"} /></svg></button>}
       {phone && <button type="button" aria-label="Close menu" onClick={() => openDrawer(false)} className="absolute top-2.5 right-2 w-8 h-8 rounded-md grid place-items-center text-ink-3 hover:bg-surface-3">✕</button>}
       <div id="ucp-sidenav-items" className="contents">
       {ITEMS[0].length !== 1 && <span aria-hidden className={`block flex-none ${mini ? "h-9" : "h-8"}`} /> /* room for the collapse button above the first link */}
