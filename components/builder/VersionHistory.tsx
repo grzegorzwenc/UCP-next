@@ -7,7 +7,7 @@ import { Pill } from "@/components/ui/Pill";
 import { PageComments } from "./PageComments";
 
 type Version = { id: string; time: string; who: string; note: string; title: string; status: string; blocks: number };
-type Props = { marketId: string; path: string; currentBlocks: number; onRestored: () => void; review?: Pick<React.ComponentProps<typeof PageComments>, "target" | "onClearTarget" | "onShowBlock" | "onList"> };
+type Props = { marketId: string; path: string; currentBlocks: number; onRestored: () => void; review?: Pick<React.ComponentProps<typeof PageComments>, "target" | "onClearTarget" | "onShowBlock" | "onList">; /** comments live in their own panel: "Comment" on a version goes there */ onCommentVersion?: (v: { id: string; label: string }) => void };
 
 const errText = (e: unknown) => (e instanceof ApiError ? `${e.problem.title}${e.problem.detail ? ": " + e.problem.detail : ""} · request ${e.requestId ?? "n/a"}` : String(e));
 const whoName = (id: string) => SEED_USERS.find((u) => u.id === id)?.name ?? id.replace(/\./g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -41,7 +41,7 @@ function Row({ v, isLatest, comparing, currentBlocks, onRestore, onComment, busy
   </li>;
 }
 
-export function VersionHistory({ marketId, path, currentBlocks, onRestored, review }: Props) {
+export function VersionHistory({ marketId, path, currentBlocks, onRestored, review, onCommentVersion }: Props) {
   const [list, setList] = useState<Version[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<Version | null>(null);
@@ -63,8 +63,8 @@ export function VersionHistory({ marketId, path, currentBlocks, onRestored, revi
   }
 
   return <div className="grid gap-3 text-ink">
-    <PageComments marketId={marketId} path={path} about={about} onClearAbout={() => setAbout(null)} focusKey={focusKey} {...review} />
-    <div className="border-t border-line" />
+    {!onCommentVersion && <><PageComments marketId={marketId} path={path} about={about} onClearAbout={() => setAbout(null)} focusKey={focusKey} {...review} />
+    <div className="border-t border-line" /></>}
     {/* the panel header already says "Version history" */}
     <header className="grid gap-2">
       <h3 className="text-[13px] font-semibold">Versions</h3>
@@ -75,7 +75,7 @@ export function VersionHistory({ marketId, path, currentBlocks, onRestored, revi
     {err && <div className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</div>}
     {list === null && <div className="text-[13px] text-ink-3 p-4">Loading versions…</div>}
     {list !== null && !list.length && <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg text-[13px]">No versions yet — every save and status change creates one.</div>}
-    {!!list?.length && <ul className="border border-line rounded-lg bg-surface px-3 min-w-0">{list.map((v, i) => <Row key={v.id} v={v} isLatest={i === 0} comparing={compare} currentBlocks={currentBlocks} onRestore={setConfirm} onComment={(x) => { setAbout({ id: x.id, label: `${fullTime(x.time)} · ${whoName(x.who)}` }); setFocusKey((k) => k + 1); }} busy={busy} />)}</ul>}
+    {!!list?.length && <ul className="border border-line rounded-lg bg-surface px-3 min-w-0">{list.map((v, i) => <Row key={v.id} v={v} isLatest={i === 0} comparing={compare} currentBlocks={currentBlocks} onRestore={setConfirm} onComment={(x) => { const a = { id: x.id, label: `${fullTime(x.time)} · ${whoName(x.who)}` }; if (onCommentVersion) { onCommentVersion(a); return; } setAbout(a); setFocusKey((k) => k + 1); }} busy={busy} />)}</ul>}
 
     {confirm && <div className="fixed inset-0 bg-black/45 grid place-items-center z-50" onClick={(e) => { if (e.target === e.currentTarget && !busy) setConfirm(null); }}>
       <div role="dialog" aria-label="Restore this version?" className="bg-surface rounded-xl w-[min(480px,94vw)] shadow-2xl">

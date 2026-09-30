@@ -128,6 +128,20 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       await logEvent(mid, { type: "content", text: `took the business review of ${pg.title}`, target: path, requestId: rid });
       return ok({ assignee: u.id, assigneeName: u.name });
     }
+    /* ---- Pages → Lock / Unlock: nobody else can change, move or delete a locked page (site admins can) ---- */
+    if (o === "pages/lock" && req.method === "POST") {
+      const u = await me(); const admin = u.role === "admin" || !!u.perms.root?.manage; const { paths, locked } = await req.json() as { paths?: string[]; locked?: boolean };
+      let n = 0;
+      for (const path of (paths ?? []).slice(0, 200)) {
+        const pg = await repo().getPage(path); if (!pg) continue;
+        if (!admin && !can(u, "edit", path, market(mid).root)) return problem(new RepoError(403, `You don't have Edit on ${pg.title}`));
+        const cur = typeof pg.meta?.["ucp:pageLock"] === "string" ? (JSON.parse(String(pg.meta["ucp:pageLock"])) as { by?: string; name?: string }) : null;
+        if (!locked && cur && cur.by !== u.id && !admin) return problem(new RepoError(403, `${pg.title} is locked by ${cur.name}`, "Only they or a site admin can unlock it"));
+        await repo().setProps(`${path}/jcr:content`, { "ucp:pageLock": locked ? JSON.stringify({ by: u.id, name: u.name, at: new Date().toISOString() }) : null }); n++;
+        await logEvent(mid, { type: "content", text: `${locked ? "locked" : "unlocked"} ${pg.title}`, target: path, requestId: rid });
+      }
+      return ok({ changed: n });
+    }
     if (o === "review/remind" && req.method === "POST") {
       const u = await me(); const path = q.get("path") ?? ""; const pg = await repo().getPage(path);
       if (!pg) return problem(new RepoError(404, "Page not found", path));

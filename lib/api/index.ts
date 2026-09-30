@@ -88,6 +88,7 @@ export const ucpApi = {
   /** Comment from the review screen (signed in, or a guest with name + e-mail). */
   reviewComment: (token: string, body: { text: string; name?: string; email?: string; block?: { id: string; label: string; field?: string } }) => U<PageComment[]>("review/comment", { method: "POST", query: { token }, body: JSON.stringify(body) }),
   /** Take a waiting author's review (assign it to yourself). */
+  lockPages: (market: string, paths: string[], locked: boolean) => U<{ changed: number }>("pages/lock", { method: "POST", query: { market }, body: JSON.stringify({ paths, locked }) }),
   claimBizReview: (market: string, path: string) => U<{ assignee: string; assigneeName: string }>("bizreview/claim", { method: "POST", query: { market, path }, body: "{}" }),
   claimReview: (market: string, path: string) => U<{ assignee: string; assigneeName: string }>("review/claim", { method: "POST", query: { market, path }, body: "{}" }),
   releaseReview: (market: string, path: string) => U<{ ok: boolean }>("review/release", { method: "POST", query: { market, path }, body: "{}" }),
