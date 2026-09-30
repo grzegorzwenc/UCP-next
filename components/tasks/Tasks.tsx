@@ -109,7 +109,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
     const remind = () => run(t, () => ucpApi.remindReviewer(mid(t), p), "Reminder sent");
     const change = () => { if (isAdmin) btn("person", t.assigneeName ? "Change person" : "Assign…", () => setAssigning(t)); }; // site admins: who does this step
     if (st === "review" && !t.assignee) { // Backlog: open to everyone · a reviewer takes it (nobody hands it out)
-      if (t.author === user.id) out.push(<span key="w" className="text-[12px] text-ink-3 whitespace-nowrap">Waiting for a reviewer to take it</span>); // your own page: someone else reviews it
+      if (t.author === user.id) out.push(<span key="w" className="text-[12px] text-ink-3 whitespace-nowrap">Waiting for a reviewer to take it</span>, <Link key="open" href={builderHref(p)} onClick={() => markSeen(onScreen.current)} className="btn btn-sm">Open</Link>); // your own page: someone else reviews it
       else if (can("review", p)) btn("claim", "Assign to me", () => run(t, () => ucpApi.claimReview(mid(t), p), `${t.page.title} is yours · find it in Ready for review`), true);
       else out.push(<span key="why" className="text-[11.5px] text-ink-3 text-right leading-tight max-w-[170px]">Only reviewers can take it · you don&apos;t have Review &amp; approve here</span>, <button key="claim" type="button" className="btn btn-sm btn-next" disabled title="You need Review & approve on this folder to take it">Assign to me</button>);
     } else if (st === "review") { // Ready for review: assigned, not started
