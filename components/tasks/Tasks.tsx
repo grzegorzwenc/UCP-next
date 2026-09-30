@@ -28,7 +28,7 @@ export function dueLabel(t: Task): { t: string; c: "crit" | "warn" | "" } {
 }
 /** Short date for task tables, e.g. "Mon 29 Sep, 09:00" (UK time so server and browser agree). */
 export const taskDate = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); return isNaN(d.getTime()) ? "" : d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }); };
-const KIND_LABEL: Record<string, string> = { Review: "Author's review", SendBiz: "Reviewed", BizReview: "Business review" };
+const KIND_LABEL: Record<string, string> = { Review: "In author's review", SendBiz: "Reviewed", BizReview: "Business review" };
 /** Who can pick up a task nobody is assigned to. */
 const unassigned = (t: Task) => (t.kind === "Review" || t.kind === "BizReview" ? "Anyone with Review" : t.kind === "Publish" || t.kind === "Fix" ? "Anyone with Publish" : "The page’s author");
 /** "Waiting" = time since the task was sent (sentAt), e.g. "2 days", "18 hours", "40 min". */
