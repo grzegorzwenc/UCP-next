@@ -27,7 +27,7 @@ export function dueLabel(t: Task): { t: string; c: "crit" | "warn" | "" } {
   return { t: "Due " + new Date(t.due).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" }), c: "" };
 }
 /** Short date for task lists, e.g. "Mon 29 Sep, 09:00" (UK time so server and browser agree). */
-export const taskDate = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); return isNaN(d.getTime()) ? "" : d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }); };
+export const taskDate = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); return isNaN(d.getTime()) ? "" : d.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }); };
 /** "Waiting" = time since the task was sent (sentAt), e.g. "2 days", "18 hours", "40 min". */
 export function waitingLabel(sentAt?: string): string {
   if (!sentAt) return "—"; const ms = Date.now() - new Date(sentAt).getTime(); if (!isFinite(ms) || ms < 0) return "—";
@@ -155,7 +155,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   const sortTasks = (items: Task[]) => [...items].sort((a, b) => sort === "due" ? a.due.localeCompare(b.due) : sort === "due-desc" ? b.due.localeCompare(a.due) : Number(isNew(b)) - Number(isNew(a)));
   /* one person per column on wide screens: avatar + short name ("You" for yourself); a hint when nobody is set yet */
   const pc = "p-0 min-[1400px]:pl-3 min-[1400px]:pr-2 min-[1400px]:py-3";
-  const who = (id?: string, name?: string, none?: string, email?: string) => <div className="hidden min-[1400px]:flex items-start gap-1.5 min-w-0 text-[12.5px]">{name ? <><Avatar name={name} size={20} /><span className="min-w-0 leading-tight"><span className="block truncate" title={name}>{name}{id === user.id ? <span className="text-ink-3"> (you)</span> : null}</span>{email && <a href={`mailto:${email}`} onClick={(e) => e.stopPropagation()} className="block truncate text-[11px] text-ink-3 hover:text-ink hover:underline" title={email}>{email}</a>}</span></> : <span className="text-ink-4 text-[12px] truncate">{none ?? "—"}</span>}</div>;
+  const who = (id?: string, name?: string, none?: string, email?: string) => <div className="hidden min-[1400px]:block min-w-0 text-[12.5px]">{name ? <><span className="flex items-center gap-1.5 min-w-0"><Avatar name={name} size={20} /><span className="truncate" title={name}>{name}{id === user.id ? <span className="text-ink-3"> (you)</span> : null}</span></span>{email && <a href={`mailto:${email}`} onClick={(e) => e.stopPropagation()} className="block mt-0.5 truncate text-[11px] text-ink-3 hover:text-ink hover:underline" title={email}>{email}</a>}</> : <span className="text-ink-4 text-[12px] truncate">{none ?? "—"}</span>}</div>;
   const taskRow = (t: Task) => { const m = marketOfPath(t.page.path); const acts = actions(t); const [pl, pn, py] = stagePerson(t); const w = waitingLabel(t.sentAt);
           return <tr key={t.page.path + t.kind} className="hover:bg-surface-2 align-middle border-t border-line">
             <td className="px-4 py-3 max-w-0 w-full">
@@ -184,7 +184,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   type Part = { label?: string; rows: React.ReactNode[]; empty?: string };
   const othersLabel = isAdmin ? "Other people" : "Others you can act on";
   /* separate cards per group (stage), with fixed column widths so People, Dates and Action line up across cards */
-  const cols = <colgroup><col /><col className="w-0 min-[1400px]:w-[145px]" /><col className="w-0 min-[1400px]:w-[145px]" /><col className="w-0 min-[1400px]:w-[145px]" /><col className="hidden md:table-column w-[180px] min-[1400px]:!w-[168px]" /><col className="hidden md:table-column w-[330px] xl:w-[470px] min-[1400px]:!w-[330px]" /></colgroup>;
+  const cols = <colgroup><col /><col className="w-0 min-[1400px]:w-[162px]" /><col className="w-0 min-[1400px]:w-[162px]" /><col className="w-0 min-[1400px]:w-[162px]" /><col className="hidden md:table-column w-[180px] min-[1400px]:!w-[140px]" /><col className="hidden md:table-column w-[330px] xl:w-[470px] min-[1400px]:!w-[330px]" /></colgroup>;
   const board = (groups: { key: string; head?: React.ReactNode; parts: Part[] }[]) => <div className="grid gap-6">{groups.map((g, gi) => <section key={g.key} aria-label={g.key}>
     {g.head && <div className="mb-2">{g.head}</div>}
     <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,.04)]"><table className="w-full text-[13px] md:table-fixed">
