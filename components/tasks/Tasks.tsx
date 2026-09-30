@@ -113,6 +113,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
       if (can("review", p)) btn("claim", "Assign to me", () => run(t, () => ucpApi.claimReview(mid(t), p), `${t.page.title} is yours · find it in Ready for review`), true);
     } else if (st === "review") { // Ready for review: assigned, not started
       change();
+      if (t.assignee === user.id || isAdmin) btn("release", "Back to backlog", () => run(t, () => ucpApi.releaseReview(mid(t), p), `${t.page.title} is back in the Backlog`));
       if (t.assignee === user.id) btn("start", "Start review", () => run(t, () => status(t, "inreview"), `${t.page.title}: review started`), true);
     } else if (st === "inreview") {
       change();
@@ -153,18 +154,18 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
               <div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} onClick={() => markSeen(onScreen.current)} className="font-semibold truncate hover:underline underline-offset-2">{t.page.title}</Link>{isNew(t) && <span suppressHydrationWarning className="flex-none text-[10px] font-bold uppercase tracking-[.06em] text-white bg-accent rounded px-1.5 py-0.5">New</span>}{view === "ready" ? <Pill status={t.page.status} /> : null}</div>
               <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.name.replace(/^HSBC /, "")} · {routeOf(t.page.path)}</div>
               {/* phones: people and due date under the title */}
-              <div className="xl:hidden mt-1.5 pl-[26px] flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]"><span className="text-ink-3">{pl}</span>{pn ? <span className="inline-flex items-center gap-1.5"><Avatar name={pn} size={18} />{py ? "You" : pn}</span> : <span className="text-ink-4">—</span>}<span className="md:hidden">{dueChip(t)}</span></div>
+              <div className="min-[1400px]:hidden mt-1.5 pl-[26px] flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]"><span className="text-ink-3">{pl}</span>{pn ? <span className="inline-flex items-center gap-1.5"><Avatar name={pn} size={18} />{py ? "You" : pn}</span> : <span className="text-ink-4">—</span>}<span className="md:hidden">{dueChip(t)}</span></div>
               <div className="md:hidden mt-2 pl-[26px] flex flex-wrap items-center gap-1.5">{acts.length ? acts : <Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link>}</div>
             </td>
-            <td className="p-0 xl:px-4 xl:py-3"><div className="hidden xl:grid gap-1.5 w-[250px]">{personLine("Author", t.authorName ?? t.from.replace(/ \(.*\)$/, ""), t.author === user.id)}{personLine(pl, pn, py)}</div></td>
+            <td className="p-0 min-[1400px]:px-4 min-[1400px]:py-3"><div className="hidden min-[1400px]:grid gap-1.5 w-[230px]">{personLine("Author", t.authorName ?? t.from.replace(/ \(.*\)$/, ""), t.author === user.id)}{personLine(pl, pn, py)}</div></td>
             <td className="px-4 py-3 hidden md:table-cell"><div className="grid gap-1 justify-items-start w-[170px]">{dueChip(t)}<span className="text-[11.5px] text-ink-3 whitespace-nowrap" suppressHydrationWarning>{t.sentAt ? `Sent ${taskDate(t.sentAt)}` : ""}{w !== "—" ? <span className="block text-ink-4">waiting {w}</span> : null}</span></div></td>
-            <td className="px-4 py-3 hidden md:table-cell"><div className="flex flex-wrap items-center justify-end gap-1.5">{acts.length ? acts : <><span className="hidden lg:inline text-[12px] text-ink-4">No action for you</span><Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link></>}</div></td>
+            <td className="px-4 py-3 hidden md:table-cell"><div className="flex flex-wrap xl:flex-nowrap items-center justify-end gap-1.5">{acts.length ? acts : <><span className="hidden lg:inline text-[12px] text-ink-4">No action for you</span><Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link></>}</div></td>
           </tr>; };
   const pubRow = (p: PublishedItem) => { const m = marketOfPath(p.path); return <tr key={p.path} className="hover:bg-surface-2 border-t border-line">
           <td className="px-4 py-3 max-w-0 w-full"><div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(p.path)} className="font-semibold truncate hover:underline underline-offset-2">{p.title}</Link><Pill status="published" /></div>
             <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.domain}{routeOf(p.path)}</div>
             <div className="md:hidden mt-1 pl-[26px] text-[12px] text-ink-3" suppressHydrationWarning>{p.when ? `Published ${taskDate(p.when)}` : "Published"}{p.who ? ` · ${p.who}` : ""}</div></td>
-          <td className="p-0 xl:px-4 xl:py-3"><div className="hidden xl:block w-[250px]">{personLine("Published by", p.who, p.whoId === user.id)}</div></td>
+          <td className="p-0 min-[1400px]:px-4 min-[1400px]:py-3"><div className="hidden min-[1400px]:block w-[230px]">{personLine("Published by", p.who, p.whoId === user.id)}</div></td>
           <td className="px-4 py-3 hidden md:table-cell"><span className="inline-block w-[170px]"><span className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full bg-good-soft text-good whitespace-nowrap" suppressHydrationWarning>{p.when ? taskDate(p.when) : "Live"}</span></span></td>
           <td className="px-4 py-3 text-right"><Link href={builderHref(p.path)} className="btn btn-sm">Open</Link></td>
         </tr>; };
@@ -172,12 +173,12 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   type Part = { label?: string; rows: React.ReactNode[]; empty?: string };
   const othersLabel = isAdmin ? "Other people" : "Others you can act on";
   /* separate cards per group (stage), with fixed column widths so People, Dates and Action line up across cards */
-  const cols = <colgroup><col /><col className="w-0 xl:w-[270px]" /><col className="hidden md:table-column w-[200px]" /><col className="hidden md:table-column w-[330px]" /></colgroup>;
+  const cols = <colgroup><col /><col className="w-0 min-[1400px]:w-[250px]" /><col className="hidden md:table-column w-[180px]" /><col className="hidden md:table-column w-[330px] xl:w-[470px]" /></colgroup>;
   const board = (groups: { key: string; head?: React.ReactNode; parts: Part[] }[]) => <div className="grid gap-6">{groups.map((g, gi) => <section key={g.key} aria-label={g.key}>
     {g.head && <div className="mb-2">{g.head}</div>}
     <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,.04)]"><table className="w-full text-[13px] md:table-fixed">
       {cols}
-      {gi === 0 ? <thead className="bg-surface-2"><tr><th className={th}>Page</th><th className={`${th} !p-0 xl:!px-4 xl:!py-2`}><span className="hidden xl:inline">People</span></th><th className={`${th} hidden md:table-cell`} aria-sort={sort === "due" ? "ascending" : sort === "due-desc" ? "descending" : undefined}><button type="button" onClick={() => setSort(sort === "due" ? "due-desc" : "due")} className={`inline-flex items-center gap-1 uppercase tracking-[.08em] hover:text-ink ${sort !== "new" ? "text-ink" : ""}`} title="Sort by due date">Dates<span aria-hidden className={sort === "new" ? "opacity-30" : ""}>{sort === "due-desc" ? "▼" : "▲"}</span></button></th><th className={`${th} hidden md:table-cell text-right`}><span className="sr-only">Action</span></th></tr></thead> : null}
+      {gi === 0 ? <thead className="bg-surface-2"><tr><th className={th}>Page</th><th className={`${th} !p-0 min-[1400px]:!px-4 min-[1400px]:!py-2`}><span className="hidden min-[1400px]:inline">People</span></th><th className={`${th} hidden md:table-cell`} aria-sort={sort === "due" ? "ascending" : sort === "due-desc" ? "descending" : undefined}><button type="button" onClick={() => setSort(sort === "due" ? "due-desc" : "due")} className={`inline-flex items-center gap-1 uppercase tracking-[.08em] hover:text-ink ${sort !== "new" ? "text-ink" : ""}`} title="Sort by due date">Dates<span aria-hidden className={sort === "new" ? "opacity-30" : ""}>{sort === "due-desc" ? "▼" : "▲"}</span></button></th><th className={`${th} hidden md:table-cell text-right`}><span className="sr-only">Action</span></th></tr></thead> : null}
       <tbody>
       {g.parts.map((p, i) => <Fragment key={i}>
         {p.label && <tr><td colSpan={4} className={`px-4 py-2 text-[11px] uppercase tracking-[.08em] font-semibold border-t border-line first:border-t-0 ${p.label === "Yours" ? "bg-accent-soft/50 text-accent-hover shadow-[inset_3px_0_0_var(--accent)]" : "bg-surface-2 text-ink-2 shadow-[inset_3px_0_0_var(--line-2)]"}`}>{p.label} <span className="normal-case tracking-normal font-normal opacity-80">· {p.rows.length}</span></td></tr>}

@@ -91,6 +91,19 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       await logEvent(mid, { type: "content", text: `took the author's review of ${pg.title}`, target: path, requestId: rid });
       return ok({ assignee: u.id, assigneeName: u.name });
     }
+    /* ---- give an author's review back: the reviewer (or a site admin) returns a page not started yet to the Backlog ---- */
+    if (o === "review/release" && req.method === "POST") {
+      const u = await me(); const path = q.get("path") ?? ""; const pg = await repo().getPage(path);
+      if (!pg) return problem(new RepoError(404, "Page not found", path));
+      if (pg.status !== "review") return problem(new RepoError(409, "The review has already started", "Only a review that is not started yet can go back to the Backlog"));
+      const cur = typeof pg.meta?.["ucp:assignee"] === "string" ? String(pg.meta["ucp:assignee"]) : "";
+      if (!cur) return problem(new RepoError(409, "The page is already in the Backlog"));
+      const admin = u.role === "admin" || !!u.perms.root?.manage;
+      if (cur !== u.id && !admin) return problem(new RepoError(403, "Only the assigned reviewer or a site admin can put it back in the Backlog"));
+      await repo().setProps(`${path}/jcr:content`, { "ucp:assignee": null, "ucp:assignedBy": null });
+      await logEvent(mid, { type: "content", text: `put ${pg.title} back in the Backlog${cur !== u.id ? ` (was assigned to ${await userName(cur)})` : ""}`, target: path, requestId: rid });
+      return ok({ ok: true });
+    }
     if (o === "review/remind" && req.method === "POST") {
       const u = await me(); const path = q.get("path") ?? ""; const pg = await repo().getPage(path);
       if (!pg) return problem(new RepoError(404, "Page not found", path));
