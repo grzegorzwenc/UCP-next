@@ -15,7 +15,7 @@ import { PublishDialog } from "@/components/pages/PublishDialog";
 import { MARKETS, market as marketById, env as envById } from "@/lib/markets";
 
 export type PublishedItem = { path: string; title: string; when?: string; who?: string };
-type View = "backlog" | "mine" | "inreview" | "sendbiz" | "ready" | "published";
+type View = "backlog" | "mine" | "inreview" | "sendbiz" | "bizreview" | "ready" | "published";
 type Props = { marketId: string; envId: string; tasks: Task[]; published: PublishedItem[]; view: string };
 
 /** Due chip copy: overdueDays > 0 = overdue, 0 = today, -1 = tomorrow, else the date. */
@@ -44,13 +44,14 @@ const VIEWS: { id: View; label: string; empty: string; of: (t: Task, me: string)
   { id: "backlog", label: "Backlog", empty: "No page is waiting for a reviewer.", of: (t, me) => t.kind === "Review" && t.page.status === "review" && t.assignee !== me },
   { id: "mine", label: "Ready for review", empty: "Nothing assigned to you yet · take a page from the Backlog.", of: (t, me) => t.kind === "Review" && t.page.status === "review" && t.assignee === me },
   { id: "inreview", label: "In review", empty: "No author's review is in progress.", of: (t) => t.kind === "Review" && t.page.status === "inreview" },
-  { id: "sendbiz", label: "Reviewed by author / Send to business review", empty: "Nothing to send to, or waiting in, the business review.", of: (t) => t.kind === "SendBiz" || t.kind === "BizReview" },
+  { id: "sendbiz", label: "Reviewed by author / Send to business review", empty: "Nothing reviewed by an author is waiting to be sent on.", of: (t) => t.kind === "SendBiz" },
+  { id: "bizreview", label: "In business review", empty: "No page is in the business review.", of: (t) => t.kind === "BizReview" },
   { id: "ready", label: "Ready for publish", empty: "No page is ready to publish.", of: (t) => t.kind === "Publish" || t.kind === "Check" },
   { id: "published", label: "Published", empty: "Nothing published recently.", of: () => false },
 ];
 
 /**
- * My tasks: pages by stage of the review flow — Backlog · Ready for review · In review · Reviewed by author / Send to business review · Ready for publish · Published.
+ * My tasks: pages by stage of the review flow — Backlog · Ready for review · In review · Reviewed by author / Send to business review · In business review · Ready for publish · Published.
  * Every row has the one action that moves the page on (for the person who may do it), across all markets.
  */
 export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props) {
@@ -133,7 +134,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
         {rows.map((t) => { const m = marketOfPath(t.page.path); const d = dueLabel(t); const acts = actions(t);
           return <li key={t.page.path + t.kind} className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,220px)_auto] gap-x-4 gap-y-2 items-center px-4 py-3 hover:bg-surface-2">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} className="font-semibold truncate hover:underline underline-offset-2">{t.page.title}</Link>{view === "sendbiz" || view === "ready" ? <Pill status={t.page.status} /> : null}</div>
+              <div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} className="font-semibold truncate hover:underline underline-offset-2">{t.page.title}</Link>{view === "ready" ? <Pill status={t.page.status} /> : null}</div>
               <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.name.replace(/^HSBC /, "")} · {routeOf(t.page.path)} · sent by {t.from.replace(/ \(.*\)$/, "")}{waitingLabel(t.sentAt) !== "—" ? ` · waiting ${waitingLabel(t.sentAt)}` : ""}</div>
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-[26px] md:pl-0 min-w-0">{who(t)}<span suppressHydrationWarning className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span></div>
