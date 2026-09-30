@@ -11,7 +11,8 @@ import { Avatar } from "@/components/ui/Avatar";
 import { PageIcon } from "@/components/ui/Icons";
 import { AssignDialog } from "./AssignDialog";
 import { ShareReviewDialog } from "./ShareReviewDialog";
-import { MARKETS, market as marketById } from "@/lib/markets";
+import { PublishDialog } from "@/components/pages/PublishDialog";
+import { MARKETS, market as marketById, env as envById } from "@/lib/markets";
 
 export type PublishedItem = { path: string; title: string; when?: string; who?: string };
 type View = "backlog" | "mine" | "inreview" | "sendbiz" | "ready" | "published";
@@ -58,6 +59,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   const [q, setQ] = useState(""); const [mkt, setMkt] = useState("");
   const [busy, setBusy] = useState<string | null>(null); const [toast, setToast] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<Task | null>(null); const [sharing, setSharing] = useState<{ t: Task; stage: "review" | "bizreview" } | null>(null);
+  const [publishing, setPublishing] = useState<Task | null>(null); // Publish now or Schedule
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
   useEffect(() => { window.history.replaceState(null, "", `/${marketId}/${envId}/tasks${view === "backlog" ? "" : `?view=${view}`}`); }, [view, marketId, envId]); // the tab is in the URL (shareable)
 
@@ -95,7 +97,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
       if (can("edit", p) && !(t.assignee === user.id)) btn("remind", "Remind", remind);
       if (can("review", p) || isAdmin) btn("signoff", "Sign off", () => run(t, () => status(t, "approved"), `${t.page.title}: signed off · ready to publish`), true);
     } else if (st === "approved" || st === "scheduled") {
-      if (can("publish", p)) btn("publish", st === "scheduled" ? "Publish now" : "Publish", () => run(t, () => status(t, "published"), `${t.page.title} is live`), true);
+      if (can("publish", p)) btn("publish", "Publish", () => setPublishing(t), true); // the dialog offers Publish now or Schedule (and moves or cancels an existing schedule)
       else out.push(<span key="w" className="text-[12px] text-ink-3 whitespace-nowrap">Waiting for a publisher</span>);
     }
     return out;
@@ -149,6 +151,8 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
 
       {assigning && <AssignDialog marketId={marketOfPath(assigning.page.path).id} task={assigning} pageHref={builderHref(assigning.page.path)} onClose={() => setAssigning(null)} onDone={(name) => { setToast(name ? `${assigning.page.title}: assigned to ${name}` : `${assigning.page.title}: not assigned`); setAssigning(null); router.refresh(); }} />}
       {sharing && <ShareReviewDialog key={sharing.t.page.path + sharing.stage} marketId={marketOfPath(sharing.t.page.path).id} path={sharing.t.page.path} title={sharing.t.page.title} stage={sharing.stage} onClose={() => { setSharing(null); router.refresh(); }} />}
+      {publishing && <PublishDialog marketId={marketOfPath(publishing.page.path).id} envName={envById(envId).name} pages={[{ path: publishing.page.path, title: publishing.page.title, status: publishing.page.status }]} mayPublish={(p) => can("publish", p)}
+        onClose={() => setPublishing(null)} onDone={(r, mode) => { setPublishing(null); const ok = r.filter((x) => x.ok).length; setToast(mode === "cancel" ? "Schedule cancelled" : ok ? (mode === "schedule" ? `${publishing.page.title} is scheduled` : `${publishing.page.title} is live`) : r[0]?.reason ?? "Nothing was published"); router.refresh(); }} />}
       {toast && <div role="status" className="fixed bottom-5 left-1/2 -translate-x-1/2 w-max max-w-[calc(100vw-32px)] flex items-center gap-2.5 bg-[#0F1013] text-white pl-3 pr-4 py-2.5 rounded-xl text-[13px] shadow-xl z-50"><span aria-hidden className="grid place-items-center w-5 h-5 rounded-full bg-white/15 text-[11px] flex-none">✓</span><span className="min-w-0">{toast}</span></div>}
     </div>
   );
