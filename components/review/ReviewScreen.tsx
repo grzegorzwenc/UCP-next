@@ -41,7 +41,7 @@ export function ReviewScreen(p: Props) {
   };
   const approve = async () => {
     setBusy(true); setErr(null);
-    try { await repoApi.updateContent(p.path!, { status: p.stage === "review" ? "bizreview" : "approved" }); setDone(p.stage === "review" ? "Approved · the page moves on to the business review" : "Signed off · the page is ready to publish"); }
+    try { await repoApi.updateContent(p.path!, { status: p.stage === "review" ? "reviewed" : "approved" }); setDone(p.stage === "review" ? "Marked as reviewed · the author sends it to the business review" : "Signed off · the page is ready to publish"); }
     catch (e) { setErr(errorText(e)); } finally { setBusy(false); }
   };
   const sorted = [...list].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.time.localeCompare(a.time));
@@ -61,8 +61,8 @@ export function ReviewScreen(p: Props) {
         </EntitiesContext.Provider></AssetsContext.Provider></Preview></div>
       </section>
       <aside className="bg-surface border-t lg:border-t-0 lg:border-l border-line p-4 md:p-5 flex flex-col gap-3 lg:sticky lg:top-0 lg:h-[calc(100dvh-60px)] lg:overflow-auto" aria-label="Comments">
-        {p.mayApprove && !done && <div className="rounded-lg border border-line bg-surface-2 p-3"><b className="block text-[13px]">Everything right?</b><p className="text-[12.5px] text-ink-3 mt-0.5">{p.stage === "review" ? "Approving sends the page to the business review." : "Signing off makes the page ready to publish."}</p>
-          <button className="btn btn-primary btn-sm mt-2" disabled={busy} onClick={approve}>{p.stage === "review" ? "Approve" : "Sign off"}</button></div>}
+        {p.mayApprove && !done && <div className="rounded-lg border border-line bg-surface-2 p-3"><b className="block text-[13px]">Everything right?</b><p className="text-[12.5px] text-ink-3 mt-0.5">{p.stage === "review" ? "Marking it reviewed hands the page back to the author, who sends it to the business review." : "Signing off makes the page ready to publish."}</p>
+          <button className="btn btn-primary btn-sm mt-2" disabled={busy} onClick={approve}>{p.stage === "review" ? "Reviewed" : "Sign off"}</button></div>}
         {done && <p role="status" className="text-[13px] bg-good-soft text-good rounded-md px-3 py-2">✓ {done}</p>}
         <h2 className="text-[15px] font-semibold">Comments <span className="text-ink-3 font-normal text-[13px]">{list.length || ""}</span></h2>
         {p.open ? <div className="border border-line-2 rounded-lg bg-surface focus-within:border-ink-3">

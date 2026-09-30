@@ -28,7 +28,7 @@ export function dueLabel(t: Task): { t: string; c: "crit" | "warn" | "" } {
 }
 /** Short date for task tables, e.g. "Mon 29 Sep, 09:00" (UK time so server and browser agree). */
 export const taskDate = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); return isNaN(d.getTime()) ? "" : d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }); };
-const KIND_LABEL: Record<string, string> = { Review: "Author's review", BizReview: "Business review" };
+const KIND_LABEL: Record<string, string> = { Review: "Author's review", SendBiz: "Reviewed", BizReview: "Business review" };
 /** Who can pick up a task nobody is assigned to. */
 const unassigned = (t: Task) => (t.kind === "Review" || t.kind === "BizReview" ? "Anyone with Review" : t.kind === "Publish" || t.kind === "Fix" ? "Anyone with Publish" : "The page’s author");
 /** "Waiting" = time since the task was sent (sentAt), e.g. "2 days", "18 hours", "40 min". */
@@ -93,13 +93,19 @@ export function Tasks({ marketId, envId, tasks: allTasks, q: q0, kind: kind0, so
 
   /** Site admin: approve a review stage on behalf of the reviewer; after the author's review, share the business review straight away. */
   async function approveFor(e: React.MouseEvent, t: Task) {
-    e.stopPropagation(); const next = t.kind === "Review" ? "bizreview" : "approved"; setBusy(t.page.path);
-    try { await repoApi.updateContent(t.page.path, { status: next }); setToast(next === "bizreview" ? `${t.page.title}: author's review approved${t.assigneeName ? ` for ${t.assigneeName}` : ""} · business review next` : `${t.page.title}: signed off · ready to publish`);
-      if (next === "bizreview") setSharing({ t, stage: "bizreview" }); router.refresh(); }
+    e.stopPropagation(); const next = t.kind === "Review" ? "reviewed" : "approved"; setBusy(t.page.path);
+    try { await repoApi.updateContent(t.page.path, { status: next }); setToast(next === "reviewed" ? `${t.page.title}: marked reviewed${t.assigneeName ? ` for ${t.assigneeName}` : ""} · send it to the business review next` : `${t.page.title}: signed off · ready to publish`);
+      router.refresh(); }
     catch (err) { setToast(errorText(err)); } finally { setBusy(null); }
   }
   async function act(e: React.MouseEvent, t: Task) {
     e.stopPropagation();
+    if (t.kind === "SendBiz") { // author's review done: send it on, then share the business review by link / e-mail
+      setBusy(t.page.path);
+      try { await repoApi.updateContent(t.page.path, { status: "bizreview" }); setToast(`${t.page.title} sent to business review`); setSharing({ t, stage: "bizreview" }); router.refresh(); }
+      catch (err) { setToast(errorText(err)); } finally { setBusy(null); }
+      return;
+    }
     if (t.kind === "Publish" || t.kind === "Fix") {
       setBusy(t.page.path);
       try { await repoApi.updateContent(t.page.path, { status: "published" }); setToast(t.kind === "Fix" ? `Publish retried · ${t.page.title} is live` : `${t.page.title} published`); router.refresh(); }
@@ -136,8 +142,8 @@ export function Tasks({ marketId, envId, tasks: allTasks, q: q0, kind: kind0, so
           <thead className="bg-surface-2"><tr className="text-left text-[11px] uppercase tracking-[.08em] text-ink-3"><Th {...thp} k="kind" className="w-[130px]">Type</Th><Th {...thp} k="name">Page · what to do</Th><Th {...thp} k="market" className="w-[150px]">Market</Th><Th {...thp} k="from" className="w-[200px]">Sent by</Th><Th {...thp} k="assignee" className="w-[240px]">Assigned to</Th><Th {...thp} k="waiting" className="w-[110px]">Waiting</Th><Th {...thp} k="due" className="w-[170px]">Due · sent</Th><Th {...thp} className="w-[150px] text-right">Action</Th></tr></thead>
           <tbody>{([["Overdue", (t: Task) => t.overdueDays > 0, "text-crit"], ["Due today", (t: Task) => t.overdueDays === 0, "text-warn"], ["Coming up", (t: Task) => t.overdueDays < 0, "text-ink-3"]] as const).map(([title, pred, cls]) => { const grouped = sort === "due" && dir === "asc"; const list = grouped ? rows.filter(pred) : (title === "Overdue" ? rows : []); if (!list.length) return null; return <Fragment key={title}>
             {grouped && <tr><td colSpan={8} className={`px-4 pt-3 pb-1.5 text-[10.5px] uppercase tracking-[.1em] font-semibold ${cls}`}>{title} · {list.length}</td></tr>}
-            {list.map((t) => { const d = dueLabel(t); const primary = t.kind === "Review" || t.kind === "BizReview" || t.kind === "Publish"; const label = t.kind === "Review" || t.kind === "BizReview" ? "Review" : t.kind === "Publish" ? "Publish" : t.kind === "Fix" ? "Retry publish" : t.kind === "Check" ? "Check" : "Continue";
-              const needs = t.kind === "Publish" || t.kind === "Fix" ? "publish" : t.kind === "Review" || t.kind === "BizReview" ? "review" : null; const allowed = !needs || can(needs, t.page.path); const waiting = needs === "publish" ? "Waiting for a publisher" : "Waiting for a reviewer"; const w = waitingLabel(t.sentAt); const sender = t.from.replace(/ \(.*\)$/, "");
+            {list.map((t) => { const d = dueLabel(t); const primary = t.kind === "Review" || t.kind === "BizReview" || t.kind === "SendBiz" || t.kind === "Publish"; const label = t.kind === "SendBiz" ? "Send to business review" : t.kind === "Review" || t.kind === "BizReview" ? "Review" : t.kind === "Publish" ? "Publish" : t.kind === "Fix" ? "Retry publish" : t.kind === "Check" ? "Check" : "Continue";
+              const needs = t.kind === "Publish" || t.kind === "Fix" ? "publish" : t.kind === "Review" || t.kind === "BizReview" ? "review" : t.kind === "SendBiz" ? "edit" : null; const allowed = !needs || can(needs, t.page.path); const waiting = needs === "publish" ? "Waiting for a publisher" : "Waiting for a reviewer"; const w = waitingLabel(t.sentAt); const sender = t.from.replace(/ \(.*\)$/, "");
               return <tr key={t.page.path + t.kind} className="hover:bg-surface-2 cursor-pointer border-t border-line" onClick={() => router.push(builderHref(t.page.path))}>
                 <td className="px-4 py-3"><Pill status={t.page.status} label={KIND_LABEL[t.kind] ?? t.kind} /></td>
                 <td className="px-4 py-3 max-w-0 w-full"><div className="flex items-center gap-2 min-w-0"><PageIcon /><span className="hidden lg:inline xl:hidden text-[13px]" title={marketOfPath(t.page.path).name} aria-label={marketOfPath(t.page.path).name}>{marketOfPath(t.page.path).flag}</span><Link href={builderHref(t.page.path)} onClick={(e) => e.stopPropagation()} className="truncate font-bold hover:underline underline-offset-2">{t.page.title}</Link><span className="hidden 2xl:inline font-mono text-[11.5px] text-ink-3 truncate">{routeOf(t.page.path)}</span></div><div className="text-[12.5px] text-ink-2 mt-0.5 pl-[26px]">{t.what}{t.remindedAt && <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-warn-soft text-warn px-2 py-px text-[11px] font-semibold align-middle" title={`${t.remindedBy} sent a reminder`} suppressHydrationWarning>🔔 Reminder from {t.remindedBy?.split(" ")[0]}</span>}</div>{isAdmin && <div className="md:hidden mt-1.5 pl-[26px] text-[12px] text-ink-2">{assignee(t, true)}</div>}<div className="lg:hidden mt-1.5 pl-[26px] flex flex-wrap items-center gap-1.5 text-[11.5px] text-ink-3" suppressHydrationWarning><span>{marketOfPath(t.page.path).flag} {marketOfPath(t.page.path).name.replace(/^HSBC /, "")}</span><span aria-hidden>·</span><span className={`inline-block font-semibold px-2 py-0.5 rounded-full ${DUE_CLS[d.c]}`}>{d.t}</span>Due {taskDate(t.due)}</div></td>
@@ -149,7 +155,7 @@ export function Tasks({ marketId, envId, tasks: allTasks, q: q0, kind: kind0, so
                   <div className="text-[11.5px] text-ink-3 mt-1 leading-snug sm:whitespace-nowrap" suppressHydrationWarning><span title="Due date">Due {taskDate(t.due)}</span>{t.sentAt && <span className="block" title="Sent date">Sent {taskDate(t.sentAt)}</span>}</div></td>
                 <td className="px-4 py-3 text-right">{isAdmin && (t.kind === "Review" || t.kind === "BizReview") ? <span className="inline-flex items-center justify-end gap-1.5">
                   <button type="button" className="btn btn-sm btn-icon" title="Share for review: link or e-mail" aria-label={`Share ${t.page.title} for review`} onClick={(e) => { e.stopPropagation(); setSharing({ t, stage: t.kind === "Review" ? "review" : "bizreview" }); }}><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v12M7 8l5-5 5 5" /></svg></button>
-                  <button className="btn btn-sm btn-primary" disabled={busy === t.page.path} title={`Site admin: approve on behalf of ${t.assigneeName ?? "the reviewer"}`} onClick={(e) => approveFor(e, t)}>{busy === t.page.path ? "Working…" : t.kind === "Review" ? "Approve" : "Sign off"}</button></span>
+                  <button className="btn btn-sm btn-primary" disabled={busy === t.page.path} title={`Site admin: approve on behalf of ${t.assigneeName ?? "the reviewer"}`} onClick={(e) => approveFor(e, t)}>{busy === t.page.path ? "Working…" : t.kind === "Review" ? "Reviewed" : "Sign off"}</button></span>
                   : allowed ? <button className={`btn btn-sm ${primary ? "btn-primary" : ""}`} disabled={busy === t.page.path} onClick={(e) => act(e, t)}>{busy === t.page.path ? "Working…" : label}</button> : <span className="inline-flex items-center gap-1.5 text-[12px] text-ink-3 whitespace-nowrap" title={`You don't have ${needs === "publish" ? "Publish" : "Review & approve"} here`}><span aria-hidden="true">🔒</span>{waiting}</span>}</td>
               </tr>; })}
           </Fragment>; })}</tbody>

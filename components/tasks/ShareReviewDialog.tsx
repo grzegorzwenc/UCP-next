@@ -29,7 +29,7 @@ export function ShareReviewDialog({ marketId, path, title, stage, onClose, onApp
     } catch (e) { setErr(errorText(e)); } finally { setBusy(false); }
   };
   return <ModalShell title={`Share for ${STAGE[stage]}`} subtitle={<><b className="text-ink-2">{title}</b> · reviewers see the page and can leave comments, which show up in the page builder</>} width={540} onClose={onClose}
-    footer={<>{onApprove && <button className="btn mr-auto" disabled={busy} onClick={async () => { onClose(); await onApprove(); /* the next stage opens its own share dialog */ }} title="Site admin: approve on behalf of the reviewer">{stage === "review" ? "Approve now" : "Sign off now"}</button>}<button className="btn btn-primary" onClick={onClose}>Done</button></>}>
+    footer={<>{onApprove && <button className="btn mr-auto" disabled={busy} onClick={async () => { onClose(); await onApprove(); /* the next stage opens its own share dialog */ }} title="Site admin: approve on behalf of the reviewer">{stage === "review" ? "Mark reviewed now" : "Sign off now"}</button>}<button className="btn btn-primary" onClick={onClose}>Done</button></>}>
     <label className="block text-[12.5px] font-semibold text-ink-2">Review link</label>
     <div className="mt-1 flex gap-2"><input readOnly value={url ?? "Creating the link…"} onFocus={(e) => e.currentTarget.select()} className="flex-1 min-w-0 border border-line-2 rounded-md px-2.5 py-1.5 text-[12.5px] font-mono bg-surface-2" aria-label="Review link" />
       <button className="btn btn-sm" disabled={!url} onClick={copy}>{copied ? "✓ Copied" : "Copy"}</button></div>

@@ -28,7 +28,7 @@ const problem = (e: unknown) => {
   return NextResponse.json({ type: "about:blank", title: err.message, status: err.status, detail: err.detail }, { status: err.status, headers: { "Content-Type": "application/problem+json", "X-Request-Id": err.requestId ?? crypto.randomUUID() } });
 };
 const marketOf = (path: string) => path.match(/^\/content\/(?:dam\/)?([a-z]{2})(\/|$)/)?.[1] ?? path.match(/^\/var\/audit\/ucp\/([a-z]{2})/)?.[1] ?? "uk";
-const STATUS_TEXT: Record<PageStatus, string> = { draft: "reopened {t} as a draft", review: "sent {t} for review", bizreview: "finished the author's review of {t} · business review next", approved: "approved {t} · ready to publish", scheduled: "scheduled {t} for publishing", published: "published {t}", failed: "publish of {t} failed" };
+const STATUS_TEXT: Record<PageStatus, string> = { draft: "reopened {t} as a draft", review: "sent {t} for review", reviewed: "finished the author's review of {t}", bizreview: "sent {t} to business review", approved: "approved {t} · ready to publish", scheduled: "scheduled {t} for publishing", published: "published {t}", failed: "publish of {t} failed" };
 
 async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }> }) {
   const { op } = await ctx.params; const o = op.join("/"); const q = req.nextUrl.searchParams; const path = q.get("path") ?? ""; const r = repo(); const rid = crypto.randomUUID();
@@ -53,9 +53,10 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       // an assigned review is approved by that reviewer only (site admins included; they can reassign instead)
       const assigned = typeof before?.meta?.["ucp:assignee"] === "string" ? String(before.meta["ucp:assignee"]) : "";
       const admin = who.role === "admin" || !!who.perms?.root?.manage; // site admins may approve on behalf of the reviewer (recorded in the audit log)
-      if (patch.status === "bizreview" && before?.status === "review" && assigned && assigned !== who.id && !admin) throw new RepoError(403, "Only the assigned reviewer can approve this page", "Reassign the review if someone else should approve it");
+      if (patch.status === "reviewed" && before?.status === "review" && assigned && assigned !== who.id && !admin) throw new RepoError(403, "Only the assigned reviewer can approve this page", "Reassign the review if someone else should approve it");
       // author's review → business review → ready to publish: the business sign-off cannot be skipped
-      if (patch.status === "approved" && before?.status === "review") throw new RepoError(409, "Business review comes next", "Approve the author's review first; the business review then makes the page ready to publish");
+      if (patch.status === "bizreview" && before?.status === "review") throw new RepoError(409, "The author's review comes first", "The reviewer marks it Reviewed; then it can go to the business review");
+      if (patch.status === "approved" && (before?.status === "review" || before?.status === "reviewed")) throw new RepoError(409, "Business review comes next", "Approve the author's review first; the business review then makes the page ready to publish");
       const bizBy = before?.meta?.["ucp:taskKind"] === "BizReview" ? before?.meta?.["ucp:taskAssignee"] : undefined;
       if (patch.status === "approved" && before?.status === "bizreview" && typeof bizBy === "string" && bizBy && bizBy !== who.id && !admin) throw new RepoError(403, "Only the assigned business reviewer can sign this page off");
       // four eyes: the business sign-off comes from someone other than the author's reviewer
@@ -63,11 +64,12 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       if (patch.status && before && patch.status !== before.status) await snapshotVersion(path, `before: ${STATUS_TEXT[patch.status as PageStatus].replace("{t}", "").trim()}`, who.id);
       const p = await r.updateContent(path, patch);
       /* a site admin approving for the assigned reviewer: recorded as "on behalf of" */
-      const onBehalf = !admin ? "" : patch.status === "bizreview" && before?.status === "review" && assigned && assigned !== who.id ? assigned : patch.status === "approved" && before?.status === "bizreview" && typeof bizBy === "string" && bizBy && bizBy !== who.id ? bizBy : "";
+      const onBehalf = !admin ? "" : patch.status === "reviewed" && before?.status === "review" && assigned && assigned !== who.id ? assigned : patch.status === "approved" && before?.status === "bizreview" && typeof bizBy === "string" && bizBy && bizBy !== who.id ? bizBy : "";
       if (patch.status && before && patch.status !== before.status) {
         const meId = who.id; const meta: Record<string, unknown> = { "ucp:sentBy": meId, "ucp:sentAt": new Date().toISOString() };
         if (patch.status === "review") { const d = new Date(); d.setDate(d.getDate() + 3); meta["ucp:due"] = d.toISOString(); meta["ucp:requestedBy"] = meId; meta["ucp:remindedAt"] = null; } // "send back to review" keeps the same reviewer else meta["ucp:due"] = null;
-        if (patch.status === "bizreview") { const d = new Date(); d.setDate(d.getDate() + 3); meta["ucp:due"] = d.toISOString(); meta["ucp:authorReviewedBy"] = meId; meta["ucp:remindedAt"] = null; }
+        if (patch.status === "reviewed") meta["ucp:authorReviewedBy"] = meId; // who did the author's review (four eyes for the business review)
+        if (patch.status === "bizreview") { const d = new Date(); d.setDate(d.getDate() + 3); meta["ucp:due"] = d.toISOString(); meta["ucp:remindedAt"] = null; }
         if (patch.status === "approved") meta["ucp:approvedBy"] = meId; // the author (ucp:requestedBy) keeps getting the "ready to publish" task
         await r.setProps(`${path}/jcr:content`, meta).catch(() => {});
         await audit(patch.status === "published" || patch.status === "approved" || patch.status === "scheduled" ? "publishing" : "content", STATUS_TEXT[patch.status as PageStatus].replace("{t}", p.title) + (onBehalf ? ` (on behalf of ${await userName(onBehalf)})` : ""), path, patch.status === "failed" ? "crit" : "");

@@ -37,6 +37,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 .pill-review { background: var(--review-soft); color: var(--review); }
 .pill-approved { background: var(--info-soft); color: var(--info); }
 .pill-bizreview { background: var(--warn-soft); color: var(--warn); }
+.pill-reviewed { background: var(--good-soft); color: var(--good); }
 .pill-published { background: var(--good-soft); color: var(--good); }
 .pill-scheduled { background: var(--sched-soft); color: var(--sched); }
 .pill-failed { background: var(--crit-soft); color: var(--crit); }
