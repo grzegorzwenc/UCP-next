@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { createReviewLink, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
+import { createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
 import { can } from "@/lib/ucp/perms";
 import { SESSION_COOKIE, sessionUserId } from "@/lib/server/session";
 import { PATHS } from "@/lib/ucp/paths";
@@ -67,6 +67,15 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       if (!(admin || can(u, "edit", path, root) || can(u, "review", path, root))) return problem(new RepoError(403, "Only people working on this page can share it for review"));
       const { email } = await req.json() as { email?: string }; const r = await createReviewLink(mid, path, u, email); const pg = await repo().getPage(path);
       if (r.created || r.assigned) await logEvent(mid, { type: "content", text: `shared ${pg?.title ?? path} for ${STAGE_LABEL[r.stage].toLowerCase()}${email ? ` with ${email}` : " by link"}${r.assigned ? ` (assigned to ${r.assigned})` : ""}`, target: path, requestId: rid });
+      return ok({ ...r, url: `/review/${r.token}` });
+    }
+    /* ---- business review for a whole team: list the teams, give one access ---- */
+    if (o === "review/groups" && req.method === "GET") return ok(await reviewGroups(mid, q.get("path") ?? ""));
+    if (o === "review/group" && req.method === "POST") {
+      const u = await me(); const path = q.get("path") ?? ""; const root = market(mid).root; const admin = u.role === "admin" || !!u.perms.root?.manage;
+      if (!(admin || can(u, "edit", path, root) || can(u, "review", path, root))) return problem(new RepoError(403, "Only people working on this page can share it for review"));
+      const { team } = await req.json() as { team?: string }; const r = await shareWithGroup(mid, path, u, String(team ?? "")); const pg = await repo().getPage(path);
+      if (r.created) await logEvent(mid, { type: "content", text: `gave the ${team} group (${r.members.length} ${r.members.length === 1 ? "person" : "people"}) access to the business review of ${pg?.title ?? path}`, target: path, requestId: rid });
       return ok({ ...r, url: `/review/${r.token}` });
     }
     if (o === "review/comment" && req.method === "POST") {

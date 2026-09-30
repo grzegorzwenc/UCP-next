@@ -7,7 +7,7 @@ import type { ResolvedEntities } from "@/lib/ucp/tokens";
 import { bindingsOf } from "@/lib/ucp/tokens";
 import { byOrder, sharedFields } from "@/lib/ucp/schema";
 import { RepoError } from "@/lib/repo";
-import { ME, SEED_USERS } from "@/lib/ucp/seed";
+import { ME, REVIEW_GROUPS, SEED_USERS } from "@/lib/ucp/seed";
 import { allPages } from "@/lib/server/pages";
 import { sessionUserId } from "@/lib/server/session";
 import { can } from "@/lib/ucp/perms";
@@ -94,7 +94,7 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
   const admin = user.role === "admin" || !!user.perms.root?.manage; const root = marketOf(marketId).root;
   /* Visibility: admins see every task; everyone else only what they can act on or what they started. */
   // the Backlog (author's reviews nobody has taken) is visible to everyone; only reviewers can take one
-  const mine = (p: PageSummary, kind: TaskKind) => admin || str(p.meta?.["ucp:sentBy"]) === meId || str(p.meta?.["ucp:requestedBy"]) === meId || (p.lastModifiedBy ?? ME) === meId || (kind === "Review" && (str(p.meta?.["ucp:assignee"]) ? str(p.meta?.["ucp:assignee"]) === meId : p.status === "review" || can(user, "review", p.path, root))) || (kind === "BizReview" && (taskAssignee(p, kind) ? taskAssignee(p, kind) === meId : can(user, "review", p.path, root) && str(p.meta?.["ucp:authorReviewedBy"]) !== meId)) || ((kind === "Publish" || kind === "Fix" || kind === "Check") && (taskAssignee(p, kind) ? taskAssignee(p, kind) === meId : can(user, "publish", p.path, root)));
+  const mine = (p: PageSummary, kind: TaskKind) => admin || str(p.meta?.["ucp:sentBy"]) === meId || str(p.meta?.["ucp:requestedBy"]) === meId || (p.lastModifiedBy ?? ME) === meId || (kind === "Review" && (str(p.meta?.["ucp:assignee"]) ? str(p.meta?.["ucp:assignee"]) === meId : p.status === "review" || can(user, "review", p.path, root))) || (kind === "BizReview" && json<string[]>(p.meta?.["ucp:reviewGroups"], []).some((g) => REVIEW_GROUPS.find((x) => x.name === g)?.members.includes(meId))) /* a group they are in was given access */ || (kind === "BizReview" && (taskAssignee(p, kind) ? taskAssignee(p, kind) === meId : can(user, "review", p.path, root) && str(p.meta?.["ucp:authorReviewedBy"]) !== meId)) || ((kind === "Publish" || kind === "Fix" || kind === "Check") && (taskAssignee(p, kind) ? taskAssignee(p, kind) === meId : can(user, "publish", p.path, root)));
   const dueOf = (p: PageSummary) => { const d = p.meta?.["ucp:due"]; if (typeof d === "string" && d) return new Date(d); const off = (hash(p.path) % 9) - 2; const x = new Date(now); x.setDate(x.getDate() + off); return x; };
   const mk = async (p: PageSummary, kind: TaskKind, what: string, from: string): Promise<Task> => { const due = dueOf(p); const overdueDays = Math.floor((now.setHours(0, 0, 0, 0) - new Date(due).setHours(0, 0, 0, 0)) / 86400000); return { kind, what, from, author: str(p.meta?.["ucp:requestedBy"]) || str(p.meta?.["ucp:sentBy"]) || str(p.lastModifiedBy) || undefined, /* who sent it for review */ sentAt: str(p.meta?.["ucp:sentAt"]) || p.lastModified, due: due.toISOString(), overdueDays, page: { path: p.path, title: p.title, status: p.status, template: p.template } }; };
   // "sent by" = the author who sent it for review (ucp:sentBy changes with every status change)
@@ -117,6 +117,7 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
     if (t.author) t.authorEmail = await userEmail(t.author);
     if (peer) { t.peer = peer; t.peerName = await userName(peer); t.peerEmail = await userEmail(peer); }
     if (biz) { t.biz = biz; t.bizName = await userName(biz); t.bizEmail = await userEmail(biz); }
+    if (st === "bizreview") { const g = json<string[]>(p.meta?.["ucp:reviewGroups"], []); if (g.length) t.bizGroups = g; }
   }
   for (const t of out) { const a = taskAssignee(pages.find((p) => p.path === t.page.path)!, t.kind); if (a) { t.assignee = a; t.assigneeName = await userName(a); } }
   return out.filter((t) => mine(pages.find((p) => p.path === t.page.path)!, t.kind)).sort((a, b) => a.due.localeCompare(b.due));
@@ -168,7 +169,27 @@ export async function deleteComment(path: string, u: User, id: string, admin: bo
   const next = list.filter((x) => x.id !== id); await writeComments(path, next); return sortComments(next);
 }
 /* ---------------- review links: send a page in review to someone by link or e-mail ---------------- */
-export type ReviewLink = { token: string; stage: "review" | "bizreview"; email?: string; by: string; at: string };
+export type ReviewLink = { token: string; stage: "review" | "bizreview"; email?: string; /** a whole team got access with this link */ group?: string; by: string; at: string };
+export type ReviewGroup = { team: string; members: { id: string; name: string; email: string; canSignOff: boolean }[]; shared: boolean };
+/** Teams that can be given access to a page's business review (from the people directory); `shared` = already has access. */
+export async function reviewGroups(marketId: string, path: string): Promise<ReviewGroup[]> {
+  const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path);
+  const have = json<string[]>(pg.meta?.["ucp:reviewGroups"], []); const root = marketOf(marketId).root; const by = new Map<string, ReviewGroup>();
+  const people = await listUsers();
+  for (const grp of REVIEW_GROUPS) by.set(grp.name, { team: grp.name, shared: have.includes(grp.name), members: grp.members.map((id) => people.find((x) => x.id === id)).filter((x): x is User => !!x).map((x) => ({ id: x.id, name: x.name, email: x.email, canSignOff: can(x, "review", path, root) })) });
+  return [...by.values()].sort((a, b) => Number(b.shared) - Number(a.shared) || a.team.localeCompare(b.team));
+}
+/** Give a whole team access to the business review: one link for the team, and the page shows up in every member's My tasks. */
+export async function shareWithGroup(marketId: string, path: string, u: User, team: string): Promise<{ token: string; members: ReviewGroup["members"]; created: boolean }> {
+  const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path);
+  if (pg.status !== "bizreview") throw new RepoError(409, "Groups are for the business review", "Send the page to the business review first");
+  const g = (await reviewGroups(marketId, path)).find((x) => x.team === team); if (!g?.members.length) throw new RepoError(400, "That group has nobody in it");
+  const links = json<ReviewLink[]>(pg.meta?.["ucp:reviewLinks"], []); const reuse = links.find((l) => l.stage === "bizreview" && l.group === team);
+  const link: ReviewLink = reuse ?? { token: crypto.randomUUID().replace(/-/g, ""), stage: "bizreview", group: team, by: u.id, at: new Date().toISOString() };
+  const groups = json<string[]>(pg.meta?.["ucp:reviewGroups"], []);
+  await repo().setProps(`${path}/jcr:content`, { "ucp:reviewLinks": JSON.stringify(reuse ? links : [...links, link]), "ucp:reviewGroups": JSON.stringify(groups.includes(team) ? groups : [...groups, team]) });
+  return { token: link.token, members: g.members, created: !reuse };
+}
 export const STAGE_LABEL: Record<string, string> = { review: "Author's review", bizreview: "Business review" };
 /**
  * A link for the current review stage. The link opens a review screen (preview + comments) and stops working when the stage is over.

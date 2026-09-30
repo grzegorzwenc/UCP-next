@@ -11,6 +11,14 @@ export const ROLES: Record<Role, { name: string; perms: Partial<Record<PermKey, 
 };
 export const PERM_COLS: [PermKey, string, string][] = [["read", "Read", "See pages and content"], ["edit", "Edit", "Change drafts"], ["review", "Review & approve", "Approve for publishing"], ["publish", "Publish", "Push to production"], ["manage", "Manage", "Permissions and settings"]];
 
+/** Review groups (distribution lists) a business review can be shared with; everyone in a group sees the page in My tasks. */
+export const REVIEW_GROUPS: { name: string; members: string[] }[] = [
+  { name: "Business owners", members: ["david.clarke", "maria.santos"] },
+  { name: "Cards & Insurance board", members: ["maria.santos", "anna.kowalczyk", "aisha.khan"] },
+  { name: "Savings & Mortgages board", members: ["david.clarke", "jordan.mensah", "rachel.hughes"] },
+  { name: "Compliance & Legal", members: ["rachel.hughes", "aisha.khan"] },
+  { name: "Marketing & Digital", members: ["tunde.boateng", "michael.osei", "content.author"] },
+];
 export const SEED_USERS: { id: string; name: string; email: string; role: Role; team: string; perms: Perms }[] = [
   { id: "super.admin", name: "Super admin", email: "ucp-admin@hsbc.com", role: "admin", team: "UCP platform team", perms: { root: { read: true, edit: true, review: true, publish: true, manage: true } } },
   { id: "content.author", name: "Content author", email: "content.author@hsbc.com", role: "author", team: "Digital content", perms: { root: { read: true, edit: true } } },

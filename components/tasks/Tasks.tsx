@@ -10,6 +10,7 @@ import { Pill } from "@/components/ui/Pill";
 import { Avatar } from "@/components/ui/Avatar";
 import { PageIcon } from "@/components/ui/Icons";
 import { AssignDialog } from "./AssignDialog";
+import { useConfirm } from "@/components/ui/Confirm";
 import { ShareReviewDialog } from "./ShareReviewDialog";
 import { PublishDialog } from "@/components/pages/PublishDialog";
 import { MARKETS, market as marketById, env as envById } from "@/lib/markets";
@@ -103,6 +104,12 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   const status = (t: Task, s: string) => repoApi.updateContent(t.page.path, { status: s as never });
   const mid = (t: Task) => marketOfPath(t.page.path).id;
 
+  /** Business review → back to the author: the page returns to Build the page and the whole review starts again. */
+  const ask = useConfirm();
+  const reauthor = async (t: Task) => {
+    if (!(await ask({ title: "Send it back to the author?", body: <><b>{t.page.title}</b> goes back to the first step, Build the page. The author changes it and sends it for review again · both reviews start over.</>, confirmLabel: "Reauthor" }))) return;
+    await run(t, () => status(t, "draft"), `${t.page.title} is back with the author`);
+  };
   /** The action(s) for a row: only what this person may do at this stage. */
   function actions(t: Task) {
     const p = t.page.path; const st = t.page.status; const b = busy === p; const out: React.ReactNode[] = [];
@@ -123,7 +130,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
       if (can("edit", p)) btn("send", "Send to business review", () => run(t, () => status(t, "bizreview"), `${t.page.title} sent to business review`, () => setSharing({ t, stage: "bizreview" })), true);
     } else if (st === "bizreview") {
       if (isAdmin) btn("share", "Share", () => setSharing({ t, stage: "bizreview" }));
-      if (can("edit", p) && !(t.assignee === user.id)) btn("remind", "Remind", remind);
+      if (can("review", p) || can("edit", p) || isAdmin) btn("reauthor", "Reauthor", () => void reauthor(t));
       if (can("review", p) || isAdmin) btn("signoff", "Sign off", () => run(t, () => status(t, "approved"), `${t.page.title}: signed off · ready to publish`), true);
     } else if (st === "approved" || st === "scheduled") {
       change();
@@ -168,7 +175,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
             {/* wide screens: the three people of the review flow, one column each */}
             <td className={pc}>{who(t.author, t.authorName ?? t.from.replace(/ \(.*\)$/, ""), undefined, t.authorEmail)}</td>
             <td className={pc}>{t.page.status === "review" && !t.assignee ? <div className="hidden min-[1400px]:block">{openChip(t)}</div> : who(t.peer, t.peerName, t.page.status === "review" || t.page.status === "inreview" ? "Not taken yet" : undefined, t.peerEmail, t.page.status === "review" || t.page.status === "inreview" ? editPerson(t) : null)}</td>
-            <td className={pc}>{who(t.biz, t.bizName, t.page.status === "bizreview" ? "Anyone with Review" : undefined, t.bizEmail)}</td>
+            <td className={pc}>{!t.biz && t.bizGroups?.length ? <div className="hidden min-[1400px]:grid gap-1 justify-items-start">{t.bizGroups.map((g) => <span key={g} className="inline-flex items-center gap-1 max-w-full text-[12px] bg-info-soft text-info rounded-full px-2 py-0.5" title={`The ${g} group has access`}><svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3.2" /><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" /><path d="M16 5.2a3 3 0 0 1 0 5.6M18 13.8c1.8.6 3 2.4 3 5.2" /></svg><span className="truncate">{g}</span></span>)}</div> : who(t.biz, t.bizName, t.page.status === "bizreview" ? "Anyone with Review" : undefined, t.bizEmail)}</td>
             <td className="px-4 min-[1400px]:pl-6 min-[1400px]:pr-2 py-3 hidden md:table-cell"><div className="grid gap-1 justify-items-start">{dueChip(t)}<span className="text-[11.5px] text-ink-3 whitespace-nowrap" suppressHydrationWarning>{t.sentAt ? `Sent ${taskDate(t.sentAt)}` : ""}{w !== "—" ? <span className="block text-ink-4">waiting {w}</span> : null}</span></div></td>
             <td className="px-4 py-3 hidden md:table-cell"><div className="flex flex-wrap xl:flex-nowrap min-[1400px]:!flex-wrap min-[1600px]:!flex-nowrap items-center justify-end gap-1.5">{acts.length ? acts : <><span className="hidden lg:inline text-[12px] text-ink-4">No action for you</span><Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link></>}</div></td>
           </tr>; };

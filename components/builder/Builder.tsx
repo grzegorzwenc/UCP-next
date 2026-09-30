@@ -22,6 +22,7 @@ import { InsightsPanel, VersionHistory, TranslateModal, pageInsights } from "@/c
 import { LeftPanel } from "./LeftPanel";
 import { LockedVeil } from "./LockedVeil";
 import { ShareReviewDialog } from "@/components/tasks/ShareReviewDialog";
+import { useConfirm } from "@/components/ui/Confirm";
 import { FormatBar, RichField, useFormatState, prepareEditable } from "./RichTextEditor";
 import { normalizeRich, cellSafe, toPlain } from "@/lib/blocks/richtext";
 import { useRouter } from "next/navigation";
@@ -261,7 +262,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
 
   async function save(extra: { status?: PageStatus } = {}) {
     setSaving("Saving…");
-    try { await repoApi.saveComponents(page.path, blocksToComponents(blocksRef.current)); await repoApi.updateContent(page.path, { title: titleRef.current, description: descRef.current, status, ...extra }); setDirty(false); setSaving("Saved just now"); }
+    try {
+      if (!canEdit) { if (extra.status) await repoApi.updateContent(page.path, { status: extra.status }); setSaving("Saved just now"); return; } // reviewers without Edit only move the status (sign off, reauthor)
+      await repoApi.saveComponents(page.path, blocksToComponents(blocksRef.current)); await repoApi.updateContent(page.path, { title: titleRef.current, description: descRef.current, status, ...extra }); setDirty(false); setSaving("Saved just now");
+    }
     catch (e) { setSaving("Save failed"); say(e instanceof ApiError ? `${e.problem.title} · request ${e.requestId ?? "n/a"}` : String(e)); throw e; }
   }
   /* Autosave: 1.2 s after the last change the draft is saved. There is no Save button any more. */
@@ -272,6 +276,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (!mayStatus(next)) { say(`You don't have ${permForStatus[next] === "publish" ? "Publish" : permForStatus[next] === "review" ? "Review & approve" : "Edit"} on this folder`); return true; }
     if (next === "review" && missing) { say(`Fill in ${missing} required field${missing === 1 ? "" : "s"} first`); const b = blocks.find((x) => missingRequired(x).length); if (b) configure(b.id); return true; }
     return false;
+  }
+  /** Business review → back to the author (Reviewers can do it without Edit): the page returns to Build the page. */
+  const ask = useConfirm();
+  async function reauthor() {
+    if (!(await ask({ title: "Send it back to the author?", body: <><b>{title}</b> goes back to the first step, Build the page. The author changes it and sends it for review again · both reviews start over.</>, confirmLabel: "Reauthor" }))) return;
+    setStatus("draft"); try { await save({ status: "draft" }); setAssignee(""); setAuthorReviewer(""); setPreviewed(false); say("Sent back to the author · the page is at Build the page again"); router.refresh(); } catch { setStatus(status); }
   }
   async function transition(next: PageStatus, msg: string) {
     if (blocked(next)) return;
@@ -384,7 +394,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const remindBtn = (who: string) => <button className="btn btn-sm" onClick={() => setRemind(new Date().getTime())} title={`Remind ${who} that you are waiting`} aria-label={`Remind ${who}`}><svg viewBox="0 0 24 24" className="w-3.5 h-3.5 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6M10 19a2 2 0 0 0 4 0" /></svg><span className="hidden lg:inline">Remind</span></button>;
   const hasAct = (i: number) => (i === 0 && notYet && canEdit && !seen) || (i === 1 && notYet && mayStatus("review") && seen)
     || (i === 2 && status === "review" && !assignee && mayClaim) || (i === 3 && status === "review" && !!assignee && (assignee === user.id || canEdit)) || (i === 4 && status === "inreview" && (mayApprove || canEdit))
-    || (i === 5 && status === "reviewed" && maySendBiz) || (i === 6 && status === "bizreview" && (mayBizApprove || (canEdit && !mayBizSelf))) || (i === 7 && (status === "approved" || status === "scheduled") && mayStatus("published"));
+    || (i === 5 && status === "reviewed" && maySendBiz) || (i === 6 && status === "bizreview" && (mayBizApprove || canEdit)) || (i === 7 && (status === "approved" || status === "scheduled") && mayStatus("published"));
   const stepAct = (i: number): React.ReactNode =>
     i === 0 ? <button className="btn btn-sm btn-next" onClick={() => flowClick(1)} title="See the page exactly as visitors will">Go to preview</button>
     : i === 1 ? <button className="btn btn-sm btn-next" onClick={openSend} aria-label="Send to author's review"><span className="lg:hidden">Send for review</span><span className="hidden lg:inline">Send to author&apos;s review</span></button>
@@ -392,7 +402,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     : i === 3 ? (assignee === user.id ? <button className="btn btn-sm btn-next" onClick={() => transition("inreview", "Review started")} title="Start the review: the author sees that you are on it">Start review</button> : remindBtn(assigneeName || "the reviewer"))
     : i === 4 ? <>{canEdit && !mayApproveSelf && remindBtn(assigneeName || "the reviewer")}{mayApprove && <button className="btn btn-sm btn-next" onClick={() => transition("reviewed", onBehalf ? `Marked reviewed on behalf of ${assigneeName || "the reviewer"}` : "Marked as reviewed · send it to the business review next")} title={onBehalf ? `Site admin: on behalf of ${assigneeName || "the reviewer"}` : "The page is fine: hand it back to the author"}>Reviewed{onBehalf && assigneeName ? <span className="hidden xl:inline">for {assigneeName.split(" ")[0]}</span> : null}</button>}</>
     : i === 5 ? <button className="btn btn-sm btn-next" onClick={() => transition("bizreview", "Sent to business review")} aria-label="Send to business review"><span className="lg:hidden">Send on</span><span className="hidden lg:inline">Send to business review</span></button>
-    : i === 6 ? <>{canEdit && !mayBizSelf && remindBtn("the business reviewers")}{mayBizApprove && <button className="btn btn-sm btn-next" onClick={() => transition("approved", bizOnBehalf ? "Signed off as site admin · ready to publish" : "Business review done · ready to publish")} title={bizOnBehalf ? "Site admin: sign off on behalf of the business reviewer" : undefined}>Sign off{bizOnBehalf && bizName ? <span className="hidden xl:inline">for {bizName.split(" ")[0]}</span> : null}</button>}</>
+    : i === 6 ? <>{(mayBizApprove || canEdit) && <button className="btn btn-sm" onClick={() => void reauthor()} title="Send it back to the author: the page returns to Build the page">Reauthor</button>}{mayBizApprove && <button className="btn btn-sm btn-next" onClick={() => transition("approved", bizOnBehalf ? "Signed off as site admin · ready to publish" : "Business review done · ready to publish")} title={bizOnBehalf ? "Site admin: sign off on behalf of the business reviewer" : undefined}>Sign off{bizOnBehalf && bizName ? <span className="hidden xl:inline">for {bizName.split(" ")[0]}</span> : null}</button>}</>
     : i === 7 ? <button className="btn btn-sm btn-next" onClick={() => { if (dirty) save().catch(() => {}); setPublishing(true); }}>{status === "scheduled" ? "Publish / reschedule" : "Publish"}</button> : null;
   /** Why the page cannot be changed right now (Add, Configure and AI are veiled; insights, settings, entities and history stay open); "" when it can. */
   const lockReason = !canEdit ? "You don't have Edit on this folder. Ask a site admin to grant it." : inAuthor ? `The page is in the author's review${assigneeName ? ` with ${assigneeName}` : ""}. Editing takes it out of the review queue.` : status === "reviewed" ? "The author's review is done. Editing takes it back to a draft." : status === "bizreview" ? "The page is in business review. Editing takes it out of the review queue." : status === "approved" || status === "scheduled" ? "The page passed review and is ready to publish. Editing sends it back through review." : status === "published" ? "The page is live. Click Edit to change it; the live version stays online until you publish again." : "";

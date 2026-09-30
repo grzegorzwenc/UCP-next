@@ -49,7 +49,9 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     if (o === "page" && req.method === "GET") { const p = await r.getPage(path); return p ? ok(p) : problem(new RepoError(404, "Not found", path)); }
     if (o === "page" && req.method === "PATCH") {
       const patch = await req.json(); const before = await r.getPage(path);
-      const who = await guard(patch.status && before && patch.status !== before.status ? permForStatus[patch.status] ?? "edit" : "edit", path);
+      // Reauthor: the business reviewer (Review) or anyone with Edit sends a page in business review back to the author (→ draft)
+      const reauthor = patch.status === "draft" && before?.status === "bizreview";
+      const who = reauthor ? await guard("edit", path).catch(() => guard("review", path)) : await guard(patch.status && before && patch.status !== before.status ? permForStatus[patch.status] ?? "edit" : "edit", path);
       // an assigned review is approved by that reviewer only (site admins included; they can reassign instead)
       const assigned = typeof before?.meta?.["ucp:assignee"] === "string" ? String(before.meta["ucp:assignee"]) : "";
       const admin = who.role === "admin" || !!who.perms?.root?.manage; // site admins may approve on behalf of the reviewer (recorded in the audit log)
@@ -75,6 +77,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
         if (patch.status === "inreview") { if (!assigned) meta["ucp:assignee"] = meId; meta["ucp:startedAt"] = new Date().toISOString(); } // taking an unassigned review assigns it
         if (patch.status === "reviewed") meta["ucp:authorReviewedBy"] = meId; // who did the author's review (four eyes for the business review)
         if (patch.status === "bizreview") { const d = new Date(); d.setDate(d.getDate() + 3); meta["ucp:due"] = d.toISOString(); meta["ucp:remindedAt"] = null; }
+        if (reauthor) Object.assign(meta, { "ucp:reauthorBy": meId, "ucp:reauthorAt": new Date().toISOString(), "ucp:assignee": null, "ucp:authorReviewedBy": null, "ucp:taskAssignee": null, "ucp:taskKind": null, "ucp:reviewGroups": null, "ucp:remindedAt": null, "ucp:due": null }); // back to Build the page: the whole review starts again
         if (patch.status === "approved") meta["ucp:approvedBy"] = meId; // the author (ucp:requestedBy) keeps getting the "ready to publish" task
         await r.setProps(`${path}/jcr:content`, meta).catch(() => {});
         await audit(patch.status === "published" || patch.status === "approved" || patch.status === "scheduled" ? "publishing" : "content", STATUS_TEXT[patch.status as PageStatus].replace("{t}", p.title) + (onBehalf ? ` (on behalf of ${await userName(onBehalf)})` : ""), path, patch.status === "failed" ? "crit" : "");
