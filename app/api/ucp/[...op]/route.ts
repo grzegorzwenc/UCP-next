@@ -79,6 +79,18 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       await logEvent(hit.marketId, { type: "content", who: signed ? undefined : "system", text: `${signed ? "" : `${name} (${mail}) `}commented during ${STAGE_LABEL[hit.link.stage].toLowerCase()} of ${hit.page.title}: “${String(b.text ?? "").trim().slice(0, 60)}”`, target: hit.page.path, requestId: rid });
       return ok(r);
     }
+    /* ---- take a waiting author's review: anyone with Review assigns it to themselves (a page nobody has taken yet) ---- */
+    if (o === "review/claim" && req.method === "POST") {
+      const u = await me(); const path = q.get("path") ?? ""; const pg = await repo().getPage(path);
+      if (!pg) return problem(new RepoError(404, "Page not found", path));
+      if (pg.status !== "review") return problem(new RepoError(409, "The page is not waiting for a reviewer any more"));
+      if (!can(u, "review", path, market(mid).root)) return problem(new RepoError(403, "You don't have Review & approve on this page"));
+      const cur = typeof pg.meta?.["ucp:assignee"] === "string" ? String(pg.meta["ucp:assignee"]) : "";
+      if (cur && cur !== u.id) return problem(new RepoError(409, `Already assigned to ${await userName(cur)}`));
+      await repo().setProps(`${path}/jcr:content`, { "ucp:assignee": u.id, "ucp:assignedBy": u.id });
+      await logEvent(mid, { type: "content", text: `took the author's review of ${pg.title}`, target: path, requestId: rid });
+      return ok({ assignee: u.id, assigneeName: u.name });
+    }
     if (o === "review/remind" && req.method === "POST") {
       const u = await me(); const path = q.get("path") ?? ""; const pg = await repo().getPage(path);
       if (!pg) return problem(new RepoError(404, "Page not found", path));

@@ -14,7 +14,7 @@ import { ShareReviewDialog } from "./ShareReviewDialog";
 import { MARKETS, market as marketById } from "@/lib/markets";
 
 export type PublishedItem = { path: string; title: string; when?: string; who?: string };
-type View = "assign" | "inreview" | "sendbiz" | "ready" | "published";
+type View = "backlog" | "mine" | "inreview" | "sendbiz" | "ready" | "published";
 type Props = { marketId: string; envId: string; tasks: Task[]; published: PublishedItem[]; view: string };
 
 /** Due chip copy: overdueDays > 0 = overdue, 0 = today, -1 = tomorrow, else the date. */
@@ -39,8 +39,9 @@ const DUE_CLS = { crit: "bg-crit-soft text-crit", warn: "bg-warn-soft text-warn"
 const marketOfPath = (path: string) => MARKETS.find((m) => path === m.root || path.startsWith(`${m.root}/`)) ?? marketById("");
 
 /** The five stages of the review flow, as tabs. */
-const VIEWS: { id: View; label: string; empty: string; of: (t: Task) => boolean }[] = [
-  { id: "assign", label: "Assign to review", empty: "No page is waiting for a reviewer.", of: (t) => t.kind === "Review" && t.page.status === "review" },
+const VIEWS: { id: View; label: string; empty: string; of: (t: Task, me: string) => boolean }[] = [
+  { id: "backlog", label: "Backlog", empty: "No page is waiting for a reviewer.", of: (t, me) => t.kind === "Review" && t.page.status === "review" && t.assignee !== me },
+  { id: "mine", label: "Ready for review", empty: "Nothing assigned to you yet · take a page from the Backlog.", of: (t, me) => t.kind === "Review" && t.page.status === "review" && t.assignee === me },
   { id: "inreview", label: "In review", empty: "No author's review is in progress.", of: (t) => t.kind === "Review" && t.page.status === "inreview" },
   { id: "sendbiz", label: "Send to business review", empty: "Nothing to send to, or waiting in, the business review.", of: (t) => t.kind === "SendBiz" || t.kind === "BizReview" },
   { id: "ready", label: "Ready for publish", empty: "No page is ready to publish.", of: (t) => t.kind === "Publish" || t.kind === "Check" },
@@ -53,17 +54,17 @@ const VIEWS: { id: View; label: string; empty: string; of: (t: Task) => boolean 
  */
 export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props) {
   const router = useRouter(); const { can, user } = useSession(); const isAdmin = user.role === "admin" || !!user.perms.root?.manage;
-  const [view, setView] = useState<View>(() => (VIEWS.some((v) => v.id === view0) ? view0 as View : "assign"));
+  const [view, setView] = useState<View>(() => (VIEWS.some((v) => v.id === view0) ? view0 as View : "backlog"));
   const [q, setQ] = useState(""); const [mkt, setMkt] = useState("");
   const [busy, setBusy] = useState<string | null>(null); const [toast, setToast] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<Task | null>(null); const [sharing, setSharing] = useState<{ t: Task; stage: "review" | "bizreview" } | null>(null);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
-  useEffect(() => { window.history.replaceState(null, "", `/${marketId}/${envId}/tasks${view === "assign" ? "" : `?view=${view}`}`); }, [view, marketId, envId]); // the tab is in the URL (shareable)
+  useEffect(() => { window.history.replaceState(null, "", `/${marketId}/${envId}/tasks${view === "backlog" ? "" : `?view=${view}`}`); }, [view, marketId, envId]); // the tab is in the URL (shareable)
 
   const routeOf = (path: string) => path.replace(marketOfPath(path).root, "") || "/";
   const builderHref = (path: string) => `/${marketOfPath(path).id}/${envId}/page${routeOf(path)}`;
   const match = (path: string, title: string, extra = "") => (!mkt || marketOfPath(path).id === mkt) && (!q.trim() || `${title} ${routeOf(path)} ${extra}`.toLowerCase().includes(q.toLowerCase().trim()));
-  const byView = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.id, tasks.filter(v.of).filter((t) => match(t.page.path, t.page.title, `${t.from} ${t.assigneeName ?? ""}`)).sort((a, b) => (a.sentAt ?? "").localeCompare(b.sentAt ?? ""))])) as Record<View, Task[]>, [tasks, q, mkt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const byView = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.id, tasks.filter((t) => v.of(t, user.id)).filter((t) => match(t.page.path, t.page.title, `${t.from} ${t.assigneeName ?? ""}`)).sort((a, b) => (a.sentAt ?? "").localeCompare(b.sentAt ?? ""))])) as Record<View, Task[]>, [tasks, q, mkt, user.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const pub = useMemo(() => published.filter((p) => match(p.path, p.title, p.who ?? "")), [published, q, mkt]); // eslint-disable-line react-hooks/exhaustive-deps
   const count = (v: View) => (v === "published" ? pub.length : byView[v].length);
   const markets = useMemo(() => MARKETS.filter((m) => tasks.some((t) => marketOfPath(t.page.path).id === m.id) || published.some((p) => marketOfPath(p.path).id === m.id)), [tasks, published]);
@@ -79,9 +80,11 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
     const p = t.page.path; const st = t.page.status; const b = busy === p; const out: React.ReactNode[] = [];
     const mine = !t.assignee || t.assignee === user.id; const btn = (k: string, label: string, onClick: () => void, next = false) => out.push(<button key={k} type="button" className={`btn btn-sm ${next ? "btn-next" : ""}`} disabled={b} onClick={(e) => { e.stopPropagation(); onClick(); }}>{b && next ? "Working…" : label}</button>);
     const remind = () => run(t, () => ucpApi.remindReviewer(mid(t), p), "Reminder sent");
-    if (st === "review") {
-      if (isAdmin) btn("assign", t.assigneeName ? "Change" : "Assign", () => setAssigning(t));
-      if (can("review", p) && mine) btn("start", "Start review", () => run(t, () => status(t, "inreview"), `${t.page.title}: review started · it is yours`), true);
+    if (st === "review" && t.assignee !== user.id) { // Backlog: take it, or (site admins) give it to someone
+      if (isAdmin) btn("assign", t.assigneeName ? "Change" : "Assign…", () => setAssigning(t));
+      if (can("review", p) && !t.assignee) btn("claim", "Assign to me", () => run(t, () => ucpApi.claimReview(mid(t), p), `${t.page.title} is yours · find it in Ready for review`), true);
+    } else if (st === "review") { // Ready for review: assigned to me
+      btn("start", "Start review", () => run(t, () => status(t, "inreview"), `${t.page.title}: review started`), true);
     } else if (st === "inreview") {
       if (can("edit", p) && !(t.assignee === user.id)) btn("remind", "Remind", remind);
       if (can("review", p) && (mine || isAdmin)) btn("reviewed", t.assignee && t.assignee !== user.id ? `Reviewed for ${t.assigneeName?.split(" ")[0]}` : "Reviewed", () => run(t, () => status(t, "reviewed"), `${t.page.title}: marked reviewed`), true);
