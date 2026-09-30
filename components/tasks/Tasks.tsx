@@ -79,7 +79,8 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   const routeOf = (path: string) => path.replace(marketOfPath(path).root, "") || "/";
   const builderHref = (path: string) => `/${marketOfPath(path).id}/${envId}/page${routeOf(path)}`;
   const match = (path: string, title: string, extra = "") => (!mkt || marketOfPath(path).id === mkt) && (!q.trim() || `${title} ${routeOf(path)} ${extra}`.toLowerCase().includes(q.toLowerCase().trim()));
-  const byView = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.id, tasks.filter((t) => v.of(t, user.id) && (!onlyMe || t.assignee === user.id)).filter((t) => match(t.page.path, t.page.title, `${t.from} ${t.assigneeName ?? ""}`)).sort((a, b) => (v.id === "all" ? STAGE_ORDER.indexOf(a.page.status) - STAGE_ORDER.indexOf(b.page.status) : 0) || (a.sentAt ?? "").localeCompare(b.sentAt ?? ""))])) as Record<View, Task[]>, [tasks, q, mkt, user.id, onlyMe]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ofMe = isAdmin ? "" : user.id; // site admins may take their own pages from the Backlog (to walk the whole flow), so for them no page counts as "yours as author" here
+  const byView = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.id, tasks.filter((t) => v.of(t, ofMe) && (!onlyMe || t.assignee === user.id)).filter((t) => match(t.page.path, t.page.title, `${t.from} ${t.assigneeName ?? ""}`)).sort((a, b) => (v.id === "all" ? STAGE_ORDER.indexOf(a.page.status) - STAGE_ORDER.indexOf(b.page.status) : 0) || (a.sentAt ?? "").localeCompare(b.sentAt ?? ""))])) as Record<View, Task[]>, [tasks, q, mkt, user.id, onlyMe]); // eslint-disable-line react-hooks/exhaustive-deps
   const pub = useMemo(() => published.filter((p) => (!onlyMe || p.whoId === user.id) && match(p.path, p.title, p.who ?? "")), [published, q, mkt, onlyMe, user.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const count = (v: View) => (v === "published" ? (isAdmin ? pub.length : pub.filter((p) => p.whoId === user.id).length) : byView[v].length);
   /* yours = assigned to you or you are the author; in the Backlog, pages you could take */
@@ -109,7 +110,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
     const remind = () => run(t, () => ucpApi.remindReviewer(mid(t), p), "Reminder sent");
     const change = () => { if (isAdmin) btn("person", t.assigneeName ? "Change person" : "Assign…", () => setAssigning(t)); }; // site admins: who does this step
     if (st === "review" && !t.assignee) { // Backlog: open to everyone · a reviewer takes it (nobody hands it out)
-      if (t.author === user.id) out.push(<span key="w" className="text-[12px] text-ink-3 whitespace-nowrap">Waiting for a reviewer to take it</span>, <Link key="open" href={builderHref(p)} onClick={() => markSeen(onScreen.current)} className="btn btn-sm">Open</Link>); // your own page: someone else reviews it
+      if (t.author === user.id && !isAdmin) out.push(<span key="w" className="text-[12px] text-ink-3 whitespace-nowrap">Waiting for a reviewer to take it</span>, <Link key="open" href={builderHref(p)} onClick={() => markSeen(onScreen.current)} className="btn btn-sm">Open</Link>); // your own page: someone else reviews it
       else if (can("review", p)) btn("claim", "Assign to me", () => run(t, () => ucpApi.claimReview(mid(t), p), `${t.page.title} is yours · find it in Ready for review`), true);
       else out.push(<span key="why" className="text-[11.5px] text-ink-3 text-right leading-tight max-w-[170px]">Only reviewers can take it · you don&apos;t have Review &amp; approve here</span>, <button key="claim" type="button" className="btn btn-sm btn-next" disabled title="You need Review & approve on this folder to take it">Assign to me</button>);
     } else if (st === "review") { // Ready for review: assigned, not started
@@ -136,7 +137,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   const empty = (txt: string) => <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl text-[13px] text-ink-3">{q || mkt ? <>No pages match. <button className="underline text-ink" onClick={() => { setQ(""); setMkt(""); }}>Clear filters</button></> : txt}</div>;
   /* People: the author and whoever has the page now; Dates: due (coloured) and when it was sent */
   /* Backlog: nobody is assigned · a reviewer (not the author) takes it straight from the Reviewer slot */
-  const openChip = (t: Task) => can("review", t.page.path) && t.author !== user.id
+  const openChip = (t: Task) => can("review", t.page.path) && (isAdmin || t.author !== user.id)
     ? <button type="button" disabled={busy === t.page.path} onClick={(e) => { e.stopPropagation(); run(t, () => ucpApi.claimReview(mid(t), t.page.path), `${t.page.title} is yours · find it in Ready for review`); }} className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-accent border border-accent/40 hover:bg-accent-soft rounded-full px-2.5 py-0.5 whitespace-nowrap" title="Nobody is assigned yet · take this review">+ Assign to me</button>
     : <span className="text-[12px] text-ink-4 whitespace-nowrap" title="Nobody is assigned yet · a reviewer takes it from the Backlog">Waiting for a reviewer</span>;
   const personLine = (label: string, name?: string, you?: boolean, open?: Task) => <div className="flex items-center gap-2 min-w-0 text-[12.5px]"><span className="w-[92px] flex-none text-ink-3 text-[11.5px]">{label}</span>{name ? <><Avatar name={name} size={20} /><span className="truncate">{you ? "You" : name}</span></> : open ? openChip(open) : <span className="text-ink-4">—</span>}</div>;
@@ -226,7 +227,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
       {view === "all" ? board(VIEWS.filter((v) => v.id !== "all").map((v) => {
           /* every stage under the tab names: yours first, then other people's; an empty stage says there is nothing for you there */
           const st = v.id === "backlog" || v.id === "mine" ? "review" : v.id === "inreview" ? "inreview" : v.id === "sendbiz" ? "reviewed" : v.id === "bizreview" ? "bizreview" : v.id === "ready" ? "approved" : "published";
-          const items = v.id === "published" ? [] : rows.filter((t) => v.of(t, user.id)); const mine = pub.filter((x) => x.whoId === user.id);
+          const items = v.id === "published" ? [] : rows.filter((t) => v.of(t, ofMe)); const mine = pub.filter((x) => x.whoId === user.id);
           const n = v.id === "published" ? mine.length : items.length;
           const head = <h3 className="flex items-center gap-2.5"><button type="button" onClick={() => openView(v.id)} title={`Open the ${v.label} tab`} className={`pill pill-${st} text-[12.5px] px-3 py-1 hover:underline underline-offset-2 ${n ? "" : "opacity-60"}`}>{v.label}</button><span className="text-[13px] text-ink-3">{n} page{n === 1 ? "" : "s"}</span></h3>;
           return { key: v.id, head, parts: v.id === "published" ? [{ label: isAdmin ? "Yours" : undefined, rows: mine.map(pubRow), empty: "Nothing of yours published recently." }] : splitParts(items, "No actions for you at this step.") };

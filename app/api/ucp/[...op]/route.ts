@@ -88,7 +88,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       if (!can(u, "review", path, market(mid).root)) return problem(new RepoError(403, "You don't have Review & approve on this page"));
       const cur = typeof pg.meta?.["ucp:assignee"] === "string" ? String(pg.meta["ucp:assignee"]) : "";
       if (cur && cur !== u.id) return problem(new RepoError(409, `Already assigned to ${await userName(cur)}`));
-      if (String(pg.meta?.["ucp:requestedBy"] || pg.meta?.["ucp:sentBy"] || "") === u.id) return problem(new RepoError(403, "You wrote this page, so someone else reviews it", "Another reviewer takes it from the Backlog"));
+      if (String(pg.meta?.["ucp:requestedBy"] || pg.meta?.["ucp:sentBy"] || "") === u.id && !(u.role === "admin" || u.perms.root?.manage)) return problem(new RepoError(403, "You wrote this page, so someone else reviews it", "Another reviewer takes it from the Backlog"));
       await repo().setProps(`${path}/jcr:content`, { "ucp:assignee": u.id, "ucp:assignedBy": u.id });
       await logEvent(mid, { type: "content", text: `took the author's review of ${pg.title}`, target: path, requestId: rid });
       return ok({ assignee: u.id, assigneeName: u.name });

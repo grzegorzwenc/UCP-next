@@ -122,7 +122,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   if (lockedSeen !== locked) { setLockedSeen(locked); if (locked) { setPreviewRaw(true); setSel(null); setMode("select"); setPop(null); } else if (canEdit) setPreviewRaw(false); }
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(null), 2200); };
   /** In review only the assigned reviewer (or a site admin) approves; unassigned legacy reviews fall back to the Review permission. */
-  const iWrote = String(page.meta?.["ucp:requestedBy"] || page.meta?.["ucp:sentBy"] || "") === user.id; // the author never takes their own page from the Backlog
+  const iWrote = !isAdmin && String(page.meta?.["ucp:requestedBy"] || page.meta?.["ucp:sentBy"] || "") === user.id; // the author never takes their own page from the Backlog (site admins may, to walk the whole flow)
   const mayApproveSelf = mayStatus("reviewed") && (assignee ? assignee === user.id : !iWrote);
   const mayClaim = !assignee && !iWrote && mayStatus("reviewed"); // a reviewer (not the author) takes it from the Backlog
   const mayApprove = mayApproveSelf || isAdmin; const onBehalf = !mayApproveSelf && isAdmin; // site admins may approve for the reviewer // author's review: the assigned reviewer only; site admins reassign, they do not approve for someone else
