@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Task } from "@/lib/ucp/types";
 import { repoApi, ucpApi } from "@/lib/api";
 import { errorText } from "@/lib/api/errors";
@@ -39,6 +39,14 @@ const DUE_CLS = { crit: "bg-crit-soft text-crit", warn: "bg-warn-soft text-warn"
 /** The market a page belongs to, from its repository path (/content/<market>/…). */
 const marketOfPath = (path: string) => MARKETS.find((m) => path === m.root || path.startsWith(`${m.root}/`)) ?? marketById("");
 
+/* "New" = something of yours at a stage you have not looked at yet. What you have seen is kept in this browser. */
+const SEEN = "ucp-tasks-seen"; const seenSubs = new Set<() => void>();
+const readSeen = () => { try { return localStorage.getItem(SEEN) ?? "[]"; } catch { return "[]"; } };
+const subscribeSeen = (cb: () => void) => { seenSubs.add(cb); return () => { seenSubs.delete(cb); }; };
+const markSeen = (keys: string[]) => { if (!keys.length) return; try { const all = new Set<string>(JSON.parse(readSeen())); keys.forEach((k) => all.add(k)); localStorage.setItem(SEEN, JSON.stringify([...all].slice(-800))); } catch { /* private mode */ } seenSubs.forEach((f) => f()); };
+/** A task is "the same thing" while its page, stage and person do not change; a new stage or a new assignee makes it new again. */
+const seenKey = (t: Task) => `${t.page.path}|${t.page.status}|${t.assignee ?? ""}`;
+
 /** The five stages of the review flow, as tabs. */
 const VIEWS: { id: View; label: string; empty: string; of: (t: Task, me: string) => boolean }[] = [
   { id: "backlog", label: "Backlog", empty: "No page is waiting for a reviewer.", of: (t) => t.kind === "Review" && t.page.status === "review" && !t.assignee },
@@ -70,6 +78,18 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   const byView = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.id, tasks.filter((t) => v.of(t, user.id)).filter((t) => match(t.page.path, t.page.title, `${t.from} ${t.assigneeName ?? ""}`)).sort((a, b) => (a.sentAt ?? "").localeCompare(b.sentAt ?? ""))])) as Record<View, Task[]>, [tasks, q, mkt, user.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const pub = useMemo(() => published.filter((p) => match(p.path, p.title, p.who ?? "")), [published, q, mkt]); // eslint-disable-line react-hooks/exhaustive-deps
   const count = (v: View) => (v === "published" ? pub.length : byView[v].length);
+  /* yours = assigned to you or you are the author; in the Backlog, pages you could take */
+  const seenSnap = useSyncExternalStore(subscribeSeen, readSeen, () => "[]"); const seen = useMemo(() => new Set<string>(JSON.parse(seenSnap)), [seenSnap]);
+  const yoursOf = (v: View, t: Task) => (v === "backlog" ? can("review", t.page.path) : t.assignee === user.id || t.author === user.id);
+  const yours = (v: View) => (v === "published" ? [] : byView[v].filter((t) => yoursOf(v, t)));
+  const fresh = (v: View) => yours(v).filter((t) => !seen.has(seenKey(t)));
+  const isNew = (t: Task) => yoursOf(view, t) && !seen.has(seenKey(t));
+  const totalNew = VIEWS.reduce((n, v) => n + (v.id === "backlog" ? 0 : fresh(v.id).length), 0), totalYours = VIEWS.reduce((n, v) => n + (v.id === "backlog" ? 0 : yours(v.id).length), 0);
+  /* what is on screen counts as seen when you leave the tab (so "New" stays visible while you look at it) */
+  const onScreen = useRef<string[]>([]);
+  useEffect(() => { onScreen.current = yours(view).map(seenKey); });
+  useEffect(() => { const h = () => markSeen(onScreen.current); window.addEventListener("pagehide", h); return () => window.removeEventListener("pagehide", h); }, []);
+  const openView = (v: View) => { markSeen(onScreen.current); setView(v); };
   const markets = useMemo(() => MARKETS.filter((m) => tasks.some((t) => marketOfPath(t.page.path).id === m.id) || published.some((p) => marketOfPath(p.path).id === m.id)), [tasks, published]);
 
   const run = async (t: Task, fn: () => Promise<unknown>, done: string, after?: () => void) => {
@@ -123,7 +143,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
         {items.map((t) => { const m = marketOfPath(t.page.path); const d = dueLabel(t); const acts = actions(t);
           return <li key={t.page.path + t.kind} className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,220px)_auto] gap-x-4 gap-y-2 items-center px-4 py-3 hover:bg-surface-2">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} className="font-semibold truncate hover:underline underline-offset-2">{t.page.title}</Link>{view === "ready" ? <Pill status={t.page.status} /> : null}</div>
+              <div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} onClick={() => markSeen(onScreen.current)} className="font-semibold truncate hover:underline underline-offset-2">{t.page.title}</Link>{isNew(t) && <span suppressHydrationWarning className="flex-none text-[10px] font-bold uppercase tracking-[.06em] text-white bg-accent rounded px-1.5 py-0.5">New</span>}{view === "ready" ? <Pill status={t.page.status} /> : null}</div>
               <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.name.replace(/^HSBC /, "")} · {routeOf(t.page.path)} · sent by {t.from.replace(/ \(.*\)$/, "")}{waitingLabel(t.sentAt) !== "—" ? ` · waiting ${waitingLabel(t.sentAt)}` : ""}</div>
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-[26px] md:pl-0 min-w-0">{who(t)}<span suppressHydrationWarning className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span></div>
@@ -151,14 +171,19 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
 
   return (
     <div className="p-4 md:p-7">
-      <div className="mb-4"><h1 className="text-2xl font-semibold">My tasks</h1><p className="text-ink-3 text-[13px] mt-1">Pages by stage of the review flow, across all markets.</p></div>
+      <div className="mb-4"><h1 className="text-2xl font-semibold">My tasks</h1><p className="text-ink-3 text-[13px] mt-1" suppressHydrationWarning>{totalYours ? <>You have <b className="text-ink font-semibold">{totalYours}</b> page{totalYours === 1 ? "" : "s"} in the review flow{totalNew ? <> · <b className="text-accent font-semibold">{totalNew} new</b> since you last looked</> : null}. </> : null}Pages by stage, across all markets.</p></div>
 
       {/* the five stages as tabs */}
       <div role="tablist" aria-label="Stages" className="flex gap-1 overflow-x-auto border-b border-line mb-4 -mx-1 px-1">
         {VIEWS.map((v, i) => { const on = view === v.id; const n = count(v.id);
-          return <button key={v.id} role="tab" aria-selected={on} type="button" onClick={() => setView(v.id)} className={`flex items-center gap-2 px-3 py-2.5 text-[13.5px] whitespace-nowrap border-b-2 -mb-px ${on ? "border-accent text-ink font-semibold" : "border-transparent text-ink-3 hover:text-ink"}`}>
+          return <button key={v.id} role="tab" aria-selected={on} type="button" onClick={() => openView(v.id)} className={`flex items-center gap-2 px-3 py-2.5 text-[13.5px] whitespace-nowrap border-b-2 -mb-px ${on ? "border-accent text-ink font-semibold" : "border-transparent text-ink-3 hover:text-ink"}`}>
             <span className={`w-5 h-5 rounded-full grid place-items-center text-[10.5px] font-bold ${on ? "bg-accent text-white" : "bg-surface-3 text-ink-2"}`}>{i + 1}</span>{v.label}
-            <span className={`min-w-[20px] h-5 px-1.5 rounded-full grid place-items-center text-[11px] font-semibold ${n ? (on ? "bg-accent-soft text-accent-hover" : "bg-surface-3 text-ink-2") : "text-ink-4"}`}>{n}</span></button>; })}
+            {(() => { const y = yours(v.id).length, nw = fresh(v.id).length; const tip = v.id === "backlog" ? `${nw} new you could take · ${n} waiting in total` : `${y} for you (${nw} new) · ${n} in total`;
+              return <span className="flex items-center gap-1.5" title={tip} suppressHydrationWarning>
+                {v.id !== "backlog" && v.id !== "published" && <span className={`min-w-[20px] h-5 px-1.5 rounded-full grid place-items-center text-[11px] font-bold ${nw ? "bg-accent text-white" : y ? "bg-ink text-white" : "bg-surface-3 text-ink-4"}`} aria-label={`${y} for you`}>{y}</span>}
+                {nw > 0 && <span className="text-[11px] font-semibold text-accent">{nw} new</span>}
+                <span className={`text-[11px] ${v.id === "backlog" || v.id === "published" ? "min-w-[20px] h-5 px-1.5 rounded-full grid place-items-center font-semibold bg-surface-3 text-ink-2" : "text-ink-4"}`}>{v.id === "backlog" || v.id === "published" ? n : `of ${n}`}</span>
+              </span>; })()}</button>; })}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-3">
