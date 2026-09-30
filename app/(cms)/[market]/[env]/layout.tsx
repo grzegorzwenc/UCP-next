@@ -4,6 +4,7 @@ import { SideNav } from "@/components/shell/SideNav";
 import { Palette } from "@/components/shell/Palette";
 import { SessionProvider } from "@/components/shell/Session";
 import { MarketsProvider } from "@/components/shell/Markets";
+import { ConfirmProvider } from "@/components/ui/Confirm";
 import { me, publishDue } from "@/lib/server/ucp";
 import { getMarkets } from "@/lib/server/markets";
 import { pickMarket } from "@/lib/markets";
@@ -21,7 +22,7 @@ export default async function CmsLayout({ children, params }: LayoutProps<"/[mar
   }
   return (
     <MarketsProvider markets={markets}>
-    <SessionProvider user={user} marketRoot={pickMarket(markets, mid).root}>
+    <SessionProvider user={user} marketRoot={pickMarket(markets, mid).root}><ConfirmProvider>
       <div className="cms-shell h-dvh grid grid-rows-[52px_1fr]">
         <TopBar marketId={mid} envId={env} envLocked={repo().kind !== "mock"} />
         <Palette marketId={mid} envId={env} />
@@ -30,7 +31,7 @@ export default async function CmsLayout({ children, params }: LayoutProps<"/[mar
           <main className="overflow-auto min-w-0">{children}</main>
         </div>
       </div>
-    </SessionProvider>
+    </ConfirmProvider></SessionProvider>
     </MarketsProvider>
   );
 }

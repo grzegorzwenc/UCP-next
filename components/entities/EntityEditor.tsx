@@ -12,6 +12,7 @@ import { StatusPill } from "@/components/models/ModelDialogs";
 import { When, chip, Crumbs } from "@/components/models/bits";
 import { inputCls } from "@/components/models/ModalShell";
 import { aliasOf, detailLink, entitiesLink, entityLink, whoName, type UsedPage } from "@/components/models/fieldMeta";
+import { useConfirm } from "@/components/ui/Confirm";
 
 type Props = { base: string; marketId: string; marketRoot: string; marketName: string; flag: string; model: Model; entity: Entity; entities: Entity[]; models: Model[]; usedOn: UsedPage[]; names: Record<string, string>; viewerId: string; canEdit: boolean;
   go: (href: string) => void; say: (t: string) => void; setDirty: (d: boolean) => void; saveRef: React.MutableRefObject<(() => Promise<boolean>) | null> };
@@ -80,6 +81,7 @@ function Field({ f, kind, v, raw, err, marketId, refOptions, onValue, onRaw }: F
 /* ---------------- editor ---------------- */
 /** Entity editor: a form generated from the model's published schema, with Save / Publish like a page. */
 export function EntityEditor({ base, marketId, marketRoot, marketName, flag, model, entity, entities, models, usedOn, names, viewerId, canEdit, go, say, setDirty, saveRef }: Props) {
+  const ask = useConfirm();
   const router = useRouter();
   const schema = useMemo(() => (model.publishedFields ?? model.fields).filter((f) => !f.hidden), [model]);
   const kinds = useMemo(() => Object.fromEntries(schema.map((f) => [f.k, kindOf(f, entity.values[f.k])])) as Record<string, Kind>, [schema, entity.values]);
@@ -103,7 +105,7 @@ export function EntityEditor({ base, marketId, marketRoot, marketName, flag, mod
   const publish = async () => { if (invalid) return; setBusy("publish"); try { if (dirty) await ucpApi.saveEntity(marketId, entity.path, { title: title.trim(), values }); await ucpApi.publishEntity(marketId, entity.path); say(usedOn.length ? `Published · ${usedOn.length} page${usedOn.length === 1 ? "" : "s"} updated` : "Published"); setDirty(false); router.refresh(); } catch (e) { say(errorText(e)); } finally { setBusy(""); } };
   const duplicate = async () => { setBusy("dup"); try { const n = await ucpApi.createEntity(marketId, model.id, `${entity.title} (copy)`, entity.values); say(`Duplicated as “${n.title}” (draft)`); go(entityLink(base, model.id, n.id)); router.refresh(); } catch (e) { say(errorText(e)); } finally { setBusy(""); } };
   const remove = async () => {
-    if (!confirm(`Delete “${entity.title}”? This cannot be undone.`)) return; setBusy("del"); setBlocked(null);
+    if (!(await ask({ title: `Delete “${entity.title}”? This cannot be undone.`, danger: true, confirmLabel: "Delete entity" }))) return; setBusy("del"); setBlocked(null);
     try { await ucpApi.deleteEntity(marketId, entity.path); say(`Deleted ${entity.title}`); setDirty(false); router.push(entitiesLink(base, model.id)); router.refresh(); }
     catch (e) { if (e instanceof ApiError && e.problem.status === 409) { const d = describeError(e); setBlocked(`${d.title}. ${d.detail ?? "Remove it from those pages first."}`); } else say(errorText(e)); }
     finally { setBusy(""); }

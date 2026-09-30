@@ -1,18 +1,25 @@
 "use client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Fragment, useEffect, useMemo, useState } from "react";
-import type { Task, TaskKind } from "@/lib/ucp/types";
-import { repoApi } from "@/lib/api";
+import { Fragment, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import type { Task } from "@/lib/ucp/types";
+import { repoApi, ucpApi } from "@/lib/api";
 import { errorText } from "@/lib/api/errors";
 import { useSession } from "@/components/shell/Session";
 import { Pill } from "@/components/ui/Pill";
 import { Avatar } from "@/components/ui/Avatar";
 import { PageIcon } from "@/components/ui/Icons";
 import { AssignDialog } from "./AssignDialog";
+import { useConfirm } from "@/components/ui/Confirm";
+import { ShareReviewDialog } from "./ShareReviewDialog";
+import { ReviewedChoice } from "./ReviewedChoice";
+import { PublishDialog } from "@/components/pages/PublishDialog";
+import { pickMarket, env as envById, type Market } from "@/lib/markets";
+import { useMarkets } from "@/components/shell/Markets";
 
-type Sort = "due" | "name" | "kind" | "from" | "assignee" | "waiting";
-type Props = { marketId: string; envId: string; root: string; marketName: string; tasks: Task[]; q: string; kind: string; sort: Sort; /** the task kinds whose person can be changed on this backend (ContentLIBRE: the reviewer only); default all */ assignable?: TaskKind[] };
+export type PublishedItem = { path: string; title: string; when?: string; who?: string; whoId?: string };
+type View = "all" | "backlog" | "mine" | "inreview" | "sendbiz" | "bizwait" | "bizreview" | "ready" | "published";
+type Props = { marketId: string; envId: string; tasks: Task[]; published: PublishedItem[]; view: string };
 
 /** Due chip copy: overdueDays > 0 = overdue, 0 = today, -1 = tomorrow, else the date. */
 export function dueLabel(t: Task): { t: string; c: "crit" | "warn" | "" } {
@@ -22,10 +29,8 @@ export function dueLabel(t: Task): { t: string; c: "crit" | "warn" | "" } {
   if (d === -1) return { t: "Due tomorrow", c: "warn" };
   return { t: "Due " + new Date(t.due).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Europe/London" }), c: "" };
 }
-/** Short date for task tables, e.g. "Mon 29 Sep, 09:00" (UK time so server and browser agree). */
-export const taskDate = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); return isNaN(d.getTime()) ? "" : d.toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }); };
-/** Who can pick up a task nobody is assigned to. */
-const unassigned = (t: Task) => (t.kind === "Review" ? "Anyone with Review" : t.kind === "Publish" || t.kind === "Fix" ? "Anyone with Publish" : "The page’s author");
+/** Short date for task lists, e.g. "Mon 29 Sep, 09:00" (UK time so server and browser agree). */
+export const taskDate = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); return isNaN(d.getTime()) ? "" : d.toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }); };
 /** "Waiting" = time since the task was sent (sentAt), e.g. "2 days", "18 hours", "40 min". */
 export function waitingLabel(sentAt?: string): string {
   if (!sentAt) return "—"; const ms = Date.now() - new Date(sentAt).getTime(); if (!isFinite(ms) || ms < 0) return "—";
@@ -34,108 +39,225 @@ export function waitingLabel(sentAt?: string): string {
   const d = Math.round(h / 24); return `${d} day${d === 1 ? "" : "s"}`;
 }
 const DUE_CLS = { crit: "bg-crit-soft text-crit", warn: "bg-warn-soft text-warn", "": "bg-surface-3 text-ink-2" } as const;
+/** The market a page belongs to, from its repository path (/content/<market>/…). */
+/** The market a page belongs to, among the markets this backend has. */
+const marketIn = (markets: Market[], path: string) => markets.find((m) => path === m.root || path.startsWith(`${m.root}/`)) ?? pickMarket(markets, "");
 
-/** Sortable column header (hoisted so it keeps its identity between renders). */
-function Th({ k, sort, dir, onSort, children, className = "" }: { k?: Sort; sort: Sort; dir: "asc" | "desc"; onSort: (k: Sort) => void; children: React.ReactNode; className?: string }) {
-  return <th className={`px-4 py-2.5 border-b border-line ${className}`} aria-sort={k && sort === k ? (dir === "asc" ? "ascending" : "descending") : undefined}>{k ? <button type="button" onClick={() => onSort(k)} className={`inline-flex items-center gap-1 uppercase tracking-[.08em] text-[11px] hover:text-ink ${sort === k ? "text-ink font-semibold" : ""}`}>{children}<span aria-hidden className={`text-[10px] ${sort === k ? "opacity-100" : "opacity-30"}`}>{sort === k && dir === "desc" ? "▼" : "▲"}</span></button> : children}</th>;
-}
+/* "New" = something of yours at a stage you have not looked at yet. What you have seen is kept in this browser. */
+const SEEN = "ucp-tasks-seen"; const seenSubs = new Set<() => void>();
+const readSeen = () => { try { return localStorage.getItem(SEEN) ?? "[]"; } catch { return "[]"; } };
+const subscribeSeen = (cb: () => void) => { seenSubs.add(cb); return () => { seenSubs.delete(cb); }; };
+const markSeen = (keys: string[]) => { if (!keys.length) return; try { const all = new Set<string>(JSON.parse(readSeen())); keys.forEach((k) => all.add(k)); localStorage.setItem(SEEN, JSON.stringify([...all].slice(-800))); } catch { /* private mode */ } seenSubs.forEach((f) => f()); };
+/** A task is "the same thing" while its page, stage and person do not change; a new stage or a new assignee makes it new again. */
+const seenKey = (t: Task) => `${t.page.path}|${t.page.status}|${t.assignee ?? ""}`;
 
-export function Tasks({ marketId, envId, root, marketName, tasks, q: q0, kind: kind0, sort: sort0, assignable }: Props) {
+const STAGE_ORDER = ["review", "inreview", "reviewed", "bizreview", "approved", "scheduled"];
+/** All (yours, any stage) and the stages of the review flow, as tabs. */
+const VIEWS: { id: View; label: string; empty: string; of: (t: Task, me: string) => boolean }[] = [
+  { id: "all", label: "All", empty: "Nothing in the review flow right now.", of: (t) => ["review", "inreview", "reviewed", "bizreview", "approved", "scheduled"].includes(t.page.status) },
+  { id: "backlog", label: "Backlog", empty: "No page is waiting for a reviewer.", of: (t, me) => t.kind === "Review" && t.page.status === "review" && !t.assignee && t.author !== me }, // open to everyone except the page's author (they cannot take it)
+  { id: "mine", label: "Ready for review", empty: "Nothing assigned and waiting to start · take a page from the Backlog.", of: (t, me) => t.kind === "Review" && t.page.status === "review" && (!!t.assignee || t.author === me) }, // the author follows their own page here while it waits for a reviewer
+  { id: "inreview", label: "In review", empty: "No author's review is in progress.", of: (t) => t.kind === "Review" && t.page.status === "inreview" },
+  { id: "sendbiz", label: "Reviewed", empty: "Nothing reviewed by an author is waiting to be sent on.", of: (t) => t.kind === "SendBiz" },
+  { id: "bizwait", label: "Ready for business review", empty: "No page is waiting for a business reviewer.", of: (t) => t.kind === "BizReview" && !t.biz && !t.bizGroups?.length }, // nobody from the business has it yet
+  { id: "bizreview", label: "Business review", empty: "No page is in the business review.", of: (t) => t.kind === "BizReview" && (!!t.biz || !!t.bizGroups?.length) },
+  { id: "ready", label: "Ready to publish", empty: "No page is ready to publish.", of: (t) => t.kind === "Publish" || t.kind === "Check" },
+  { id: "published", label: "Published", empty: "Nothing published recently.", of: () => false },
+];
+
+/**
+ * My tasks: pages by stage of the review flow — Backlog · Ready for review · In review · Reviewed by author / Send to business review · In business review · Ready for publish · Published.
+ * Every row has the one action that moves the page on (for the person who may do it), across all markets.
+ */
+export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props) {
+  const known = useMarkets(); const marketOfPath = (path: string) => marketIn(known, path);
   const router = useRouter(); const { can, user } = useSession(); const isAdmin = user.role === "admin" || !!user.perms.root?.manage;
-  const [who, setWho] = useState(""); // admins: filter by the person a task is assigned to ("" = everyone, "-" = not assigned to a person)
-  const people = useMemo(() => [...new Set(tasks.map((t) => t.assigneeName).filter((x): x is string => !!x))].sort(), [tasks]);
-  const base = `/${marketId}/${envId}`;
-  const routeOf = (path: string) => path.replace(root, "") || "/";
-  const builderHref = (path: string) => `${base}/page${routeOf(path)}`;
-  const [q, setQ] = useState(q0); const [kind, setKind] = useState(kind0); const [sort, setSort] = useState<Sort>(sort0); const [dir, setDir] = useState<"asc" | "desc">("asc"); const [when, setWhen] = useState<"" | "overdue" | "today" | "later">("");
-  const [assigning, setAssigning] = useState<Task | null>(null); // admins: the task whose person is being picked
+  const [view, setView] = useState<View>(() => (VIEWS.some((v) => v.id === view0) ? view0 as View : "all"));
+  const [q, setQ] = useState(""); const [mkt, setMkt] = useState("");
+  const [sort, setSort] = useState<"new" | "due" | "due-desc">("new");
+  const [onlyMe, setOnlyMe] = useState(false); // "Assigned to me only" // New first, or by due date
   const [busy, setBusy] = useState<string | null>(null); const [toast, setToast] = useState<string | null>(null);
+  const [choosing, setChoosing] = useState<Task | null>(null); // "Reviewed": business review or reauthor
+  const [assigning, setAssigning] = useState<Task | null>(null); const [sharing, setSharing] = useState<{ t: Task; stage: "review" | "bizreview" } | null>(null);
+  const [publishing, setPublishing] = useState<Task | null>(null); // Publish now or Schedule
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
-  // keep the URL shareable (?q=&kind=&sort=) without triggering a navigation
-  useEffect(() => { const p = new URLSearchParams(); if (q) p.set("q", q); if (kind) p.set("kind", kind); if (sort !== "due") p.set("sort", sort); const s = p.toString(); window.history.replaceState(null, "", `${base}/tasks${s ? "?" + s : ""}`); }, [q, kind, sort, base]);
+  useEffect(() => { window.history.replaceState(null, "", `/${marketId}/${envId}/tasks${view === "all" ? "" : `?view=${view}`}`); }, [view, marketId, envId]); // the tab is in the URL (shareable)
 
-  const rows = useMemo(() => {
-    const s = q.toLowerCase().trim();
-    const r = tasks.filter((t) => (!kind || t.kind === kind) && (!who || (who === "-" ? !t.assigneeName : t.assigneeName === who)) && (!when || (when === "overdue" ? t.overdueDays > 0 : when === "today" ? t.overdueDays === 0 : t.overdueDays < 0)) && (!s || `${t.page.title} ${t.what} ${t.from} ${t.assigneeName ?? ""} ${routeOf(t.page.path)}`.toLowerCase().includes(s)));
-    const cmp = (a: Task, b: Task) => sort === "name" ? a.page.title.localeCompare(b.page.title) : sort === "kind" ? a.kind.localeCompare(b.kind) || a.due.localeCompare(b.due) : sort === "from" ? a.from.localeCompare(b.from) : sort === "assignee" ? (+!a.assigneeName - +!b.assigneeName || (a.assigneeName ?? "").localeCompare(b.assigneeName ?? "")) : sort === "waiting" ? (a.sentAt ?? "").localeCompare(b.sentAt ?? "") : a.due.localeCompare(b.due);
-    return r.sort((a, b) => (dir === "asc" ? cmp(a, b) : -cmp(a, b)));
-  }, [tasks, q, kind, sort, dir, when, who]); // eslint-disable-line react-hooks/exhaustive-deps
-  const sortBy = (k: Sort) => { if (sort === k) setDir((d) => (d === "asc" ? "desc" : "asc")); else { setSort(k); setDir("asc"); } };
-  const thp = { sort, dir, onSort: sortBy };
-  const overdue = tasks.filter((t) => t.overdueDays > 0).length;
+  const routeOf = (path: string) => path.replace(marketOfPath(path).root, "") || "/";
+  const builderHref = (path: string) => `/${marketOfPath(path).id}/${envId}/page${routeOf(path)}`;
+  const match = (path: string, title: string, extra = "") => (!mkt || marketOfPath(path).id === mkt) && (!q.trim() || `${title} ${routeOf(path)} ${extra}`.toLowerCase().includes(q.toLowerCase().trim()));
+  const ofMe = isAdmin ? "" : user.id; // site admins may take their own pages from the Backlog (to walk the whole flow), so for them no page counts as "yours as author" here
+  const byView = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.id, tasks.filter((t) => v.of(t, ofMe) && (!onlyMe || t.assignee === user.id)).filter((t) => match(t.page.path, t.page.title, `${t.from} ${t.assigneeName ?? ""}`)).sort((a, b) => (v.id === "all" ? STAGE_ORDER.indexOf(a.page.status) - STAGE_ORDER.indexOf(b.page.status) : 0) || (a.sentAt ?? "").localeCompare(b.sentAt ?? ""))])) as Record<View, Task[]>, [tasks, q, mkt, user.id, onlyMe]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pub = useMemo(() => published.filter((p) => (!onlyMe || p.whoId === user.id) && match(p.path, p.title, p.who ?? "")), [published, q, mkt, onlyMe, user.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const count = (v: View) => (v === "published" ? (isAdmin ? pub.length : pub.filter((p) => p.whoId === user.id).length) : byView[v].length);
+  /* yours = assigned to you or you are the author; in the Backlog, pages you could take */
+  const seenSnap = useSyncExternalStore(subscribeSeen, readSeen, () => "[]"); const seen = useMemo(() => new Set<string>(JSON.parse(seenSnap)), [seenSnap]);
+  const yoursOf = (v: View, t: Task) => (v === "all" ? t.assignee === user.id || t.author === user.id : v === "backlog" ? can("review", t.page.path) : v === "bizwait" ? can("review", t.page.path) && (isAdmin || t.peer !== user.id) : t.assignee === user.id || t.author === user.id);
+  const yours = (v: View) => (v === "published" ? [] : byView[v].filter((t) => yoursOf(v, t)));
+  const fresh = (v: View) => yours(v).filter((t) => !seen.has(seenKey(t)));
+  const isNew = (t: Task) => yoursOf(view, t) && !seen.has(seenKey(t));
+  const totalNew = fresh("all").length, totalYours = yours("all").length;
+  /* what is on screen counts as seen when you leave the tab (so "New" stays visible while you look at it) */
+  const onScreen = useRef<string[]>([]);
+  useEffect(() => { onScreen.current = yours(view).map(seenKey); });
+  useEffect(() => { const h = () => markSeen(onScreen.current); window.addEventListener("pagehide", h); return () => window.removeEventListener("pagehide", h); }, []);
+  const openView = (v: View) => { markSeen(onScreen.current); setView(v); };
+  const markets = useMemo(() => known.filter((m) => tasks.some((t) => marketIn(known, t.page.path).id === m.id) || published.some((p) => marketIn(known, p.path).id === m.id)), [known, tasks, published]);
 
-  /** Admins see who does each task and can assign or change the person; everyone else gets the read-only wording. */
-  function assignee(t: Task, phone = false) {
-    if (!isAdmin || (assignable && !assignable.includes(t.kind)) || t.kind === "Finish") return t.assigneeName ? <span className="inline-flex items-center gap-2"><Avatar name={t.assigneeName} size={phone ? 18 : 24} /><span>{phone ? <>Assigned to <b className="font-semibold">{t.assigneeName}</b></> : t.assigneeName}</span></span> : <span className="text-ink-3">{t.kind === "Finish" ? "The page’s author" : unassigned(t)}</span>;
-    const open = (e: React.MouseEvent) => { e.stopPropagation(); setAssigning(t); };
-    const label = `${t.assigneeName ? `Assigned to ${t.assigneeName}. Change who does` : "Waiting for assignment. Assign"} ${t.what.toLowerCase()} on ${t.page.title}`;
-    // one clickable chip: the person (click to change) or a dashed "waiting" chip (click to assign)
-    const chip = t.assigneeName
-      ? <button type="button" onClick={open} aria-label={label} title="Change who does this" className="group inline-flex items-center gap-2 max-w-full rounded-full border border-line bg-surface pl-1 pr-2.5 py-1 text-[12.5px] text-ink hover:border-ink-4 hover:bg-surface-2">
-          <Avatar name={t.assigneeName} size={22} /><span className="truncate font-medium">{t.assigneeName}</span><span aria-hidden className="text-ink-4 group-hover:text-ink text-[11px]">✎</span></button>
-      : phone
-        ? <button type="button" onClick={open} aria-label={label} className="inline-flex items-center gap-1.5 rounded-lg border border-dashed border-warn/60 bg-warn-soft px-2 py-1 text-[11.5px] font-semibold text-warn text-left hover:border-warn">
-            <i aria-hidden className="w-1.5 h-1.5 rounded-full bg-warn flex-none" /><span>Waiting for assignment <span className="text-ink underline underline-offset-2">Assign</span></span></button>
-        : <button type="button" onClick={open} aria-label={label} className="inline-flex items-center gap-2 rounded-full border border-dashed border-warn/60 bg-warn-soft pl-2.5 pr-1 py-1 text-[12px] font-semibold text-warn whitespace-nowrap hover:border-warn">
-          <i aria-hidden className="w-1.5 h-1.5 rounded-full bg-warn" />Waiting for assignment<span className="rounded-full bg-surface text-ink px-2 py-0.5 text-[11.5px] border border-line">Assign</span></button>;
-    return phone ? <span className="flex flex-wrap items-center gap-x-2 gap-y-1">{chip}</span> : chip;
-  }
+  const run = async (t: Task, fn: () => Promise<unknown>, done: string, after?: () => void) => {
+    setBusy(t.page.path); try { await fn(); setToast(done); after?.(); router.refresh(); } catch (e) { setToast(errorText(e)); } finally { setBusy(null); }
+  };
+  const status = (t: Task, s: string) => repoApi.updateContent(t.page.path, { status: s as never });
+  const mid = (t: Task) => marketOfPath(t.page.path).id;
 
-  async function act(e: React.MouseEvent, t: Task) {
-    e.stopPropagation();
-    if (t.kind === "Publish" || t.kind === "Fix") {
-      setBusy(t.page.path);
-      try { await repoApi.updateContent(t.page.path, { status: "published" }); setToast(t.kind === "Fix" ? `Publish retried · ${t.page.title} is live` : `${t.page.title} published`); router.refresh(); }
-      catch (err) { setToast(errorText(err)); }
-      finally { setBusy(null); }
-      return;
+  /** Business review → back to the author: the page returns to Build the page and the whole review starts again. */
+  const ask = useConfirm();
+  const reauthor = async (t: Task) => {
+    if (!(await ask({ title: "Send it back to the author?", body: <><b>{t.page.title}</b> goes back to the first step, Build the page. The author changes it and sends it for review again · both reviews start over.</>, confirmLabel: "Reauthor" }))) return;
+    await run(t, () => status(t, "draft"), `${t.page.title} is back with the author`);
+  };
+  /** The action(s) for a row: only what this person may do at this stage. */
+  function actions(t: Task) {
+    const p = t.page.path; const st = t.page.status; const b = busy === p; const out: React.ReactNode[] = [];
+    const mine = !t.assignee || t.assignee === user.id; const btn = (k: string, label: string, onClick: () => void, next = false) => out.push(<button key={k} type="button" className={`btn btn-sm ${next ? "btn-next" : ""}`} disabled={b} onClick={(e) => { e.stopPropagation(); onClick(); }}>{b && next ? "Working…" : label}</button>);
+    const remind = () => run(t, () => ucpApi.remindReviewer(mid(t), p), "Reminder sent");
+    if (st === "review" && !t.assignee) { // Backlog: open to everyone · a reviewer takes it (nobody hands it out)
+      if (t.author === user.id && !isAdmin) out.push(<span key="w" className="text-[12px] text-ink-3 whitespace-nowrap">Waiting for a reviewer to take it</span>, <Link key="open" href={builderHref(p)} onClick={() => markSeen(onScreen.current)} className="btn btn-sm">Open</Link>); // your own page: someone else reviews it
+      else if (can("review", p)) btn("claim", "Assign to me", () => run(t, () => ucpApi.claimReview(mid(t), p), `${t.page.title} is yours · find it in Ready for review`), true);
+      else out.push(<span key="why" className="text-[11.5px] text-ink-3 text-right leading-tight max-w-[170px]">Only reviewers can take it · you don&apos;t have Review &amp; approve here</span>, <button key="claim" type="button" className="btn btn-sm btn-next" disabled title="You need Review & approve on this folder to take it">Assign to me</button>);
+    } else if (st === "review") { // Ready for review: assigned, not started
+      if (t.assignee === user.id || isAdmin) btn("release", "Back to backlog", () => run(t, () => ucpApi.releaseReview(mid(t), p), `${t.assignee === user.id ? "You are no longer the reviewer" : `${t.assigneeName ?? "The reviewer"} is no longer the reviewer`} · ${t.page.title} is back in the Backlog`));
+      if (t.assignee === user.id) btn("start", "Start review", () => run(t, () => status(t, "inreview"), `${t.page.title}: review started`), true);
+    } else if (st === "inreview") {
+      if (can("edit", p) && !(t.assignee === user.id)) btn("remind", "Remind", remind);
+      if (can("review", p) && (mine || isAdmin)) btn("reviewed", t.assignee && t.assignee !== user.id ? `Reviewed for ${t.assigneeName?.split(" ")[0]}` : "Reviewed", () => setChoosing(t), true); // then: business review or reauthor
+    } else if (st === "reviewed") { // author's review done, not sent on yet
+      if (can("edit", p) || can("review", p)) btn("next", "Next step", () => setChoosing(t), true);
+    } else if (st === "bizreview" && !t.biz && !t.bizGroups?.length) { // Waiting for business review assignment
+      if (can("review", p) && (isAdmin || t.peer !== user.id)) btn("bizclaim", "Assign to me", () => run(t, () => ucpApi.claimBizReview(mid(t), p), `${t.page.title}: the business review is yours`), true);
+      else if (!isAdmin) out.push(<span key="w" className="text-[12px] text-ink-3 whitespace-nowrap">Waiting for a business reviewer</span>);
+    } else if (st === "bizreview") {
+      if (isAdmin) btn("share", "Share", () => setSharing({ t, stage: "bizreview" }));
+      if (can("review", p) || can("edit", p) || isAdmin) btn("reauthor", "Reauthor", () => void reauthor(t));
+      if (can("review", p) || isAdmin) btn("signoff", "Sign off", () => run(t, () => status(t, "approved"), `${t.page.title}: signed off · ready to publish`), true);
+    } else if (st === "approved" || st === "scheduled") { // all three people are set by now · nobody is (re)assigned here
+      if (can("publish", p)) btn("publish", "Publish", () => setPublishing(t), true); // the dialog offers Publish now or Schedule (and moves or cancels an existing schedule)
+      else out.push(<span key="w" className="text-[12px] text-ink-3 whitespace-nowrap">Waiting for a publisher</span>);
     }
-    router.push(builderHref(t.page.path)); // Review / Check / Finish happen in the builder
+    return out;
   }
+
+  const rows = view === "published" ? [] : byView[view]; const cur = VIEWS.find((v) => v.id === view)!;
+  const empty = (txt: string) => <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl text-[13px] text-ink-3">{q || mkt ? <>No pages match. <button className="underline text-ink" onClick={() => { setQ(""); setMkt(""); }}>Clear filters</button></> : txt}</div>;
+  /* People: the author and whoever has the page now; Dates: due (coloured) and when it was sent */
+  /* Backlog: nobody is assigned · a reviewer (not the author) takes it straight from the Reviewer slot */
+  const openChip = (t: Task) => can("review", t.page.path) && (isAdmin || t.author !== user.id)
+    ? <button type="button" disabled={busy === t.page.path} onClick={(e) => { e.stopPropagation(); run(t, () => ucpApi.claimReview(mid(t), t.page.path), `${t.page.title} is yours · find it in Ready for review`); }} className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-accent border border-accent/40 hover:bg-accent-soft rounded-full px-2.5 py-0.5 whitespace-nowrap" title="Nobody is assigned yet · take this review">+ Assign to me</button>
+    : <span className="text-[12px] text-ink-4 whitespace-nowrap" title="Nobody is assigned yet · a reviewer takes it from the Backlog">Waiting for a reviewer</span>;
+  const personLine = (label: string, name?: string, you?: boolean, open?: Task) => <div className="flex items-center gap-2 min-w-0 text-[12.5px]"><span className="w-[92px] flex-none text-ink-3 text-[11.5px]">{label}</span>{name ? <><Avatar name={name} size={20} /><span className="truncate">{you ? "You" : name}</span></> : open ? openChip(open) : <span className="text-ink-4">—</span>}</div>;
+  const stagePerson = (t: Task): [string, string | undefined, boolean] => {
+    const st = t.page.status; const reviewer = t.from.replace(/ \(.*\)$/, "");
+    if (st === "review" || st === "inreview") return ["Reviewer", t.assigneeName, t.assignee === user.id];
+    if (st === "reviewed") return ["Reviewed by", reviewer, false];
+    if (st === "bizreview") return [t.assigneeName ? "Business owner" : "Business owner", t.assigneeName ?? undefined, t.assignee === user.id];
+    return t.assigneeName ? ["Publisher", t.assigneeName, t.assignee === user.id] : ["Approved by", reviewer, false];
+  };
+  const dueChip = (t: Task) => { const d = dueLabel(t); return <span suppressHydrationWarning className={`inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span>; };
+  const th = "px-4 py-2 text-left text-[10.5px] uppercase tracking-[.08em] font-semibold text-ink-3 border-b border-line";
+  const sortTasks = (items: Task[]) => [...items].sort((a, b) => sort === "due" ? a.due.localeCompare(b.due) : sort === "due-desc" ? b.due.localeCompare(a.due) : Number(isNew(b)) - Number(isNew(a)));
+  /* one person per column on wide screens: avatar + short name ("You" for yourself); a hint when nobody is set yet */
+  const pc = "p-0 min-[1400px]:pl-6 min-[1400px]:pr-1 min-[1400px]:py-3";
+  /* site admins change the peer reviewer right next to that person (no separate button); the business review is the business's own, nobody is changed there */
+  const editPerson = (t: Task) => isAdmin ? <button type="button" onClick={(e) => { e.stopPropagation(); setAssigning(t); }} aria-label={t.assigneeName ? `Change reviewer (${t.assigneeName})` : "Assign a reviewer"} title={t.assigneeName ? "Change reviewer" : "Assign a reviewer"} className="flex-none grid place-items-center w-5 h-5 rounded text-ink-3 hover:text-accent hover:bg-accent-soft"><svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z" /><path d="M13.5 6.5l4 4" /></svg></button> : null;
+  const who = (id?: string, name?: string, none?: string, email?: string, edit?: React.ReactNode) => <div className="hidden min-[1400px]:block relative min-w-0 text-[12.5px] -ml-6 pl-6">{name ? <><span className="flex items-center gap-1.5 min-w-0"><Avatar name={name} size={20} /><span className="truncate" title={name}>{id === user.id ? <b className="font-semibold">You</b> : name}</span></span>{email && <a href={`mailto:${email}`} onClick={(e) => e.stopPropagation()} className="block mt-0.5 truncate text-[11px] text-ink-3 hover:text-ink hover:underline" title={email}>{email}</a>}</> : <span className="block text-ink-4 text-[12px] truncate">{none ?? "—"}</span>}{edit && <span className="absolute left-0 top-0">{edit}</span>}</div>;
+  const taskRow = (t: Task) => { const m = marketOfPath(t.page.path); const acts = actions(t); const [pl, pn, py] = stagePerson(t); const w = waitingLabel(t.sentAt);
+          return <tr key={t.page.path + t.kind} className="hover:bg-surface-2 align-middle border-t border-line">
+            <td className="px-4 py-3 max-w-0 w-full">
+              <div className="flex items-start gap-2 min-w-0"><span className="relative mt-0.5 flex-none"><PageIcon />{isNew(t) && <i suppressHydrationWarning className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-accent ring-2 ring-surface" title="New for you" aria-label="New" />}</span><Link href={builderHref(t.page.path)} onClick={() => markSeen(onScreen.current)} className="font-semibold leading-snug line-clamp-2 break-words hover:underline underline-offset-2" title={t.page.title}>{t.page.title}</Link>{t.page.status === "scheduled" ? <Pill status={t.page.status} /> : null /* the tab already says the rest */}</div>
+              <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.name.replace(/^HSBC /, "")} · {routeOf(t.page.path)}</div>
+              {/* phones: people and due date under the title */}
+              <div className="min-[1400px]:hidden mt-1.5 pl-[26px] flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]"><span className="text-ink-3">{pl}</span>{pn ? <span className="inline-flex items-center gap-1.5"><Avatar name={pn} size={18} />{py ? "You" : pn}</span> : t.page.status === "review" && !t.assignee ? openChip(t) : <span className="text-ink-4">—</span>}{((t.page.status === "review" && t.assignee) || t.page.status === "inreview") && editPerson(t)}<span className="md:hidden">{dueChip(t)}</span></div>
+              <div className="md:hidden mt-2 pl-[26px] flex flex-wrap items-center gap-1.5">{acts.length ? acts : <Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link>}</div>
+            </td>
+            {/* wide screens: the three people of the review flow, one column each */}
+            <td className={pc}>{who(t.author, t.authorName ?? t.from.replace(/ \(.*\)$/, ""), undefined, t.authorEmail)}</td>
+            <td className={pc}>{t.page.status === "review" && !t.assignee ? <div className="hidden min-[1400px]:block">{openChip(t)}</div> : who(t.peer, t.peerName, t.page.status === "review" || t.page.status === "inreview" ? "Not taken yet" : undefined, t.peerEmail, t.page.status === "review" || t.page.status === "inreview" ? editPerson(t) : null)}</td>
+            <td className={pc}>{!t.biz && t.bizGroups?.length ? <div className="hidden min-[1400px]:grid gap-1 justify-items-start">{t.bizGroups.map((g) => <span key={g} className="inline-flex items-center gap-1 max-w-full text-[12px] bg-info-soft text-info rounded-full px-2 py-0.5" title={`The ${g} group has access`}><svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3.2" /><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" /><path d="M16 5.2a3 3 0 0 1 0 5.6M18 13.8c1.8.6 3 2.4 3 5.2" /></svg><span className="truncate">{g}</span></span>)}</div> : who(t.biz, t.bizName, t.page.status === "bizreview" ? "Anyone with Review" : undefined, t.bizEmail)}</td>
+            <td className="px-4 min-[1400px]:pl-6 min-[1400px]:pr-2 py-3 hidden md:table-cell"><div className="grid gap-1 justify-items-start">{dueChip(t)}<span className="text-[11.5px] text-ink-3 whitespace-nowrap" suppressHydrationWarning>{t.sentAt ? `Sent ${taskDate(t.sentAt)}` : ""}{w !== "—" ? <span className="text-ink-4"> · {w}</span> : null}</span></div></td>
+            <td className="px-4 py-3 hidden md:table-cell"><div className="flex flex-wrap xl:flex-nowrap min-[1400px]:!flex-wrap min-[1600px]:!flex-nowrap items-center justify-end gap-1.5">{acts.length ? acts : <><span className="hidden lg:inline text-[12px] text-ink-4">No action for you</span><Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link></>}</div></td>
+          </tr>; };
+  const pubRow = (p: PublishedItem) => { const m = marketOfPath(p.path); return <tr key={p.path} className="hover:bg-surface-2 border-t border-line">
+          <td className="px-4 py-3 max-w-0 w-full"><div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(p.path)} className="font-semibold truncate hover:underline underline-offset-2">{p.title}</Link><Pill status="published" /></div>
+            <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.domain}{routeOf(p.path)}</div>
+            <div className="md:hidden mt-1 pl-[26px] text-[12px] text-ink-3" suppressHydrationWarning>{p.when ? `Published ${taskDate(p.when)}` : "Published"}{p.who ? ` · ${p.who}` : ""}</div></td>
+          <td colSpan={3} className={pc}><div className="hidden min-[1400px]:block">{personLine("Published by", p.who, p.whoId === user.id)}</div></td>
+          <td className="px-4 min-[1400px]:pl-6 min-[1400px]:pr-2 py-3 hidden md:table-cell"><span className="inline-block"><span className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full bg-good-soft text-good whitespace-nowrap" suppressHydrationWarning>{p.when ? taskDate(p.when) : "Live"}</span></span></td>
+          <td className="px-4 py-3 text-right"><Link href={builderHref(p.path)} className="btn btn-sm">Open</Link></td>
+        </tr>; };
+  /* One table per view (so the columns line up), with group rows: a stage heading (All) and Yours / Other people */
+  type Part = { label?: string; rows: React.ReactNode[]; empty?: string };
+  const othersLabel = isAdmin ? "Assigned to others" : "Others you can take";
+  /* separate cards per group (stage), with fixed column widths so People, Dates and Action line up across cards */
+  const cols = <colgroup><col /><col className="w-0 min-[1400px]:w-[160px]" /><col className="w-0 min-[1400px]:w-[160px]" /><col className="w-0 min-[1400px]:w-[160px]" /><col className="hidden md:table-column w-[180px] min-[1400px]:!w-[132px]" /><col className="hidden md:table-column w-[330px] xl:w-[470px] min-[1400px]:!w-[250px] min-[1600px]:!w-[410px]" /></colgroup>;
+  const board = (groups: { key: string; head?: React.ReactNode; parts: Part[]; slim?: boolean }[]) => { const first = groups.findIndex((g) => !g.slim); return <div className="grid gap-6">{groups.map((g, gi) => g.slim ? <section key={g.key} aria-label={g.key} className="-my-3 flex items-center gap-3 opacity-80">{g.head}<span className="flex-1 h-px bg-line" /></section> : <section key={g.key} aria-label={g.key}>
+    {g.head && <div className="mb-2">{g.head}</div>}
+    <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,.04)]"><table className="w-full text-[13px] md:table-fixed">
+      {cols}
+      {gi === first ? <thead className="bg-surface-2"><tr><th className={th}>Page</th><th className={`${th} !p-0 min-[1400px]:!pl-6 min-[1400px]:!pr-1 min-[1400px]:!py-2`}><span className="hidden min-[1400px]:inline">Content author</span></th><th className={`${th} !p-0 min-[1400px]:!pl-6 min-[1400px]:!pr-1 min-[1400px]:!py-2`}><span className="hidden min-[1400px]:inline">Peer reviewer</span></th><th className={`${th} !p-0 min-[1400px]:!pl-6 min-[1400px]:!pr-1 min-[1400px]:!py-2`}><span className="hidden min-[1400px]:inline">Business reviewer</span></th><th className={`${th} hidden md:table-cell min-[1400px]:!pl-6 min-[1400px]:!pr-2`} aria-sort={sort === "due" ? "ascending" : sort === "due-desc" ? "descending" : undefined}><button type="button" onClick={() => setSort(sort === "due" ? "due-desc" : "due")} className={`inline-flex items-center gap-1 uppercase tracking-[.08em] hover:text-ink ${sort !== "new" ? "text-ink" : ""}`} title="Sort by due date">Dates<span aria-hidden className={sort === "new" ? "opacity-30" : ""}>{sort === "due-desc" ? "▼" : "▲"}</span></button></th><th className={`${th} hidden md:table-cell text-right`}><span className="sr-only">Action</span></th></tr></thead> : null}
+      <tbody>
+      {g.parts.map((p, i) => <Fragment key={i}>
+        {p.label && <tr><td colSpan={6} className={`px-4 py-2 text-[11px] uppercase tracking-[.08em] font-semibold border-t border-line first:border-t-0 ${(p.label === "Assigned to me" || p.label === "Published by me") ? "bg-accent-soft/50 text-accent-hover shadow-[inset_3px_0_0_var(--accent)]" : "bg-surface-2 text-ink-2 shadow-[inset_3px_0_0_var(--line-2)]"}`}>{p.label} <span className="normal-case tracking-normal font-normal opacity-80">· {p.rows.length}</span></td></tr>}
+        {p.rows.length ? p.rows : p.empty ? <tr><td colSpan={6} className="px-4 py-3 text-[12.5px] text-ink-4 border-t border-line">{p.empty}</td></tr> : null}
+      </Fragment>)}
+      </tbody>
+    </table></div></section>)}</div>; };
+  const mineT = (t: Task) => t.assignee === user.id || t.author === user.id;
+  const splitParts = (items: Task[], emptyYours: string): Part[] => { const a = sortTasks(items.filter(mineT)), b = sortTasks(items.filter((t) => !mineT(t)));
+    if (!isAdmin) return [{ rows: [...a, ...b].map(taskRow), empty: emptyYours }]; // an author only sees their own (and the Backlog they may take) · no Yours / Others split needed
+    if (!a.length && b.length) return [{ label: othersLabel, rows: b.map(taskRow) }]; // no empty "Assigned to me · 0" row
+    return [{ label: "Assigned to me", rows: a.map(taskRow), empty: emptyYours }, ...(b.length ? [{ label: othersLabel, rows: b.map(taskRow) }] : [])]; };
 
   return (
     <div className="p-4 md:p-7">
-      <div className="flex flex-wrap items-end gap-x-4 gap-y-3 mb-5">
-        <div><h1 className="text-2xl font-semibold">My tasks</h1><p className="text-ink-3 text-[13px] mt-1">{tasks.length} open on {marketName}{overdue > 0 && <> · <span className="text-crit font-semibold">{overdue} overdue</span></>}</p></div>
-        <div className="ml-auto flex gap-2"><Link href={`${base}/audit`} className="btn">What changed recently</Link></div>
+      <div className="mb-4"><h1 className="text-2xl font-semibold">My tasks</h1><p className="text-ink-3 text-[13.5px] mt-1" suppressHydrationWarning>{totalYours ? <><b className="text-ink font-semibold">{totalYours}</b> assigned to you{totalNew ? <> · <b className="text-accent font-semibold">{totalNew} new</b></> : null}</> : "Nothing is assigned to you right now"}</p></div>
+
+      {/* the five stages as tabs */}
+      <div role="tablist" aria-label="Stages" className="flex gap-1 overflow-x-auto border-b border-line mb-4 -mx-1 px-1">
+        {VIEWS.filter((v) => v.id !== "sendbiz" || count("sendbiz") > 0 || view === "sendbiz").map((v) => { const on = view === v.id; const n = count(v.id); const nw = v.id === "published" ? 0 : fresh(v.id).length;
+          const tip = nw ? `${n} page${n === 1 ? "" : "s"} · ${nw} new for you` : `${n} page${n === 1 ? "" : "s"}`;
+          return <button key={v.id} role="tab" aria-selected={on} type="button" onClick={() => openView(v.id)} title={tip} className={`flex items-center gap-2 px-3 py-2.5 text-[13.5px] whitespace-nowrap border-b-2 -mb-px ${on ? "border-accent text-ink font-semibold" : "border-transparent text-ink-3 hover:text-ink"}`}>
+            {v.label}
+            <span suppressHydrationWarning aria-label={tip} className={`min-w-[22px] h-5 px-1.5 rounded-full grid place-items-center text-[11.5px] font-semibold ${nw ? "bg-accent text-white" : n ? "bg-surface-3 text-ink-2" : "bg-transparent text-ink-4"}`}>{n}</span>
+          </button>; })}
       </div>
-      {/* Summary tiles (same style as the dashboard tiles); click one to filter */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mb-5">
-        {([["", "Open tasks", tasks.length, "var(--accent)", "Everything waiting on you"], ["overdue", "Overdue", tasks.filter((t) => t.overdueDays > 0).length, "var(--crit)", "Past their due date"], ["today", "Due today", tasks.filter((t) => t.overdueDays === 0).length, "var(--warn)", "Finish before the end of the day"], ["later", "Coming up", tasks.filter((t) => t.overdueDays < 0).length, "var(--info)", "Due later this week"]] as const).map(([k, l, n, c, sub]) => (
-          <button key={l} type="button" aria-pressed={when === k} onClick={() => setWhen(k)} className={`text-left bg-surface border p-5 min-h-[120px] flex flex-col gap-1 hover:border-ink-3 hover:shadow-md ${when === k ? "border-ink shadow-md" : "border-line"}`} style={{ borderTop: `4px solid ${c}` }}>
-            <span className="text-[13px] text-ink-2">{l}</span>
-            <span className="text-[36px] font-light leading-none tabular-nums" style={{ color: c === "var(--crit)" && n > 0 ? c : undefined }}>{n}</span>
-            <span className="text-[12.5px] text-ink-3 mt-auto">{when === k ? "Showing these" : sub}</span>
-          </button>))}
-      </div>
+
       <div className="flex flex-wrap items-center gap-2 mb-3">
-        <label className="flex items-center gap-2 bg-surface border border-line-2 rounded-md px-2.5 py-1.5 min-w-[260px]"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px]" placeholder="Search tasks, pages, people" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search tasks" /></label>
-        {isAdmin && <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface" value={who} onChange={(e) => setWho(e.target.value)} aria-label="Assigned to"><option value="">Assigned to: everyone</option>{people.map((n) => <option key={n} value={n}>{n}</option>)}<option value="-">Waiting for assignment</option></select>}
-        <span className="ml-auto text-[12.5px] text-ink-3">{rows.length} of {tasks.length}</span>
+        <label className="flex items-center gap-2 bg-surface border border-line-2 rounded-md px-2.5 py-1.5 min-w-[220px] flex-1 sm:flex-none sm:w-[300px]"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px] bg-transparent" placeholder="Find a page or person" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search tasks" /></label>
+        <label className="inline-flex items-center gap-2 text-[13px] text-ink-2 bg-surface border border-line-2 rounded-md px-2.5 py-1.5 cursor-pointer select-none"><input type="checkbox" className="accent-[var(--accent)]" checked={onlyMe} onChange={(e) => setOnlyMe(e.target.checked)} />Only assigned to me</label>
+        <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort"><option value="new">Sort: new first</option><option value="due">Sort: due date, soonest first</option><option value="due-desc">Sort: due date, latest first</option></select>
+        <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface" value={mkt} onChange={(e) => setMkt(e.target.value)} aria-label="Filter by market"><option value="">All markets</option>{markets.map((m) => <option key={m.id} value={m.id}>{m.flag} {m.name}</option>)}</select>
       </div>
-      {rows.length ? (
-        <div className="bg-surface border border-line rounded-xl overflow-hidden"><div className="overflow-auto"><table className={`w-full text-[13.5px] max-sm:[&_td]:px-3 max-sm:[&_th]:px-3 ${isAdmin ? "[&_tr>*:nth-child(4)]:hidden md:[&_tr>*:nth-child(4)]:table-cell" : "[&_tr>*:nth-child(4)]:hidden 2xl:[&_tr>*:nth-child(4)]:table-cell"} [&_tr>*:nth-child(1)]:hidden md:[&_tr>*:nth-child(1)]:table-cell [&_tr>*:nth-child(6)]:hidden sm:[&_tr>*:nth-child(6)]:table-cell [&_tr>*:nth-child(3)]:hidden 2xl:[&_tr>*:nth-child(3)]:table-cell [&_tr>*:nth-child(5)]:hidden 2xl:[&_tr>*:nth-child(5)]:table-cell`}>
-          <thead className="bg-surface-2"><tr className="text-left text-[11px] uppercase tracking-[.08em] text-ink-3"><Th {...thp} k="kind" className="w-[130px]">Type</Th><Th {...thp} k="name">Page · what to do</Th><Th {...thp} k="from" className="w-[200px]">Sent by</Th><Th {...thp} k="assignee" className="w-[240px]">Assigned to</Th><Th {...thp} k="waiting" className="w-[110px]">Waiting</Th><Th {...thp} k="due" className="w-[170px]">Due · sent</Th><Th {...thp} className="w-[150px] text-right">Action</Th></tr></thead>
-          <tbody>{([["Overdue", (t: Task) => t.overdueDays > 0, "text-crit"], ["Due today", (t: Task) => t.overdueDays === 0, "text-warn"], ["Coming up", (t: Task) => t.overdueDays < 0, "text-ink-3"]] as const).map(([title, pred, cls]) => { const grouped = sort === "due" && dir === "asc"; const list = grouped ? rows.filter(pred) : (title === "Overdue" ? rows : []); if (!list.length) return null; return <Fragment key={title}>
-            {grouped && <tr><td colSpan={7} className={`px-4 pt-3 pb-1.5 text-[10.5px] uppercase tracking-[.1em] font-semibold ${cls}`}>{title} · {list.length}</td></tr>}
-            {list.map((t) => { const d = dueLabel(t); const primary = t.kind === "Review" || t.kind === "Publish"; const label = t.kind === "Review" ? "Review" : t.kind === "Publish" ? "Publish" : t.kind === "Fix" ? "Retry publish" : t.kind === "Check" ? "Check" : "Continue";
-              const needs = t.kind === "Publish" || t.kind === "Fix" ? "publish" : t.kind === "Review" ? "review" : null; const allowed = !needs || can(needs, t.page.path); const waiting = needs === "publish" ? "Waiting for a publisher" : "Waiting for a reviewer"; const w = waitingLabel(t.sentAt); const sender = t.from.replace(/ \(.*\)$/, "");
-              return <tr key={t.page.path + t.kind} className="hover:bg-surface-2 cursor-pointer border-t border-line" onClick={() => router.push(builderHref(t.page.path))}>
-                <td className="px-4 py-3"><Pill status={t.page.status} label={t.kind} /></td>
-                <td className="px-4 py-3"><div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} onClick={(e) => e.stopPropagation()} className="truncate font-bold hover:underline underline-offset-2">{t.page.title}</Link><span className="hidden 2xl:inline font-mono text-[11.5px] text-ink-3 truncate">{routeOf(t.page.path)}</span></div><div className="text-[12.5px] text-ink-2 mt-0.5 pl-[26px]">{t.what}{t.remindedAt && <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-warn-soft text-warn px-2 py-px text-[11px] font-semibold align-middle" title={`${t.remindedBy} sent a reminder`} suppressHydrationWarning>🔔 Reminder from {t.remindedBy?.split(" ")[0]}</span>}</div>{isAdmin && <div className="md:hidden mt-1.5 pl-[26px] text-[12px] text-ink-2">{assignee(t, true)}</div>}<div className="sm:hidden mt-1.5 pl-[26px] flex flex-wrap items-center gap-1.5 text-[11.5px] text-ink-3" suppressHydrationWarning><span className={`inline-block font-semibold px-2 py-0.5 rounded-full ${DUE_CLS[d.c]}`}>{d.t}</span>Due {taskDate(t.due)}</div></td>
-                <td className="px-4 py-3"><span className="inline-flex items-center gap-2"><Avatar name={sender} size={24} /><span className="text-[13px]">{t.from}</span></span></td>
-                <td className="px-4 py-3 text-[13px]">{assignee(t)}</td>
-                <td className="px-4 py-3 text-ink-3">{w}</td>
-                <td className="px-4 py-3"><span suppressHydrationWarning className={`inline-block text-[12px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span>
-                  <div className="text-[11.5px] text-ink-3 mt-1 leading-snug sm:whitespace-nowrap" suppressHydrationWarning><span title="Due date">Due {taskDate(t.due)}</span>{t.sentAt && <span className="block" title="Sent date">Sent {taskDate(t.sentAt)}</span>}</div></td>
-                <td className="px-4 py-3 text-right">{allowed ? <button className={`btn btn-sm ${primary ? "btn-primary" : ""}`} disabled={busy === t.page.path} onClick={(e) => act(e, t)}>{busy === t.page.path ? "Working…" : label}</button> : <span className="inline-flex items-center gap-1.5 text-[12px] text-ink-3 whitespace-nowrap" title={`You don't have ${needs === "publish" ? "Publish" : "Review & approve"} here`}><span aria-hidden="true">🔒</span>{waiting}</span>}</td>
-              </tr>; })}
-          </Fragment>; })}</tbody>
-        </table></div></div>
-      ) : (
-        <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl"><b className="block text-[15px]">{q || kind || when ? "No tasks match" : "All clear"}</b><p className="text-ink-3 text-[13px] mt-1">{q || kind || when ? <button className="underline text-ink" onClick={() => { setQ(""); setKind(""); setWhen(""); }}>Clear filters</button> : "Nothing is waiting on you. New review and publish requests will show up here."}</p></div>
-      )}
-      {assigning && <AssignDialog marketId={marketId} task={assigning} pageHref={builderHref(assigning.page.path)} onClose={() => setAssigning(null)} onDone={(name) => { setToast(name ? `${assigning.page.title}: assigned to ${name}` : `${assigning.page.title}: waiting for assignment`); setAssigning(null); router.refresh(); }} />}
+
+      {/* backlog: one list; other stages: yours on top, other people below (authors only see their own; site admins see everyone) */}
+      {view === "all" ? board(VIEWS.filter((v) => v.id !== "all").map((v) => {
+          /* every stage under the tab names: yours first, then other people's; an empty stage says there is nothing for you there */
+          const st = v.id === "backlog" || v.id === "mine" ? "review" : v.id === "inreview" ? "inreview" : v.id === "sendbiz" ? "reviewed" : v.id === "bizreview" || v.id === "bizwait" ? "bizreview" : v.id === "ready" ? "approved" : "published";
+          const items = v.id === "published" ? [] : rows.filter((t) => v.of(t, ofMe)); const mine = pub.filter((x) => x.whoId === user.id);
+          const n = v.id === "published" ? mine.length : items.length;
+          const head = <h3 className="flex items-center gap-2.5"><button type="button" onClick={() => openView(v.id)} title={`Open the ${v.label} tab`} className={`pill pill-${st} text-[12.5px] px-3 py-1 hover:underline underline-offset-2 ${n ? "" : "opacity-60"}`}>{v.label}</button><span className="text-[13px] text-ink-3">{n ? `${n} page${n === 1 ? "" : "s"}` : "nothing here"}</span></h3>;
+          return { key: v.id, head, slim: n === 0, parts: v.id === "published" ? [{ label: isAdmin ? "Published by me" : undefined, rows: mine.map(pubRow), empty: "Nothing of yours published recently." }] : v.id === "backlog" || v.id === "bizwait" ? [{ rows: sortTasks(items).map(taskRow), empty: v.empty }] /* one shared bucket, nobody's yet */ : splitParts(items, "No actions for you at this step.") };
+        }))
+        : view === "backlog" || view === "bizwait" ? (rows.length ? board([{ key: "b", parts: [{ rows: sortTasks(rows).map(taskRow) }] }]) : empty(cur.empty)) /* shared buckets: nobody's yet */
+        : view !== "published" ? (rows.length ? board([{ key: "s", parts: splitParts(rows, "Nothing of yours at this stage.") }]) : empty(cur.empty))
+        : pub.length ? board([{ key: "p", parts: isAdmin ? [{ label: "Published by me", rows: pub.filter((p) => p.whoId === user.id).map(pubRow), empty: "Nothing of yours published recently." }, { label: "Published by others", rows: pub.filter((p) => p.whoId !== user.id).map(pubRow) }] : [{ rows: pub.filter((p) => p.whoId === user.id).map(pubRow), empty: "Nothing of yours published recently." }] }]) : empty(cur.empty)}
+
+      {assigning && <AssignDialog marketId={marketOfPath(assigning.page.path).id} task={assigning} pageHref={builderHref(assigning.page.path)} onClose={() => setAssigning(null)} onDone={(name) => { setToast(name ? `${assigning.page.title}: assigned to ${name}` : `${assigning.page.title}: not assigned`); setAssigning(null); router.refresh(); }} />}
+      {choosing && <ReviewedChoice title={choosing.page.title} onBehalf={choosing.page.status === "inreview" && choosing.assignee && choosing.assignee !== user.id ? choosing.assigneeName : undefined} onClose={() => setChoosing(null)}
+        onSend={() => { const t = choosing; return run(t, async () => { if (t.page.status === "inreview") await status(t, "reviewed"); await status(t, "bizreview"); }, `${t.page.title} sent to business review · share it with the business`, () => setSharing({ t, stage: "bizreview" })); }}
+        onReauthor={() => run(choosing, () => status(choosing, "draft"), `${choosing.page.title} is back with the author`)} />}
+      {sharing && <ShareReviewDialog key={sharing.t.page.path + sharing.stage} marketId={marketOfPath(sharing.t.page.path).id} path={sharing.t.page.path} title={sharing.t.page.title} stage={sharing.stage} onClose={() => { setSharing(null); router.refresh(); }} />}
+      {publishing && <PublishDialog marketId={marketOfPath(publishing.page.path).id} envName={envById(envId).name} pages={[{ path: publishing.page.path, title: publishing.page.title, status: publishing.page.status }]} mayPublish={(p) => can("publish", p)}
+        onClose={() => setPublishing(null)} onDone={(r, mode) => { setPublishing(null); const ok = r.filter((x) => x.ok).length; setToast(mode === "cancel" ? "Schedule cancelled" : ok ? (mode === "schedule" ? `${publishing.page.title} is scheduled` : `${publishing.page.title} is live`) : r[0]?.reason ?? "Nothing was published"); router.refresh(); }} />}
       {toast && <div role="status" className="fixed bottom-5 left-1/2 -translate-x-1/2 w-max max-w-[calc(100vw-32px)] flex items-center gap-2.5 bg-[#0F1013] text-white pl-3 pr-4 py-2.5 rounded-xl text-[13px] shadow-xl z-50"><span aria-hidden className="grid place-items-center w-5 h-5 rounded-full bg-white/15 text-[11px] flex-none">✓</span><span className="min-w-0">{toast}</span></div>}
     </div>
   );

@@ -1,19 +1,26 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import { FolderIcon, SiteIcon } from "@/components/ui/Icons";
 
 type Node = { path: string; title: string; children: Node[] };
 const KEY = "ucp-tree-open";
 
 /** Collapsible folder tree. Ancestors of the current folder open automatically; other toggles are remembered per browser. */
+const EVT = "ucp-folders";
+const subscribeSaved = (cb: () => void) => { window.addEventListener("storage", cb); window.addEventListener(EVT, cb); return () => { window.removeEventListener("storage", cb); window.removeEventListener(EVT, cb); }; };
+/** { path: open? } · older versions stored a list of open folders */
+const readSaved = (raw: string): Record<string, boolean> => { try { const v = JSON.parse(raw || "{}"); return Array.isArray(v) ? Object.fromEntries(v.map((x: string) => [x, true])) : v && typeof v === "object" ? v : {}; } catch { return {}; } };
 export function FolderTree({ root, marketName, flag, base, current, folders }: { root: string; marketName: string; flag: string; base: string; current: string; folders: { path: string; title: string }[] }) {
   const rel = (p: string) => p.replace(root, "") || "/";
   const tree = build(root, folders);
   const ancestors = new Set<string>(); { let p = current; while (p.startsWith(root + "/")) { p = p.replace(/\/[^/]+$/, ""); ancestors.add(p); } }
-  const [open, setOpen] = useState<Set<string>>(() => new Set<string>([...ancestors]));
-  useEffect(() => { try { const saved = JSON.parse(localStorage.getItem(KEY) || "[]") as string[]; setOpen((o) => new Set([...o, ...saved, ...ancestors])); } catch {} /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [current]);
-  const toggle = (p: string) => setOpen((o) => { const n = new Set(o); if (n.has(p)) n.delete(p); else n.add(p); try { localStorage.setItem(KEY, JSON.stringify([...n])); } catch {} return n; });
+  /* folders you opened or closed are remembered in this browser; the folders above the current one start open */
+  const raw = useSyncExternalStore(subscribeSaved, () => { try { return localStorage.getItem(KEY) ?? ""; } catch { return ""; } }, () => "");
+  const saved = useMemo(() => readSaved(raw), [raw]);
+  const isOpen = (p: string) => saved[p] ?? ancestors.has(p);
+  const open = new Set<string>([...ancestors, ...Object.keys(saved)].filter(isOpen));
+  const toggle = (p: string) => { const next = { ...saved, [p]: !isOpen(p) }; try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* private window */ } window.dispatchEvent(new Event(EVT)); };
   const ctx = { root, base, flag, current, open, toggle, rel };
   return <ul aria-label="Folders"><Row n={{ path: root, title: marketName, children: tree }} depth={0} ctx={ctx} /></ul>;
 }

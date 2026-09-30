@@ -30,8 +30,9 @@ export type FormDef = { id: string; name: string; version: number };
 export type AuditType = "content" | "publishing" | "permissions" | "system";
 export type AuditEvent = { id: string; path: string; time: string; type: AuditType; who: string; text: string; target?: string; level?: "crit" | ""; requestId?: string };
 
-export type TaskKind = "Review" | "Publish" | "Fix" | "Check" | "Finish";
-export type Task = { kind: TaskKind; what: string; from: string; sentAt?: string; due: string; overdueDays: number; assignee?: string; assigneeName?: string; remindedAt?: string; remindedBy?: string; page: { path: string; title: string; status: string; template?: string } };
+export type TaskKind = "Review" | "SendBiz" | "BizReview" | "Publish" | "Fix" | "Check" | "Finish";
+/** `author`: who sent the page for review (for "yours" vs "other people" in My tasks). */
+export type Task = { kind: TaskKind; what: string; from: string; author?: string; authorName?: string; /** peer (author's) reviewer and business reviewer of the page, whatever the stage */ peer?: string; peerName?: string; biz?: string; bizName?: string; authorEmail?: string; peerEmail?: string; bizEmail?: string; /** teams given access to the business review */ bizGroups?: string[]; sentAt?: string; due: string; overdueDays: number; assignee?: string; assigneeName?: string; remindedAt?: string; remindedBy?: string; page: { path: string; title: string; status: string; template?: string } };
 
 /** A concrete content item built from a content model (e.g. Product → "HSBC Savings Account"). */
 export type EntityValues = Record<string, unknown>;

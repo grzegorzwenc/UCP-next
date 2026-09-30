@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { KIND_OF_STATUS, permOfKind, clReviewAction, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
+import { compareSides, guestMayDecide, createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, setCommentResolved, deleteComment, KIND_OF_STATUS, permOfKind, clReviewAction, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
 import { can } from "@/lib/ucp/perms";
-import { SESSION_COOKIE } from "@/lib/server/session";
+import { SESSION_COOKIE, sessionUserId } from "@/lib/server/session";
 import { CL_SESSION_COOKIE, contentLibreSignIn, contentLibreSignOut } from "@/lib/server/contentlibre";
 
 /** Matches the backend's default form-login session (LIBRE_AUTH_SESSION_TIMEOUT_MINUTES, 480); the backend's own expiry still wins. */
@@ -54,27 +54,135 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     /* ---- review assignment ---- */
     if (o === "reviewers" && req.method === "GET") return ok(await reviewerOptions(mid, q.get("path") ?? ""));
     if (o === "review/send" && req.method === "POST") {
-      const u = await me(); const mk = (await getMarket(mid)); const path = q.get("path") ?? ""; const { assignee, auto, note } = await req.json() as { assignee?: string; auto?: boolean; note?: string };
+      const u = await me(); const mk = (await getMarket(mid)); const path = q.get("path") ?? ""; const { note } = await req.json() as { note?: string };
       if (!can(u, "edit", path, mk.root)) return problem(new RepoError(403, "You don't have Edit on this page", `Signed in as ${u.name}`));
-      const pick = auto || !assignee ? await autoAssignee(mid, path, u.id) : (await reviewerOptions(mid, path)).find((o) => o.id === assignee);
+      // the page goes to the Backlog: nobody is assigned, any reviewer takes it (My tasks → Backlog → Assign to me)
+      const pick = (await reviewerOptions(mid, path)).length > 0;
       if (!pick) return problem(new RepoError(400, "Nobody can review this page", "Ask a site admin to grant Review & approve on this folder"));
       const r = repo(); const before = await r.getPage(path); if (!before) return problem(new RepoError(404, "Page not found", path));
       const due = new Date(); due.setDate(due.getDate() + 3);
-      await r.updateContent(path, { status: "review" }); await r.setProps(`${path}/jcr:content`, { "ucp:sentBy": u.id, "ucp:requestedBy": u.id, "ucp:sentAt": new Date().toISOString(), "ucp:due": due.toISOString(), "ucp:assignee": pick.id, "ucp:assignedBy": u.id, "ucp:reviewNote": note || null });
-      await logEvent(mid, { type: "content", text: `sent ${before.title} for review to ${pick.name}${auto || !assignee ? " (assigned automatically)" : ""}`, target: path, requestId: rid });
-      return ok({ assignee: pick.id, assigneeName: pick.name, auto: !!(auto || !assignee) });
+      await r.updateContent(path, { status: "review" }); await r.setProps(`${path}/jcr:content`, { "ucp:sentBy": u.id, "ucp:requestedBy": u.id, "ucp:sentAt": new Date().toISOString(), "ucp:due": due.toISOString(), "ucp:assignee": null, "ucp:assignedBy": null, "ucp:reviewNote": note || null });
+      await logEvent(mid, { type: "content", text: `sent ${before.title} for review · open to all reviewers in the Backlog`, target: path, requestId: rid });
+      return ok({ assignee: "", assigneeName: "" });
+    }
+    /* ---- review links: a link (or e-mail) that opens the review screen for the current stage ---- */
+    if (o === "review/link" && req.method === "POST") {
+      const u = await me(); const path = q.get("path") ?? ""; const root = (await getMarket(mid)).root; const admin = u.role === "admin" || !!u.perms.root?.manage;
+      if (!(admin || can(u, "edit", path, root) || can(u, "review", path, root))) return problem(new RepoError(403, "Only people working on this page can share it for review"));
+      const { email } = await req.json() as { email?: string }; const r = await createReviewLink(mid, path, u, email); const pg = await repo().getPage(path);
+      if (r.created || r.assigned) await logEvent(mid, { type: "content", text: `shared ${pg?.title ?? path} for ${STAGE_LABEL[r.stage].toLowerCase()}${email ? ` with ${email}` : " by link"}${r.assigned ? ` (assigned to ${r.assigned})` : ""}`, target: path, requestId: rid });
+      return ok({ ...r, url: `/review/${r.token}` });
+    }
+    /* ---- business review for a whole team: list the teams, give one access ---- */
+    if (o === "review/groups" && req.method === "GET") return ok(await reviewGroups(mid, q.get("path") ?? ""));
+    if (o === "review/group" && req.method === "POST") {
+      const u = await me(); const path = q.get("path") ?? ""; const root = (await getMarket(mid)).root; const admin = u.role === "admin" || !!u.perms.root?.manage;
+      if (!(admin || can(u, "edit", path, root) || can(u, "review", path, root))) return problem(new RepoError(403, "Only people working on this page can share it for review"));
+      const { team } = await req.json() as { team?: string }; const r = await shareWithGroup(mid, path, u, String(team ?? "")); const pg = await repo().getPage(path);
+      if (r.created) await logEvent(mid, { type: "content", text: `gave the ${team} group (${r.members.length} ${r.members.length === 1 ? "person" : "people"}) access to the business review of ${pg?.title ?? path}`, target: path, requestId: rid });
+      return ok({ ...r, url: `/review/${r.token}` });
+    }
+    /* ---- the business decides through the link (no UCP account needed): sign off, or back to the author ---- */
+    if (o === "review/decide" && req.method === "POST") {
+      const token = q.get("token") ?? ""; const hit = await reviewByToken(token); if (!hit) return problem(new RepoError(404, "This review link does not exist"));
+      if (!hit.open || hit.link.stage !== "bizreview" || hit.page.status !== "bizreview") return problem(new RepoError(409, "This business review is finished", "The page has moved on"));
+      const b = await req.json() as { decision?: string; name?: string; email?: string; note?: string }; const signed = await sessionUserId();
+      const name = (b.name ?? "").trim().slice(0, 80); const mail = (b.email ?? "").trim().slice(0, 120);
+      if (!signed && (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail))) return problem(new RepoError(400, "Add your name and e-mail so the team knows who decided"));
+      const who = signed ? await me() : { id: `guest:${mail.toLowerCase()}`, name };
+      /* only the people the review was sent to decide (a plain link is for comments); signed-in users need Review, or site admin */
+      if (signed) { const u = who as Awaited<ReturnType<typeof me>>; const admin = u.role === "admin" || !!u.perms.root?.manage; const meta = hit.page.meta ?? {}; const assigned = meta["ucp:taskKind"] === "BizReview" && typeof meta["ucp:taskAssignee"] === "string" ? String(meta["ucp:taskAssignee"]) : "";
+        if (!admin && (!can(u, "review", hit.page.path, hit.market.root) || (assigned ? assigned !== u.id : meta["ucp:authorReviewedBy"] === u.id))) return problem(new RepoError(403, "You can comment, but someone else signs this page off")); }
+      else { const g = await guestMayDecide(hit.link, hit.page.meta ?? {}, mail); if (!g.ok) return problem(new RepoError(403, "Only the people this review was sent to can decide", g.why)); }
+      const path = hit.page.path; const signoff = b.decision === "signoff"; if (!signoff && b.decision !== "reauthor") return problem(new RepoError(400, "Sign off or reauthor"));
+      await snapshotVersion(path, signoff ? "before: signed off" : "before: sent back to the author", who.id);
+      await repo().updateContent(path, { status: signoff ? "approved" : "draft" });
+      const now = new Date().toISOString();
+      await repo().setProps(`${path}/jcr:content`, signoff
+        ? { "ucp:approvedBy": who.id, "ucp:approvedByName": who.name, "ucp:sentBy": who.id, "ucp:sentAt": now, "ucp:due": null }
+        : { "ucp:reauthorBy": who.id, "ucp:reauthorAt": now, "ucp:sentBy": who.id, "ucp:sentAt": now, "ucp:assignee": null, "ucp:authorReviewedBy": null, "ucp:taskAssignee": null, "ucp:taskKind": null, "ucp:reviewGroups": null, "ucp:remindedAt": null, "ucp:due": null });
+      if (b.note?.trim()) await addComment(path, who, b.note, undefined, { stage: "bizreview", guest: !signed });
+      await logEvent(hit.marketId, { type: signoff ? "publishing" : "content", who: signed ? undefined : "system", text: `${signed ? "" : `${name} (${mail}) `}${signoff ? "signed off" : "sent back to the author"} ${hit.page.title} through the business review link`, target: path, requestId: rid });
+      return ok({ decision: signoff ? "signoff" : "reauthor", by: who.name, at: now });
+    }
+    if (o === "review/comment" && req.method === "POST") {
+      const token = q.get("token") ?? ""; const hit = await reviewByToken(token); if (!hit) return problem(new RepoError(404, "This review link does not exist"));
+      if (!hit.open) return problem(new RepoError(409, "This review is finished", "The page has moved on; ask the author for a new link"));
+      const b = await req.json() as { text?: string; name?: string; email?: string; block?: { id: string; label: string; field?: string } }; const signed = await sessionUserId();
+      const name = (b.name ?? "").trim().slice(0, 80); const mail = (b.email ?? "").trim().slice(0, 120);
+      if (!signed && (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail))) return problem(new RepoError(400, "Add your name and e-mail so the team knows who commented"));
+      const who = signed ? await me() : { id: `guest:${mail.toLowerCase()}`, name };
+      const r = await addComment(hit.page.path, who, b.text ?? "", undefined, { stage: hit.link.stage, guest: !signed, block: b.block });
+      await logEvent(hit.marketId, { type: "content", who: signed ? undefined : "system", text: `${signed ? "" : `${name} (${mail}) `}commented during ${STAGE_LABEL[hit.link.stage].toLowerCase()} of ${hit.page.title}: “${String(b.text ?? "").trim().slice(0, 60)}”`, target: hit.page.path, requestId: rid });
+      return ok(r);
+    }
+    /* ---- take a waiting author's review: anyone with Review assigns it to themselves (a page nobody has taken yet) ---- */
+    if (o === "review/claim" && req.method === "POST") {
+      const u = await me(); const path = q.get("path") ?? ""; const pg = await repo().getPage(path);
+      if (!pg) return problem(new RepoError(404, "Page not found", path));
+      if (pg.status !== "review") return problem(new RepoError(409, "The page is not waiting for a reviewer any more"));
+      if (!can(u, "review", path, (await getMarket(mid)).root)) return problem(new RepoError(403, "You don't have Review & approve on this page"));
+      const cur = typeof pg.meta?.["ucp:assignee"] === "string" ? String(pg.meta["ucp:assignee"]) : "";
+      if (cur && cur !== u.id) return problem(new RepoError(409, `Already assigned to ${await userName(cur)}`));
+      if (String(pg.meta?.["ucp:requestedBy"] || pg.meta?.["ucp:sentBy"] || "") === u.id && !(u.role === "admin" || u.perms.root?.manage)) return problem(new RepoError(403, "You wrote this page, so someone else reviews it", "Another reviewer takes it from the Backlog"));
+      // ContentLIBRE keeps the reviewer on the draft's review: the backend assigns (and decides who may).
+      if (repo().kind === "contentlibre") await clReviewAction(path, "assign", u.id); else await repo().setProps(`${path}/jcr:content`, { "ucp:assignee": u.id, "ucp:assignedBy": u.id });
+      await logEvent(mid, { type: "content", text: `took the author's review of ${pg.title}`, target: path, requestId: rid });
+      return ok({ assignee: u.id, assigneeName: u.name });
+    }
+    /* ---- give an author's review back: the reviewer (or a site admin) returns a page not started yet to the Backlog ---- */
+    if (o === "review/release" && req.method === "POST") {
+      const u = await me(); const path = q.get("path") ?? ""; const pg = await repo().getPage(path);
+      if (!pg) return problem(new RepoError(404, "Page not found", path));
+      // On ContentLIBRE a named reviewer is all "started" means (inreview), so that review can still go back.
+      const cl = repo().kind === "contentlibre";
+      if (pg.status !== "review" && !(cl && pg.status === "inreview")) return problem(new RepoError(409, "The review has already started", "Only a review that is not started yet can go back to the Backlog"));
+      const cur = typeof pg.meta?.["ucp:assignee"] === "string" ? String(pg.meta["ucp:assignee"]) : "";
+      if (!cur) return problem(new RepoError(409, "The page is already in the Backlog"));
+      const admin = u.role === "admin" || !!u.perms.root?.manage;
+      if (cur !== u.id && !admin) return problem(new RepoError(403, "Only the assigned reviewer or a site admin can put it back in the Backlog"));
+      if (cl) await clReviewAction(path, "assign", null); else await repo().setProps(`${path}/jcr:content`, { "ucp:assignee": null, "ucp:assignedBy": null });
+      await logEvent(mid, { type: "content", text: `put ${pg.title} back in the Backlog${cur !== u.id ? ` (was assigned to ${await userName(cur)})` : ""}`, target: path, requestId: rid });
+      return ok({ ok: true });
+    }
+    /* ---- take a business review that nobody has taken yet (Waiting for business review assignment → In business review) ---- */
+    if (o === "bizreview/claim" && req.method === "POST") {
+      const u = await me(); const path = q.get("path") ?? ""; const pg = await repo().getPage(path); const admin = u.role === "admin" || !!u.perms.root?.manage;
+      if (!pg) return problem(new RepoError(404, "Page not found", path));
+      if (pg.status !== "bizreview") return problem(new RepoError(409, "The page is not waiting for a business reviewer"));
+      if (!can(u, "review", path, (await getMarket(mid)).root)) return problem(new RepoError(403, "You don't have Review & approve on this page"));
+      const cur = pg.meta?.["ucp:taskKind"] === "BizReview" && typeof pg.meta?.["ucp:taskAssignee"] === "string" ? String(pg.meta["ucp:taskAssignee"]) : "";
+      if (cur && cur !== u.id) return problem(new RepoError(409, `Already taken by ${await userName(cur)}`));
+      if (!admin && pg.meta?.["ucp:authorReviewedBy"] === u.id) return problem(new RepoError(403, "You did the author's review · someone else does the business review"));
+      await repo().setProps(`${path}/jcr:content`, { "ucp:taskAssignee": u.id, "ucp:taskKind": "BizReview", "ucp:assignedBy": u.id });
+      await logEvent(mid, { type: "content", text: `took the business review of ${pg.title}`, target: path, requestId: rid });
+      return ok({ assignee: u.id, assigneeName: u.name });
+    }
+    /* ---- Pages → Lock / Unlock: nobody else can change, move or delete a locked page (site admins can) ---- */
+    if (o === "pages/lock" && req.method === "POST") {
+      const u = await me(); const admin = u.role === "admin" || !!u.perms.root?.manage; const { paths, locked } = await req.json() as { paths?: string[]; locked?: boolean };
+      let n = 0;
+      for (const path of (paths ?? []).slice(0, 200)) {
+        const pg = await repo().getPage(path); if (!pg) continue;
+        if (!admin && !can(u, "edit", path, (await getMarket(mid)).root)) return problem(new RepoError(403, `You don't have Edit on ${pg.title}`));
+        const cur = typeof pg.meta?.["ucp:pageLock"] === "string" ? (JSON.parse(String(pg.meta["ucp:pageLock"])) as { by?: string; name?: string }) : null;
+        if (!locked && cur && cur.by !== u.id && !admin) return problem(new RepoError(403, `${pg.title} is locked by ${cur.name}`, "Only they or a site admin can unlock it"));
+        await repo().setProps(`${path}/jcr:content`, { "ucp:pageLock": locked ? JSON.stringify({ by: u.id, name: u.name, at: new Date().toISOString() }) : null }); n++;
+        await logEvent(mid, { type: "content", text: `${locked ? "locked" : "unlocked"} ${pg.title}`, target: path, requestId: rid });
+      }
+      return ok({ changed: n });
     }
     if (o === "review/remind" && req.method === "POST") {
       const u = await me(); const path = q.get("path") ?? ""; const pg = await repo().getPage(path);
       if (!pg) return problem(new RepoError(404, "Page not found", path));
-      if (pg.status !== "review") return problem(new RepoError(409, "The page is not in review any more"));
+      if (pg.status !== "review" && pg.status !== "inreview" && pg.status !== "bizreview") return problem(new RepoError(409, "The page is not in review any more"));
       if (!can(u, "edit", path, (await getMarket(mid)).root)) return problem(new RepoError(403, "Only people who edit this page can send reminders", `Signed in as ${u.name}`));
       // ContentLIBRE keeps the review on the draft: the backend records the reminder and enforces the 15 minutes (429)
       const cl = repo().kind === "contentlibre";
       const last = typeof pg.meta?.["ucp:remindedAt"] === "string" ? Date.parse(String(pg.meta["ucp:remindedAt"])) : 0;
       if (!cl && last && Date.now() - last < 15 * 60_000) return problem(new RepoError(429, "A reminder was sent a few minutes ago", "Give the reviewer a moment before sending another"));
       if (last && Date.now() - last < 15 * 60_000) return problem(new RepoError(429, "A reminder was sent a few minutes ago", "Give the reviewer a moment before sending another"));
-      const rid2 = typeof pg.meta?.["ucp:assignee"] === "string" ? String(pg.meta["ucp:assignee"]) : ""; const reviewer = rid2 ? await userName(rid2) : "the reviewers";
+      const rid2 = pg.status === "bizreview" ? (pg.meta?.["ucp:taskKind"] === "BizReview" && typeof pg.meta?.["ucp:taskAssignee"] === "string" ? String(pg.meta["ucp:taskAssignee"]) : "") : typeof pg.meta?.["ucp:assignee"] === "string" ? String(pg.meta["ucp:assignee"]) : ""; const reviewer = rid2 ? await userName(rid2) : pg.status === "bizreview" ? "the business reviewers" : "the reviewers";
       const at = cl ? (await clReviewAction(path, "remind")).remindedAt ?? new Date().toISOString() : new Date().toISOString(); if (!cl) await repo().setProps(`${path}/jcr:content`, { "ucp:remindedAt": at, "ucp:remindedBy": u.id });
       await logEvent(mid, { type: "content", text: `reminded ${reviewer} that ${pg.title} is waiting for review`, target: path, requestId: rid });
       return ok({ remindedAt: at, reviewer });
@@ -97,7 +205,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       const path = q.get("path") ?? ""; const { assignee, auto } = await req.json() as { assignee?: string; auto?: boolean };
       const pick = auto || !assignee ? await autoAssignee(mid, path, u.id) : (await reviewerOptions(mid, path)).find((o) => o.id === assignee);
       if (!pick) return problem(new RepoError(400, "That person cannot review this page"));
-      const pg = await repo().getPage(path); if (!pg || pg.status !== "review") return problem(new RepoError(409, "The page is not in review"));
+      const pg = await repo().getPage(path); if (!pg || (pg.status !== "review" && pg.status !== "inreview")) return problem(new RepoError(409, "The page is not in review"));
       const prev = typeof pg.meta?.["ucp:assignee"] === "string" ? await userName(String(pg.meta["ucp:assignee"])) : "nobody";
       await repo().setProps(`${path}/jcr:content`, { "ucp:assignee": pick.id, "ucp:assignedBy": u.id, "ucp:sentAt": new Date().toISOString() });
       await logEvent(mid, { type: "content", text: `reassigned the review of ${pg.title} from ${prev} to ${pick.name}`, target: path, requestId: rid });
@@ -111,6 +219,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       const path = q.get("path") ?? ""; const { kind, assignee } = await req.json() as { kind: TaskKind; assignee?: string | null };
       const pg = await repo().getPage(path); if (!pg) return problem(new RepoError(404, "Page not found", path));
       if (KIND_OF_STATUS[pg.status] !== kind) return problem(new RepoError(409, "This task is already done", `The page is now ${pg.status}`));
+      if (kind === "BizReview") return problem(new RepoError(409, "The business review is run by the business", "People are not changed during the business review"));
       const pick = assignee ? (await reviewerOptions(mid, path, permOfKind(kind))).find((x) => x.id === assignee) : undefined;
       if (assignee && !pick) return problem(new RepoError(400, `That person doesn't have ${kind === "Review" ? "Review & approve" : "Publish"} on this page`));
       const key = kind === "Review" ? "ucp:assignee" : "ucp:taskAssignee"; const prevId = kind === "Review" ? pg.meta?.["ucp:assignee"] : pg.meta?.["ucp:taskKind"] === kind ? pg.meta?.["ucp:taskAssignee"] : undefined;
@@ -152,7 +261,21 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     }
     if (o === "login" && req.method === "POST") { const { id } = await req.json(); const u = (await listUsers()).find((x) => x.id === id); if (!u) return problem(new RepoError(401, "Unknown user", id)); const res = ok({ ok: true, user: u }); res.cookies.set(SESSION_COOKIE, u.id, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 12 }); await logEvent(mid, { type: "system", who: u.id, text: "signed in (SSO stand-in)", target: `user:${u.id}`, requestId: rid }); return res; }
     if (o === "logout" && req.method === "POST") { const res = ok({ ok: true }); res.cookies.set(SESSION_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 }); return res; }
+    /* ---- page comments (Version history panel): reading needs Read; writing needs Edit or Review on the page ---- */
+    if (o.startsWith("comments")) {
+      const u = await me(); const path = q.get("path") ?? ""; const root = (await getMarket(mid)).root; const admin = u.role === "admin" || !!u.perms.root?.manage;
+      if (!can(u, "read", path, root)) return problem(new RepoError(403, "You can't see this page", `Signed in as ${u.name}`));
+      if (o === "comments" && req.method === "GET") return ok(await listComments(path));
+      if (!(admin || can(u, "edit", path, root) || can(u, "review", path, root))) return problem(new RepoError(403, "Only people who edit or review this page can comment"));
+      const b = await req.json() as { text?: string; version?: { id: string; label: string }; block?: { id: string; label: string; field?: string }; id?: string; pinned?: boolean; resolved?: boolean };
+      if (o === "comments/add") { const st = (await repo().getPage(path))?.status; const r = await addComment(path, u, b.text ?? "", b.version, { block: b.block, stage: st === "inreview" || st === "review" ? "review" : st === "bizreview" ? "bizreview" : undefined }); const pg = await repo().getPage(path); await logEvent(mid, { type: "content", text: `commented on ${pg?.title ?? path}: “${String(b.text ?? "").trim().slice(0, 60)}”`, target: path, requestId: rid }); return ok(r); }
+      if (o === "comments/pin") return ok(await setCommentPin(path, u, b.id ?? "", !!b.pinned));
+      if (o === "comments/resolve") { const r = await setCommentResolved(path, u, b.id ?? "", !!b.resolved); const pg = await repo().getPage(path); await logEvent(mid, { type: "content", text: `${b.resolved ? "resolved" : "reopened"} a comment on ${pg?.title ?? path}`, target: path, requestId: rid }); return ok(r); }
+      if (o === "comments/delete") return ok(await deleteComment(path, u, b.id ?? "", admin));
+      return problem(new RepoError(404, "Unknown operation", o));
+    }
     if (o === "versions" && req.method === "GET") return ok(await listVersions(q.get("path") ?? ""));
+    if (o === "compare" && req.method === "GET") return ok(await compareSides(q.get("path") ?? "", q.get("version") ?? undefined));
     if (o === "versions/restore" && req.method === "POST") { const { id } = await req.json(); const path = q.get("path") ?? ""; const u = await me(); await snapshotVersion(path, "before restore", u.id); await restoreVersion(path, id); await logEvent(mid, { type: "content", text: `restored version ${id} of ${path.split("/").pop()}`, target: path, requestId: rid }); return ok({ ok: true }); }
     if (o === "me") return ok(await me());
     if (o === "assets") return ok(await listAssets(mid));

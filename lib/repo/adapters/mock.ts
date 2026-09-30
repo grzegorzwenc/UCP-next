@@ -6,6 +6,7 @@ import { MOCK_MARKETS as MARKETS } from "@/lib/markets";
 import { SEED_USERS, SEED_ASSETS, ASSET_FOLDERS, SEED_MODELS, SEED_TEMPLATES, FORMS, ME } from "@/lib/ucp/seed";
 import { PATHS } from "@/lib/ucp/paths";
 import { sessionUserId } from "@/lib/server/session";
+import { syncIn, syncOut } from "./shared";
 
 /**
  * In-memory JCR-like repository. One tree rooted at "/" with the same layout the Sling backend will have:
@@ -18,7 +19,7 @@ import { sessionUserId } from "@/lib/server/session";
  *   /var/audit/ucp/<market>/<id>   audit events (append-only)
  * Same node shapes the Sling adapter produces, so switching backends changes nothing above the port.
  */
-const g = globalThis as unknown as { __ucpRepo_v12?: RepoNode };
+const g = globalThis as unknown as { __ucpRepo_v13?: RepoNode };
 
 /** Demo timestamps relative to now, so "waiting 2 days" and notification order stay meaningful. */
 const ago = (days: number) => new Date(Date.now() - days * 86400000).toISOString();
@@ -50,6 +51,42 @@ function seedUk(r: string): RepoNode[] {
     folder(r, "campaigns", "Campaigns", (p) => [page(p, "autumn-rates", "Autumn rates campaign", "scheduled", "campaign", [makeBlock("mast", { heading: "Autumn rates campaign", intro: "Limited-time rates on savings", image: "campaign-autumn" }), makeBlock("text"), makeBlock("banner"), makeBlock("form"), makeBlock("disclaimer")], { "ucp:sentBy": "michael.osei", "ucp:publishAt": "2027-10-01T06:00:00Z" })]),
     folder(r, "help", "Help", (p) => [page(p, "contact", "Contact us", "published", "hub"), page(p, "branch-finder", "Branch finder", "published", "hub")]),
   ];
+}
+/**
+ * Demo: UK pages at every stage of the review flow, with different authors, reviewers and business owners,
+ * so My tasks and the builder show a realistic picture (Backlog → Ready for review → In review → Reviewed → In business review → Ready → Live).
+ */
+function demoFlow(content: RepoNode) {
+  const ahead = (d: number) => ago(-d);
+  const at = (path: string) => walk(content).find((n) => n.path === path);
+  const add = (folderPath: string, name: string, title: string, status: PageView["status"], author: string, meta: NodeProps, template = "product") => {
+    const f = at(folderPath); if (!f) return;
+    const n = page(folderPath, name, title, status, template, undefined, { "ucp:requestedBy": author, "ucp:sentBy": author, ...meta });
+    const c = n.children?.find((x) => x.name === "jcr:content"); if (c) c.properties["cq:lastModifiedBy"] = author;
+    f.children = [...(f.children ?? []), n];
+  };
+  const uk = "/content/uk";
+  // 1 Backlog: sent, nobody has taken it
+  add(`${uk}/banking/savings`, "regular-saver", "Regular saver", "review", "sunita.patel", { "ucp:sentAt": ago(1), "ucp:due": ahead(2) });
+  add(`${uk}/borrowing/loans`, "car-loans", "Car loans", "review", "anna.kowalczyk", { "ucp:sentAt": ago(2), "ucp:due": ahead(1) });
+  add(`${uk}/insurance`, "travel-insurance", "Travel insurance", "review", "elin.llewelyn", { "ucp:sentAt": ago(4), "ucp:due": ago(1) });
+  // 2 Ready for review: assigned, not started
+  add(`${uk}/banking/savings`, "childrens-saver", "Children's savings account", "review", "content.author", { "ucp:sentAt": ago(1), "ucp:due": ahead(2), "ucp:assignee": "aisha.khan", "ucp:assignedBy": "priya.kaur" });
+  add(`${uk}/borrowing/mortgages`, "first-time-buyers", "First-time buyer mortgages", "review", "sunita.patel", { "ucp:sentAt": ago(2), "ucp:due": ahead(1), "ucp:assignee": "michael.osei", "ucp:assignedBy": "michael.osei" });
+  // 3 In review: the reviewer is on it
+  add(`${uk}/insurance`, "pet-insurance", "Pet insurance", "inreview", "anna.kowalczyk", { "ucp:sentAt": ago(2), "ucp:due": ahead(1), "ucp:assignee": "rachel.hughes", "ucp:startedAt": ago(1) });
+  add(`${uk}/investing`, "stocks-and-shares-isa", "Stocks and shares ISA", "inreview", "sunita.patel", { "ucp:sentAt": ago(3), "ucp:due": ago(0), "ucp:assignee": "aisha.khan", "ucp:startedAt": ago(2) });
+  add(`${uk}/help`, "fraud-and-scams", "Fraud and scams", "inreview", "elin.llewelyn", { "ucp:sentAt": ago(1), "ucp:due": ahead(3), "ucp:assignee": "jordan.mensah", "ucp:startedAt": ago(0.2) }, "hub");
+  // 4 Reviewed by author: waiting to be sent to the business review
+  add(`${uk}/borrowing/credit-cards`, "student-credit-card", "Student credit card", "reviewed", "anna.kowalczyk", { "ucp:sentAt": ago(3), "ucp:due": ahead(2), "ucp:assignee": "rachel.hughes", "ucp:authorReviewedBy": "rachel.hughes" });
+  add(`${uk}/banking`, "international-payments", "International payments", "reviewed", "content.author", { "ucp:sentAt": ago(4), "ucp:due": ahead(1), "ucp:assignee": "aisha.khan", "ucp:authorReviewedBy": "aisha.khan" });
+  // 5 In business review: business owners sign off
+  add(`${uk}/borrowing/mortgages`, "remortgage", "Remortgage", "bizreview", "sunita.patel", { "ucp:sentAt": ago(5), "ucp:due": ahead(1), "ucp:authorReviewedBy": "rachel.hughes", "ucp:taskAssignee": "david.clarke", "ucp:taskKind": "BizReview" });
+  add(`${uk}/insurance`, "life-insurance", "Life insurance", "bizreview", "content.author", { "ucp:sentAt": ago(4), "ucp:due": ago(1), "ucp:authorReviewedBy": "aisha.khan", "ucp:taskAssignee": "maria.santos", "ucp:taskKind": "BizReview" });
+  add(`${uk}/campaigns`, "spring-isa", "Spring ISA campaign", "bizreview", "anna.kowalczyk", { "ucp:sentAt": ago(2), "ucp:due": ahead(2), "ucp:authorReviewedBy": "jordan.mensah" }, "campaign");
+  // 6 Ready for publish
+  add(`${uk}/banking/savings`, "online-bonus-saver", "Online bonus saver", "approved", "elin.llewelyn", { "ucp:sentAt": ago(6), "ucp:due": ahead(1), "ucp:authorReviewedBy": "aisha.khan", "ucp:approvedBy": "david.clarke" });
+  add(`${uk}/borrowing/credit-cards`, "cashback-card", "Cashback credit card", "approved", "anna.kowalczyk", { "ucp:sentAt": ago(5), "ucp:due": ago(0), "ucp:authorReviewedBy": "rachel.hughes", "ucp:approvedBy": "maria.santos", "ucp:taskAssignee": "michael.osei", "ucp:taskKind": "Publish" });
 }
 /** Other markets: a smaller copy of the UK site with market-specific statuses, so switching market really changes the data. */
 function seedMarket(m: (typeof MARKETS)[number]): RepoNode[] {
@@ -98,9 +135,10 @@ function seed(): RepoNode {
   ])))])]);
   // Give the demo "User" account (content.author) a couple of drafts of their own, so their task list is not empty.
   for (const n of walk(content)) if (["credit-builder", "fixed-rate-bonds"].includes(n.name)) { const c = n.children?.find((x) => x.name === "jcr:content"); if (c) c.properties["cq:lastModifiedBy"] = "content.author"; }
+  demoFlow(content);
   return node("/", "rep:root", {}, [content, home, conf, varNode]);
 }
-const tree = () => (g.__ucpRepo_v12 ??= seed());
+const tree = () => (g.__ucpRepo_v13 ??= seed());
 function find(n: RepoNode, path: string): RepoNode | undefined { if (n.path === path) return n; if (path !== "/" && !path.startsWith(n.path === "/" ? "/" : n.path + "/")) return undefined; for (const c of n.children ?? []) { const f = find(c, path); if (f) return f; } }
 const parentPath = (p: string) => p.replace(/\/[^/]+$/, "") || "/";
 const content = (n: RepoNode) => n.children?.find((c) => c.name === "jcr:content");
@@ -109,22 +147,27 @@ export function walk(n: RepoNode): RepoNode[] { return [n, ...pages(n).flatMap(w
 function prune(n: RepoNode, depth: number): RepoNode { return depth <= 0 ? { ...n, children: undefined } : { ...n, children: n.children?.map((c) => prune(c, depth - 1)) }; }
 const need = (path: string) => { const n = find(tree(), path); if (!n) throw new RepoError(404, "Not found", path); return n; };
 
-export const mockRepo: ContentRepository = {
+const baseRepo: ContentRepository = {
   kind: "mock",
   async identity() { const id = (await sessionUserId()) ?? ME; return { id, authType: "session", groups: [`uk-${id.split(".")[0]}`] }; },
   async getNode(path, depth = 1) { const n = find(tree(), path); return n && prune(n, depth); },
-  async createNode(path, primaryType, props = {}) { if (find(tree(), path)) throw new RepoError(409, "Node already exists", path); const pp = parentPath(path); let par = find(tree(), pp); if (!par) { par = await mockRepo.createNode(pp, "sling:Folder"); par = find(tree(), pp)!; } const n = node(path, primaryType, { ...props, "jcr:created": new Date().toISOString() }); (par.children ??= []).push(n); return prune(n, 1); },
+  async createNode(path, primaryType, props = {}) { if (find(tree(), path)) throw new RepoError(409, "Node already exists", path); const pp = parentPath(path); let par = find(tree(), pp); if (!par) { par = await baseRepo.createNode(pp, "sling:Folder"); par = find(tree(), pp)!; } const n = node(path, primaryType, { ...props, "jcr:created": new Date().toISOString() }); (par.children ??= []).push(n); return prune(n, 1); },
   async setProps(path, props) { const n = need(path); for (const [k, v] of Object.entries(props)) { if (v === null || v === undefined) delete n.properties[k]; else n.properties[k] = v; } return prune(n, 1); },
-  async putFile(path, data, mime) { const n = find(tree(), path) ?? await mockRepo.createNode(path, "nt:file"); const real = find(tree(), n.path)!; real.properties["jcr:mimeType"] = mime; real.properties["ucp:data"] = `data:${mime};base64,${Buffer.from(data).toString("base64")}`; real.properties["jcr:lastModified"] = new Date().toISOString(); return prune(real, 0); },
+  async putFile(path, data, mime) { const n = find(tree(), path) ?? await baseRepo.createNode(path, "nt:file"); const real = find(tree(), n.path)!; real.properties["jcr:mimeType"] = mime; real.properties["ucp:data"] = `data:${mime};base64,${Buffer.from(data).toString("base64")}`; real.properties["jcr:lastModified"] = new Date().toISOString(); return prune(real, 0); },
   async deleteNode(path) { const n = need(path); const par = find(tree(), parentPath(path))!; par.children = par.children!.filter((c) => c !== n); },
   async moveNode(path, dest) { const n = need(path); if (find(tree(), dest)) throw new RepoError(409, "Destination is occupied", dest); const par = find(tree(), parentPath(path))!; const dp = find(tree(), parentPath(dest)); if (!dp) throw new RepoError(404, "Destination parent not found", parentPath(dest)); par.children = par.children!.filter((c) => c !== n); const ren = (m: RepoNode) => { m.path = dest + m.path.slice(path.length); m.name = m.path.split("/").pop()!; m.children?.forEach(ren); }; ren(n); (dp.children ??= []).push(n); return prune(n, 1); },
   async getPage(path) { const n = find(tree(), path); return n && content(n) ? nodeToPage(n) : undefined; },
   async listChildren(path, { offset = 0, limit = 50 } = {}) { const n = need(path); const kids = pages(n).filter((c) => c.primaryType === "cq:Page"); return { items: kids.slice(offset, offset + limit).map(nodeToSummary), more: kids.length > offset + limit }; },
   async createPage({ parentPath: pp, name, template, title }) { const par = need(pp); if (pages(par).some((c) => c.name === name)) throw new RepoError(409, "A page with that name already exists", `${pp}/${name}`); const n = page(pp, name, title || name, "draft", template); const c = content(n); if (c) { const now = new Date().toISOString(); c.properties["jcr:created"] = now; c.properties["cq:lastModified"] = now; } (par.children ??= []).push(n); return nodeToPage(n); },
-  async updateContent(path, patch) { const n = need(path); const c = content(n); if (!c) throw new RepoError(404, "Not a page", path); const map: Record<string, string> = { title: "jcr:title", description: "jcr:description", navTitle: "navTitle", hideInNav: "hideInNav", locale: "jcr:language", status: "ucp:status" }; for (const [k, v] of Object.entries(patch)) if (k in map) c.properties[map[k]] = v; c.properties["cq:lastModified"] = new Date().toISOString(); c.properties["cq:lastModifiedBy"] = (await mockRepo.identity()).id; return nodeToPage(n); },
-  async saveComponents(path, components: ComponentNode[]) { const n = need(path); const c = content(n); if (!c) throw new RepoError(404, "Not a page", path); const root: RepoNode = node(`${path}/jcr:content/root`, "nt:unstructured", { "sling:resourceType": "hsbc/components/container" }, components.map((x) => node(`${path}/jcr:content/root/${x.name}`, "nt:unstructured", { "sling:resourceType": x.resourceType, ...x.props }))); c.children = [...(c.children ?? []).filter((x) => x.name !== "root"), root]; c.properties["cq:lastModified"] = new Date().toISOString(); c.properties["cq:lastModifiedBy"] = (await mockRepo.identity()).id; return nodeToPage(n); },
+  async updateContent(path, patch) { const n = need(path); const c = content(n); if (!c) throw new RepoError(404, "Not a page", path); const map: Record<string, string> = { title: "jcr:title", description: "jcr:description", navTitle: "navTitle", hideInNav: "hideInNav", locale: "jcr:language", status: "ucp:status" }; for (const [k, v] of Object.entries(patch)) if (k in map) c.properties[map[k]] = v; c.properties["cq:lastModified"] = new Date().toISOString(); c.properties["cq:lastModifiedBy"] = (await baseRepo.identity()).id; return nodeToPage(n); },
+  async saveComponents(path, components: ComponentNode[]) { const n = need(path); const c = content(n); if (!c) throw new RepoError(404, "Not a page", path); const root: RepoNode = node(`${path}/jcr:content/root`, "nt:unstructured", { "sling:resourceType": "hsbc/components/container" }, components.map((x) => node(`${path}/jcr:content/root/${x.name}`, "nt:unstructured", { "sling:resourceType": x.resourceType, ...x.props }))); c.children = [...(c.children ?? []).filter((x) => x.name !== "root"), root]; c.properties["cq:lastModified"] = new Date().toISOString(); c.properties["cq:lastModifiedBy"] = (await baseRepo.identity()).id; return nodeToPage(n); },
   async deletePage(path, recursive = false) { const n = need(path); if (pages(n).length && !recursive) throw new RepoError(409, "Page has children; pass recursive=true"); const par = find(tree(), parentPath(path))!; par.children = par.children!.filter((c) => c !== n); },
-  async movePage(path, dest) { const n = await mockRepo.moveNode(path, dest); return nodeToPage(find(tree(), n.path)!); },
+  async movePage(path, dest) { const n = await baseRepo.moveNode(path, dest); return nodeToPage(find(tree(), n.path)!); },
 };
+/* Hosted demo: keep the tree shared between Worker isolates (see ./shared). Every call first syncs in; changes sync out. */
+const WRITES = new Set(["createNode", "setProps", "putFile", "deleteNode", "moveNode", "createPage", "updateContent", "saveComponents", "deletePage", "movePage"]);
+export const syncTree = () => syncIn(() => g.__ucpRepo_v13, (t) => { g.__ucpRepo_v13 = t; });
+export const mockRepo: ContentRepository = Object.fromEntries(Object.entries(baseRepo).map(([k, v]) => [k, typeof v !== "function" ? v
+  : async (...a: unknown[]) => { await syncTree(); const r = await (v as (...x: unknown[]) => Promise<unknown>)(...a); if (WRITES.has(k)) await syncOut(tree()); return r; }])) as unknown as ContentRepository;
 /** Whole market listing (pages and folders) for dashboard / search on the mock backend. */
 export const allSummaries = (root: string): PageSummary[] => { const r = find(tree(), root); return r ? walk(r).filter((n) => n.path !== root && n.primaryType === "cq:Page").map(nodeToSummary) : []; };

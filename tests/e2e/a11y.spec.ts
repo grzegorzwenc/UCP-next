@@ -14,8 +14,9 @@ test.describe("keyboard and shell", () => {
     const first = await box.getAttribute("aria-activedescendant");
     expect(first).toBeTruthy();
     await page.keyboard.press("ArrowDown");
+    // the list re-renders asynchronously: wait for the active option to move instead of reading it straight away
+    await expect(box).not.toHaveAttribute("aria-activedescendant", first!);
     const second = await box.getAttribute("aria-activedescendant");
-    expect(second).not.toBe(first);
     await expect(page.locator(`[id="${second}"]`)).toHaveAttribute("aria-selected", "true");
     // Tab stays inside the dialog
     await page.keyboard.press("Tab");

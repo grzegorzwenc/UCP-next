@@ -1,2 +1,2 @@
-const LABEL: Record<string, string> = { draft: "Draft", review: "In review", approved: "Ready to publish", published: "Published", modified: "Changes pending", scheduled: "Scheduled", failed: "Publish failed" };
+const LABEL: Record<string, string> = { draft: "Draft", review: "Waiting for author's review assignment", inreview: "In author's review", reviewed: "Reviewed", bizreview: "In business review", approved: "Ready to publish", modified: "Changes pending", published: "Published", scheduled: "Scheduled", failed: "Publish failed" };
 export function Pill({ status, label }: { status: string; label?: string }) { return <span className={`pill pill-${status}`}>{label ?? LABEL[status] ?? status}</span>; }

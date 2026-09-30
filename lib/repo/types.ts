@@ -13,8 +13,8 @@ export type RepoNode = {
   children?: RepoNode[];        // present when fetched with depth > 0
 };
 
-/** `modified` = live with unpublished changes beside it (ContentLIBRE reports it; the mock never does). */
-export type PageStatus = "draft" | "review" | "approved" | "scheduled" | "published" | "modified" | "failed";
+/** review = waiting for the author's review, inreview = the reviewer took it (in author's review), reviewed = author's review done (the author sends it on), bizreview = business review (sign-off), approved = ready to publish, modified = live with unpublished changes beside it (ContentLIBRE reports it; the mock never does). */
+export type PageStatus = "draft" | "review" | "inreview" | "reviewed" | "bizreview" | "approved" | "scheduled" | "published" | "modified" | "failed";
 
 /** Component instance = child node of jcr:content/root. `resourceType` maps 1:1 to the block registry. */
 export type ComponentNode = { name: string; resourceType: string; props: NodeProps };

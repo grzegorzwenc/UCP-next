@@ -3,7 +3,7 @@ import type { NextRequest } from "next/server";
 
 /**
  * 1. Demo gate: when DEMO_PASSWORD is set (hosted demo), every request needs HTTP Basic auth, so the prototype is never public.
- * 2. Sign-in gate: every CMS screen needs a session cookie; the login page, the APIs and static files do not.
+ * 2. Sign-in gate: every CMS screen needs a session cookie; the login page, review links, the APIs and static files do not.
  */
 export function proxy(request: NextRequest) {
   const pass = process.env.DEMO_PASSWORD;
@@ -14,7 +14,8 @@ export function proxy(request: NextRequest) {
   }
   const { pathname, search } = request.nextUrl;
   const noindex = (r: NextResponse) => { if (pass) r.headers.set("X-Robots-Tag", "noindex, nofollow"); return r; };
-  if (pathname === "/login" || pathname.startsWith("/api/")) return noindex(NextResponse.next());
+  // review links (/review/<token>) work without a UCP account: the token is the key, and the page checks it
+  if (pathname === "/login" || pathname.startsWith("/api/") || pathname.startsWith("/review/")) return noindex(NextResponse.next());
   if (request.cookies.get("ucp-user")) {
     /* Legacy entity links (`/models?model=…&entity=…`) moved to the Content entities section: answer with a real 307. */
     const legacy = pathname.match(/^\/([^/]+)\/([^/]+)\/models$/);

@@ -1,8 +1,10 @@
 "use client";
 import Link from "next/link";
 import { PublishDialog } from "@/components/pages/PublishDialog";
+import { CompareView } from "@/components/pages/CompareView";
 import { env } from "@/lib/markets";
 import { useRouter } from "next/navigation";
+import { useConfirm } from "@/components/ui/Confirm";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PageSummary } from "@/lib/api/types";
 import { repoApi, ucpApi } from "@/lib/api";
@@ -18,9 +20,26 @@ import { FolderIcon, PageIcon } from "@/components/ui/Icons";
 
 type Folder = { path: string; title: string };
 type Props = { marketId: string; envId: string; root: string; marketName: string; flag: string; folder: Folder; items: PageSummary[]; tree: Folder[]; allPages: PageSummary[]; templates: Template[]; openNew?: boolean; newTemplate?: string; backendTemplates?: boolean; parents?: Folder[] };
+/** Line icons for the selection bar (HSBC style: 1.8 stroke, round caps). */
+const BAR_ICONS: Record<string, string[]> = {
+  translate: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", "M3 12h18", "M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"],
+  publish: ["M12 15V4", "M7.5 8.5 12 4l4.5 4.5", "M5 15v4h14v-4"],
+  lock: ["M6 11h12v9H6z", "M8.5 11V8a3.5 3.5 0 0 1 7 0v3", "M12 15v2"],
+  unlock: ["M6 11h12v9H6z", "M8.5 11V8a3.5 3.5 0 0 1 6.8-1.2", "M12 15v2"],
+  copy: ["M9 9h11v11H9z", "M15 9V4H4v11h5"],
+  compare: ["M4 5h7v14H4z", "M13 5h7v14h-7z", "M7 9h1M7 12h1M16 9h1M16 12h1"],
+  restore: ["M4 12a8 8 0 1 0 2.4-5.7", "M4 4v4.5h4.5", "M12 8v4l2.5 2"],
+  move: ["M3 6h6l2 2h10v11H3z", "M11 13.5h6", "M14.5 11l2.5 2.5-2.5 2.5"],
+  delete: ["M5 7h14", "M10 11v6", "M14 11v6", "M6.5 7l1 13h9l1-13", "M9 7V4h6v3"],
+};
+const BarIcon = ({ n }: { n: keyof typeof BAR_ICONS }) => <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{BAR_ICONS[n].map((d) => <path key={d} d={d} />)}</svg>;
+type LockInfo = { by: string; name: string; at: string };
+const lockOf = (p: PageSummary): LockInfo | null => { const raw = p.meta?.["ucp:pageLock"]; if (typeof raw !== "string" || !raw) return null; try { return JSON.parse(raw) as LockInfo; } catch { return null; } };
+
+const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 type Modal =
   | { kind: "new" } | { kind: "folder" }
-  | { kind: "rename"; page: PageSummary } | { kind: "move"; pages: PageSummary[] }
+  | { kind: "rename"; page: PageSummary } | { kind: "move"; pages: PageSummary[] } | { kind: "copy"; pages: PageSummary[] }
   | { kind: "translate"; pages: PageSummary[] }
   | { kind: "publish"; pages: PageSummary[] };
 const isFolder = (p: PageSummary) => p.isFolder;
@@ -98,7 +117,7 @@ function TranslateModal({ pages, marketId, base, root, marketName, tree, rel, fo
 export function Explorer({ marketId, envId, root, marketName, flag, folder, items, tree, allPages, templates: library, openNew, newTemplate, backendTemplates = false, parents }: Props) {
   // On ContentLIBRE every page may hold pages, so any page is a place a new page can go; elsewhere, folders.
   const placeChoices = parents ?? tree;
-  const router = useRouter();
+  const router = useRouter(); const ask = useConfirm();
   const { can } = useSession();
   const base = `/${marketId}/${envId}`;
   const rel = (p: string) => p.replace(root, "") || "/";
@@ -106,6 +125,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
   const [limit, setLimit] = useState(PAGE); const [seenKey, setSeenKey] = useState(q + "|" + folder.path); if (seenKey !== q + "|" + folder.path) { setSeenKey(q + "|" + folder.path); setLimit(PAGE); }
   const canEditHere = can("edit", folder.path);
   const [modal, setModal] = useState<Modal | null>(openNew ? { kind: "new" } : null);
+  const [comparing, setComparing] = useState<string | null>(null); // page path shown in Compare with live
   const [title, setTitle] = useState(""); const [slug, setSlug] = useState(""); const [tpl, setTpl] = useState(newTemplate && library.some((t) => t.id === newTemplate) ? newTemplate : library.some((t) => t.id === "product") ? "product" : library[0]?.id ?? "blank"); const [parent, setParent] = useState(folder.path); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
   const [sel, setSel] = useState<string[]>([]); const [toast, setToast] = useState<string | null>(null);
   // On ContentLIBRE the templates are the backend's, and which ones may be used depends on where the page goes.
@@ -149,14 +169,53 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
     try { let n = 0; for (const p of modal.pages) { if (parentOf(p.path) === parent) continue; await repoApi.movePage(p.path, `${parent}/${p.name}`); n++; } setModal(null); setSel([]); say(n ? `Moved ${n} item${n === 1 ? "" : "s"} to ${rel(parent)}` : "Nothing to move"); router.refresh(); }
     catch (e) { setErr(errText(e)); } finally { setBusy(false); }
   }
+  /** Copy to another folder (or the same one, as “… (copy)”). */
+  async function copyTo() {
+    if (modal?.kind !== "copy") return; setBusy(true); setErr(null);
+    try {
+      let n = 0; const names = (await repoApi.children(parent, 0, 500)).items.map((x) => x.name);
+      for (const p of modal.pages.filter((x) => !isFolder(x))) {
+        const full = await repoApi.getPage(p.path); const same = parentOf(p.path) === parent; let name = same ? `${p.name}-copy` : p.name; let i = 2; while (names.includes(name)) name = `${same ? `${p.name}-copy` : p.name}-${i++}`; names.push(name);
+        await repoApi.createPage({ parentPath: parent, name, template: p.template ?? "blank", title: same ? `${p.title} (copy)` : p.title, components: full?.components ?? [] }); n++;
+      }
+      setModal(null); setSel([]); say(n ? `Copied ${n} page${n === 1 ? "" : "s"} to ${rel(parent)}` : "Folders are not copied · pick pages"); router.refresh();
+    } catch (e) { setErr(errText(e)); } finally { setBusy(false); }
+  }
+  /** Lock (nobody else can change, move or delete it) or unlock the selected pages. */
+  async function setLock(pages: PageSummary[], locked: boolean) {
+    try { const r = await ucpApi.lockPages(marketId, pages.filter((p) => !isFolder(p)).map((p) => p.path), locked); say(`${locked ? "Locked" : "Unlocked"} ${r.changed} page${r.changed === 1 ? "" : "s"}`); setSel([]); router.refresh(); }
+    catch (e) { say(errText(e)); }
+  }
+  /** Restore each selected page to its last saved version (the current state is kept as a version first). */
+  async function restoreLast(pages: PageSummary[]) {
+    const list = pages.filter((p) => !isFolder(p)); const found: { p: PageSummary; v: { id: string; time: string; note: string } }[] = [];
+    for (const p of list) { const vs = await ucpApi.versions(p.path).catch(() => []); const v = [...vs].sort((a, b) => b.time.localeCompare(a.time))[0]; if (v) found.push({ p, v }); }
+    if (!found.length) { say("No saved versions to go back to"); return; }
+    const when = (t: string) => new Date(t).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    if (!(await ask({ title: found.length === 1 ? `Restore “${found[0].p.title}”?` : `Restore ${found.length} pages?`, confirmLabel: "Restore",
+      body: <>Each page goes back to its last saved version. What is there now is kept in Version history, so you can undo this.{found.length < list.length ? <> {list.length - found.length} page{list.length - found.length === 1 ? " has" : "s have"} no saved version and stay{list.length - found.length === 1 ? "s" : ""} as {list.length - found.length === 1 ? "it is" : "they are"}.</> : null}</>,
+      items: found.map(({ p, v }) => ({ label: p.title, note: `version from ${when(v.time)}${v.note ? ` · ${v.note}` : ""}` })) }))) return;
+    try { for (const { p, v } of found) await ucpApi.restoreVersion(marketId, p.path, v.id); say(`Restored ${found.length} page${found.length === 1 ? "" : "s"}`); setSel([]); router.refresh(); }
+    catch (e) { say(errText(e)); }
+  }
   async function duplicate(p: PageSummary) {
     try { const full = await repoApi.getPage(p.path); const siblings = (await repoApi.children(parentOf(p.path), 0, 200)).items.map((x) => x.name); let name = `${p.name}-copy`; let i = 2; while (siblings.includes(name)) name = `${p.name}-copy-${i++}`;
       await repoApi.createPage({ parentPath: parentOf(p.path), name, template: p.template ?? "blank", title: `${p.title} (copy)`, components: full?.components ?? [] }); say(`Duplicated “${p.title}”`); router.refresh(); }
     catch (e) { say(errText(e)); }
   }
   async function remove(pages: PageSummary[]) {
-    const msg = pages.length === 1 ? `Delete ${pages[0].isFolder ? "folder" : "page"} “${pages[0].title}”${pages[0].isFolder ? " and everything in it" : ""}? This cannot be undone.` : `Delete ${pages.length} items? Folders are deleted with everything in them. This cannot be undone.`;
-    if (!confirm(msg)) return;
+    /* what goes with each item: pages inside folders, and which of them are live for customers */
+    const inside = (p: PageSummary) => allPages.filter((x) => x.path.startsWith(`${p.path}/`) && !x.isFolder);
+    const info = pages.map((p) => { const kids = inside(p); const live = [...(p.isFolder ? [] : [p]), ...kids].filter((x) => x.status === "published").length; return { p, kids: kids.length, live }; });
+    const live = info.reduce((n, x) => n + x.live, 0); const kids = info.reduce((n, x) => n + x.kids, 0);
+    const one = pages.length === 1 ? pages[0] : null;
+    const ok = await ask({
+      title: one ? `Delete ${one.isFolder ? "folder" : "page"} “${one.title}”?` : `Delete ${pages.length} items?`, danger: true, confirmLabel: one ? `Delete ${one.isFolder ? "folder" : "page"}` : `Delete ${pages.length} items`,
+      body: <>{kids > 0 ? <>Everything inside {one ? "this folder" : "the selected folders"} is deleted too: <b>{kids} page{kids === 1 ? "" : "s"}</b>. </> : null}{live > 0 ? <><b className="text-crit">{live} live page{live === 1 ? " goes" : "s go"} offline</b> for customers. </> : null}This cannot be undone.</>,
+      items: info.map(({ p, kids: k, live: l }) => ({ label: p.title, note: [p.isFolder ? `folder · ${k} page${k === 1 ? "" : "s"}` : rel(p.path), l ? `${l} live` : ""].filter(Boolean).join(" · "), warn: l > 0 })),
+      typeToConfirm: live > 0 || kids > 0 ? "delete" : undefined,
+    });
+    if (!ok) return;
     try { for (const p of pages) await repoApi.deletePage(p.path, true); setSel([]); say(`Deleted ${pages.length} item${pages.length === 1 ? "" : "s"}`); router.refresh(); }
     catch (e) { say(errText(e)); }
   }
@@ -168,7 +227,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
     else remove([p]);
   }
   const cell = "py-2.5 px-3 border-b border-line";
-  const barBtn = "btn btn-sm hover:brightness-125"; const barStyle = { background: "transparent", borderColor: "rgba(255,255,255,.3)", color: "#fff" } as const;
+  const barBtn = "btn btn-sm gap-1.5 hover:brightness-125"; const barStyle = { background: "transparent", borderColor: "rgba(255,255,255,.3)", color: "#fff" } as const;
 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] grid-rows-[auto_1fr] md:grid-rows-1 h-full min-h-0">
@@ -178,7 +237,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
       </aside>
       <div className="p-4 md:p-6 overflow-auto min-w-0 relative">
         <div className="text-[13px] text-ink-3 mb-2 flex gap-1.5 flex-wrap"><Link href={`${base}/pages`} className="hover:text-ink">{marketName}</Link>{crumbs.map((c, i) => <span key={c.path}><span className="text-ink-4"> / </span>{i === crumbs.length - 1 ? <b className="text-ink">{c.name}</b> : <Link href={`${base}/pages${rel(c.path)}`} className="hover:text-ink">{c.name}</Link>}</span>)}</div>
-        <div className="flex flex-wrap items-end gap-3 md:gap-4 mb-5"><div><h1 className="text-2xl font-semibold">{q ? `Search results for “${q}”` : folder.title}</h1><p className="text-[13px] text-ink-3 mt-1 font-mono">{q ? `${rows.length} pages match` : `${rel(folder.path)} · ${items.filter(isFolder).length} folders · ${items.filter((i) => !isFolder(i)).length} pages`}</p></div>
+        <div className="flex flex-wrap items-end gap-3 md:gap-4 mb-5"><div><h1 className="text-2xl font-semibold">{q ? `Search results for “${q}”` : folder.title}</h1><p className="text-[13px] text-ink-3 mt-1 font-mono">{q ? `${plural(rows.length, "page")} match` : `${rel(folder.path)} · ${plural(items.filter(isFolder).length, "folder")} · ${plural(items.filter((i) => !isFolder(i)).length, "page")}`}</p></div>
           <div className="ml-auto flex flex-wrap gap-2 items-center">{canEditHere ? <>{!backendTemplates && <button className="btn" onClick={() => { setParent(folder.path); openModal({ kind: "folder" }); }}>＋ New folder</button>}<button className="btn btn-primary" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}>＋ New page</button></> : <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="You don't have Edit on this folder. Ask a site admin."><span aria-hidden="true">🔒</span>Read-only in this folder</span>}</div></div>
         <div className="flex gap-2 mb-3.5"><label className="flex items-center gap-2 bg-surface border border-line-2 rounded-lg px-2.5 py-1.5 min-w-[280px]"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13.5px]" placeholder="Find a page by title or URL" value={q} onChange={(e) => setQ(e.target.value)} /></label></div>
         {rows.length ? <div className="overflow-auto -mx-4 md:mx-0 px-4 md:px-0"><table className="w-full text-[13.5px] [&_tr>*:nth-child(4)]:hidden md:[&_tr>*:nth-child(4)]:table-cell [&_tr>*:nth-child(5)]:hidden xl:[&_tr>*:nth-child(5)]:table-cell [&_tr>*:nth-child(6)]:hidden xl:[&_tr>*:nth-child(6)]:table-cell"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="py-2.5 px-3 border-b border-line-2 w-8"><input type="checkbox" aria-label="Select all" checked={allChecked} onChange={(e) => setSel(e.target.checked ? shown.map((r) => r.path) : [])} /></th><th className="py-2.5 px-3 border-b border-line-2 md:w-[36%]">Name</th><th className="py-2.5 px-3 border-b border-line-2">Status</th><th className="py-2.5 px-3 border-b border-line-2">URL</th><th className="py-2.5 px-3 border-b border-line-2">Template</th><th className="py-2.5 px-3 border-b border-line-2">Updated</th><th className="border-b border-line-2" /></tr></thead>
@@ -188,16 +247,22 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
               <td className={cell}><Link href={`${base}/pages${rel(n.path)}`} className="font-medium flex items-center gap-2"><FolderIcon />{n.title}</Link></td><td className={`${cell} text-ink-3`}>folder</td><td className={`${cell} font-mono text-xs text-ink-2`}>{rel(n.path)}</td><td className={`${cell} text-ink-3`}>—</td><td className={`${cell} text-ink-3`}>—</td>
               <td className={`${cell} whitespace-nowrap text-right`}><Link className="btn btn-sm mr-1.5" href={`${base}/pages${rel(n.path)}`}><span className="hidden sm:inline">Open folder</span><span className="sm:hidden">Open</span></Link><RowMenu page={n} canEdit={editable} onAction={onAction} /></td></>
             : <>
-              <td className={cell}><Link href={`${base}/page${rel(n.path)}`} className="font-medium flex items-center gap-2"><PageIcon />{n.title}{n.locale && n.locale !== "en-GB" && <span className="font-mono text-[11px] bg-surface-3 px-1.5 rounded">{n.locale}</span>}</Link>{src && <div className="text-[11.5px] text-ink-3 pl-5 mt-0.5">Source: <Link href={`${base}/page${rel(src)}`} className="font-mono hover:underline">{rel(src)}</Link></div>}</td><td className={cell}><Pill status={n.status} /></td><td className={`${cell} font-mono text-xs text-ink-2`}>{rel(n.path)}</td><td className={`${cell} text-ink-3`}>{tplName(n.template)}</td><td className={`${cell} text-ink-3`}>{n.lastModified?.slice(0, 10)}</td>
+              <td className={cell}><Link href={`${base}/page${rel(n.path)}`} className="font-medium flex items-center gap-2"><PageIcon />{n.title}{lockOf(n) && <span className="inline-flex items-center text-ink-3" title={`Locked by ${lockOf(n)!.name}`} aria-label={`Locked by ${lockOf(n)!.name}`}><BarIcon n="lock" /></span>}{n.locale && n.locale !== "en-GB" && <span className="font-mono text-[11px] bg-surface-3 px-1.5 rounded">{n.locale}</span>}</Link>{src && <div className="text-[11.5px] text-ink-3 pl-5 mt-0.5">Source: <Link href={`${base}/page${rel(src)}`} className="font-mono hover:underline">{rel(src)}</Link></div>}</td><td className={cell}><Pill status={n.status} /></td><td className={`${cell} font-mono text-xs text-ink-2`}>{rel(n.path)}</td><td className={`${cell} text-ink-3`}>{tplName(n.template)}</td><td className={`${cell} text-ink-3`}>{n.lastModified?.slice(0, 10)}</td>
               <td className={`${cell} whitespace-nowrap text-right`}>{n.hasChildren && <Link className="btn btn-sm mr-1.5" href={`${base}/pages${rel(n.path)}`} title="Show the pages below this one">Open</Link>}<Link className="btn btn-sm mr-1.5" href={`${base}/page${rel(n.path)}`}><span className="hidden sm:inline">Edit page</span><span className="sm:hidden">Edit</span></Link><RowMenu page={n} canEdit={editable} onAction={onAction} /></td></>}
           </tr>; })}</tbody></table></div>
           : <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">{q ? "No pages match." : canEditHere ? <>This folder is empty. <button className="underline" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}>New page</button>.</> : "This folder is empty."}</div>}
         {rows.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-[12.5px] text-ink-3">Showing {shown.length} of {rows.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show {Math.min(PAGE, rows.length - shown.length)} more</button></div>}
         {selected.length > 0 && <div className="sticky bottom-4 mt-4 flex items-center gap-2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] shadow-xl w-fit mx-auto z-20"><b>{selected.length} selected</b><span className="text-white/40">·</span>
-          <button className={barBtn} style={barStyle} disabled={!selected.some((p) => !p.isFolder)} onClick={() => setModal({ kind: "translate", pages: selected.filter((p) => !p.isFolder) })}>🌐 Translate</button>
-          <button className={barBtn} style={barStyle} disabled={!selected.some((p) => !p.isFolder)} onClick={() => setModal({ kind: "publish", pages: selected.filter((p) => !p.isFolder) })}>Publish</button>
-          {canEditSelected ? <><button className={barBtn} style={barStyle} onClick={() => { openModal({ kind: "move", pages: selected }); setParent(folder.path === root ? root : parentOf(folder.path)); }}>Move</button>
-          <button className={barBtn} style={barStyle} onClick={() => remove(selected)}>Delete</button></> : <span className="text-white/60 text-[12px]">Move and delete need Edit on every selected item</span>}
+          <button className={barBtn} style={barStyle} disabled={!selected.some((p) => !p.isFolder)} onClick={() => setModal({ kind: "translate", pages: selected.filter((p) => !p.isFolder) })}><BarIcon n="translate" />Translate</button>
+          <button className={barBtn} style={barStyle} disabled={!selected.some((p) => !p.isFolder)} onClick={() => setModal({ kind: "publish", pages: selected.filter((p) => !p.isFolder) })}><BarIcon n="publish" />Publish</button>
+          {canEditSelected ? <>{(() => { const pagesSel = selected.filter((p) => !p.isFolder); const allLocked = pagesSel.length > 0 && pagesSel.every((p) => lockOf(p)); return <button className={barBtn} style={barStyle} disabled={!pagesSel.length} onClick={() => void setLock(pagesSel, !allLocked)} title={allLocked ? "Let people change these pages again" : "Nobody else can change, move or delete them until they are unlocked"}><BarIcon n={allLocked ? "unlock" : "lock"} />{allLocked ? "Unlock" : "Lock"}</button>; })()}
+          <button className={barBtn} style={barStyle} disabled={!selected.some((p) => !p.isFolder)} onClick={() => { openModal({ kind: "copy", pages: selected.filter((p) => !p.isFolder) }); setParent(folder.path); }} title="Copy the pages to a folder"><BarIcon n="copy" />Copy</button>
+          <button className={barBtn} style={barStyle} disabled={!selected.some((p) => !p.isFolder)} onClick={() => void restoreLast(selected)} title="Go back to the last saved version"><BarIcon n="restore" />Restore</button>
+          {(() => { const one = selected.length === 1 && !selected[0].isFolder ? selected[0] : null; const live = !!one && (one.status === "published" || typeof one.meta?.["ucp:liveComponents"] === "string" || typeof one.meta?.["ucp:publishedAt"] === "string");
+            return <button className={barBtn} style={barStyle} disabled={!live} onClick={() => one && setComparing(one.path)} title={!one ? "Pick one page to compare" : live ? "Compare an authoring version with the live page" : "Not published yet · nothing to compare"}><BarIcon n="compare" />Compare</button>; })()}
+          <span className="w-px h-5 bg-white/20" aria-hidden />
+          <button className={barBtn} style={barStyle} onClick={() => { openModal({ kind: "move", pages: selected }); setParent(folder.path === root ? root : parentOf(folder.path)); }}><BarIcon n="move" />Move</button>
+          <button className={barBtn} style={barStyle} onClick={() => remove(selected)}><BarIcon n="delete" />Delete</button></> : <span className="text-white/60 text-[12px]">Lock, copy, restore, move and delete need Edit on every selected item</span>}
           <button className={barBtn} style={{ ...barStyle, borderColor: "transparent", opacity: .75 }} onClick={() => setSel([])}>Clear</button></div>}
       </div>
 
@@ -221,6 +286,11 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
         <label className="text-xs text-ink-3">New title<input autoFocus className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && title.trim()) rename(); }} /></label>
         <div className="mt-2 text-[12px] text-ink-3">The URL <span className="font-mono">{rel(modal.page.path)}</span> stays the same.</div><Err err={err} /></ModalShell>}
 
+      {comparing && <CompareView marketId={marketId} marketName={marketName} path={comparing} onClose={() => setComparing(null)} />}
+      {modal?.kind === "copy" && <ModalShell title={modal.pages.length === 1 ? `Copy “${modal.pages[0].title}”` : `Copy ${modal.pages.length} pages`} width={460} onClose={() => setModal(null)} footer={<><button className="btn" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={copyTo}>{busy ? "Copying…" : "Copy here"}</button></>}>
+        <label className="text-xs text-ink-3">Copy to folder<FolderSelect value={parent} onChange={setParent} root={root} marketName={marketName} tree={tree} rel={rel} exclude={[]} /></label>
+        <p className="mt-2 text-[12px] text-ink-3">The copies start as drafts with the same components. In the same folder they are named “… (copy)”.</p>
+        <ul className="mt-2 text-[12.5px] text-ink-2 grid gap-1 max-h-[160px] overflow-auto">{modal.pages.map((p) => <li key={p.path} className="font-mono text-[12px]">{rel(p.path)} → {rel(parent)}/{p.name}{parentOf(p.path) === parent ? "-copy" : ""}</li>)}</ul><Err err={err} /></ModalShell>}
       {modal?.kind === "move" && <ModalShell title={modal.pages.length === 1 ? `Move “${modal.pages[0].title}”` : `Move ${modal.pages.length} items`} width={460} onClose={() => setModal(null)} footer={<><button className="btn" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={move}>{busy ? "Moving…" : "Move here"}</button></>}>
         <label className="text-xs text-ink-3">Destination folder<FolderSelect value={parent} onChange={setParent} root={root} marketName={marketName} tree={placeChoices} rel={rel} exclude={modal.pages.filter((p) => p.isFolder || parents).map((p) => p.path)} /></label>
         <ul className="mt-3 text-[12.5px] text-ink-2 grid gap-1 max-h-[160px] overflow-auto">{modal.pages.map((p) => <li key={p.path} className="font-mono text-[12px]">{rel(p.path)} → {rel(parent)}/{p.name}</li>)}</ul><Err err={err} /></ModalShell>}

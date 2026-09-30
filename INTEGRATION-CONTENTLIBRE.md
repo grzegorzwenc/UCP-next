@@ -101,3 +101,20 @@ Still to do on this side:
 - [ ] Blur-to-save in the preview not tried in a focused browser (the in-app pane was hidden); drag and drop
       in the preview; an image picker.
 - [ ] Re-run the Playwright suite and a mock-mode pass after the merge (only type check and lint were run).
+
+## Second upstream update (30.09): the two-stage review, comments, locks
+
+81 upstream commits merged (14 files in conflict). What they bring and where it stands on ContentLIBRE:
+
+- [x] Markets stay the backend's: upstream's global `MARKETS` / `market()` are the mock's list again
+      (`MOCK_MARKETS`), instances (EMEA / APAC / NA) are an optional field, and the instance switcher shows only
+      when the markets have one - a backend's sites do not.
+- [x] Statuses: upstream's `review` (waiting in the Backlog), `inreview`, `reviewed`, `bizreview`, plus our `modified`.
+      A ContentLIBRE review maps to `review` without a named reviewer and `inreview` with one.
+- [x] My tasks (rewritten upstream) across the backend's markets. Backlog → **Assign to me** and **Back to backlog**
+      go to `drafts/review/assign`.
+- [ ] Not on ContentLIBRE yet - they write workflow data into the page and the adapter refuses that with 501:
+      the business review (`reviewed`, `bizreview`, groups, sign-off / reauthor), review links for guests, page
+      comments, page locks, compare with live, Copy to folder (creates an empty page from the template).
+      Each needs a backend decision: which of them become part of the draft's review, and which are the CMS's own data.
+

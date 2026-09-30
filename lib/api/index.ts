@@ -2,6 +2,7 @@ import type { PageView, PageSummary, CreatePageInput, PageContentPatch, Componen
 import type { Task, Notification, Asset, AuditEvent, User, Template, Model, ModelField, ModelVersion, Entity, EntityValues, Bindings, ReviewerOption, TaskKind } from "@/lib/ucp/types";
 import type { ResolvedEntities } from "@/lib/ucp/tokens";
 import { ApiError } from "./types";
+export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string }; stage?: string; guest?: boolean; block?: { id: string; label: string; field?: string }; resolved?: { by: string; name: string; at: string } };
 export * from "./types";
 
 type Query = Record<string, string | number | boolean | undefined>;
@@ -48,6 +49,13 @@ export const ucpApi = {
   /** Real sign-in against the backend (ContentLIBRE): the BFF keeps the backend session, the browser never sees it. */
   signIn: (username: string, password: string) => U<{ ok: true; user: { id: string } }>("login", { method: "POST", body: JSON.stringify({ username, password }) }),
   logout: () => U<{ ok: true }>("logout", { method: "POST", body: "{}" }),
+  /* page comments (Version history panel) */
+  comments: (market: string, path: string) => U<PageComment[]>("comments", { query: { market, path } }),
+  addComment: (market: string, path: string, text: string, version?: { id: string; label: string }, block?: { id: string; label: string; field?: string }) => U<PageComment[]>("comments/add", { method: "POST", query: { market, path }, body: JSON.stringify({ text, version, block }) }),
+  pinComment: (market: string, path: string, id: string, pinned: boolean) => U<PageComment[]>("comments/pin", { method: "POST", query: { market, path }, body: JSON.stringify({ id, pinned }) }),
+  resolveComment: (market: string, path: string, id: string, resolved: boolean) => U<PageComment[]>("comments/resolve", { method: "POST", query: { market, path }, body: JSON.stringify({ id, resolved }) }),
+  deleteComment: (market: string, path: string, id: string) => U<PageComment[]>("comments/delete", { method: "POST", query: { market, path }, body: JSON.stringify({ id }) }),
+  compare: (path: string, version?: string) => U<{ live: { label: string; title: string; components: unknown[]; time?: string; who?: string } | null; authoring: { label: string; title: string; components: unknown[]; time?: string; who?: string }; versions: { id: string; time: string; who: string; note: string; title: string; status: string; blocks: number }[] }>("compare", { query: { path, version } }),
   versions: (path: string) => U<{ id: string; time: string; who: string; note: string; title: string; status: string; blocks: number }[]>("versions", { query: { path } }),
   restoreVersion: (market: string, path: string, id: string) => U<{ ok: true }>("versions/restore", { method: "POST", query: { market, path }, body: JSON.stringify({ id }) }),
   /* content models (admin-only mutations; the server refuses others with 403) */
@@ -76,7 +84,19 @@ export const ucpApi = {
   saveBindings: (market: string, path: string, bindings: Bindings) => U<Bindings>("bindings", { method: "POST", query: { market, path }, body: JSON.stringify(bindings) }),
   /* review assignment */
   reviewers: (market: string, path: string) => U<ReviewerOption[]>("reviewers", { query: { market, path } }),
-  sendForReview: (market: string, path: string, body: { assignee?: string; auto?: boolean; note?: string }) => U<{ assignee: string; assigneeName: string; auto: boolean }>("review/send", { method: "POST", query: { market, path }, body: JSON.stringify(body) }),
+  sendForReview: (market: string, path: string, body: { note?: string }) => U<{ assignee: string; assigneeName: string }>("review/send", { method: "POST", query: { market, path }, body: JSON.stringify(body) }),
+  /** Link (and optional e-mail invite) for the current review stage; an e-mail of a UCP reviewer also assigns them. */
+  reviewGroups: (market: string, path: string) => U<{ team: string; members: { id: string; name: string; email: string; canSignOff: boolean }[]; shared: boolean }[]>("review/groups", { query: { market, path } }),
+  shareWithGroup: (market: string, path: string, team: string) => U<{ token: string; url: string; members: { id: string; name: string; email: string; canSignOff: boolean }[]; created: boolean }>("review/group", { method: "POST", query: { market, path }, body: JSON.stringify({ team }) }),
+  reviewLink: (market: string, path: string, email?: string) => U<{ token: string; stage: "review" | "bizreview"; assigned?: string; url: string }>("review/link", { method: "POST", query: { market, path }, body: JSON.stringify({ email }) }),
+  /** Comment from the review screen (signed in, or a guest with name + e-mail). */
+  reviewDecide: (token: string, body: { decision: "signoff" | "reauthor"; name?: string; email?: string; note?: string }) => U<{ decision: "signoff" | "reauthor"; by: string; at: string }>("review/decide", { method: "POST", query: { token }, body: JSON.stringify(body) }),
+  reviewComment: (token: string, body: { text: string; name?: string; email?: string; block?: { id: string; label: string; field?: string } }) => U<PageComment[]>("review/comment", { method: "POST", query: { token }, body: JSON.stringify(body) }),
+  /** Take a waiting author's review (assign it to yourself). */
+  lockPages: (market: string, paths: string[], locked: boolean) => U<{ changed: number }>("pages/lock", { method: "POST", query: { market }, body: JSON.stringify({ paths, locked }) }),
+  claimBizReview: (market: string, path: string) => U<{ assignee: string; assigneeName: string }>("bizreview/claim", { method: "POST", query: { market, path }, body: "{}" }),
+  claimReview: (market: string, path: string) => U<{ assignee: string; assigneeName: string }>("review/claim", { method: "POST", query: { market, path }, body: "{}" }),
+  releaseReview: (market: string, path: string) => U<{ ok: boolean }>("review/release", { method: "POST", query: { market, path }, body: "{}" }),
   /** Nudge the reviewer of a page in review ("I'm waiting"); at most once every 15 minutes. */
   remindReviewer: (market: string, path: string) => U<{ remindedAt: string; reviewer: string }>("review/remind", { method: "POST", query: { market, path }, body: "{}" }),
   reassignReview: (market: string, path: string, body: { assignee?: string; auto?: boolean }) => U<{ assignee: string; assigneeName: string }>("review/assign", { method: "POST", query: { market, path }, body: JSON.stringify(body) }),

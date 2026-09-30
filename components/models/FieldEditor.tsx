@@ -8,6 +8,7 @@ import { ModalShell, Err, inputCls } from "./ModalShell";
 import { sharedFields } from "@/lib/ucp/schema";
 import { InfoTip } from "@/components/ui/InfoTip";
 import { TYPE_META, TEXT_TYPES, NUMBER_TYPES, OPTION_TYPES, UNIQUE_TYPES, camel, keyError, validationSummary, isBlockModel } from "./fieldMeta";
+import { useConfirm } from "@/components/ui/Confirm";
 
 export const TypeChip = ({ t }: { t: string }) => <span className="inline-flex items-center gap-1 bg-surface-3 border border-line rounded px-1.5 py-0.5 text-[12px] whitespace-nowrap"><span className="font-mono text-[10.5px] text-ink-3">{TYPE_META[t]?.icon ?? "·"}</span>{t}</span>;
 const Toggle = ({ on, onClick, title, disabled }: { on: boolean; onClick: () => void; title: string; disabled?: boolean }) => <button type="button" role="switch" aria-checked={on} title={title} aria-label={title} disabled={disabled} onClick={onClick} className={`w-7 h-7 rounded-md border grid place-items-center text-[13px] font-bold ${on ? "bg-good text-white border-good" : "bg-surface-3 border-line-2 text-transparent"} disabled:opacity-60`}>✓</button>;
@@ -36,11 +37,12 @@ export function DocsTable({ fields }: { fields: ModelField[] }) {
 
 /* ---------------- schema builder: draggable rows ---------------- */
 export function FieldList({ fields, onChange, onEdit, onAdd }: { fields: ModelField[]; onChange: (f: ModelField[]) => void; onEdit: (i: number) => void; onAdd: () => void }) {
+  const ask = useConfirm();
   const [drag, setDrag] = useState<number | null>(null); const [over, setOver] = useState<number | null>(null);
   const move = (from: number, to: number) => { if (from === to || to < 0 || to >= fields.length) return; const fs = [...fields]; const [x] = fs.splice(from, 1); fs.splice(to, 0, x); onChange(fs); };
   const patch = (i: number, p: Partial<ModelField>) => onChange(fields.map((f, j) => (j === i ? { ...f, ...p } : f)));
   const dup = (i: number) => { const f = fields[i]; const c: ModelField = { ...f, k: copyKey(f.k, fields.map((x) => x.k)), l: `${f.l} (copy)` }; const fs = [...fields]; fs.splice(i + 1, 0, c); onChange(fs); };
-  const del = (i: number) => { if (!confirm(`Remove field “${fields[i].l}”? Existing content keeps its value until the model is published.`)) return; onChange(fields.filter((_, j) => j !== i)); };
+  const del = async (i: number) => { if (!(await ask({ title: `Remove field “${fields[i].l}”? Existing content keeps its value until the model is published.`, danger: true, confirmLabel: "Remove field" }))) return; onChange(fields.filter((_, j) => j !== i)); };
   const th = "px-1.5 py-2.5 md:p-2.5 border-b border-line-2 font-semibold whitespace-nowrap"; const td = "px-1.5 py-2.5 md:p-2.5 border-b border-line align-middle";
   return <div className="bg-surface border border-line rounded-lg overflow-hidden">
     <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line bg-surface-2"><b className="text-[13px]">Fields</b><span className="text-[12.5px] text-ink-3">{fields.length} field{fields.length === 1 ? "" : "s"} · drag rows to reorder</span><button type="button" className="btn btn-primary btn-sm ml-auto" onClick={onAdd}>＋ Add field</button></div>

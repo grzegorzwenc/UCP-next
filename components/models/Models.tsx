@@ -25,6 +25,7 @@ import { UsedOn } from "./UsedOn";
 import { Dot, ModelIcon, When, Toast, chip, Crumbs } from "./bits";
 import { useUnsaved } from "./useUnsaved";
 import { isAdminUser, isBlockModel, whoName, detailLink, editLink, groupLink, type ModelTab, type UsedPage } from "./fieldMeta";
+import { useConfirm } from "@/components/ui/Confirm";
 export type { ModelTab, UsedPage } from "./fieldMeta";
 export { camel } from "./fieldMeta";
 
@@ -33,9 +34,10 @@ type Sort = "name" | "modified" | "status" | "fields";
 const STATUS_ORDER: Record<Model["status"], number> = { draft: 0, modified: 1, published: 2 };
 
 export function Models(p: Props) {
+  const ask = useConfirm();
   const router = useRouter(); const { user } = useSession(); const isAdmin = isAdminUser(user);
   const md = p.models.find((m) => m.id === p.selectedId);
-  const [q, setQ] = useState(""); const [toast, setToast] = useState(""); const [wizard, setWizard] = useState(false); const [busy, setBusy] = useState("");
+  const q = ""; /* one search box, in the list (none in the tree) */ const [toast, setToast] = useState(""); const [wizard, setWizard] = useState(false); const [busy, setBusy] = useState("");
   const [dirty, setDirty] = useState(false); const saveRef = useRef<(() => Promise<boolean>) | null>(null); const [pending, setPending] = useState<string | null>(null);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(""), 2800); return () => clearTimeout(t); }, [toast]);
   useUnsaved(dirty);
@@ -44,7 +46,7 @@ export function Models(p: Props) {
   const go = (href: string) => { if (dirty) setPending(href); else router.push(href); };
   const groups = useMemo(() => [...new Set([...p.folders, ...p.models.map((m) => m.group)])].sort((a, b) => (a === "Core" ? -1 : b === "Core" ? 1 : a.localeCompare(b))), [p.folders, p.models]);
   const [folderDlg, setFolderDlg] = useState<{ mode: "create" } | { mode: "rename"; name: string } | null>(null);
-  const removeFolder = (g: string) => { if (!confirm(`Delete the folder “${g}”?`)) return; run("folder", () => ucpApi.modelFolder(p.marketId, "delete", { name: g }), () => { say(`Deleted folder ${g}`); if (p.group === g) go(`${p.base}/models`); }); };
+  const removeFolder = async (g: string) => { if (!(await ask({ title: `Delete the folder “${g}”?`, danger: true, confirmLabel: "Delete folder" }))) return; run("folder", () => ucpApi.modelFolder(p.marketId, "delete", { name: g }), () => { say(`Deleted folder ${g}`); if (p.group === g) go(`${p.base}/models`); }); };
 
   async function run<T>(label: string, fn: () => Promise<T>, after?: (r: T) => void) { setBusy(label); try { const r = await fn(); after?.(r); router.refresh(); } catch (e) { say(errorText(e)); } finally { setBusy(""); } }
   const duplicate = (m: Model) => run("dup", () => ucpApi.duplicateModel(p.marketId, m.id), (n) => { say(`Duplicated as “${n.name}” (draft)`); go(detailLink(p.base, n.id)); });
@@ -52,7 +54,7 @@ export function Models(p: Props) {
   const [moving, setMoving] = useState<Model | null>(null);
   const canMove = (id: string) => { const m = p.models.find((x) => x.id === id); return !!m && !isBlockModel(m); };
   const moveTo = (id: string, group: string, before?: string) => { const m = p.models.find((x) => x.id === id); if (!m || (m.group === group && !before)) return; run("move", () => ucpApi.moveModel(p.marketId, id, { group, before }), (n) => say(n.group !== m.group ? `Moved ${n.name} to ${n.group}` : `Reordered ${n.group}`)); };
-  const remove = (m: Model) => { if (!confirm(`Delete content model “${m.name}”? Content using it keeps its data but loses validation. This cannot be undone.`)) return; run("del", () => ucpApi.deleteModel(p.marketId, m.id), () => { say(`Deleted ${m.name}`); if (md?.id === m.id) { setDirty(false); router.push(`${p.base}/models`); } }); };
+  const remove = async (m: Model) => { if (!(await ask({ title: `Delete content model “${m.name}”? Content using it keeps its data but loses validation. This cannot be undone.`, danger: true, confirmLabel: "Delete model" }))) return; run("del", () => ucpApi.deleteModel(p.marketId, m.id), () => { say(`Deleted ${m.name}`); if (md?.id === m.id) { setDirty(false); router.push(`${p.base}/models`); } }); };
 
   /* ---- tree: categories → models (entities live in their own section) ---- */
   const ql = q.trim().toLowerCase();
@@ -80,10 +82,9 @@ export function Models(p: Props) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] grid-rows-[auto_1fr] md:grid-rows-1 h-full min-h-0">
       <SideTree label="Models" current={md?.name ?? (p.group || "All models")}>
-        <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mb-2">Content models</h6>{isAdmin && <p className="text-[11.5px] text-ink-4 px-2 -mt-1 mb-2">Drag a model onto a category to move it.</p>}
-        <label className="flex items-center gap-2 border border-line-2 rounded-md px-2.5 py-1.5 mb-2 bg-surface"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px] bg-transparent min-w-0" placeholder="Find a model" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a model" /></label>
+        <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mb-2">Content models</h6>
+
         <FolderList key={ql ? `q:${ql}` : `sel:${md?.id ?? ""}:${p.group}`} root={{ label: "All models", count: p.models.length, active: !md && !p.group, onClick: () => go(`${p.base}/models`) }} items={items} extra={ql && !items.length ? <div className="text-[12.5px] text-ink-4 px-2 py-1">Nothing matches “{q}”</div> : undefined} />
-        {isAdmin && <button className="btn btn-quiet btn-sm mt-2.5 ml-1" onClick={() => setWizard(true)}>＋ New content model</button>}
       </SideTree>
       <div className="overflow-auto min-w-0 min-h-0">{body}</div>
       {wizard && isAdmin && <CreateWizard models={p.models} folders={groups} marketId={p.marketId} onClose={() => setWizard(false)} onDone={onCreated} />}
@@ -103,11 +104,12 @@ function Th({ k, s, d, on, children, className = "" }: { k?: Sort; s?: Sort; d?:
   return <th className={`px-4 py-2.5 border-b border-line ${className}`} aria-sort={k ? (active ? (d === "asc" ? "ascending" : "descending") : "none") : undefined}>{k ? <button type="button" onClick={() => on?.(k)} className={`inline-flex items-center gap-1 uppercase tracking-[.08em] text-[11px] hover:text-ink ${active ? "text-ink font-semibold" : ""}`}>{children}<span aria-hidden className={`text-[10px] ${active ? "opacity-100" : "opacity-30"}`}>{active && d === "desc" ? "▼" : "▲"}</span></button> : children}</th>;
 }
 function Overview({ p, isAdmin, go, say, onCreate, onNewFolder }: { p: Props; isAdmin: boolean; go: (href: string) => void; say: (t: string) => void; onCreate: () => void; onNewFolder: () => void }) {
+  const ask = useConfirm();
   const router = useRouter();
   const sp = useSearchParams(); const pathname = usePathname(); const view = sp.get("view") === "map" ? "map" : "table";
   const pickView = (v: "table" | "map") => { const n = new URLSearchParams(sp.toString()); if (v === "map") n.set("view", "map"); else n.delete("view"); router.replace(`${pathname}${n.size ? `?${n}` : ""}`, { scroll: false }); };
   const saveFields = async (m: Model, fields: ModelField[], msg: string) => { try { await ucpApi.saveModel(p.marketId, m.id, { fields }); say(msg); router.refresh(); } catch (e) { say(errorText(e)); } };
-  const removeRel = (r: Relation) => { const m = p.models.find((x) => x.id === r.from); if (!m) return; const to = p.models.find((x) => x.id === r.to)?.name ?? r.to; if (!confirm(`Remove the connection ${m.name} → ${to}?`)) return; saveFields(m, m.fields.filter((f) => f.k !== r.key), `Removed the connection ${m.name} → ${to}`); };
+  const removeRel = async (r: Relation) => { const m = p.models.find((x) => x.id === r.from); if (!m) return; const to = p.models.find((x) => x.id === r.to)?.name ?? r.to; if (!(await ask({ title: `Remove the connection ${m.name} → ${to}?`, danger: true, confirmLabel: "Remove connection" }))) return; saveFields(m, m.fields.filter((f) => f.k !== r.key), `Removed the connection ${m.name} → ${to}`); };
   const cat = p.folders.includes(p.group) || p.models.some((m) => m.group === p.group) ? p.group : "";
   const [q, setQ] = useState(""); const [status, setStatus] = useState(""); const [group, setGroup] = useState(cat); const [sort, setSort] = useState<Sort>("name"); const [dir, setDir] = useState<"asc" | "desc">("asc");
   const groups = [...new Set([...p.folders, ...p.models.map((m) => m.group)])];
@@ -121,14 +123,14 @@ function Overview({ p, isAdmin, go, say, onCreate, onNewFolder }: { p: Props; is
   const inCat = cat ? p.models.filter((m) => m.group === cat).length : p.models.length;
   return <div className="p-4 md:p-7">
     {cat && <Crumbs items={[{ label: "Content models", href: `${p.base}/models`, onClick: () => go(`${p.base}/models`) }, { label: cat }]} />}
-    <div className="flex flex-wrap items-end gap-4 mb-5"><div><h1 className="text-2xl font-semibold">{cat || "Content models"}</h1><p className="text-ink-3 text-[13px] mt-1">{cat ? `Category · ${inCat} model${inCat === 1 ? "" : "s"}` : `The structure of your content · ${p.models.length} model${p.models.length === 1 ? "" : "s"}`}</p></div>
+    <div className="flex flex-wrap items-end gap-4 mb-5"><div><h1 className="text-2xl font-semibold">{cat || "Content models"}</h1><p className="text-ink-3 text-[13px] mt-1">{cat ? `Category · ${inCat} model${inCat === 1 ? "" : "s"}` : `${p.models.length} model${p.models.length === 1 ? "" : "s"}`}</p></div>
       <div className="ml-auto flex gap-2 items-center">{isAdmin ? <><button className="btn" onClick={onNewFolder}>＋ New folder</button><button className="btn btn-primary" onClick={onCreate}>＋ New content model</button></> : <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="Only site admins can change content models."><span aria-hidden="true">🔒</span>Read-only · documentation view</span>}</div></div>
     {p.models.length > 0 && <div className="flex flex-wrap items-center gap-2 mb-3">
       <label className="flex items-center gap-2 bg-surface border border-line-2 rounded-md px-2.5 py-1.5 min-w-[260px]"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px]" placeholder="Search models" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search models" /></label>
       <select className={sel} value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status"><option value="">All statuses</option><option value="draft">Draft</option><option value="published">Published</option><option value="modified">Modified</option></select>
       {!cat && <select className={sel} value={group} onChange={(e) => setGroup(e.target.value)} aria-label="Category"><option value="">All categories</option>{groups.map((g) => <option key={g}>{g}</option>)}</select>}
       <select className={sel} value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort by"><option value="name">Sort: name</option><option value="modified">Sort: last modified</option><option value="status">Sort: status</option><option value="fields">Sort: fields</option></select>
-      <span className="ml-auto text-[12.5px] text-ink-3">{rows.length} of {inCat}</span>
+      {rows.length !== inCat && <span className="ml-auto text-[12.5px] text-ink-3">{rows.length} of {inCat}</span>}
       <div role="group" aria-label="View" className="inline-flex border border-line-2 rounded-lg overflow-hidden bg-surface">{([["table", "Table"], ["map", "Map"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={view === v} onClick={() => pickView(v)} className={`px-3 h-8 text-[13px] font-medium ${view === v ? "bg-ink text-white" : "text-ink-2 hover:bg-surface-2"}`}>{l}</button>)}</div></div>}
     {view === "map" && rows.length ? <ModelMap models={rows} onOpen={(id) => go(detailLink(p.base, id))} storageKey={`ucp-model-map:${cat || "all"}`}
         canConnect={isAdmin ? (id) => !isBlockModel(p.models.find((m) => m.id === id) ?? { id, locked: true }) : undefined} onConnect={isAdmin ? (a, b) => { const from = p.models.find((m) => m.id === a), to = p.models.find((m) => m.id === b); if (!from || !to) return; if (from.fields.some((f) => f.validation?.referenceModel === b)) { say(`${from.name} is already connected to ${to.name}`); return; } const common = sharedFields(from, to); if (!common.length) { say(`${from.name} and ${to.name} have no fields in common, so they can't be connected`); return; } saveFields(from, [...from.fields, linkField(from, to)], `Connected ${from.name} → ${to.name} (shared: ${common.join(", ")})`); } : undefined}

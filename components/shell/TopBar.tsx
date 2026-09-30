@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ENVS, env } from "@/lib/markets";
+import { ENVS, INSTANCES, env, marketsIn, type InstanceId } from "@/lib/markets";
 import { useMarket, useMarkets } from "@/components/shell/Markets";
 import { openDrawer, useShellMode } from "@/components/shell/SideNav";
 import { ucpApi } from "@/lib/api";
@@ -116,13 +116,24 @@ export function TopBar({ marketId, envId, envLocked }: { marketId: string; envId
   const router = useRouter(); const pathname = usePathname();
   const rest = pathname.split("/").slice(3).join("/") || "dashboard";
   const markets = useMarkets(); const m = useMarket(marketId), e = env(envId); const base = `/${marketId}/${envId}`;
-  const { phone } = useShellMode();
+  // Instances are the mock's (EMEA, APAC, NA); a backend's sites have none, and then there is one plain market list.
+  const instanced = markets.some((x) => x.instance);
+  const { phone, tablet } = useShellMode(); const compact = phone || tablet; // no room for a separate instance switcher: one grouped market list
   return (
     <header className="h-[52px] flex items-center gap-2 md:gap-3 px-3 md:px-4 bg-[#0F1013] text-white">
       {phone && <button type="button" aria-label="Open menu" onClick={() => openDrawer(true)} className="w-9 h-9 grid place-items-center rounded-md hover:bg-white/10 -ml-1"><svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none stroke-2" aria-hidden><path d="M4 7h16M4 12h16M4 17h16" /></svg></button>}
       <a href={`/${marketId}/${envId}/dashboard`} className="flex items-center gap-2 font-semibold text-sm pr-2 rounded hover:bg-white/10 px-1.5 py-1 whitespace-nowrap"><img src="/hsbc-logo-white.svg" alt="" className="h-6" /><span className="hidden lg:inline w-px h-4 bg-white/25 mx-1" /><span className="hidden lg:inline">Unified Content Management</span></a>
+      {/* instance (EMEA / APAC / NA) → only that instance's markets; phones get one list grouped by instance */}
+      {instanced && !compact && <label className="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-md px-2.5 py-1 text-[13px]" title={INSTANCES.find((i) => i.id === m.instance)?.full}>
+        <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 stroke-current fill-none opacity-70" strokeWidth={1.8} aria-hidden><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.7 3.8 5.7 3.8 9s-1.3 6.3-3.8 9c-2.5-2.7-3.8-5.7-3.8-9S9.5 5.7 12 3z" /></svg>
+        <select aria-label="Instance" className="bg-transparent font-semibold outline-none" value={m.instance ?? ""} onChange={(ev) => { const first = marketsIn(markets, ev.target.value as InstanceId)[0]; if (first) router.push(`/${first.id}/${envId}/${rest}`); }}>{INSTANCES.map((x) => <option key={x.id} value={x.id} className="text-black">{x.name}</option>)}</select>
+      </label>}
       <label className="flex items-center gap-1.5 bg-white/10 border border-white/15 rounded-md px-2.5 py-1 text-[13px] max-w-[46vw] md:max-w-none">
-        <select aria-label="Market" className="bg-transparent font-semibold outline-none" value={m.id} onChange={(ev) => router.push(`/${ev.target.value}/${envId}/${rest}`)}>{markets.map((x) => <option key={x.id} value={x.id} className="text-black">{x.flag} {x.name}</option>)}</select>
+        <select aria-label="Market" className="bg-transparent font-semibold outline-none" value={m.id} onChange={(ev) => router.push(`/${ev.target.value}/${envId}/${rest}`)}>
+          {!instanced ? markets.map((x) => <option key={x.id} value={x.id} className="text-black">{x.flag} {x.name}</option>)
+            : compact ? INSTANCES.map((i) => <optgroup key={i.id} label={i.name} className="text-black">{marketsIn(markets, i.id).map((x) => <option key={x.id} value={x.id} className="text-black">{x.flag} {x.name}</option>)}</optgroup>)
+            : marketsIn(markets, m.instance).map((x) => <option key={x.id} value={x.id} className="text-black">{x.flag} {x.name}</option>)}
+        </select>
       </label>
       <label className="hidden sm:flex items-center gap-1.5 bg-white/10 border rounded-md px-2.5 py-1 text-[13px]" style={{ borderColor: e.color, color: e.color }}>
         <i className="inline-block w-2 h-2 rounded-full" style={{ background: e.color }} />

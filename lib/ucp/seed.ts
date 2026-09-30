@@ -11,6 +11,14 @@ export const ROLES: Record<Role, { name: string; perms: Partial<Record<PermKey, 
 };
 export const PERM_COLS: [PermKey, string, string][] = [["read", "Read", "See pages and content"], ["edit", "Edit", "Change drafts"], ["review", "Review & approve", "Approve for publishing"], ["publish", "Publish", "Push to production"], ["manage", "Manage", "Permissions and settings"]];
 
+/** Review groups (distribution lists) a business review can be shared with; everyone in a group sees the page in My tasks. */
+export const REVIEW_GROUPS: { name: string; members: string[] }[] = [
+  { name: "Business owners", members: ["david.clarke", "maria.santos"] },
+  { name: "Cards & Insurance board", members: ["maria.santos", "anna.kowalczyk", "aisha.khan"] },
+  { name: "Savings & Mortgages board", members: ["david.clarke", "jordan.mensah", "rachel.hughes"] },
+  { name: "Compliance & Legal", members: ["rachel.hughes", "aisha.khan"] },
+  { name: "Marketing & Digital", members: ["tunde.boateng", "michael.osei", "content.author"] },
+];
 export const SEED_USERS: { id: string; name: string; email: string; role: Role; team: string; perms: Perms }[] = [
   { id: "super.admin", name: "Super admin", email: "ucp-admin@hsbc.com", role: "admin", team: "UCP platform team", perms: { root: { read: true, edit: true, review: true, publish: true, manage: true } } },
   { id: "content.author", name: "Content author", email: "content.author@hsbc.com", role: "author", team: "Digital content", perms: { root: { read: true, edit: true } } },
@@ -20,6 +28,11 @@ export const SEED_USERS: { id: string; name: string; email: string; role: Role; 
   { id: "michael.osei", name: "Michael Osei", email: "michael.osei@hsbc.com", role: "publisher", team: "Digital channel", perms: { root: { read: true, review: true, publish: true } } },
   { id: "priya.kaur", name: "Priya Kaur", email: "priya.kaur@hsbc.com", role: "admin", team: "Platform", perms: { root: { read: true, edit: true, review: true, publish: true, manage: true } } },
   { id: "elin.llewelyn", name: "Elin Llewelyn", email: "elin.llewelyn@hsbc.com", role: "author", team: "Welsh language", perms: { root: { read: true }, banking: { read: true, edit: true } } },
+  { id: "sunita.patel", name: "Sunita Patel", email: "sunita.patel@hsbc.com", role: "author", team: "Investments", perms: { root: { read: true, edit: true } } },
+  { id: "li.chen", name: "Li Chen", email: "li.chen@hsbc.com", role: "author", team: "Asia content", perms: { root: { read: true, edit: true } } },
+  { id: "aisha.khan", name: "Aisha Khan", email: "aisha.khan@hsbc.com", role: "reviewer", team: "Legal", perms: { root: { read: true, review: true } } },
+  { id: "david.clarke", name: "David Clarke", email: "david.clarke@hsbc.com", role: "reviewer", team: "Business owner · Savings & Mortgages", perms: { root: { read: true, review: true } } },
+  { id: "maria.santos", name: "Maria Santos", email: "maria.santos@hsbc.com", role: "reviewer", team: "Business owner · Cards & Insurance", perms: { root: { read: true, review: true } } },
   { id: "tunde.boateng", name: "Tunde Boateng", email: "tunde.boateng@hsbc.com", role: "viewer", team: "Marketing", perms: { root: { read: true } } },
 ];
 export const ME = "jordan.mensah";

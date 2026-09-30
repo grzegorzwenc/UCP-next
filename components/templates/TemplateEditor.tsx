@@ -13,6 +13,7 @@ import { LeftPanel } from "@/components/builder/LeftPanel";
 import { useShellMode } from "@/components/shell/SideNav";
 import { templateBlocks } from "./TemplatePreview";
 import { tplFolders, tplFolderOf } from "./TemplateLibrary";
+import { useConfirm } from "@/components/ui/Confirm";
 
 type Props = { marketId: string; envId: string; marketName: string; template: Template; templates: Template[]; used: number };
 const ADD_ICON = "M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM12 8.5v7M8.5 12h7";
@@ -26,6 +27,7 @@ const SET_ICON = "M4 6h16M4 12h16M4 18h10";
 function Ico({ d }: { d: string }) { return <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none flex-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>; }
 
 export function TemplateEditor({ marketId, envId, marketName, template: t, templates, used }: Props) {
+  const ask = useConfirm();
   const router = useRouter(); const { user, can, marketRoot } = useSession();
   const ro = !(user.role === "admin" || can("manage", marketRoot));
   const base = `/${marketId}/${envId}`;
@@ -54,7 +56,7 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
   const move = (i: number, d: number) => { const j = i + d; if (j < 0 || j >= blocks.length) return; const b = [...blocks]; [b[i], b[j]] = [b[j], b[i]]; setBl(b); setSel(j); };
   const remove = (i: number) => { const b = blocks.filter((_, k) => k !== i); setBl(b); setSel(null); say(`Removed ${BLOCK_BY_TYPE[blocks[i]]?.name ?? blocks[i]}`); };
   async function del() {
-    if (!confirm(`Delete template “${name}”? Pages already created with it are not affected.`)) return;
+    if (!(await ask({ title: `Delete template “${name}”? Pages already created with it are not affected.`, danger: true, confirmLabel: "Delete template" }))) return;
     try { await repoApi.deleteNode(`${PATHS.templates}/${t.id}`, { text: `deleted template ${name}`, target: "templates" }); router.push(`${base}/templates`); router.refresh(); } catch (e) { say(errText(e)); }
   }
 

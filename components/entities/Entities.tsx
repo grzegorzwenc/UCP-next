@@ -18,6 +18,7 @@ import { useUnsaved } from "@/components/models/useUnsaved";
 import { detailLink, entitiesLink, entityLink, whoName, TEXT_TYPES, type UsedPage } from "@/components/models/fieldMeta";
 import { EntityEditor } from "./EntityEditor";
 import { NewEntityModal } from "./NewEntityModal";
+import { useConfirm } from "@/components/ui/Confirm";
 
 export type EntitiesProps = { base: string; marketId: string; marketRoot: string; marketName: string; flag: string; models: Model[]; entities: Entity[]; usage: Record<string, UsedPage[]>; names: Record<string, string>; viewerId: string; modelId: string; entityId: string; folders: Record<string, string[]>; folder: string };
 type Sort = "title" | "model" | "status" | "used" | "modified";
@@ -37,10 +38,11 @@ function firstText(e: Entity, m?: Model): string {
  * list or entity editor on the right. Creating an entity: pick a model, give it a title, then fill in the fields.
  */
 export function Entities(p: EntitiesProps) {
+  const ask = useConfirm();
   const router = useRouter(); const { can, marketRoot } = useSession(); const canEdit = can("edit", marketRoot);
   const md = p.models.find((m) => m.id === p.modelId);
   const ent = md && p.entityId ? p.entities.find((e) => e.model === md.id && e.id === p.entityId) : undefined;
-  const [q, setQ] = useState(""); const [toast, setToast] = useState(""); const [creating, setCreating] = useState(false); const [busy, setBusy] = useState("");
+  const q = ""; /* one search box, in the list (none in the tree) */ const [toast, setToast] = useState(""); const [creating, setCreating] = useState(false); const [busy, setBusy] = useState("");
   const [dirty, setDirty] = useState(false); const saveRef = useRef<(() => Promise<boolean>) | null>(null); const [pending, setPending] = useState<string | null>(null);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(""), 2800); return () => clearTimeout(t); }, [toast]);
   useUnsaved(dirty);
@@ -65,7 +67,7 @@ export function Entities(p: EntitiesProps) {
   /* ---- tree: all entities → one folder per content model → entities ---- */
   const ql = q.trim().toLowerCase();
   const [folderDlg, setFolderDlg] = useState<{ model?: Model; name?: string } | null>(null); const [folderModel, setFolderModel] = useState("");
-  const removeFolder = async (m: Model, f: string) => { if (!confirm(`Delete the folder “${f}”?`)) return; try { await ucpApi.entityFolder(p.marketId, "delete", { model: m.id, name: f }); say(`Deleted folder ${f}`); if (md?.id === m.id && p.folder === f) router.push(entitiesLink(p.base, m.id)); router.refresh(); } catch (e) { say(errorText(e)); } };
+  const removeFolder = async (m: Model, f: string) => { if (!(await ask({ title: `Delete the folder “${f}”?`, danger: true, confirmLabel: "Delete folder" }))) return; try { await ucpApi.entityFolder(p.marketId, "delete", { model: m.id, name: f }); say(`Deleted folder ${f}`); if (md?.id === m.id && p.folder === f) router.push(entitiesLink(p.base, m.id)); router.refresh(); } catch (e) { say(errorText(e)); } };
   const menuBtn = "w-6 h-6 rounded grid place-items-center text-ink-3 hover:bg-surface-3 text-[14px] leading-none";
   const entRow = (m: Model, e: Entity, folder: string): FolderItem => { const on = !!ent && ent.path === e.path; return { key: e.path, label: e.title, icon: "page", active: on, title: canEdit ? `${e.title} · ${e.status} · drag to move` : `${e.title} · ${e.status}`, onClick: () => go(entityLink(p.base, m.id, e.id)),
     dragId: canEdit ? e.path : undefined, onDrop: canEdit ? (path) => moveEntity(path, m.id, e.path, folder) : undefined, accepts: canDrop,
@@ -95,10 +97,9 @@ export function Entities(p: EntitiesProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] grid-rows-[auto_1fr] md:grid-rows-1 h-full min-h-0">
       <SideTree label="Entities" current={ent?.title ?? md?.name ?? "All entities"}>
-        <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mb-2">Content entities</h6>{canEdit && <p className="text-[11.5px] text-ink-4 px-2 -mt-1 mb-2">Drag an entity to reorder it or move it to another folder.</p>}
-        <label className="flex items-center gap-2 border border-line-2 rounded-md px-2.5 py-1.5 mb-2 bg-surface"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px] bg-transparent min-w-0" placeholder="Find an entity" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find an entity" /></label>
+        <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mb-2">Content entities</h6>
+
         <FolderList key={ql ? `q:${ql}` : `sel:${md?.id ?? ""}`} root={{ label: "All entities", count: p.entities.length, active: !md, onClick: () => go(entitiesLink(p.base)) }} items={items} extra={ql && !items.length ? <div className="text-[12.5px] text-ink-4 px-2 py-1">Nothing matches “{q}”</div> : undefined} />
-        {canEdit && <button className="btn btn-quiet btn-sm mt-2.5 ml-1" onClick={() => setCreating(true)}>＋ New entity</button>}
       </SideTree>
       <div className="overflow-y-auto overflow-x-hidden min-w-0 min-h-0">{body}</div>
       {creating && canEdit && <NewEntityModal marketId={p.marketId} models={models} initial={md} folder={p.folder} onClose={() => setCreating(false)} onDone={onCreated} />}
@@ -145,13 +146,13 @@ function Overview({ p, md, byModel, models, canEdit, go, onCreate, onNewFolder }
 
   return <div className="p-4 md:p-7">
     {md && <Crumbs items={[{ label: "Content entities", href: entitiesLink(p.base), onClick: () => go(entitiesLink(p.base)) }, ...(p.folder ? [{ label: md.name, href: entitiesLink(p.base, md.id), onClick: () => go(entitiesLink(p.base, md.id)) }, { label: p.folder }] : [{ label: md.name }])]} />}
-    <div className="flex flex-wrap items-end gap-4 mb-5"><div><h1 className="text-2xl font-semibold">{md ? (p.folder ? p.folder : `${md.name} entities`) : "Content entities"}</h1><p className="text-ink-3 text-[13px] mt-1">Concrete content built from a content model. Pages reuse it with {"{{tokens}}"}.{md && <> · <Link {...nav(detailLink(p.base, md.id))} className="underline hover:text-ink">View the {md.name} model</Link></>}</p></div>
+    <div className="flex flex-wrap items-end gap-4 mb-5"><div><h1 className="text-2xl font-semibold">{md ? (p.folder ? p.folder : `${md.name} entities`) : "Content entities"}</h1><p className="text-ink-3 text-[13px] mt-1">{scope.length} entit{scope.length === 1 ? "y" : "ies"}{md && <> · <Link {...nav(detailLink(p.base, md.id))} className="underline hover:text-ink">View the {md.name} model</Link></>}</p></div>
       <div className="ml-auto flex gap-2 items-center">{createBtn ?? <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="You need Edit on this site to create content."><span aria-hidden="true">🔒</span>Read-only</span>}</div></div>
     {p.entities.length > 0 && <div className="flex flex-wrap items-center gap-2 mb-3">
       <label className="flex items-center gap-2 bg-surface border border-line-2 rounded-md px-2.5 py-1.5 min-w-[260px]"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px]" placeholder="Search entities" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search entities" /></label>
       <select className={sel} value={md?.id ?? ""} onChange={(e) => go(entitiesLink(p.base, e.target.value || undefined))} aria-label="Content model"><option value="">All models</option>{models.map((m) => <option key={m.id} value={m.id}>{m.name}</option>)}</select>
       <select className={sel} value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status"><option value="">All statuses</option><option value="draft">Draft</option><option value="published">Published</option><option value="modified">Modified</option></select>
-      <span className="ml-auto text-[12.5px] text-ink-3">{rows.length} of {scope.length}</span></div>}
+      {rows.length !== scope.length && <span className="ml-auto text-[12.5px] text-ink-3">{rows.length} of {scope.length}</span>}</div>}
     {rows.length ? <div className="bg-surface border border-line rounded-xl overflow-hidden"><div className="overflow-auto"><table className="w-full table-fixed text-[13.5px] [&_tr>.col-upd]:hidden 2xl:[&_tr>.col-upd]:table-cell [&_tr>.col-model]:hidden 2xl:[&_tr>.col-model]:table-cell [&_tr>.col-used]:hidden xl:[&_tr>.col-used]:table-cell">
       <thead className="bg-surface-2"><tr className="text-left text-[11px] uppercase tracking-[.08em] text-ink-3"><Th k="title" s={sort} d={dir} on={sortBy}>Entity</Th>{!md && <Th k="model" s={sort} d={dir} on={sortBy} className="w-[130px] col-model">Model</Th>}<Th k="status" s={sort} d={dir} on={sortBy} className="w-[120px]">Status</Th><Th k="used" s={sort} d={dir} on={sortBy} className="w-[160px] col-used">Used on</Th><Th k="modified" s={sort} d={dir} on={sortBy} className="w-[170px] col-upd">Updated</Th><Th className="w-[80px]"><span className="sr-only">Actions</span></Th></tr></thead>
       <tbody>{rows.map((e) => { const m = modelOf[e.model]; const href = entityLink(p.base, e.model, e.id); const by = e.lastModifiedBy ? whoName(e.lastModifiedBy, p.names) : ""; const t = firstText(e, m); const pages = p.usage[e.path] ?? [];

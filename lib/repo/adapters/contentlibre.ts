@@ -87,7 +87,9 @@ function statusOf(p: ClPage): PageStatus {
   // A schedule outranks the review it was made on; a failed one is what the author has to act on.
   if (p.schedule?.failed) return "failed";
   if (p.schedule?.publishAt) return "scheduled";
-  if (p.review?.state === "IN_REVIEW") return "review";
+  // The CMS's author's review: with nobody named it waits in the Backlog (review); a named reviewer has it (inreview).
+  // ContentLIBRE has one review stage, so there is no reviewed / bizreview here.
+  if (p.review?.state === "IN_REVIEW") return p.review.assignee ? "inreview" : "review";
   if (p.review?.state === "APPROVED") return "approved";
   return p.status ? STATUS[p.status] : "draft";
 }
@@ -101,7 +103,7 @@ const toView = (p: ClPage): PageView => ({
     "libre:openDrafts": p.openDrafts, "libre:permissions": p.permissions,
     // The workflow fields the CMS's task list reads (lib/server/ucp.ts listTasks), from the backend's review.
     "libre:reviewState": p.review?.state, "libre:reviewDecidedBy": p.review?.decidedBy, "libre:reviewComment": p.review?.comment,
-    "ucp:sentBy": p.review?.requestedBy, "ucp:sentAt": p.review?.requestedAt, "ucp:assignee": p.review?.assignee, "ucp:due": p.review?.due,
+    "ucp:sentBy": p.review?.requestedBy, "ucp:requestedBy": p.review?.requestedBy, "ucp:sentAt": p.review?.requestedAt, "ucp:assignee": p.review?.assignee, "ucp:due": p.review?.due,
     "ucp:remindedAt": p.review?.remindedAt, "ucp:remindedBy": p.review?.remindedBy, "ucp:approvedBy": p.review?.decidedBy,
     "ucp:publishAt": p.schedule?.publishAt, "libre:scheduledBy": p.schedule?.scheduledBy, "libre:scheduleFailed": p.schedule?.failed,
   },

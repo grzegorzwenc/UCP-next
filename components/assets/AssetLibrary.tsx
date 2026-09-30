@@ -12,6 +12,7 @@ import { repoApi, ucpApi, ApiError } from "@/lib/api";
 import { errorText as errText } from "@/lib/api/errors";
 import { useSession } from "@/components/shell/Session";
 import { Pill } from "@/components/ui/Pill";
+import { useConfirm } from "@/components/ui/Confirm";
 
 type Usage = Record<string, { path: string; title: string; status: string }[]>;
 type Props = { marketId: string; envId: string; marketName: string; flag: string; root: string; assets: Asset[]; folders: string[]; usage: Usage; locales: string[]; folder: string; view: "" | "unused" | "noalt" };
@@ -40,7 +41,7 @@ function Thumb({ a, className = "", badge = true }: { a: Asset; className?: stri
       </div>;
 }
 
-const STATUS_WORD: Record<string, string> = { published: "live", review: "in review", approved: "approved", draft: "draft", scheduled: "scheduled", failed: "failed" };
+const STATUS_WORD: Record<string, string> = { published: "live", review: "waiting for author's review assignment", inreview: "in author's review", reviewed: "reviewed", bizreview: "in business review", approved: "ready to publish", draft: "draft", scheduled: "scheduled", failed: "failed" };
 const FIRST = 5;
 /** "Used on N pages": folded to one line with a status summary; opens to the first few pages, then all. */
 function UsedOnPages({ used, hrefOf }: { used: { path: string; title: string; status: string }[]; hrefOf: (path: string) => string }) {
@@ -60,6 +61,7 @@ function UsedOnPages({ used, hrefOf }: { used: { path: string; title: string; st
 }
 
 export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, folders, usage, locales, folder, view }: Props) {
+  const ask = useConfirm();
   const router = useRouter(); const { can, marketRoot, user } = useSession();
   /** Assets that still miss accessibility info (alt text, or title/language/tagged for documents). */
   const noAlt = useMemo(() => assets.filter((x) => a11yGaps(x, locales[0]).length).map((x) => x.id), [assets, locales]);
@@ -88,7 +90,7 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
   const upload = (files: File[], into: string) => { if (!files.length || !canEdit) return; run("upload", async () => { const out = await ucpApi.upload(marketId, into, files); if (out[0]) setSel(out[0].id); say(files.length === 1 ? `Uploaded ${files[0].name}` : `Uploaded ${files.length} files`); }); };
   const replace = (file: File) => { if (!a) return; const old = a; run("replace", async () => { const [n] = await ucpApi.upload(marketId, old.folder, [file]); if (!n) throw new Error("Upload returned nothing"); await repoApi.deleteNode(old.path, { text: `replaced ${old.name} with ${n.name}`, target: "assets" }); await repoApi.setProps(n.path, old.a11y ? { "ucp:id": old.id, "ucp:a11y": JSON.stringify(old.a11y) } : { "ucp:id": old.id }); /* keep the id so pages that use it keep working */ setSel(old.id); say(`Replaced ${old.name}`); }); };
   const move = (to: string) => { if (!a || to === a.folder) return; const x = a; run("move", async () => { const folderPath = `/content/dam/${marketId}/${to}`; await repoApi.createNode(folderPath, "sling:Folder", { "jcr:title": to }).catch((e) => { if (!(e instanceof ApiError && e.problem.status === 409)) throw e; }); const n = await repoApi.moveNode(x.path, `${folderPath}/${x.name}`, `moved ${x.name} to ${to}`); await repoApi.setProps(n.path, { "dam:folder": to }); say(`Moved ${x.name} to ${to}`); }); };
-  const del = () => { if (!a || used.length) return; const x = a; if (!confirm(`Delete ${x.name}? This cannot be undone.`)) return; run("delete", async () => { await repoApi.deleteNode(x.path, { text: `deleted ${x.name}`, target: "assets" }); setSel(null); say(`Deleted ${x.name}`); }); };
+  const del = async () => { if (!a || used.length) return; const x = a; if (!(await ask({ title: `Delete ${x.name}? This cannot be undone.`, danger: true, confirmLabel: "Delete asset" }))) return; run("delete", async () => { await repoApi.deleteNode(x.path, { text: `deleted ${x.name}`, target: "assets" }); setSel(null); say(`Deleted ${x.name}`); }); };
   const saveA11y = (v: AssetA11y) => { if (!a) return; const x = a; run("a11y", async () => { await repoApi.setProps(x.path, { "ucp:a11y": JSON.stringify({ ...v, checkedBy: user.name, checkedAt: new Date().toISOString() }) }, { text: `updated accessibility of ${x.name}`, target: "assets" }); say(`Saved accessibility for ${x.name}`); }); };
   const copyId = async () => { if (!a) return; try { await navigator.clipboard.writeText(a.id); say(`Copied ${a.id}`); } catch { setErr("Clipboard is not available in this browser"); } };
   const createFolder = () => { const name = folderName.trim(); if (!name) return; run("folder", async () => { await repoApi.createNode(`/content/dam/${marketId}/${name}`, "sling:Folder", { "jcr:title": name }, { text: `created asset folder ${name}`, target: "assets" }); setNewFolder(false); setFolderName(""); say(`Created folder ${name}`); go(`?folder=${encodeURIComponent(name)}`); }); };
@@ -109,7 +111,7 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
         <input ref={uplRef} type="file" multiple accept="image/*,.pdf,.svg" className="hidden" onChange={(e) => { upload(Array.from(e.target.files ?? []), folder || "Uploads"); e.target.value = ""; }} />
         <input ref={replRef} type="file" accept="image/*,.pdf,.svg" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) replace(f); e.target.value = ""; }} />
         <div className="text-[12.5px] text-ink-3 mb-2 flex items-center gap-1.5"><button className="hover:underline" onClick={() => go("")}>Asset library</button>{(folder || view) && <><span>/</span><b className="text-ink">{title}</b></>}</div>
-        <div className="flex flex-wrap items-end gap-x-4 gap-y-3 mb-5"><div><h1 className="text-2xl font-semibold">{title}</h1><p className="text-ink-3 text-[13px] mt-1">{list.length} file{list.length === 1 ? "" : "s"}{folder ? " in this folder" : view ? " in this view" : ` in the ${marketName} library`}{canEdit && " · drag files anywhere here to upload"}</p></div>
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-3 mb-5"><div><h1 className="text-2xl font-semibold">{title}</h1><p className="text-ink-3 text-[13px] mt-1">{list.length} file{list.length === 1 ? "" : "s"}{folder ? " in this folder" : view ? " in this view" : ` in the ${marketName} library`}</p></div>
           <div className="ml-auto flex gap-2 items-center">{canEdit ? <><button className="btn" onClick={() => setNewFolder(true)}>＋ New folder</button><button className="btn btn-primary" disabled={busy === "upload"} onClick={() => uplRef.current?.click()}>{busy === "upload" ? "Uploading…" : "↑ Upload files"}</button></> : <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="You don't have Edit on this site. Ask a site admin."><span aria-hidden="true">🔒</span>Read-only library</span>}</div></div>
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <input className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] flex-1 sm:flex-none sm:w-[280px] min-w-[150px]" placeholder="Find a file by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a file by name" />
@@ -134,7 +136,7 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
                 </tr>; })
                 : <tr><td colSpan={3} className="p-10 text-center text-ink-3">No files here yet.{canEdit && " Upload some or drag them in."}</td></tr>}</tbody></table></div>
             {list.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-[12.5px] text-ink-3">Showing {shown.length} of {list.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show more</button></div>}</div>
-            : <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">{list.length ? shown.map((x) => <button key={x.id} onClick={() => setSel(x.id)} className={`text-left bg-surface border rounded-lg p-2 hover:border-ink-4 ${a && x.id === a.id ? "border-accent ring-2 ring-accent-soft" : "border-line"}`}><Thumb a={x} className="w-full h-[96px]" /><b className="block text-[12.5px] mt-2 truncate" title={x.name}>{x.name}</b><small className="text-ink-3 text-[11.5px] flex items-center gap-1.5">{x.size}{noAlt.includes(x.id) && <span className="ml-auto text-[10.5px] font-semibold px-1.5 rounded bg-warn-soft text-warn" title={`Missing: ${a11yGaps(x, locales[0]).join(", ")}`}>A11y</span>}</small></button>)
+            : <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">{list.length ? shown.map((x) => <button key={x.id} onClick={() => setSel(x.id)} className={`text-left bg-surface border rounded-lg p-2 hover:border-ink-4 ${a && x.id === a.id ? "border-accent ring-2 ring-accent-soft" : "border-line"}`}><Thumb a={x} className="w-full h-[96px]" /><b className="block text-[12.5px] mt-2 truncate" title={x.name}>{x.name}</b><small className="text-ink-3 text-[11.5px] flex items-center gap-1.5">{x.size}{noAlt.includes(x.id) && <span className="ml-auto text-[10.5px] font-semibold px-1.5 rounded bg-warn-soft text-warn" title={`Missing: ${a11yGaps(x, locales[0]).join(", ")}`}>{(() => { const g = a11yGaps(x, locales[0]); return g.length > 1 ? "Needs alt text +" : `No ${g[0]?.toLowerCase() ?? "alt text"}`; })()}</span>}</small></button>)
               : <div className="col-span-full p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">No files here yet.{canEdit && " Upload some or drag them in."}</div>}
               {list.length > shown.length && <div className="col-span-full flex items-center justify-center gap-3 py-4 text-[12.5px] text-ink-3">Showing {shown.length} of {list.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show more</button></div>}</div>}
 

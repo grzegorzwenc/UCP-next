@@ -19,7 +19,10 @@ test.describe("page lifecycle", () => {
       const r = page.request;
       const put = await r.put(`/api/repo/components?path=${encodeURIComponent(path)}`, { data: [{ name: "mast", resourceType: "hsbc/components/mast", props: { heading: "Hello", intro: "From the e2e suite" } }] });
       expect(put.status(), await put.text()).toBe(200);
-      for (const status of ["review", "approved", "published"] as const) {
+      for (const status of ["review", "inreview", "reviewed", "bizreview", "approved", "published"] as const) {
+        // four eyes: the author never takes their own page from the Backlog, and the business sign-off (→ approved) comes from someone other than the author's reviewer
+        if (status === "inreview") await login(page, "rachel.hughes"); else if (status === "bizreview") await login(page, "jordan.mensah");
+        else if (status === "approved") await login(page, "michael.osei"); else if (status === "published") await login(page, "jordan.mensah");
         const res = await r.patch(`/api/repo/page?path=${encodeURIComponent(path)}`, { data: { status } });
         expect(res.status(), `${status}: ${await res.text()}`).toBe(200);
         expect((await res.json()).status).toBe(status);

@@ -5,8 +5,8 @@ import { Pill } from "@/components/ui/Pill";
 import { PageIcon } from "@/components/ui/Icons";
 import type { UsedPage } from "./fieldMeta";
 
-const STATUS_WORD: Record<string, string> = { published: "live", review: "in review", approved: "approved", scheduled: "scheduled", draft: "draft", failed: "failed" };
-const ORDER = ["published", "scheduled", "approved", "review", "draft", "failed"];
+const STATUS_WORD: Record<string, string> = { published: "live", review: "waiting for author's review assignment", inreview: "in author's review", reviewed: "reviewed", bizreview: "in business review", approved: "ready to publish", scheduled: "scheduled", draft: "draft", failed: "failed" };
+const ORDER = ["published", "scheduled", "approved", "bizreview", "reviewed", "inreview", "review", "draft", "failed"];
 
 /**
  * "Used on" card shared by content models and content entities: how many pages, which market, a status summary

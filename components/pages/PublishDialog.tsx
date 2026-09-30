@@ -1,4 +1,5 @@
 "use client";
+import { celebrate } from "@/lib/ui/celebrate";
 import { useMemo, useState } from "react";
 import { ModalShell, Err } from "@/components/models/ModalShell";
 import { Pill } from "@/components/ui/Pill";
@@ -10,7 +11,7 @@ export type PublishOutcome = { path: string; title: string; ok: boolean; status?
 
 /** Why a page cannot be published right now (checked again on the server). */
 export const publishBlock = (p: PublishItem, mayPublish: (path: string) => boolean): string =>
-  !mayPublish(p.path) ? "You don't have Publish here" : p.status === "approved" || p.status === "scheduled" ? "" : p.status === "published" ? "Already live" : p.status === "review" ? "Still in review" : "Needs review first";
+  !mayPublish(p.path) ? "You don't have Publish here" : p.status === "approved" || p.status === "scheduled" ? "" : p.status === "published" ? "Already live" : p.status === "review" || p.status === "inreview" ? "Still in author's review" : p.status === "reviewed" ? "Business review comes next" : p.status === "bizreview" ? "Still in business review" : "Needs review first";
 
 const pad = (n: number) => String(n).padStart(2, "0");
 const toLocalInput = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -38,7 +39,8 @@ export function PublishDialog({ marketId, envName, pages, mayPublish, onClose, o
     if (!cancel && (whenErr || !ready.length)) return; setBusy(true); setErr(null);
     try {
       const r = await ucpApi.publish(marketId, cancel ? [single!.path] : ready.map((p) => p.path), cancel ? { cancel: true } : { at: at?.toISOString() });
-      const m = cancel ? "cancel" : mode; if (r.every((x) => x.ok) && ready.length === pages.length) { onDone(r, m); return; }
+      const m = cancel ? "cancel" : mode; const live = r.filter((x) => x.ok); if (m === "now" && live.length) celebrate(live.map((x) => x.title), envName); // fanfare 🎉
+      if (r.every((x) => x.ok) && ready.length === pages.length) { onDone(r, m); return; }
       setResults([...r, ...pages.filter((p) => !ready.includes(p) && !cancel).map((p) => ({ path: p.path, title: p.title, ok: false, reason: publishBlock(p, mayPublish) }))]); onDone(r, m);
     } catch (e) { setErr(errorText(e)); } finally { setBusy(false); }
   };
@@ -48,7 +50,7 @@ export function PublishDialog({ marketId, envName, pages, mayPublish, onClose, o
   </ModalShell>;
 
   const title = single ? `Publish “${single.title}”` : `Publish ${pages.length} pages`;
-  return <ModalShell title={title} subtitle={`Goes live on ${envName}. You can publish now or pick a date and time.`} width={560} onClose={onClose}
+  return <ModalShell title={title} subtitle={`Goes live on ${envName}.`} width={560} onClose={onClose}
     footer={<>{single?.status === "scheduled" && <button className="btn mr-auto text-crit" disabled={busy} onClick={() => run(true)}>Cancel schedule</button>}<button className="btn" onClick={onClose}>Cancel</button>
       <button className="btn btn-primary" disabled={busy || !ready.length || !!whenErr} onClick={() => run()}>{busy ? "Working…" : mode === "now" ? `Publish now${pages.length > 1 ? ` (${ready.length})` : ""}` : `Schedule${pages.length > 1 ? ` (${ready.length})` : ""}`}</button></>}>
     {single?.status === "scheduled" && single.publishAt && <p className="text-[13px] bg-info-soft rounded-md px-3 py-2 mb-3">Scheduled for <b>{fmt(single.publishAt)}</b>. Change the time, publish it now, or cancel the schedule.</p>}

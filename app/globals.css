@@ -36,6 +36,9 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 .pill-draft { background: var(--neutral-soft); color: var(--neutral); }
 .pill-review { background: var(--review-soft); color: var(--review); }
 .pill-approved { background: var(--info-soft); color: var(--info); }
+.pill-bizreview { background: var(--warn-soft); color: var(--warn); }
+.pill-inreview { background: var(--review-soft); color: var(--review); box-shadow: inset 0 0 0 1px var(--review); }
+.pill-reviewed { background: var(--good-soft); color: var(--good); }
 .pill-published { background: var(--good-soft); color: var(--good); }
 .pill-modified { background: var(--warn-soft); color: var(--warn); }
 .pill-scheduled { background: var(--sched-soft); color: var(--sched); }
@@ -44,6 +47,11 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 .btn { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); padding: 7px 13px; border-radius: 8px; font-weight: 500; font-size: 13.5px; line-height: 1.2; white-space: nowrap; min-height: 36px; cursor: pointer; }
 .btn:hover { background: var(--surface-2); border-color: var(--ink-4); }
 .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* the official next-step action (stepper, My tasks): HSBC red with an arrow; secondary actions stay the plain outlined .btn */
+.btn-next { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.btn-next::after { content: "→"; margin-left: 1px; transition: transform .15s; }
+.btn-next:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; } .btn-next:hover::after { transform: translateX(2px); }
+.btn-danger { background: var(--crit); border-color: var(--crit); color: #fff; } .btn-danger:hover { filter: brightness(.92); background: var(--crit); border-color: var(--crit); } .btn-danger:disabled { opacity: .45; cursor: not-allowed; filter: none; }
 .btn-primary:hover { background: var(--accent-hover); }
 .btn-quiet { border-color: transparent; background: none; color: var(--ink-2); }
 .btn-sm { padding: 5px 10px; font-size: 12.5px; min-height: 32px; }
@@ -155,3 +163,43 @@ body.focus .cms-shell > div { grid-template-columns: 1fr; }
 .rti a { color: #DB0011; text-decoration: underline; text-underline-offset: 2px; } .rti strong { font-weight: 700; } .rti em { font-style: italic; } .rti u { text-decoration: underline; }
 .s-cta .rti a, .hs-lnk .rti a { color: inherit; }
 .rte-line:empty::before { content: " "; }
+
+/* Review stages: click a component to comment on it */
+.review-pick .cblk { cursor: pointer; }
+.review-pick .cblk:hover { border-color: #376798 !important; }
+.cblk.cmt-target { border-color: #DB0011 !important; box-shadow: 0 0 0 4px rgba(219,0,17,.12) !important; }
+.cmt-pick { position: absolute; top: -1px; left: -2px; z-index: 3; background: #376798; color: #fff; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 4px 0 6px 0; opacity: 0; pointer-events: none; transition: opacity .15s; }
+.review-pick .cblk:hover .cmt-pick { opacity: 1; } .cblk.cmt-target .cmt-pick { opacity: 1; background: #DB0011; }
+.cmt-badge { position: absolute; top: 6px; right: 8px; z-index: 4; display: inline-flex; align-items: center; gap: 3px; background: #DB0011; color: #fff; font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 999px; box-shadow: 0 2px 6px rgba(0,0,0,.2); cursor: pointer; }
+@keyframes cmt-flash { 0%, 100% { box-shadow: 0 0 0 0 rgba(219,0,17,0); } 30% { box-shadow: 0 0 0 6px rgba(219,0,17,.35); } }
+.cblk.cmt-flash { animation: cmt-flash 1.4s ease-out 1; border-color: #DB0011 !important; }
+.cmt-flash:not(.cblk) { animation: cmt-flash 1.4s ease-out 1; border-radius: 3px; }
+/* like Build the page: hovering a text or an image shows what a click picks (nothing is editable) */
+.review-pick .ie { cursor: pointer; border-radius: 2px; }
+.review-pick .ie:hover { background: #FDECEE; box-shadow: 0 0 0 1px rgba(219,0,17,.45); }
+.review-pick .cardv, .review-pick .s-icons svg { cursor: pointer; }
+.review-pick .cardv:hover, .review-pick .s-icons svg:hover, .review-pick .s-mast:hover:not(:has(.ie:hover)) { outline: 2px solid rgba(219,0,17,.55); outline-offset: 2px; }
+.cmt-el { outline: 2px solid #DB0011 !important; outline-offset: 3px; border-radius: 4px; box-shadow: 0 0 0 7px rgba(219,0,17,.10); transition: box-shadow .2s, outline-offset .2s; }
+.ie.cmt-el { background: rgba(219,0,17,.05); }
+/* a small "Commenting" label sits on the picked text or picture */
+.ie.cmt-el, .cardv.cmt-el, .s-mast.cmt-el { position: relative; }
+.ie.cmt-el::before, .cardv.cmt-el::before, .s-mast.cmt-el::before { content: 'Commenting'; position: absolute; left: -5px; top: -27px; z-index: 5; background: #DB0011; color: #fff; font: 600 10.5px/1 system-ui, sans-serif; letter-spacing: .03em; padding: 4px 7px; border-radius: 4px 4px 4px 0; white-space: nowrap; pointer-events: none; box-shadow: 0 2px 6px rgba(0,0,0,.18); animation: cmt-card-in .2s ease-out; }
+.s-mast.cmt-el::before { top: 8px; left: 8px; border-radius: 4px; }
+/* the component that holds it: a quiet frame, so the picked part stands out */
+.review-pick .cblk:has(.cmt-el) { border-color: rgba(219,0,17,.25) !important; }
+
+/* the picked text / image slides into the comment box */
+@keyframes cmt-card-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
+.cmt-card-in { animation: cmt-card-in .22s ease-out; }
+@media (prefers-reduced-motion: reduce) { .cmt-card-in { animation: none; } }
+.cblk:has(.cmt-el) .cmt-pick { display: none; }
+
+/* author's preview: the part the quality checklist is showing */
+.qc-on { outline: 2px dashed #376798 !important; outline-offset: 3px; border-radius: 4px; }
+
+/* Compare with live: what differs is outlined on both pages */
+.cmp-added { outline: 3px solid #00847F; outline-offset: -3px; } .cmp-changed { outline: 3px solid #E08A00; outline-offset: -3px; }
+.cmp-removed { outline: 3px solid #DB0011; outline-offset: -3px; } .cmp-moved { outline: 3px dashed #4D6474; outline-offset: -3px; }
+.cmp-tag { position: absolute; top: 0; right: 0; z-index: 3; color: #fff; font: 600 12px/1 system-ui, sans-serif; padding: 5px 9px; border-radius: 0 0 0 6px; }
+.cmp-tag-added { background: #00847F; } .cmp-tag-changed { background: #E08A00; } .cmp-tag-removed { background: #DB0011; } .cmp-tag-moved { background: #4D6474; }
+.preview .cblk.cmp-added, .preview .cblk.cmp-changed, .preview .cblk.cmp-removed, .preview .cblk.cmp-moved { border-color: transparent !important; }

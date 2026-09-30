@@ -7,11 +7,11 @@ import type { ResolvedEntities } from "@/lib/ucp/tokens";
 import { bindingsOf } from "@/lib/ucp/tokens";
 import { byOrder, sharedFields } from "@/lib/ucp/schema";
 import { RepoError } from "@/lib/repo";
-import { ME, SEED_USERS } from "@/lib/ucp/seed";
+import { ME, REVIEW_GROUPS, SEED_USERS } from "@/lib/ucp/seed";
 import { allPages } from "@/lib/server/pages";
 import { sessionUserId } from "@/lib/server/session";
 import { can } from "@/lib/ucp/perms";
-import { getMarket } from "@/lib/server/markets";
+import { getMarket, getMarkets } from "@/lib/server/markets";
 import { clApi, listPeople } from "@/lib/server/contentlibre";
 
 /**
@@ -50,6 +50,8 @@ const toUser = (n: RepoNode): User => ({ id: n.name, path: n.path, name: str(n.p
  */
 export async function listUsers(): Promise<User[]> { if (repo().kind === "contentlibre") return contentLibrePeople(); const u = await kids(PATHS.users, 1); return u.length ? u.map(toUser) : SEED_USERS.map((x) => ({ ...x, path: `${PATHS.users}/${x.id}` })); }
 export async function getUser(id: string): Promise<User | undefined> { return (await listUsers()).find((u) => u.id === id); }
+/** A person's e-mail (people outside the seeded directory get the usual firstname.lastname@hsbc.com). */
+export async function userEmail(id: string): Promise<string> { if (!id || id === "system") return ""; if (id.startsWith("guest:")) return id.slice(6); /* business reviewers without UCP (review link) */ return (await getUser(id))?.email || `${id}@hsbc.com`; }
 export async function userName(id: string): Promise<string> { if (id === "system") return "System"; const u = await getUser(id); return u?.name ?? id.split(".").map((s) => s[0]?.toUpperCase() + s.slice(1)).join(" "); }
 /**
  * ContentLIBRE keeps people in its own user manager and decides access with ACLs, so the signed-in person comes
@@ -115,21 +117,44 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
   const pages = (all ?? await allPages(PATHS.content(marketId))).filter((p) => !p.isFolder); const user = await me(); const meId = user.id; const now = new Date();
   const admin = user.role === "admin" || !!user.perms.root?.manage; const root = (await getMarket(marketId)).root;
   /* Visibility: admins see every task; everyone else only what they can act on or what they started. */
-  const mine = (p: PageSummary, kind: TaskKind) => admin || str(p.meta?.["ucp:sentBy"]) === meId || str(p.meta?.["ucp:requestedBy"]) === meId || (p.lastModifiedBy ?? ME) === meId || (kind === "Review" && (str(p.meta?.["ucp:assignee"]) ? str(p.meta?.["ucp:assignee"]) === meId : can(user, "review", p.path, root))) || ((kind === "Publish" || kind === "Fix" || kind === "Check") && (taskAssignee(p, kind) ? taskAssignee(p, kind) === meId : can(user, "publish", p.path, root)));
+  // the Backlog (author's reviews nobody has taken) is visible to everyone; only reviewers can take one
+  const mine = (p: PageSummary, kind: TaskKind) => admin || str(p.meta?.["ucp:sentBy"]) === meId || str(p.meta?.["ucp:requestedBy"]) === meId || (p.lastModifiedBy ?? ME) === meId || (kind === "Review" && (str(p.meta?.["ucp:assignee"]) ? str(p.meta?.["ucp:assignee"]) === meId : p.status === "review" || can(user, "review", p.path, root))) || (kind === "BizReview" && json<string[]>(p.meta?.["ucp:reviewGroups"], []).some((g) => REVIEW_GROUPS.find((x) => x.name === g)?.members.includes(meId))) /* a group they are in was given access */ || (kind === "BizReview" && (taskAssignee(p, kind) ? taskAssignee(p, kind) === meId : can(user, "review", p.path, root) && str(p.meta?.["ucp:authorReviewedBy"]) !== meId)) || ((kind === "Publish" || kind === "Fix" || kind === "Check") && (taskAssignee(p, kind) ? taskAssignee(p, kind) === meId : can(user, "publish", p.path, root)));
   const dueOf = (p: PageSummary) => { const d = p.meta?.["ucp:due"]; if (typeof d === "string" && d) return new Date(d);
     // A real review without a due date is due three days after it was requested - never a made-up date.
     const sent = p.meta?.["ucp:sentAt"]; if (repo().kind !== "mock" && typeof sent === "string" && sent) { const x = new Date(sent); x.setDate(x.getDate() + 3); return x; } const off = (hash(p.path) % 9) - 2; const x = new Date(now); x.setDate(x.getDate() + off); return x; };
-  const mk = async (p: PageSummary, kind: TaskKind, what: string, from: string): Promise<Task> => { const due = dueOf(p); const overdueDays = Math.floor((now.setHours(0, 0, 0, 0) - new Date(due).setHours(0, 0, 0, 0)) / 86400000); return { kind, what, from, sentAt: str(p.meta?.["ucp:sentAt"]) || p.lastModified, due: due.toISOString(), overdueDays, page: { path: p.path, title: p.title, status: p.status, template: p.template } }; };
-  const sender = async (p: PageSummary, fallback: string) => { const s = str(p.meta?.["ucp:sentBy"]); return s ? await userName(s) : fallback; };
+  const mk = async (p: PageSummary, kind: TaskKind, what: string, from: string): Promise<Task> => { const due = dueOf(p); const overdueDays = Math.floor((now.setHours(0, 0, 0, 0) - new Date(due).setHours(0, 0, 0, 0)) / 86400000); return { kind, what, from, author: str(p.meta?.["ucp:requestedBy"]) || str(p.meta?.["ucp:sentBy"]) || str(p.lastModifiedBy) || undefined, /* who sent it for review */ sentAt: str(p.meta?.["ucp:sentAt"]) || p.lastModified, due: due.toISOString(), overdueDays, page: { path: p.path, title: p.title, status: p.status, template: p.template } }; };
+  // "sent by" = the author who sent it for review (ucp:sentBy changes with every status change)
+  const sender = async (p: PageSummary, fallback: string) => { const s = str(p.meta?.["ucp:requestedBy"]) || str(p.meta?.["ucp:sentBy"]); return s ? await userName(s) : fallback; };
+  /* Ready to publish means three people were involved: the author, the peer reviewer and the business reviewer. Older demo pages
+     reached it without them, so they get filled in once (and stored), never shown as "nobody". */
+  for (const p of pages) if (p.status === "approved" || p.status === "scheduled") {
+    const m = p.meta ?? {}; const fix: NodeProps = {}; const author = str(m["ucp:requestedBy"]) || str(m["ucp:sentBy"]) || str(p.lastModifiedBy) || "content.author";
+    if (!str(m["ucp:requestedBy"])) fix["ucp:requestedBy"] = author;
+    const peer = str(m["ucp:authorReviewedBy"]) || ["rachel.hughes", "aisha.khan"].find((x) => x !== author)!; if (!str(m["ucp:authorReviewedBy"])) fix["ucp:authorReviewedBy"] = peer;
+    if (!str(m["ucp:approvedBy"])) fix["ucp:approvedBy"] = ["david.clarke", "maria.santos"].find((x) => x !== peer && x !== author)!;
+    if (Object.keys(fix).length) { await repo().setProps(`${p.path}/jcr:content`, fix).catch(() => {}); p.meta = { ...m, ...fix }; }
+  }
   const out: Task[] = [];
   for (const p of pages) {
-    if (p.status === "review") { const t = await mk(p, "Review", "Review and approve", await sender(p, await userName(p.lastModifiedBy ?? ME))); const a = str(p.meta?.["ucp:assignee"]); if (a) { t.assignee = a; t.assigneeName = await userName(a); } const rm = str(p.meta?.["ucp:remindedAt"]); if (rm) { t.remindedAt = rm; t.remindedBy = await userName(str(p.meta?.["ucp:remindedBy"])); } out.push(t); }
-    else if (p.status === "approved") { const by = str(p.meta?.["ucp:approvedBy"]); out.push(await mk(p, "Publish", "Review done · ready to publish", `${by ? await userName(by) : await sender(p, "Rachel Hughes")} (approved)`)); }
+    if (p.status === "review" || p.status === "inreview") { const t = await mk(p, "Review", p.status === "review" ? "Waiting for author's review assignment · start it" : "In author's review · finish and mark reviewed", await sender(p, await userName(p.lastModifiedBy ?? ME))); const a = str(p.meta?.["ucp:assignee"]); if (a) { t.assignee = a; t.assigneeName = await userName(a); } const rm = str(p.meta?.["ucp:remindedAt"]); if (rm) { t.remindedAt = rm; t.remindedBy = await userName(str(p.meta?.["ucp:remindedBy"])); } out.push(t); }
+    else if (p.status === "reviewed") { const by = str(p.meta?.["ucp:authorReviewedBy"]); out.push(await mk(p, "SendBiz", "Author's review done · send to business review", `${by ? await userName(by) : await sender(p, "Rachel Hughes")} (reviewed)`)); }
+    else if (p.status === "bizreview") { const by = str(p.meta?.["ucp:authorReviewedBy"]); const t = await mk(p, "BizReview", "Business review · sign off before publishing", `${by ? await userName(by) : await sender(p, "Rachel Hughes")} (author's review done)`); const rm = str(p.meta?.["ucp:remindedAt"]); if (rm) { t.remindedAt = rm; t.remindedBy = await userName(str(p.meta?.["ucp:remindedBy"])); } out.push(t); }
+    else if (p.status === "approved") { const by = str(p.meta?.["ucp:approvedBy"]); const byName = by.startsWith("guest:") ? str(p.meta?.["ucp:approvedByName"]) || by.slice(6) : by ? await userName(by) : await sender(p, "Rachel Hughes"); out.push(await mk(p, "Publish", "Business review done · ready to publish", `${byName} (approved)`)); }
     else if (p.status === "failed") out.push(await mk(p, "Fix", "Fix failed publish", "System"));
     else if (p.status === "scheduled") out.push(await mk(p, "Check", "Check scheduled publish", await sender(p, "Michael Osei")));
     else if (p.meta?.["libre:reviewState"] === "CHANGES_REQUESTED") out.push(await mk(p, "Fix", "Make the changes the reviewer asked for", await userName(str(p.meta?.["libre:reviewDecidedBy"], "Reviewer"))));
     else if (p.meta?.["libre:reviewState"] === "OUTDATED") out.push(await mk(p, "Finish", "Changed after approval - send for review again", "You"));
     else if (p.status === "draft" && (p.lastModifiedBy ?? ME) === meId) out.push(await mk(p, "Finish", "Finish draft and send for review", "You"));
+  }
+  for (const t of out) if (t.author) t.authorName = await userName(t.author);
+  for (const t of out) { // the three people of the review flow, for the My tasks columns
+    const p = pages.find((x) => x.path === t.page.path)!; const st = p.status;
+    const peer = st === "review" || st === "inreview" ? str(p.meta?.["ucp:assignee"]) : str(p.meta?.["ucp:authorReviewedBy"]);
+    const biz = st === "bizreview" ? taskAssignee(p, "BizReview") : st === "approved" || st === "scheduled" ? str(p.meta?.["ucp:approvedBy"]) : "";
+    if (t.author) t.authorEmail = await userEmail(t.author);
+    if (peer) { t.peer = peer; t.peerName = await userName(peer); t.peerEmail = await userEmail(peer); }
+    if (biz) { t.biz = biz; t.bizName = biz.startsWith("guest:") ? str(p.meta?.["ucp:approvedByName"]) || biz.slice(6) : await userName(biz); t.bizEmail = await userEmail(biz); }
+    if (st === "bizreview") { const g = json<string[]>(p.meta?.["ucp:reviewGroups"], []); if (g.length) t.bizGroups = g; }
   }
   for (const t of out) { const a = taskAssignee(pages.find((p) => p.path === t.page.path)!, t.kind); if (a) { t.assignee = a; t.assigneeName = await userName(a); } }
   return out.filter((t) => mine(pages.find((p) => p.path === t.page.path)!, t.kind)).sort((a, b) => a.due.localeCompare(b.due));
@@ -138,7 +163,7 @@ export async function notifications(marketId: string): Promise<Notification[]> {
   const [all, log, meUser] = await Promise.all([listTasks(marketId), readLog(marketId, 20), me()]); const meId = meUser.id;
   const tasks = all.filter((x) => !(x.kind === "Publish" && x.from.startsWith(`${meUser.name} (`))); // no "you finished the review" for the reviewer
   const rel = (iso: string) => { const d = new Date(iso); const diff = Math.round((Date.now() - d.getTime()) / 60000); return diff < 60 ? `${Math.max(diff, 0)} min ago` : diff < 1440 ? `${Math.round(diff / 60)} h ago` : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
-  const t = tasks.filter((x) => x.kind !== "Review" || !x.assignee || x.assignee === meId).sort((a, b) => Number(!!b.remindedAt) - Number(!!a.remindedAt) || Number(b.assignee === meId) - Number(a.assignee === meId) || (b.sentAt ?? "").localeCompare(a.sentAt ?? "")).slice(0, 4).map((x) => ({ text: x.remindedAt && x.kind === "Review" ? `Reminder: ${x.remindedBy} is waiting for ${x.assignee === meId ? "your review" : "a review"} of ${x.page.title}` : x.kind === "Finish" ? `Your draft of ${x.page.title} is waiting to be sent for review` : `${x.from.replace(/ \(.*\)$/, "")} ${x.kind === "Review" ? (x.assignee === meId ? "assigned you to review" : "asked for a review of") : x.kind === "Publish" ? "finished the review of" : x.kind === "Fix" ? "reported a failed publish of" : "is waiting on"} ${x.page.title}${x.kind === "Publish" ? " · ready to publish" : ""}`, when: x.overdueDays > 0 ? `${x.overdueDays} day${x.overdueDays === 1 ? "" : "s"} overdue` : x.overdueDays === 0 ? "Due today" : `Due ${new Date(x.due).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`, target: x.page.path, level: x.overdueDays > 0 ? "crit" : x.overdueDays === 0 || (x.remindedAt && x.kind === "Review") ? "warn" : "" }));
+  const t = tasks.filter((x) => x.kind !== "Review" || !x.assignee || x.assignee === meId).sort((a, b) => Number(!!b.remindedAt) - Number(!!a.remindedAt) || Number(b.assignee === meId) - Number(a.assignee === meId) || (b.sentAt ?? "").localeCompare(a.sentAt ?? "")).slice(0, 4).map((x) => ({ text: x.remindedAt && (x.kind === "Review" || x.kind === "BizReview") ? `Reminder: ${x.remindedBy} is waiting for ${x.kind === "BizReview" ? "the business review" : x.assignee === meId ? "your review" : "a review"} of ${x.page.title}` : x.kind === "Finish" ? `Your draft of ${x.page.title} is waiting to be sent for review` : `${x.from.replace(/ \(.*\)$/, "")} ${x.kind === "Review" ? (x.assignee === meId ? "assigned you to review" : "asked for a review of") : x.kind === "SendBiz" ? "finished the author's review of" : x.kind === "BizReview" ? "sent to business review:" : x.kind === "Publish" ? "finished the business review of" : x.kind === "Fix" ? "reported a failed publish of" : "is waiting on"} ${x.page.title}${x.kind === "Publish" ? " · ready to publish" : x.kind === "SendBiz" ? " · send it to business review" : x.kind === "BizReview" ? " · business sign-off needed" : ""}`, when: x.overdueDays > 0 ? `${x.overdueDays} day${x.overdueDays === 1 ? "" : "s"} overdue` : x.overdueDays === 0 ? "Due today" : `Due ${new Date(x.due).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`, target: x.page.path, level: x.overdueDays > 0 ? "crit" : x.overdueDays === 0 || (x.remindedAt && (x.kind === "Review" || x.kind === "BizReview")) ? "warn" : "" }));
   const taskTargets = new Set(t.map((x) => x.target)); // a task already says it; skip the matching audit line
   const l: Notification[] = []; for (const e of log.filter((e) => e.who !== meId && !(e.target && taskTargets.has(e.target))).slice(0, 3)) l.push({ text: `${await userName(e.who)} ${e.text}`, when: rel(e.time), target: e.target, level: e.level });
   return [...t, ...l];
@@ -167,12 +192,125 @@ async function contentLibreVersions(path: string): Promise<PageVersion[]> {
   const d = await clApi<{ archived: { id: string; createdBy?: string; created?: string; publication?: string; supersededBy?: string }[] }>("GET", "content/v1/drafts", { path });
   return d.archived.map((a) => ({ id: a.id, time: a.created ?? "", who: a.createdBy ?? "", note: a.supersededBy ? `replaced by ${a.supersededBy}` : "earlier publication", title: a.publication || a.id, status: "published", blocks: 0 }));
 }
+/* ---------------- page comments: a thread on the page's history; pinned ones stay on top ---------------- */
+export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string }; stage?: string; guest?: boolean; /** the component (and the text or asset in it) the comment is about */ block?: { id: string; label: string; field?: string }; /** done: kept in Comments, no longer marked on the page */ resolved?: { by: string; name: string; at: string } };
+const readComments = async (path: string): Promise<PageComment[]> => { const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path); return json<PageComment[]>(pg.meta?.["ucp:comments"], []); };
+const writeComments = (path: string, list: PageComment[]) => repo().setProps(`${path}/jcr:content`, { "ucp:comments": JSON.stringify(list) });
+/** Pinned first (latest pin on top), then newest first. */
+export const sortComments = (l: PageComment[]) => l.slice().sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.time.localeCompare(a.time));
+export async function listComments(path: string): Promise<PageComment[]> { return sortComments(await readComments(path)); }
+export async function addComment(path: string, u: Pick<User, "id" | "name">, text: string, version?: { id: string; label: string }, extra: { stage?: string; guest?: boolean; block?: { id?: unknown; label?: unknown; field?: unknown } } = {}): Promise<PageComment[]> {
+  const t = text.trim(); if (!t) throw new RepoError(400, "Write a comment first"); if (t.length > 2000) throw new RepoError(400, "Keep comments under 2,000 characters");
+  const list = await readComments(path); list.push({ id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, who: u.id, whoName: u.name, time: new Date().toISOString(), text: t, version: version?.id ? { id: version.id, label: String(version.label ?? "").slice(0, 80) } : undefined, stage: extra.stage, guest: extra.guest, block: typeof extra.block?.id === "string" && /^[\w-]{1,60}$/.test(extra.block.id) ? { id: extra.block.id, label: String(extra.block.label ?? "Component").slice(0, 90), field: typeof extra.block.field === "string" && /^[\w|:.-]{1,80}$/.test(extra.block.field) ? extra.block.field : undefined } : undefined });
+  await writeComments(path, list); return sortComments(list);
+}
+export async function setCommentPin(path: string, u: User, id: string, pinned: boolean): Promise<PageComment[]> {
+  const list = await readComments(path); const c = list.find((x) => x.id === id); if (!c) throw new RepoError(404, "Comment not found");
+  c.pinned = pinned || undefined; c.pinnedBy = pinned ? u.id : undefined; await writeComments(path, list); return sortComments(list);
+}
+/** Resolve (or reopen) a comment: it stays in the list, but the page no longer shows it. Resolving also unpins it. */
+export async function setCommentResolved(path: string, u: User, id: string, resolved: boolean): Promise<PageComment[]> {
+  const list = await readComments(path); const c = list.find((x) => x.id === id); if (!c) throw new RepoError(404, "Comment not found");
+  c.resolved = resolved ? { by: u.id, name: u.name, at: new Date().toISOString() } : undefined; if (resolved) { c.pinned = undefined; c.pinnedBy = undefined; }
+  await writeComments(path, list); return sortComments(list);
+}
+export async function deleteComment(path: string, u: User, id: string, admin: boolean): Promise<PageComment[]> {
+  const list = await readComments(path); const c = list.find((x) => x.id === id); if (!c) throw new RepoError(404, "Comment not found");
+  if (c.who !== u.id && !admin) throw new RepoError(403, "You can only delete your own comments");
+  const next = list.filter((x) => x.id !== id); await writeComments(path, next); return sortComments(next);
+}
+/* ---------------- review links: send a page in review to someone by link or e-mail ---------------- */
+export type ReviewLink = { token: string; stage: "review" | "bizreview"; email?: string; /** a whole team got access with this link */ group?: string; by: string; at: string };
+export type ReviewGroup = { team: string; members: { id: string; name: string; email: string; canSignOff: boolean }[]; shared: boolean };
+/** Teams that can be given access to a page's business review (from the people directory); `shared` = already has access. */
+export async function reviewGroups(marketId: string, path: string): Promise<ReviewGroup[]> {
+  const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path);
+  const have = json<string[]>(pg.meta?.["ucp:reviewGroups"], []); const root = (await getMarket(marketId)).root; const by = new Map<string, ReviewGroup>();
+  const people = await listUsers();
+  for (const grp of REVIEW_GROUPS) by.set(grp.name, { team: grp.name, shared: have.includes(grp.name), members: grp.members.map((id) => people.find((x) => x.id === id)).filter((x): x is User => !!x).map((x) => ({ id: x.id, name: x.name, email: x.email, canSignOff: can(x, "review", path, root) })) });
+  return [...by.values()].sort((a, b) => Number(b.shared) - Number(a.shared) || a.team.localeCompare(b.team));
+}
+/** Give a whole team access to the business review: one link for the team, and the page shows up in every member's My tasks. */
+export async function shareWithGroup(marketId: string, path: string, u: User, team: string): Promise<{ token: string; members: ReviewGroup["members"]; created: boolean }> {
+  const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path);
+  if (pg.status !== "bizreview") throw new RepoError(409, "Groups are for the business review", "Send the page to the business review first");
+  const g = (await reviewGroups(marketId, path)).find((x) => x.team === team); if (!g?.members.length) throw new RepoError(400, "That group has nobody in it");
+  const links = json<ReviewLink[]>(pg.meta?.["ucp:reviewLinks"], []); const reuse = links.find((l) => l.stage === "bizreview" && l.group === team);
+  const link: ReviewLink = reuse ?? { token: crypto.randomUUID().replace(/-/g, ""), stage: "bizreview", group: team, by: u.id, at: new Date().toISOString() };
+  const groups = json<string[]>(pg.meta?.["ucp:reviewGroups"], []);
+  await repo().setProps(`${path}/jcr:content`, { "ucp:reviewLinks": JSON.stringify(reuse ? links : [...links, link]), "ucp:reviewGroups": JSON.stringify(groups.includes(team) ? groups : [...groups, team]) });
+  return { token: link.token, members: g.members, created: !reuse };
+}
+export const STAGE_LABEL: Record<string, string> = { review: "Author's review", bizreview: "Business review" };
+/**
+ * A link for the current review stage. The link opens a review screen (preview + comments) and stops working when the stage is over.
+ * With an e-mail of a UCP user who may review the page, that person is also assigned, so the task shows up in their My tasks.
+ */
+export async function createReviewLink(marketId: string, path: string, u: User, email?: string): Promise<{ token: string; stage: string; assigned?: string; created: boolean }> {
+  const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path);
+  if (pg.status !== "review" && pg.status !== "inreview" && pg.status !== "bizreview") throw new RepoError(409, "Send the page for review first");
+  const stage: "review" | "bizreview" = pg.status === "bizreview" ? "bizreview" : "review";
+  const mail = email?.trim().toLowerCase() || undefined; if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) throw new RepoError(400, "That e-mail address does not look right");
+  const links = json<ReviewLink[]>(pg.meta?.["ucp:reviewLinks"], []);
+  const reuse = links.find((l) => l.stage === stage && (l.email ?? "") === (mail ?? ""));
+  const link: ReviewLink = reuse ?? { token: crypto.randomUUID().replace(/-/g, ""), stage, email: mail, by: u.id, at: new Date().toISOString() };
+  const props: NodeProps = { "ucp:reviewLinks": JSON.stringify(reuse ? links : [...links, link]) }; let assigned: string | undefined;
+  const person = mail ? (await listUsers()).find((x) => x.email.toLowerCase() === mail) : undefined;
+  if (person && can(person, "review", path, (await getMarket(marketId)).root)) {
+    if (stage === "review") props["ucp:assignee"] = person.id; else { props["ucp:taskAssignee"] = person.id; props["ucp:taskKind"] = "BizReview"; }
+    props["ucp:assignedBy"] = u.id; assigned = person.name;
+  }
+  await repo().setProps(`${path}/jcr:content`, props);
+  return { token: link.token, stage: link.stage, assigned, created: !reuse };
+}
+/**
+ * Who may sign off or reauthor through a business review link. Everyone with the link may comment; deciding is for the people it
+ * was sent to: the address of an e-mailed link, or the members of a group link. A plain copied link only lets people comment.
+ * When one business reviewer is assigned, only they decide. (Signed-in UCP users are checked separately.)
+ */
+export async function guestMayDecide(link: ReviewLink, meta: Record<string, unknown>, email: string): Promise<{ ok: boolean; why?: string }> {
+  const mail = email.trim().toLowerCase(); if (!mail) return { ok: false, why: "Add your e-mail first" };
+  const people = await listUsers();
+  const invited = link.email ? [link.email.toLowerCase()] : link.group ? (REVIEW_GROUPS.find((g) => g.name === link.group)?.members ?? []).map((id) => people.find((u) => u.id === id)?.email.toLowerCase() ?? "") : [];
+  if (!invited.length) return { ok: false, why: "This link is for comments. Signing off is for the people the review was sent to." };
+  if (!invited.includes(mail)) return { ok: false, why: link.email ? `This link was sent to ${link.email}. Use that e-mail to decide.` : `This link was sent to the ${link.group} group. Use your e-mail from that group to decide.` };
+  const assigned = meta["ucp:taskKind"] === "BizReview" && typeof meta["ucp:taskAssignee"] === "string" ? String(meta["ucp:taskAssignee"]) : "";
+  if (assigned) { const a = people.find((u) => u.id === assigned); const aMail = (a?.email ?? (assigned.startsWith("guest:") ? assigned.slice(6) : "")).toLowerCase(); if (aMail !== mail) return { ok: false, why: `${a?.name ?? "The assigned business reviewer"} decides on this page.` }; }
+  return { ok: true };
+}
+/** Find the page a review link belongs to (any market). `open` is false once the page left that review stage. */
+export async function reviewByToken(token: string) {
+  if (!/^[a-f0-9]{32}$/.test(token)) return undefined;
+  for (const m of await getMarkets()) for (const p of await allPages(m.root)) {
+    const l = json<ReviewLink[]>(p.meta?.["ucp:reviewLinks"], []).find((x) => x.token === token);
+    if (l) { const page = await repo().getPage(p.path); if (!page) return undefined; return { marketId: m.id, market: m, page, link: l, open: (page.status === "inreview" ? "review" : page.status) === l.stage }; }
+  }
+  return undefined;
+}
 export async function listVersions(path: string): Promise<PageVersion[]> { if (repo().kind === "contentlibre") return contentLibreVersions(path); const v = await kids(VER(path), 1); return v.map((n) => ({ id: n.name, time: str(n.properties["ucp:time"]), who: str(n.properties["ucp:who"]), note: str(n.properties["ucp:note"]), title: str(n.properties["ucp:title"]), status: str(n.properties["ucp:status"]), blocks: json<unknown[]>(n.properties["ucp:components"], []).length })).sort((a, b) => b.time.localeCompare(a.time)); }
 export async function snapshotVersion(path: string, note: string, who: string): Promise<void> {
   if (repo().kind === "contentlibre") return; // the backend archives every publication itself
   const v = await repo().getPage(path); if (!v) return; const time = new Date().toISOString(); const id = `v${time.replace(/[^0-9]/g, "").slice(0, 17)}`;
   try { await repo().createNode(`${VER(path)}/${id}`, "nt:unstructured", { "ucp:time": time, "ucp:who": who, "ucp:note": note, "ucp:title": v.title, "ucp:status": v.status, "ucp:components": JSON.stringify(v.components) });
     const all = await listVersions(path); for (const old of all.slice(20)) await repo().deleteNode(`${VER(path)}/${old.id}`).catch(() => {}); } catch { /* backends without version nodes keep no history */ }
+}
+/** What customers see: a copy of the page taken when it goes live, so later edits can be compared with it. */
+export async function keepLive(path: string): Promise<void> {
+  const p = await repo().getPage(path); if (!p) return;
+  await repo().setProps(`${path}/jcr:content`, { "ucp:liveComponents": JSON.stringify(p.components ?? []), "ucp:liveTitle": p.title, "ucp:liveAt": new Date().toISOString() });
+}
+export type CompareSide = { label: string; title: string; components: unknown[]; time?: string; who?: string };
+/** Authoring (the current draft or a saved version) next to the live page. No live page (never published) → live is null. */
+export async function compareSides(path: string, versionId?: string): Promise<{ live: CompareSide | null; authoring: CompareSide; versions: PageVersion[] }> {
+  const p = await repo().getPage(path); if (!p) throw new RepoError(404, "Page not found", path);
+  const m = p.meta ?? {}; const raw = typeof m["ucp:liveComponents"] === "string" ? String(m["ucp:liveComponents"]) : "";
+  const publishedAt = str(m["ucp:publishedAt"]) || str(m["ucp:liveAt"]) || undefined; const by = str(m["ucp:publishedBy"]);
+  const live: CompareSide | null = raw ? { label: "Live", title: str(m["ucp:liveTitle"]) || p.title, components: json(raw, []), time: publishedAt, who: by ? await userName(by) : undefined }
+    : p.status === "published" ? { label: "Live", title: p.title, components: p.components ?? [], time: publishedAt, who: by ? await userName(by) : undefined } : null;
+  const versions = await listVersions(path);
+  let authoring: CompareSide = { label: "Current draft", title: p.title, components: p.components ?? [], time: p.lastModified, who: p.lastModifiedBy ? await userName(p.lastModifiedBy) : undefined };
+  if (versionId && versionId !== "current") { const n = await repo().getNode(`${VER(path)}/${versionId}`, 0); if (!n) throw new RepoError(404, "Version not found"); authoring = { label: "Saved version", title: str(n.properties["ucp:title"]) || p.title, components: json(n.properties["ucp:components"], []), time: str(n.properties["ucp:time"]), who: await userName(str(n.properties["ucp:who"])) }; }
+  return { live, authoring, versions };
 }
 export async function restoreVersion(path: string, id: string): Promise<void> {
   if (repo().kind === "contentlibre") { await clApi("POST", "content/v1/drafts", { path }, { from: id, label: `Restored ${id}` }); return; }
@@ -332,13 +470,13 @@ export async function resolveBindings(b: Bindings, published = false): Promise<R
 /* ---------------- review assignment ---------------- */
 export async function reviewerOptions(marketId: string, pagePath: string, perm: "review" | "publish" = "review"): Promise<ReviewerOption[]> {
   const [users, pages] = await Promise.all([listUsers(), allPages(PATHS.content(marketId))]); const root = (await getMarket(marketId)).root;
-  const active = (id: string) => pages.filter((p) => (p.status === "review" && str(p.meta?.["ucp:assignee"]) === id) || (p.status !== "review" && str(p.meta?.["ucp:taskAssignee"]) === id && str(p.meta?.["ucp:taskKind"]) === KIND_OF_STATUS[p.status])).length;
+  const active = (id: string) => pages.filter((p) => ((p.status === "review" || p.status === "inreview") && str(p.meta?.["ucp:assignee"]) === id) || (p.status !== "review" && p.status !== "inreview" && str(p.meta?.["ucp:taskAssignee"]) === id && str(p.meta?.["ucp:taskKind"]) === KIND_OF_STATUS[p.status])).length;
   return users.filter((u) => can(u, perm, pagePath, root)).map((u) => ({ id: u.id, name: u.name, team: u.team, activeReviews: active(u.id) })).sort((a, b) => a.activeReviews - b.activeReviews || a.name.localeCompare(b.name));
 }
 /** Which task a page status stands for (tasks other than Review keep their assignee in ucp:taskAssignee + ucp:taskKind). */
-export const KIND_OF_STATUS: Record<string, TaskKind> = { review: "Review", approved: "Publish", failed: "Fix", scheduled: "Check" };
+export const KIND_OF_STATUS: Record<string, TaskKind> = { review: "Review", inreview: "Review", bizreview: "BizReview", approved: "Publish", failed: "Fix", scheduled: "Check" };
 /** The permission someone needs to take a task of this kind. */
-export const permOfKind = (k: TaskKind): "review" | "publish" => (k === "Review" ? "review" : "publish");
+export const permOfKind = (k: TaskKind): "review" | "publish" => (k === "Review" || k === "BizReview" ? "review" : "publish");
 /** Assignee of a non-review task, only while the page is still in the state that created it. */
 const taskAssignee = (p: PageSummary, kind: TaskKind) => (kind !== "Review" && str(p.meta?.["ucp:taskKind"]) === kind ? str(p.meta?.["ucp:taskAssignee"]) : "");
 /** Pick the reviewer with the fewest active reviews (never the sender when someone else is available). */
@@ -366,7 +504,7 @@ export async function publishPages(marketId: string, paths: string[], opts: { at
       await repo().updateContent(path, { status: "approved" }); await repo().setProps(`${path}/jcr:content`, { "ucp:publishAt": null });
       await logEvent(marketId, { type: "publishing", who: u.id, text: `cancelled the scheduled publish of ${pg.title}`, target: path }); out.push({ ...r, ok: true, status: "approved" }); continue;
     }
-    if (!PUBLISHABLE.includes(pg.status)) { out.push({ ...r, ok: false, reason: pg.status === "published" ? "Already live" : pg.status === "review" ? "Still in review" : "Needs approval first" }); continue; }
+    if (!PUBLISHABLE.includes(pg.status)) { out.push({ ...r, ok: false, reason: pg.status === "published" ? "Already live" : pg.status === "review" || pg.status === "inreview" ? "Still in author's review" : pg.status === "reviewed" ? "Business review comes next" : pg.status === "bizreview" ? "Still in business review" : "Needs approval first" }); continue; }
     const stamp = new Date().toISOString();
     if (schedule) {
       await snapshotVersion(path, "before: scheduled for publishing", u.id);
@@ -375,7 +513,7 @@ export async function publishPages(marketId: string, paths: string[], opts: { at
       out.push({ ...r, ok: true, status: "scheduled" });
     } else {
       await snapshotVersion(path, "before: published", u.id);
-      await repo().updateContent(path, { status: "published" }); await repo().setProps(`${path}/jcr:content`, { "ucp:publishAt": null, "ucp:publishedAt": stamp, "ucp:publishedBy": u.id, "ucp:sentBy": u.id, "ucp:sentAt": stamp, "ucp:due": null });
+      await repo().updateContent(path, { status: "published" }); await repo().setProps(`${path}/jcr:content`, { "ucp:publishAt": null, "ucp:publishedAt": stamp, "ucp:publishedBy": u.id, "ucp:sentBy": u.id, "ucp:sentAt": stamp, "ucp:due": null }); await keepLive(path);
       await logEvent(marketId, { type: "publishing", who: u.id, text: `published ${pg.title}`, target: path });
       out.push({ ...r, ok: true, status: "published" });
     }
@@ -389,7 +527,7 @@ export async function publishDue(marketId: string): Promise<number> {
   for (const p of await allPages(mk.root).catch(() => [])) {
     const at = typeof p.meta?.["ucp:publishAt"] === "string" ? Date.parse(String(p.meta["ucp:publishAt"])) : NaN;
     if (p.status !== "scheduled" || isNaN(at) || at > now) continue;
-    await repo().updateContent(p.path, { status: "published" }); await repo().setProps(`${p.path}/jcr:content`, { "ucp:publishAt": null, "ucp:publishedAt": new Date().toISOString(), "ucp:publishedBy": "system" });
+    await repo().updateContent(p.path, { status: "published" }); await repo().setProps(`${p.path}/jcr:content`, { "ucp:publishAt": null, "ucp:publishedAt": new Date().toISOString(), "ucp:publishedBy": "system" }); await keepLive(p.path);
     await logEvent(marketId, { type: "publishing", who: "system", text: `published ${p.title} (scheduled)`, target: p.path }); n++;
   }
   return n;
@@ -429,7 +567,7 @@ async function publishOnContentLibre(marketId: string, paths: string[], opts: { 
         out.push({ ...r, ok: true, status: "approved" }); continue;
       }
       const draft = d.open.find((x) => x.review?.state === "APPROVED");
-      if (!draft) { out.push({ ...r, ok: false, reason: pg.status === "published" ? "Already live" : pg.status === "review" ? "Still in review" : "Needs approval first" }); continue; }
+      if (!draft) { out.push({ ...r, ok: false, reason: pg.status === "published" ? "Already live" : pg.status === "review" || pg.status === "inreview" ? "Still in review" : "Needs approval first" }); continue; }
       if (schedule) {
         await clApi("POST", "content/v1/drafts/schedule", { path }, { draft: draft.id, at: at!.toISOString(), revision: draft.revision });
         await logEvent(marketId, { type: "publishing", who: u.id, text: `scheduled ${pg.title} for ${when(at!)}`, target: path });

@@ -1,13 +1,15 @@
-import { getMarket } from "@/lib/server/markets";
-import { listTasks } from "@/lib/server/ucp";
-import { Tasks } from "@/components/tasks/Tasks";
-import { repo } from "@/lib/repo";
+import { getMarkets } from "@/lib/server/markets";
+import { listTasks, userName } from "@/lib/server/ucp";
+import { allPages } from "@/lib/server/pages";
+import { Tasks, type PublishedItem } from "@/components/tasks/Tasks";
 
-/** My tasks: the review / publishing queue, derived from page workflow state in the repository. */
+/** My tasks: pages by stage of the review flow across every market, derived from page workflow state in the repository. */
 export default async function Page({ params, searchParams }: PageProps<"/[market]/[env]/tasks">) {
-  const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = (await getMarket(mid));
-  const s = (v: unknown) => (typeof v === "string" ? v : "");
-  const tasks = await listTasks(mid);
-  const sort = ["due", "name", "kind"].includes(s(sp.sort)) ? (s(sp.sort) as "due" | "name" | "kind") : "due";
-  return <Tasks marketId={mid} envId={eid} root={mk.root} marketName={mk.name} tasks={tasks} q={s(sp.q)} kind={s(sp.kind)} sort={sort} assignable={repo().kind === "contentlibre" ? ["Review"] : undefined} />;
+  const { market: mid, env: eid } = await params; const sp = await searchParams;
+  const markets = await getMarkets();
+  const tasks = (await Promise.all(markets.map((m) => listTasks(m.id)))).flat();
+  /* Published: the most recent live pages (30), newest first */
+  const live = (await Promise.all(markets.map((m) => allPages(m.root)))).flat().filter((p) => !p.isFolder && p.status === "published").sort((a, b) => (b.lastModified ?? "").localeCompare(a.lastModified ?? "")).slice(0, 30);
+  const published: PublishedItem[] = await Promise.all(live.map(async (p) => ({ path: p.path, title: p.title, when: p.lastModified, whoId: p.lastModifiedBy, who: p.lastModifiedBy ? await userName(p.lastModifiedBy) : undefined })));
+  return <Tasks marketId={mid} envId={eid} tasks={tasks} published={published} view={typeof sp.view === "string" ? sp.view : ""} />;
 }
