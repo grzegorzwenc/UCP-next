@@ -227,6 +227,21 @@ export async function createReviewLink(marketId: string, path: string, u: User, 
   await repo().setProps(`${path}/jcr:content`, props);
   return { token: link.token, stage: link.stage, assigned, created: !reuse };
 }
+/**
+ * Who may sign off or reauthor through a business review link. Everyone with the link may comment; deciding is for the people it
+ * was sent to: the address of an e-mailed link, or the members of a group link. A plain copied link only lets people comment.
+ * When one business reviewer is assigned, only they decide. (Signed-in UCP users are checked separately.)
+ */
+export async function guestMayDecide(link: ReviewLink, meta: Record<string, unknown>, email: string): Promise<{ ok: boolean; why?: string }> {
+  const mail = email.trim().toLowerCase(); if (!mail) return { ok: false, why: "Add your e-mail first" };
+  const people = await listUsers();
+  const invited = link.email ? [link.email.toLowerCase()] : link.group ? (REVIEW_GROUPS.find((g) => g.name === link.group)?.members ?? []).map((id) => people.find((u) => u.id === id)?.email.toLowerCase() ?? "") : [];
+  if (!invited.length) return { ok: false, why: "This link is for comments. Signing off is for the people the review was sent to." };
+  if (!invited.includes(mail)) return { ok: false, why: link.email ? `This link was sent to ${link.email}. Use that e-mail to decide.` : `This link was sent to the ${link.group} group. Use your e-mail from that group to decide.` };
+  const assigned = meta["ucp:taskKind"] === "BizReview" && typeof meta["ucp:taskAssignee"] === "string" ? String(meta["ucp:taskAssignee"]) : "";
+  if (assigned) { const a = people.find((u) => u.id === assigned); const aMail = (a?.email ?? (assigned.startsWith("guest:") ? assigned.slice(6) : "")).toLowerCase(); if (aMail !== mail) return { ok: false, why: `${a?.name ?? "The assigned business reviewer"} decides on this page.` }; }
+  return { ok: true };
+}
 /** Find the page a review link belongs to (any market). `open` is false once the page left that review stage. */
 export async function reviewByToken(token: string) {
   if (!/^[a-f0-9]{32}$/.test(token)) return undefined;

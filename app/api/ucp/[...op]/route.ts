@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, setCommentResolved, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
+import { guestMayDecide, createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, setCommentResolved, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
 import { can } from "@/lib/ucp/perms";
 import { SESSION_COOKIE, sessionUserId } from "@/lib/server/session";
 import { PATHS } from "@/lib/ucp/paths";
@@ -86,6 +86,10 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       const name = (b.name ?? "").trim().slice(0, 80); const mail = (b.email ?? "").trim().slice(0, 120);
       if (!signed && (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail))) return problem(new RepoError(400, "Add your name and e-mail so the team knows who decided"));
       const who = signed ? await me() : { id: `guest:${mail.toLowerCase()}`, name };
+      /* only the people the review was sent to decide (a plain link is for comments); signed-in users need Review, or site admin */
+      if (signed) { const u = who as Awaited<ReturnType<typeof me>>; const admin = u.role === "admin" || !!u.perms.root?.manage; const meta = hit.page.meta ?? {}; const assigned = meta["ucp:taskKind"] === "BizReview" && typeof meta["ucp:taskAssignee"] === "string" ? String(meta["ucp:taskAssignee"]) : "";
+        if (!admin && (!can(u, "review", hit.page.path, hit.market.root) || (assigned ? assigned !== u.id : meta["ucp:authorReviewedBy"] === u.id))) return problem(new RepoError(403, "You can comment, but someone else signs this page off")); }
+      else { const g = await guestMayDecide(hit.link, hit.page.meta ?? {}, mail); if (!g.ok) return problem(new RepoError(403, "Only the people this review was sent to can decide", g.why)); }
       const path = hit.page.path; const signoff = b.decision === "signoff"; if (!signoff && b.decision !== "reauthor") return problem(new RepoError(400, "Sign off or reauthor"));
       await snapshotVersion(path, signoff ? "before: signed off" : "before: sent back to the author", who.id);
       await repo().updateContent(path, { status: signoff ? "approved" : "draft" });

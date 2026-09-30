@@ -48,7 +48,7 @@ export function ShareReviewDialog({ marketId, path, title, stage, onClose, onApp
     <label className="block text-[12.5px] font-semibold text-ink-2">Review link</label>
     <div className="mt-1 flex gap-2"><input readOnly value={url ?? "Creating the link…"} onFocus={(e) => e.currentTarget.select()} className="flex-1 min-w-0 border border-line-2 rounded-md px-2.5 py-1.5 text-[12.5px] font-mono bg-surface-2" aria-label="Review link" />
       <button className="btn btn-sm" disabled={!url} onClick={copy}>{copied ? "✓ Copied" : "Copy"}</button></div>
-    <p className="text-[11.5px] text-ink-3 mt-1">Anyone with the link can see the page and comment until the {STAGE[stage]} ends.</p>
+    <p className="text-[11.5px] text-ink-3 mt-1">Anyone with the link can comment until the {STAGE[stage]} ends.{stage === "bizreview" ? " Only people you e-mail or a group can sign off." : ""}</p>
     <label className="block text-[12.5px] font-semibold text-ink-2 mt-4" htmlFor="rv-mail">Send by e-mail</label>
     <div className="mt-1 flex gap-2"><input id="rv-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void invite(); }} placeholder="name@hsbc.com" className="flex-1 min-w-0 border border-line-2 rounded-md px-2.5 py-1.5 text-[13px]" />
       <button className="btn btn-sm" disabled={!email.trim() || busy} onClick={invite}>Send e-mail</button></div>

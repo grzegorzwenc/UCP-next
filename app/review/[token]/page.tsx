@@ -27,5 +27,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
   return <ReviewScreen token={token} open={open} stage={link.stage} stageLabel={STAGE_LABEL[link.stage]} path={page.path} title={page.title} status={page.status}
     market={{ name: market.name, flag: market.flag, domain: market.domain, route: page.path.replace(market.root, "") || "/" }}
     blocks={componentsToBlocks(page.components ?? [])} entities={ents} comments={comments} user={user ? { name: user.name } : null} mayApprove={mayApprove}
+    /* guests decide only through a link that was sent to them (an e-mail or a group); a copied link is for comments */
+    inviteEmail={link.email} canDecide={user ? mayApprove : !!(link.email || link.group)} sentTo={link.email ?? (link.group ? `the ${link.group} group` : undefined)}
     assets={Object.fromEntries(assets.map((a) => [a.id, { data: a.data, alt: a.a11y?.alt?.[market.locales[0]], decorative: a.a11y?.decorative }]))} />;
 }

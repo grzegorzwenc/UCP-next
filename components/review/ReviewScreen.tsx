@@ -18,6 +18,7 @@ type Props = {
   missing?: boolean; token?: string; open?: boolean; stage?: "review" | "bizreview"; stageLabel?: string; path?: string; title?: string; status?: string;
   market?: { name: string; flag: string; domain: string; route: string }; blocks?: Block[]; entities?: ResolvedEntities; assets?: Record<string, { data?: string; alt?: string; decorative?: boolean }>;
   comments?: PageComment[]; user?: { name: string } | null; mayApprove?: boolean;
+  /** the address an e-mailed link went to (prefilled, fixed) · whether this viewer may sign off / reauthor · who the link was sent to */ inviteEmail?: string; canDecide?: boolean; sentTo?: string;
 };
 const subWide = (cb: () => void) => { const m = window.matchMedia("(min-width: 1024px)"); m.addEventListener("change", cb); return () => m.removeEventListener("change", cb); };
 const MAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -34,7 +35,7 @@ function Preview({ children }: { children: React.ReactNode }) {
 export function ReviewScreen(p: Props) {
   const [list, setList] = useState<PageComment[]>(p.comments ?? []); const [text, setText] = useState("");
   // a guest's name and e-mail are remembered in this browser for the next comment
-  const [name, setName] = useState(() => stored().name ?? ""); const [email, setEmail] = useState(() => stored().email ?? ""); const [busy, setBusy] = useState(false);
+  const [name, setName] = useState(() => stored().name ?? ""); const [email, setEmail] = useState(() => p.inviteEmail ?? stored().email ?? ""); const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null); const [done, setDone] = useState<string | null>(null);
   const [decided, setDecided] = useState<{ decision: "signoff" | "reauthor"; by: string; at: string } | null>(null); const [asking, setAsking] = useState<"signoff" | "reauthor" | null>(null);
   /* click a component on the page → the next comment is about it; the comments float over the page */
@@ -94,9 +95,10 @@ export function ReviewScreen(p: Props) {
       </EntitiesContext.Provider></AssetsContext.Provider></Preview></div>
     </section>
     {decided && <DecisionOverlay decision={decided.decision} title={p.title!} by={decided.by} at={decided.at} action={<button className="btn" onClick={() => window.location.reload()}>See the page</button>} />}
-    <FloatingPanel title={p.stage === "bizreview" && p.open && !decided ? "Review" : "Comments"} count={list.filter((c) => !c.resolved).length} open={open} onToggle={setOpen} top={76} hint={p.open && !target && p.stage !== "bizreview" ? "Click a text, an image or a component on the page to comment on it." : undefined}>
+    <FloatingPanel title={p.stage === "bizreview" && p.open && !decided && p.canDecide ? "Review" : "Comments"} count={list.filter((c) => !c.resolved).length} open={open} onToggle={setOpen} top={76} hint={p.open && !target && p.stage !== "bizreview" ? "Click a text, an image or a component on the page to comment on it." : undefined}>
       <div className="flex flex-col gap-3 min-w-0">
-        {p.stage === "bizreview" && p.open && !decided && <section aria-labelledby="dec-title">
+        {p.stage === "bizreview" && p.open && !decided && !p.canDecide && <p className="text-[12.5px] text-ink-3 rounded-lg border border-line bg-surface-2 px-3 py-2">You can comment here. Signing off is for the people this review was sent to.</p>}
+        {p.stage === "bizreview" && p.open && !decided && p.canDecide && <section aria-labelledby="dec-title">
           <h3 id="dec-title" className="text-[11px] font-semibold uppercase tracking-[.08em] text-ink-3">Decision</h3>
           <div className="mt-1.5 rounded-lg border border-line bg-surface-2 p-3">
           <p className="text-[12.5px] text-ink-3">Everything right? Sign it off. Something to change? Send it back to the author.</p>
@@ -104,17 +106,17 @@ export function ReviewScreen(p: Props) {
             <p className="text-[12.5px]">{asking === "signoff" ? "Sign off this page? It becomes ready to publish." : "Send it back to the author? The page goes back to Build the page."}{text.trim() ? " Your comment goes with it." : ""}</p>
             <div className="flex gap-2 mt-2"><button className={`btn btn-sm ${asking === "signoff" ? "btn-next" : "btn-primary"}`} disabled={busy} onClick={() => void decideBiz(asking)}>{busy ? "Saving…" : asking === "signoff" ? "Yes, sign off" : "Yes, reauthor"}</button><button className="btn btn-sm" disabled={busy} onClick={() => setAsking(null)}>Cancel</button></div>
           </div> : <div className="flex flex-wrap gap-2 mt-2"><button className="btn btn-sm btn-next" onClick={() => setAsking("signoff")}>Sign off</button><button className="btn btn-sm" onClick={() => setAsking("reauthor")}><svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14L4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" /></svg>Reauthor</button></div>}
-          {guest && <p className="text-[11px] text-ink-4 mt-2">Uses the name and e-mail below.</p>}
+          {guest && <p className="text-[11px] text-ink-4 mt-2">{p.sentTo ? <>Sent to {p.sentTo} · uses the name and e-mail below.</> : "Uses the name and e-mail below."}</p>}
           </div>
         </section>}
-        {p.stage === "bizreview" && p.open && !decided && <h3 className="text-[11px] font-semibold uppercase tracking-[.08em] text-ink-3 -mb-1.5 pt-3 border-t border-line">Comments <span className="normal-case tracking-normal font-normal text-ink-4">· click a text or an image on the page to comment on it</span></h3>}
+        {p.stage === "bizreview" && p.open && !decided && p.canDecide && <h3 className="text-[11px] font-semibold uppercase tracking-[.08em] text-ink-3 -mb-1.5 pt-3 border-t border-line">Comments <span className="normal-case tracking-normal font-normal text-ink-4">· click a text or an image on the page to comment on it</span></h3>}
         {p.mayApprove && p.stage === "review" && !done && <div className="rounded-lg border border-line bg-surface-2 p-3"><b className="block text-[13px]">Everything right?</b><p className="text-[12.5px] text-ink-3 mt-0.5">{p.stage === "review" ? "Send it on to the business review, or back to the author if something needs changing." : "Signing off makes the page ready to publish."}</p>
           {p.stage === "review" ? <div className="flex flex-wrap gap-2 mt-2"><button className="btn btn-next btn-sm" disabled={busy} onClick={() => void decide("bizreview")}>Send to business review</button><button className="btn btn-sm" disabled={busy} onClick={() => void decide("draft")}>Reauthor</button></div>
             : <button className="btn btn-next btn-sm mt-2" disabled={busy} onClick={approve}>Sign off</button>}</div>}
         {done && <p role="status" className="text-[13px] bg-good-soft text-good rounded-md px-3 py-2">✓ {done}</p>}
         {p.open ? <div className="border border-line-2 rounded-lg bg-surface focus-within:border-ink-3">
           {target && <div className="p-2 pb-0"><TargetCard key={`${target.id}|${target.field ?? ""}`} target={target} onShow={show} onClear={() => setTarget(null)} /></div>}
-          {guest && <div className="grid grid-cols-2 gap-2 p-2 pb-0"><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" aria-label="Your name" suppressHydrationWarning className="border border-line-2 rounded-md px-2 py-1.5 text-[13px]" /><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Your e-mail" aria-label="Your e-mail" suppressHydrationWarning className="border border-line-2 rounded-md px-2 py-1.5 text-[13px]" /></div>}
+          {guest && <div className="grid grid-cols-2 gap-2 p-2 pb-0"><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" aria-label="Your name" suppressHydrationWarning className="border border-line-2 rounded-md px-2 py-1.5 text-[13px]" /><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} readOnly={!!p.inviteEmail} title={p.inviteEmail ? "This review was sent to this address" : undefined} placeholder="Your e-mail" aria-label="Your e-mail" suppressHydrationWarning className={`border border-line-2 rounded-md px-2 py-1.5 text-[13px] ${p.inviteEmail ? "bg-surface-2 text-ink-2" : ""}`} /></div>}
           <textarea ref={box} rows={3} value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} placeholder={target ? "What should change here?" : "Click a component on the page, or write a general comment…"} aria-label="Your comment" onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void post(); } }} className="block w-full resize-y bg-transparent px-2.5 py-2 text-[13.5px] outline-none" />
           <div className="flex items-center gap-2 px-2 pb-2"><span className="text-[11px] text-ink-4">{p.user ? `Commenting as ${p.user.name}` : "Your name is shown with the comment"}</span><button className="btn btn-sm btn-primary ml-auto" disabled={!canPost || busy} onClick={post}>{busy ? "Posting…" : "Post comment"}</button></div>
         </div> : null}
