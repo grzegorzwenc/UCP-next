@@ -45,6 +45,8 @@ export async function assetUsage(marketId: string, all?: PageSummary[]): Promise
 const toUser = (n: RepoNode): User => ({ id: n.name, path: n.path, name: str(n.properties["ucp:name"], n.name), email: str(n.properties["profile/email"]), role: (str(n.properties["ucp:role"], "viewer") as Role), team: str(n.properties["ucp:team"]), perms: json<Perms>(n.properties["ucp:perms"], {}) });
 export async function listUsers(): Promise<User[]> { const u = await kids(PATHS.users, 1); return u.length ? u.map(toUser) : SEED_USERS.map((x) => ({ ...x, path: `${PATHS.users}/${x.id}` })); }
 export async function getUser(id: string): Promise<User | undefined> { return (await listUsers()).find((u) => u.id === id); }
+/** A person's e-mail (people outside the seeded directory get the usual firstname.lastname@hsbc.com). */
+export async function userEmail(id: string): Promise<string> { if (!id || id === "system") return ""; return (await getUser(id))?.email || `${id}@hsbc.com`; }
 export async function userName(id: string): Promise<string> { if (id === "system") return "System"; const u = await getUser(id); return u?.name ?? id.split(".").map((s) => s[0]?.toUpperCase() + s.slice(1)).join(" "); }
 export async function me(): Promise<User> { const id = (await sessionUserId()) ?? (await repo().identity().catch(() => ({ id: ME }))).id; return (await getUser(id)) ?? { id, path: `${PATHS.users}/${id}`, name: await userName(id), email: "", role: "author", team: "", perms: { root: { read: true } } }; }
 
@@ -108,6 +110,14 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
     else if (p.status === "draft" && (p.lastModifiedBy ?? ME) === meId) out.push(await mk(p, "Finish", "Finish draft and send for review", "You"));
   }
   for (const t of out) if (t.author) t.authorName = await userName(t.author);
+  for (const t of out) { // the three people of the review flow, for the My tasks columns
+    const p = pages.find((x) => x.path === t.page.path)!; const st = p.status;
+    const peer = st === "review" || st === "inreview" ? str(p.meta?.["ucp:assignee"]) : str(p.meta?.["ucp:authorReviewedBy"]);
+    const biz = st === "bizreview" ? taskAssignee(p, "BizReview") : st === "approved" || st === "scheduled" ? str(p.meta?.["ucp:approvedBy"]) : "";
+    if (t.author) t.authorEmail = await userEmail(t.author);
+    if (peer) { t.peer = peer; t.peerName = await userName(peer); t.peerEmail = await userEmail(peer); }
+    if (biz) { t.biz = biz; t.bizName = await userName(biz); t.bizEmail = await userEmail(biz); }
+  }
   for (const t of out) { const a = taskAssignee(pages.find((p) => p.path === t.page.path)!, t.kind); if (a) { t.assignee = a; t.assigneeName = await userName(a); } }
   return out.filter((t) => mine(pages.find((p) => p.path === t.page.path)!, t.kind)).sort((a, b) => a.due.localeCompare(b.due));
 }
