@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { compareSides, guestMayDecide, createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, setCommentResolved, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
+import { compareSides, filesForPublish, publishAssets, pageReferences, relinkPages, guestMayDecide, createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, setCommentResolved, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
 import { can } from "@/lib/ucp/perms";
 import { SESSION_COOKIE, sessionUserId } from "@/lib/server/session";
 import { PATHS } from "@/lib/ucp/paths";
@@ -243,7 +243,11 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     if (o === "notifications") return ok(await notifications(mid));
     /* ---- publish now / schedule / cancel a schedule, for one page or a batch (permission checked per page) ---- */
     if (o === "publish" && req.method === "POST") { const b = await req.json(); const paths: string[] = Array.isArray(b.paths) ? b.paths.filter((x: unknown) => typeof x === "string") : [];
-      if (!paths.length) return problem(new RepoError(400, "Choose at least one page")); return ok(await publishPages(mid, paths, { at: typeof b.at === "string" ? b.at : undefined, cancel: !!b.cancel }, await me())); }
+      if (!paths.length) return problem(new RepoError(400, "Choose at least one page")); return ok(await publishPages(mid, paths, { at: typeof b.at === "string" ? b.at : undefined, cancel: !!b.cancel, assets: Array.isArray(b.assets) ? b.assets.filter((x: unknown) => typeof x === "string") : [] }, await me())); }
+    if (o === "publish/files" && req.method === "GET") return ok(await filesForPublish(mid, q.getAll("path")));
+    if (o === "assets/publish" && req.method === "POST") { const u = await me(); if (!(u.role === "admin" || u.perms.root?.publish || u.perms.root?.manage)) return problem(new RepoError(403, "You don't have Publish")); const b = await req.json() as { ids?: string[] }; return ok(await publishAssets(mid, b.ids ?? [], u)); }
+    if (o === "pages/references" && req.method === "GET") return ok(await pageReferences(mid, q.getAll("path")));
+    if (o === "pages/relink" && req.method === "POST") { const u = await me(); const b = await req.json() as { from?: string; to?: string; pages?: string[] }; const pages = (b.pages ?? []).filter((p) => can(u, "edit", p, market(mid).root)); const n = await relinkPages(mid, String(b.from ?? ""), String(b.to ?? ""), pages); if (n) await logEvent(mid, { type: "content", text: `updated links on ${n} page${n === 1 ? "" : "s"} after moving ${b.from}`, target: String(b.to ?? ""), requestId: rid }); return ok({ updated: n }); }
     if (o === "log" && req.method === "GET") return ok((await readLogFor(mid)).log);
     if (o === "log" && req.method === "POST") { const b = await req.json(); await logEvent(mid, { ...b, requestId: rid }); return ok({ ok: true }, 201); }
     if (o === "search") {
@@ -265,7 +269,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
         const v = await r.getPage(src); if (!v) continue; const parent = b.dest || src.replace(/\/[^/]+$/, ""); const name = `${lang.split("-")[0]}-${v.name}`; const path = `${parent}/${name}`;
         if (await r.getPage(path)) { created.push(path + " (exists)"); continue; }
         const p = await r.createPage({ parentPath: parent, name, template: v.template ?? "blank", title: tr(v.title, lang) });
-        await r.setProps(`${p.path}/jcr:content`, { "jcr:language": lang, "ucp:sourcePath": src, "ucp:status": b.review ? "review" : "draft", "ucp:translationMode": b.mode ?? "ai", ...(b.review ? { "ucp:sentBy": (await me()).id, "ucp:sentAt": new Date().toISOString() } : {}) }).catch(() => {});
+        await r.setProps(`${p.path}/jcr:content`, { "jcr:language": lang, "ucp:sourcePath": src, "ucp:status": "review", "ucp:translationMode": b.mode ?? "ai", "ucp:sentBy": (await me()).id, "ucp:requestedBy": (await me()).id, "ucp:sentAt": new Date().toISOString(), "ucp:due": new Date(Date.now() + 3 * 86400000).toISOString() }).catch(() => {}); // a translation always goes through the review flow (Backlog → author's review → business review) before it can be published
         await r.saveComponents(p.path, v.components.map((c) => ({ ...c, props: Object.fromEntries(Object.entries(c.props).map(([k, val]) => [k, ["heading", "intro", "body", "text", "cta", "note"].includes(k) && typeof val === "string" && val && b.mode !== "vendor" ? tr(val, lang) : val])) })));
         created.push(p.path);
       }

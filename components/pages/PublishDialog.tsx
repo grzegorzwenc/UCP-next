@@ -1,6 +1,6 @@
 "use client";
 import { celebrate } from "@/lib/ui/celebrate";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ModalShell, Err } from "@/components/models/ModalShell";
 import { Pill } from "@/components/ui/Pill";
 import { ucpApi } from "@/lib/api";
@@ -34,11 +34,16 @@ export function PublishDialog({ marketId, envName, pages, mayPublish, onClose, o
   const at = mode === "schedule" ? new Date(when) : undefined;
   const whenErr = mode === "schedule" && (!when || isNaN(at!.getTime()) ? "Pick a date and time" : at!.getTime() < openedAt + 5 * 60_000 ? "Pick a time at least 5 minutes from now" : "");
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  /* the files these pages use (images, PDFs): ones not live yet go out with the pages, or the pages cannot go live */
+  const [files, setFiles] = useState<{ id: string; name: string; type: string; status: "draft" | "published"; publishedAt?: string }[] | null>(null);
+  const [withFiles, setWithFiles] = useState(true);
+  useEffect(() => { let on = true; ucpApi.publishFiles(marketId, ready.map((p) => p.path)).then((f) => on && setFiles(f), () => on && setFiles([])); return () => { on = false; }; }, [marketId, ready]);
+  const draftFiles = (files ?? []).filter((f) => f.status === "draft");
 
   const run = async (cancel = false) => {
     if (!cancel && (whenErr || !ready.length)) return; setBusy(true); setErr(null);
     try {
-      const r = await ucpApi.publish(marketId, cancel ? [single!.path] : ready.map((p) => p.path), cancel ? { cancel: true } : { at: at?.toISOString() });
+      const r = await ucpApi.publish(marketId, cancel ? [single!.path] : ready.map((p) => p.path), cancel ? { cancel: true } : { at: at?.toISOString(), assets: withFiles ? draftFiles.map((f) => f.id) : [] });
       const m = cancel ? "cancel" : mode; const live = r.filter((x) => x.ok); if (m === "now" && live.length) celebrate(live.map((x) => x.title), envName); // fanfare 🎉
       if (r.every((x) => x.ok) && ready.length === pages.length) { onDone(r, m); return; }
       setResults([...r, ...pages.filter((p) => !ready.includes(p) && !cancel).map((p) => ({ path: p.path, title: p.title, ok: false, reason: publishBlock(p, mayPublish) }))]); onDone(r, m);
@@ -57,6 +62,12 @@ export function PublishDialog({ marketId, envName, pages, mayPublish, onClose, o
     {pages.length > 1 && <div className="mb-3"><p className="text-[12.5px] text-ink-3 mb-1.5">{ready.length} of {pages.length} can be published{ready.length < pages.length ? ". The others are skipped:" : "."}</p>
       <ul className="grid gap-1 max-h-[180px] overflow-auto">{pages.map((p) => { const why = publishBlock(p, mayPublish); return <li key={p.path} className={`flex items-center gap-2 text-[13px] border rounded-md px-3 py-1.5 ${why ? "border-line bg-surface-2 text-ink-3" : "border-line"}`}><span className="truncate flex-1">{p.title}</span><Pill status={p.status} />{why && <span className="text-[11.5px] text-warn whitespace-nowrap">{why}</span>}</li>; })}</ul></div>}
     {single && publishBlock(single, mayPublish) && <p className="text-[13px] bg-warn-soft rounded-md px-3 py-2 mb-3">{publishBlock(single, mayPublish)}. Only pages that passed review (Ready to publish) can go live.</p>}
+    {!!files?.length && <div className="mb-3 rounded-lg border border-line p-3">
+      <b className="block text-[13px]">Files on {single ? "this page" : "these pages"}</b>
+      <ul className="mt-1.5 grid gap-1">{files.map((f) => <li key={f.id} className="flex items-center gap-2 text-[12.5px]"><span className="text-ink-4 uppercase text-[10.5px] font-semibold w-9">{f.type === "image" ? "IMG" : f.type}</span><span className="truncate flex-1">{f.name}</span>
+        {f.status === "published" ? <span className="text-good whitespace-nowrap">✓ Published{f.publishedAt ? ` ${fmt(f.publishedAt)}` : ""}</span> : <span className="text-warn whitespace-nowrap font-semibold">Not published</span>}</li>)}</ul>
+      {draftFiles.length > 0 && <label className="mt-2 flex items-start gap-2 text-[12.5px] cursor-pointer"><input type="checkbox" className="mt-0.5 accent-[var(--accent)]" checked={withFiles} onChange={(e) => setWithFiles(e.target.checked)} /><span>Publish {draftFiles.length === 1 ? "this file" : `these ${draftFiles.length} files`} too{!withFiles && <span className="block text-warn">Without them the {single ? "page stays" : "pages that use them stay"} unpublished.</span>}</span></label>}
+    </div>}
     <div role="radiogroup" aria-label="When" className="grid gap-2">
       <label className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer ${mode === "now" ? "border-accent bg-accent-soft" : "border-line hover:bg-surface-2"}`}><input type="radio" name="pub-when" className="mt-1 accent-[var(--accent)]" checked={mode === "now"} onChange={() => setMode("now")} /><span><b className="block text-[13.5px]">Publish now</b><small className="text-ink-3 text-[12.5px]">Live for customers straight away.</small></span></label>
       <label className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer ${mode === "schedule" ? "border-accent bg-accent-soft" : "border-line hover:bg-surface-2"}`}><input type="radio" name="pub-when" className="mt-1 accent-[var(--accent)]" checked={mode === "schedule"} onChange={() => setMode("schedule")} /><span className="flex-1 min-w-0"><b className="block text-[13.5px]">Schedule</b><small className="text-ink-3 text-[12.5px]">Goes live automatically at the time you pick.</small>

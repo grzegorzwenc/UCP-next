@@ -5,10 +5,10 @@ import { ApiError } from "./types";
 export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string }; stage?: string; guest?: boolean; block?: { id: string; label: string; field?: string }; resolved?: { by: string; name: string; at: string } };
 export * from "./types";
 
-type Query = Record<string, string | number | boolean | undefined>;
+type Query = Record<string, string | number | boolean | string[] | undefined>;
 async function call<T>(base: string, op: string, init: RequestInit & { query?: Query } = {}): Promise<T> {
   const { query, headers, ...rest } = init;
-  const qs = query ? "?" + new URLSearchParams(Object.entries(query).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)])).toString() : "";
+  const qs = query ? "?" + new URLSearchParams(Object.entries(query).filter(([, v]) => v !== undefined).flatMap(([k, v]) => (Array.isArray(v) ? v.map((x) => [k, x]) : [[k, String(v)]]))).toString() /* arrays repeat the key */ : "";
   const isForm = rest.body instanceof FormData;
   const res = await fetch(`${base}/${op}${qs}`, { ...rest, headers: { Accept: "application/json", ...(rest.body && !isForm ? { "Content-Type": "application/json" } : {}), ...((headers as Record<string, string>) || {}) } });
   const requestId = res.headers.get("X-Request-Id") ?? undefined;
@@ -53,6 +53,10 @@ export const ucpApi = {
   pinComment: (market: string, path: string, id: string, pinned: boolean) => U<PageComment[]>("comments/pin", { method: "POST", query: { market, path }, body: JSON.stringify({ id, pinned }) }),
   resolveComment: (market: string, path: string, id: string, resolved: boolean) => U<PageComment[]>("comments/resolve", { method: "POST", query: { market, path }, body: JSON.stringify({ id, resolved }) }),
   deleteComment: (market: string, path: string, id: string) => U<PageComment[]>("comments/delete", { method: "POST", query: { market, path }, body: JSON.stringify({ id }) }),
+  publishFiles: (market: string, paths: string[]) => U<{ id: string; name: string; type: string; status: "draft" | "published"; publishedAt?: string }[]>("publish/files", { query: { market, path: paths } }),
+  publishAssets: (market: string, ids: string[]) => U<Asset[]>("assets/publish", { method: "POST", query: { market }, body: JSON.stringify({ ids }) }),
+  pageReferences: (market: string, paths: string[]) => U<{ path: string; title: string; linkedFrom: { path: string; title: string }[]; files: { id: string; path?: string; name: string; type: string; status: "draft" | "published"; onlyHere?: boolean }[] }[]>("pages/references", { query: { market, path: paths } }),
+  relinkPages: (market: string, from: string, to: string, pages: string[]) => U<{ updated: number }>("pages/relink", { method: "POST", query: { market }, body: JSON.stringify({ from, to, pages }) }),
   compare: (path: string, version?: string) => U<{ live: { label: string; title: string; components: unknown[]; time?: string; who?: string } | null; authoring: { label: string; title: string; components: unknown[]; time?: string; who?: string }; versions: { id: string; time: string; who: string; note: string; title: string; status: string; blocks: number }[] }>("compare", { query: { path, version } }),
   versions: (path: string) => U<{ id: string; time: string; who: string; note: string; title: string; status: string; blocks: number }[]>("versions", { query: { path } }),
   restoreVersion: (market: string, path: string, id: string) => U<{ ok: true }>("versions/restore", { method: "POST", query: { market, path }, body: JSON.stringify({ id }) }),
@@ -67,7 +71,7 @@ export const ucpApi = {
   moveModel: (market: string, id: string, to: { group?: string; before?: string }) => U<Model>("models/move", { method: "POST", query: { market, id }, body: JSON.stringify(to) }),
   deleteModel: (market: string, id: string) => U<{ ok: true }>("models/delete", { method: "POST", query: { market, id }, body: "{}" }),
   /** Publish now (no `at`), schedule (`at` in the future) or cancel a schedule, for one page or many. */
-  publish: (market: string, paths: string[], opts: { at?: string; cancel?: boolean } = {}) => U<{ path: string; title: string; ok: boolean; status?: string; reason?: string }[]>("publish", { method: "POST", query: { market }, body: JSON.stringify({ paths, ...opts }) }),
+  publish: (market: string, paths: string[], opts: { at?: string; cancel?: boolean; assets?: string[] } = {}) => U<{ path: string; title: string; ok: boolean; status?: string; reason?: string }[]>("publish", { method: "POST", query: { market }, body: JSON.stringify({ paths, ...opts }) }),
   /* content entities */
   entities: (market: string, model?: string) => U<Entity[]>("entities", { query: { market, model } }),
   entity: (market: string, path: string) => U<Entity>("entities/get", { query: { market, path } }),

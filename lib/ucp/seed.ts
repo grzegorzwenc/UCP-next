@@ -42,7 +42,7 @@ export const SSO_USER = "super.admin";
 export const AUTHOR_USER = "content.author";
 
 export const ASSET_FOLDERS = ["Products", "Campaigns", "Brand", "Documents", "Uploads"];
-export const SEED_ASSETS: Omit<Asset, "path">[] = [
+export const SEED_ASSETS: (Omit<Asset, "path" | "status"> & { status?: Asset["status"] })[] = [
   { id: "hero-savings", name: "hero-savings-couple.jpg", type: "image", size: "1.1 MB", width: 2400, height: 1600, folder: "Products" },
   { id: "hero-cards", name: "hero-credit-cards.jpg", type: "image", size: "1.4 MB", width: 2400, height: 1600, folder: "Products" },
   { id: "hero-mortgage", name: "hero-mortgage-keys.jpg", type: "image", size: "0.9 MB", width: 1800, height: 1200, folder: "Products" },

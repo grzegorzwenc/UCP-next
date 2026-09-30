@@ -24,14 +24,15 @@ const json = <T,>(v: unknown, d: T): T => { if (typeof v !== "string") return (v
 export const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9.]+/g, "-").replace(/^-|-$/g, "");
 
 /* ---------------- assets (/content/dam/<market>/<folder>/<file>) ---------------- */
-const toAsset = (n: RepoNode): Asset => ({ a11y: n.properties["ucp:a11y"] !== undefined ? json<Asset["a11y"]>(n.properties["ucp:a11y"], {}) : undefined, id: str(n.properties["ucp:id"], n.name), path: n.path, name: str(n.properties["jcr:title"], n.name), type: (str(n.properties["dam:type"], "file") as AssetType), size: str(n.properties["dam:size"]), folder: str(n.properties["dam:folder"], n.path.split("/").slice(-2, -1)[0]), width: num(n.properties["dam:width"]), height: num(n.properties["dam:height"]), data: n.properties["ucp:data"] as string | undefined, uploaded: str(n.properties["jcr:created"]) || undefined, uploadedBy: str(n.properties["jcr:createdBy"]) || undefined });
+const toAsset = (n: RepoNode): Asset => ({ a11y: n.properties["ucp:a11y"] !== undefined ? json<Asset["a11y"]>(n.properties["ucp:a11y"], {}) : undefined, id: str(n.properties["ucp:id"], n.name), path: n.path, name: str(n.properties["jcr:title"], n.name), type: (str(n.properties["dam:type"], "file") as AssetType), size: str(n.properties["dam:size"]), folder: str(n.properties["dam:folder"], n.path.split("/").slice(-2, -1)[0]), width: num(n.properties["dam:width"]), height: num(n.properties["dam:height"]), data: n.properties["ucp:data"] as string | undefined, uploaded: str(n.properties["jcr:created"]) || undefined, uploadedBy: str(n.properties["jcr:createdBy"]) || undefined,
+  /* files from before publishing existed count as live; new uploads start as drafts */ status: str(n.properties["ucp:status"]) === "draft" ? "draft" : "published", publishedAt: str(n.properties["ucp:publishedAt"]) || undefined, publishedBy: str(n.properties["ucp:publishedBy"]) || undefined });
 export async function listAssets(marketId: string): Promise<Asset[]> { const folders = await kids(PATHS.dam(marketId), 2); return folders.flatMap((f) => (f.children ?? []).filter((c) => c.primaryType === "dam:Asset").map(toAsset)); }
 export async function assetFolders(marketId: string): Promise<string[]> { const folders = await kids(PATHS.dam(marketId), 1); return folders.map((f) => f.name); }
 export async function createAsset(marketId: string, a: { name: string; type: AssetType; size: string; folder: string; width?: number; height?: number; data?: string; by: string }): Promise<Asset> {
   const folderPath = `${PATHS.dam(marketId)}/${a.folder}`; if (!(await repo().getNode(folderPath, 0))) await repo().createNode(folderPath, "sling:Folder", { "jcr:title": a.folder });
   let name = a.name; let i = 1; while (await repo().getNode(`${folderPath}/${name}`, 0)) { const m = a.name.match(/^(.*?)(\.[^.]+)?$/); name = `${m![1]}-${++i}${m![2] ?? ""}`; }
   const id = slug(name.replace(/\.[^.]+$/, "")) + "-" + Math.random().toString(36).slice(2, 6);
-  const n = await repo().createNode(`${folderPath}/${name}`, "dam:Asset", { "jcr:title": name, "ucp:id": id, "dam:type": a.type, "dam:size": a.size, "dam:width": a.width, "dam:height": a.height, "dam:folder": a.folder, "ucp:data": a.data, "jcr:createdBy": a.by });
+  const n = await repo().createNode(`${folderPath}/${name}`, "dam:Asset", { "jcr:title": name, "ucp:id": id, "dam:type": a.type, "dam:size": a.size, "dam:width": a.width, "dam:height": a.height, "dam:folder": a.folder, "ucp:data": a.data, "jcr:createdBy": a.by, "ucp:status": "draft" });
   return toAsset(n);
 }
 export async function assetUsage(marketId: string, all?: PageSummary[]): Promise<Record<string, PageSummary[]>> {
@@ -39,6 +40,47 @@ export async function assetUsage(marketId: string, all?: PageSummary[]): Promise
   const pages = (all ?? await allPages(PATHS.content(marketId))).filter((p) => !p.isFolder); const out: Record<string, PageSummary[]> = {};
   for (const p of pages) { const v = await repo().getPage(p.path).catch(() => undefined); for (const c of v?.components ?? []) for (const [k, val] of Object.entries(c.props)) if ((k === "image" || k.endsWith("Image")) && typeof val === "string" && val) (out[val] ??= []).push(p); }
   return out;
+}
+
+/** Publish files (images, PDFs…) so pages that use them can go live. */
+export async function publishAssets(marketId: string, ids: string[], u: User): Promise<Asset[]> {
+  const all = await listAssets(marketId); const now = new Date().toISOString(); const done: Asset[] = [];
+  for (const a of all.filter((x) => ids.includes(x.id) && x.status !== "published")) { await repo().setProps(a.path, { "ucp:status": "published", "ucp:publishedAt": now, "ucp:publishedBy": u.id }); done.push({ ...a, status: "published", publishedAt: now, publishedBy: u.id }); await logEvent(marketId, { type: "publishing", who: u.id, text: `published the file ${a.name}`, target: "assets" }); }
+  return done;
+}
+/** The files a page uses (image fields hold asset ids). */
+const assetIdsIn = (components: { props: Record<string, unknown> }[]) => [...new Set(components.flatMap((c) => Object.entries(c.props).filter(([k, v]) => (k === "image" || k.endsWith("Image")) && typeof v === "string" && v).map(([, v]) => String(v))))];
+export type FileRef = { id: string; path?: string; name: string; type: string; status: "draft" | "published"; publishedAt?: string; onlyHere?: boolean };
+/** Files used by these pages, with whether they are live yet (for the Publish dialog). */
+export async function filesForPublish(marketId: string, paths: string[]): Promise<FileRef[]> {
+  const assets = await listAssets(marketId); const ids = new Set<string>();
+  for (const p of paths) { const v = await repo().getPage(p).catch(() => undefined); for (const id of assetIdsIn(v?.components ?? [])) ids.add(id); }
+  return assets.filter((a) => ids.has(a.id)).map((a) => ({ id: a.id, name: a.name, type: a.type, status: a.status, publishedAt: a.publishedAt }));
+}
+/**
+ * What depends on these pages before a move or delete: other pages that link to them (their links would break or need
+ * updating), and the files they use, marked when no other page uses them (those can go with a delete).
+ */
+export async function pageReferences(marketId: string, paths: string[]): Promise<{ path: string; title: string; linkedFrom: { path: string; title: string }[]; files: FileRef[] }[]> {
+  const mk = marketOf(marketId); const all = (await allPages(mk.root)).filter((p) => !p.isFolder); const assets = await listAssets(marketId);
+  const full = new Map<string, { title: string; components: { props: Record<string, unknown> }[] }>(); for (const p of all) { const v = await repo().getPage(p.path).catch(() => undefined); if (v) full.set(p.path, { title: v.title, components: v.components ?? [] }); }
+  const routeOf = (p: string) => p.slice(mk.root.length) || "/";
+  const links = (comps: { props: Record<string, unknown> }[], route: string) => comps.some((c) => Object.values(c.props).some((v) => typeof v === "string" && (v === route || v.startsWith(route + "#") || v.startsWith(route + "?") || v.endsWith(mk.domain + route))));
+  return paths.filter((p) => full.has(p)).map((p) => {
+    const route = routeOf(p); const mine = full.get(p)!; const inside = (q: string) => q === p || q.startsWith(p + "/");
+    const linkedFrom = [...full.entries()].filter(([q, v]) => !inside(q) && !paths.includes(q) && links(v.components, route)).map(([q, v]) => ({ path: q, title: v.title }));
+    const files = assetIdsIn(mine.components).map((id) => assets.find((a) => a.id === id)).filter((a): a is Asset => !!a).map((a) => ({ id: a.id, path: a.path, name: a.name, type: a.type, status: a.status, publishedAt: a.publishedAt,
+      onlyHere: ![...full.entries()].some(([q, v]) => !paths.includes(q) && q !== p && assetIdsIn(v.components).includes(a.id)) }));
+    return { path: p, title: mine.title, linkedFrom, files };
+  });
+}
+/** After a move: point links on these pages from the old address to the new one. */
+export async function relinkPages(marketId: string, from: string, to: string, pages: string[]): Promise<number> {
+  const mk = marketOf(marketId); const a = from.slice(mk.root.length) || "/", b = to.slice(mk.root.length) || "/"; let n = 0;
+  for (const p of pages) { const v = await repo().getPage(p).catch(() => undefined); if (!v) continue;
+    const next = v.components.map((c) => ({ ...c, props: Object.fromEntries(Object.entries(c.props).map(([k, val]) => [k, typeof val === "string" && (val === a || val.startsWith(a + "#") || val.startsWith(a + "?")) ? b + val.slice(a.length) : typeof val === "string" && val.endsWith(mk.domain + a) ? val.slice(0, -a.length) + b : val])) }));
+    if (JSON.stringify(next) !== JSON.stringify(v.components)) { await repo().saveComponents(p, next); n++; } }
+  return n;
 }
 
 /* ---------------- users (/home/users/<id>) ---------------- */
@@ -451,7 +493,9 @@ const PUBLISHABLE = ["approved", "scheduled"];
  * Publish pages now (`at` empty or in the past) or schedule them for `at`. Only approved or already scheduled pages
  * can go live, and the person needs Publish on each page. Every page is handled on its own; the result says why one was skipped.
  */
-export async function publishPages(marketId: string, paths: string[], opts: { at?: string; cancel?: boolean }, u: User): Promise<PublishResult[]> {
+export async function publishPages(marketId: string, paths: string[], opts: { at?: string; cancel?: boolean; assets?: string[] }, u: User): Promise<PublishResult[]> {
+  if (opts.assets?.length && !opts.cancel) await publishAssets(marketId, opts.assets, u); // the files go live with the pages
+  const drafts = new Set((await listAssets(marketId)).filter((a) => a.status === "draft").map((a) => a.id));
   const mk = marketOf(marketId); const now = new Date(); const at = opts.at ? new Date(opts.at) : undefined;
   if (at && isNaN(at.getTime())) throw new RepoError(400, "That date is not valid", opts.at);
   const schedule = !!at && at.getTime() > now.getTime() + 60_000; const out: PublishResult[] = [];
@@ -460,6 +504,7 @@ export async function publishPages(marketId: string, paths: string[], opts: { at
     if (!pg) { out.push({ path, title: path, ok: false, reason: "Page not found" }); continue; }
     const r = { path, title: pg.title };
     if (!can(u, "publish", path, mk.root)) { out.push({ ...r, ok: false, reason: "You don't have Publish on this page" }); continue; }
+    const unpublished = opts.cancel ? [] : assetIdsIn(pg.components ?? []).filter((id) => drafts.has(id)); if (unpublished.length) { out.push({ ...r, ok: false, reason: `Uses ${unpublished.length} file${unpublished.length === 1 ? "" : "s"} that ${unpublished.length === 1 ? "is" : "are"} not published yet` }); continue; }
     if (opts.cancel) {
       if (pg.status !== "scheduled") { out.push({ ...r, ok: false, reason: "Not scheduled" }); continue; }
       await repo().updateContent(path, { status: "approved" }); await repo().setProps(`${path}/jcr:content`, { "ucp:publishAt": null });

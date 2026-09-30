@@ -5,7 +5,8 @@
 export type AssetType = "image" | "pdf" | "svg" | "file";
 /** Accessibility data kept on every asset. Images: alt text per locale (or decorative), long description, caption. Documents: title, language, tagged PDF, text summary. */
 export type AssetA11y = { alt?: Record<string, string>; decorative?: boolean; longDescription?: string; caption?: string; title?: string; lang?: string; tagged?: boolean; summary?: string; checkedBy?: string; checkedAt?: string };
-export type Asset = { a11y?: AssetA11y; id: string; path: string; name: string; type: AssetType; size: string; folder: string; width?: number; height?: number; data?: string; uploaded?: string; uploadedBy?: string };
+export type Asset = { a11y?: AssetA11y; id: string; path: string; name: string; type: AssetType; size: string; folder: string; width?: number; height?: number; data?: string; uploaded?: string; uploadedBy?: string;
+  /** files go live separately from pages: a page can only be published once the files it uses are */ status: "draft" | "published"; publishedAt?: string; publishedBy?: string };
 
 export type Role = "author" | "reviewer" | "publisher" | "admin" | "viewer";
 export type PermKey = "read" | "edit" | "review" | "publish" | "manage";

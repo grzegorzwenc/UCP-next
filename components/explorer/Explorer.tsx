@@ -80,7 +80,7 @@ function TranslateModal({ pages, marketId, base, root, marketName, tree, rel, fo
   const allLangs = useMemo(() => [...new Set([...mk.locales, ...MARKETS.flatMap((m) => m.locales)])].filter((l) => l !== mk.locales[0]), [mk]);
   const flagOf = (l: string) => MARKETS.find((m) => m.locales.includes(l))?.flag ?? "";
   const [langs, setLangs] = useState<string[]>([mk.locales[1] ?? "cy-GB"]);
-  const [mode, setMode] = useState<"ai" | "vendor">("ai"); const [review, setReview] = useState(true);
+  const [mode, setMode] = useState<"ai" | "vendor">("ai"); const review = true; // translations always go through review
   const [dest, setDest] = useState<"same" | "folder">("same"); const [destFolder, setDestFolder] = useState(folderPath);
   const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null); const [created, setCreated] = useState<string[] | null>(null);
   const total = langs.length * pages.length;
@@ -105,7 +105,7 @@ function TranslateModal({ pages, marketId, base, root, marketName, tree, rel, fo
       <div className="grid gap-3 content-start">
         <div className="text-xs text-ink-3">Where should the translations live?<div className="mt-1 flex gap-1.5 mb-2"><button type="button" className={`btn btn-sm ${dest === "same" ? "on" : ""}`} onClick={() => setDest("same")}>Same folder as the source</button><button type="button" className={`btn btn-sm ${dest === "folder" ? "on" : ""}`} onClick={() => setDest("folder")}>Pick a folder</button></div>
           {dest === "folder" ? <FolderSelect value={destFolder} onChange={setDestFolder} root={root} marketName={marketName} tree={tree} rel={rel} /> : <div className="text-[12px] leading-relaxed">Each translation is created next to its source page as a variant per language, e.g. <span className="font-mono">{rel(pages[0].path)}</span> → {langs.map((l) => <span key={l} className="font-mono">…/{l.split("-")[0]}-{pages[0].name} </span>)}</div>}</div>
-        <label className="flex items-center gap-2 text-[13px] text-ink"><input type="checkbox" checked={review} onChange={(e) => setReview(e.target.checked)} />Send translated pages straight to review</label>
+        <p className="flex items-start gap-2 text-[12.5px] text-ink-2 bg-surface-2 rounded-md px-3 py-2"><span aria-hidden>ⓘ</span><span>Translated pages go to the review Backlog. Like any page, they need the author&apos;s review and the business review before they can be published.</span></p>
         <div className="text-[12px] text-ink-3">Rates, product names, links and regulatory wording are kept as-is and flagged for a native reviewer.</div>
       </div>
     </div>
@@ -124,6 +124,11 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
   const canEditHere = can("edit", folder.path);
   const [modal, setModal] = useState<Modal | null>(openNew ? { kind: "new" } : null);
   const [comparing, setComparing] = useState<string | null>(null); // page path shown in Compare with live
+  /* Move: pages that link to what is moving, and whether their links follow it */
+  const [moveRefs, setMoveRefs] = useState<{ path: string; linkedFrom: { path: string; title: string }[] }[] | null>(null); const [relink, setRelink] = useState(true);
+  const movingKey = modal?.kind === "move" ? modal.pages.map((p) => p.path).join("|") : "";
+  useEffect(() => { if (!movingKey) return; let on = true; ucpApi.pageReferences(marketId, movingKey.split("|")).then((r) => on && setMoveRefs(r), () => on && setMoveRefs([])); return () => { on = false; setMoveRefs(null); }; }, [movingKey, marketId]);
+  const moveLinked = [...new Map((moveRefs ?? []).flatMap((r) => r.linkedFrom).map((x) => [x.path, x])).values()];
   const [title, setTitle] = useState(""); const [slug, setSlug] = useState(""); const [tpl, setTpl] = useState(newTemplate && templates.some((t) => t.id === newTemplate) ? newTemplate : templates.some((t) => t.id === "product") ? "product" : templates[0]?.id ?? "blank"); const [parent, setParent] = useState(folder.path); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
   const [sel, setSel] = useState<string[]>([]); const [toast, setToast] = useState<string | null>(null);
   const crumbs = useMemo(() => { const segs = rel(folder.path).split("/").filter(Boolean); return segs.map((s, i) => ({ name: s, path: root + "/" + segs.slice(0, i + 1).join("/") })); }, [folder.path, root]);
@@ -153,7 +158,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
   }
   async function move() {
     if (modal?.kind !== "move") return; setBusy(true); setErr(null);
-    try { let n = 0; for (const p of modal.pages) { if (parentOf(p.path) === parent) continue; await repoApi.movePage(p.path, `${parent}/${p.name}`); n++; } setModal(null); setSel([]); say(n ? `Moved ${n} item${n === 1 ? "" : "s"} to ${rel(parent)}` : "Nothing to move"); router.refresh(); }
+    try { let n = 0; for (const p of modal.pages) { if (parentOf(p.path) === parent) continue; const to = `${parent}/${p.name}`; await repoApi.movePage(p.path, to); n++; const from = moveRefs?.find((r) => r.path === p.path); if (relink && from?.linkedFrom.length) await ucpApi.relinkPages(marketId, p.path, to, from.linkedFrom.map((x) => x.path)).catch(() => {}); } setModal(null); setSel([]); say(n ? `Moved ${n} item${n === 1 ? "" : "s"} to ${rel(parent)}` : "Nothing to move"); router.refresh(); }
     catch (e) { setErr(errText(e)); } finally { setBusy(false); }
   }
   /** Copy to another folder (or the same one, as “… (copy)”). */
@@ -196,14 +201,21 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
     const info = pages.map((p) => { const kids = inside(p); const live = [...(p.isFolder ? [] : [p]), ...kids].filter((x) => x.status === "published").length; return { p, kids: kids.length, live }; });
     const live = info.reduce((n, x) => n + x.live, 0); const kids = info.reduce((n, x) => n + x.kids, 0);
     const one = pages.length === 1 ? pages[0] : null;
+    const refs = await ucpApi.pageReferences(marketId, pages.filter((p) => !p.isFolder).map((p) => p.path)).catch(() => []);
+    const linked = [...new Map(refs.flatMap((r) => r.linkedFrom).map((x) => [x.path, x])).values()];
+    const lonely = [...new Map(refs.flatMap((r) => r.files.filter((f) => f.onlyHere && f.path)).map((f) => [f.id, f])).values()];
+    let dropFiles: string[] = [];
     const ok = await ask({
+      also: linked.length ? { title: `${linked.length} page${linked.length === 1 ? " links" : "s link"} here`, hint: "Their links will stop working. Update them after deleting.", list: linked.map((x) => ({ label: x.title, note: rel(x.path) })) } : undefined,
+      choices: lonely.length ? { title: "Files used only here", hint: "Tick the ones to delete too. Unticked files stay in Assets.", list: lonely.map((f) => ({ id: f.path!, label: f.name, note: f.status === "published" ? "published" : "not published" })) } : undefined,
+      onChoose: (ids) => { dropFiles = ids; },
       title: one ? `Delete ${one.isFolder ? "folder" : "page"} “${one.title}”?` : `Delete ${pages.length} items?`, danger: true, confirmLabel: one ? `Delete ${one.isFolder ? "folder" : "page"}` : `Delete ${pages.length} items`,
       body: <>{kids > 0 ? <>Everything inside {one ? "this folder" : "the selected folders"} is deleted too: <b>{kids} page{kids === 1 ? "" : "s"}</b>. </> : null}{live > 0 ? <><b className="text-crit">{live} live page{live === 1 ? " goes" : "s go"} offline</b> for customers. </> : null}This cannot be undone.</>,
       items: info.map(({ p, kids: k, live: l }) => ({ label: p.title, note: [p.isFolder ? `folder · ${k} page${k === 1 ? "" : "s"}` : rel(p.path), l ? `${l} live` : ""].filter(Boolean).join(" · "), warn: l > 0 })),
       typeToConfirm: live > 0 || kids > 0 ? "delete" : undefined,
     });
     if (!ok) return;
-    try { for (const p of pages) await repoApi.deletePage(p.path, true); setSel([]); say(`Deleted ${pages.length} item${pages.length === 1 ? "" : "s"}`); router.refresh(); }
+    try { for (const p of pages) await repoApi.deletePage(p.path, true); for (const f of dropFiles) await repoApi.deleteNode(f, { text: `deleted ${f.split("/").pop()} (with the page)`, target: "assets" }).catch(() => {}); setSel([]); say(`Deleted ${pages.length} item${pages.length === 1 ? "" : "s"}${dropFiles.length ? ` and ${dropFiles.length} file${dropFiles.length === 1 ? "" : "s"}` : ""}`); router.refresh(); }
     catch (e) { say(errText(e)); }
   }
   function onAction(a: "open" | "rename" | "move" | "duplicate" | "delete", p: PageSummary) {
@@ -239,7 +251,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
           </tr>; })}</tbody></table></div>
           : <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">{q ? "No pages match." : canEditHere ? <>This folder is empty. <button className="underline" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}>New page</button>.</> : "This folder is empty."}</div>}
         {rows.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-[12.5px] text-ink-3">Showing {shown.length} of {rows.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show {Math.min(PAGE, rows.length - shown.length)} more</button></div>}
-        {selected.length > 0 && <div className="sticky bottom-4 mt-4 flex items-center gap-2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] shadow-xl w-fit mx-auto z-20"><b>{selected.length} selected</b><span className="text-white/40">·</span>
+        {selected.length > 0 && <div className="sticky bottom-4 mt-4 flex flex-wrap items-center justify-center gap-2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] shadow-xl w-fit max-w-full mx-auto z-20"><b className="whitespace-nowrap">{selected.length} selected</b><span className="text-white/40">·</span>
           <button className={barBtn} style={barStyle} disabled={!selected.some((p) => !p.isFolder)} onClick={() => setModal({ kind: "translate", pages: selected.filter((p) => !p.isFolder) })}><BarIcon n="translate" />Translate</button>
           <button className={barBtn} style={barStyle} disabled={!selected.some((p) => !p.isFolder)} onClick={() => setModal({ kind: "publish", pages: selected.filter((p) => !p.isFolder) })}><BarIcon n="publish" />Publish</button>
           {canEditSelected ? <>{(() => { const pagesSel = selected.filter((p) => !p.isFolder); const allLocked = pagesSel.length > 0 && pagesSel.every((p) => lockOf(p)); return <button className={barBtn} style={barStyle} disabled={!pagesSel.length} onClick={() => void setLock(pagesSel, !allLocked)} title={allLocked ? "Let people change these pages again" : "Nobody else can change, move or delete them until they are unlocked"}><BarIcon n={allLocked ? "unlock" : "lock"} />{allLocked ? "Unlock" : "Lock"}</button>; })()}
@@ -277,7 +289,11 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
         <ul className="mt-2 text-[12.5px] text-ink-2 grid gap-1 max-h-[160px] overflow-auto">{modal.pages.map((p) => <li key={p.path} className="font-mono text-[12px]">{rel(p.path)} → {rel(parent)}/{p.name}{parentOf(p.path) === parent ? "-copy" : ""}</li>)}</ul><Err err={err} /></ModalShell>}
       {modal?.kind === "move" && <ModalShell title={modal.pages.length === 1 ? `Move “${modal.pages[0].title}”` : `Move ${modal.pages.length} items`} width={460} onClose={() => setModal(null)} footer={<><button className="btn" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={move}>{busy ? "Moving…" : "Move here"}</button></>}>
         <label className="text-xs text-ink-3">Destination folder<FolderSelect value={parent} onChange={setParent} root={root} marketName={marketName} tree={tree} rel={rel} exclude={modal.pages.filter((p) => p.isFolder).map((p) => p.path)} /></label>
-        <ul className="mt-3 text-[12.5px] text-ink-2 grid gap-1 max-h-[160px] overflow-auto">{modal.pages.map((p) => <li key={p.path} className="font-mono text-[12px]">{rel(p.path)} → {rel(parent)}/{p.name}</li>)}</ul><Err err={err} /></ModalShell>}
+        <ul className="mt-3 text-[12.5px] text-ink-2 grid gap-1 max-h-[160px] overflow-auto">{modal.pages.map((p) => <li key={p.path} className="font-mono text-[12px]">{rel(p.path)} → {rel(parent)}/{p.name}</li>)}</ul>
+        {moveLinked.length > 0 && <div className="mt-3 rounded-lg border border-warn/30 bg-warn-soft/40 p-3"><b className="block text-[13px]">{moveLinked.length} page{moveLinked.length === 1 ? " links" : "s link"} here</b>
+          <ul className="mt-1 grid gap-0.5 text-[12.5px] max-h-[110px] overflow-auto">{moveLinked.map((x) => <li key={x.path} className="flex gap-2"><span className="truncate flex-1">{x.title}</span><span className="font-mono text-[11.5px] text-ink-3">{rel(x.path)}</span></li>)}</ul>
+          <label className="mt-2 flex items-center gap-2 text-[12.5px] cursor-pointer"><input type="checkbox" className="accent-[var(--accent)]" checked={relink} onChange={(e) => setRelink(e.target.checked)} />Update their links to the new address</label></div>}
+        <Err err={err} /></ModalShell>}
 
       {modal?.kind === "publish" && <PublishDialog marketId={marketId} envName={env(envId).name} pages={modal.pages.map((p) => ({ path: p.path, title: p.title, status: p.status, publishAt: typeof p.meta?.["ucp:publishAt"] === "string" ? String(p.meta["ucp:publishAt"]) : undefined }))} mayPublish={(path) => can("publish", path)} onClose={() => setModal(null)}
         onDone={(r, m) => { const n = r.filter((x) => x.ok).length; say(n ? `${m === "schedule" ? "Scheduled" : m === "cancel" ? "Unscheduled" : "Published"} ${n} page${n === 1 ? "" : "s"}${n < modal.pages.length ? ` · ${modal.pages.length - n} skipped` : ""}` : "Nothing was published"); if (r.length && r.every((x) => x.ok) && n === modal.pages.length) setModal(null); setSel([]); router.refresh(); }} />}

@@ -37,6 +37,7 @@ function Thumb({ a, className = "", badge = true }: { a: Asset; className?: stri
         {a.type === "image" ? <svg viewBox="0 0 24 24" className="w-[38%] h-[38%] max-w-8 max-h-8 fill-none stroke-white" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="M21 16l-5-5-8 8" /></svg>
         : a.type === "pdf" ? <svg viewBox="0 0 24 24" className="w-[38%] h-[38%] max-w-8 max-h-8 fill-none stroke-accent" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5M8 13h8M8 17h5" /></svg>
         : <svg viewBox="0 0 24 24" className="w-[38%] h-[38%] max-w-8 max-h-8 fill-none stroke-ink-3" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5" /></svg>}
+        {a.status === "draft" && <span className="absolute top-1 left-1 text-[9.5px] font-bold uppercase tracking-[.04em] bg-warn text-white px-1.5 py-px rounded" title="Not published · pages that use it cannot go live until it is">Draft</span>}
         {badge && <span className="absolute bottom-1 right-1 text-[9.5px] font-semibold tracking-[.08em] px-1 rounded bg-black/55 text-white">{TYPE_LABEL[a.type] ?? "FILE"}</span>}
       </div>;
 }
@@ -65,7 +66,7 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
   const router = useRouter(); const { can, marketRoot, user } = useSession();
   /** Assets that still miss accessibility info (alt text, or title/language/tagged for documents). */
   const noAlt = useMemo(() => assets.filter((x) => a11yGaps(x, locales[0]).length).map((x) => x.id), [assets, locales]);
-  const canEdit = can("edit", marketRoot);
+  const canEdit = can("edit", marketRoot); const canPublish = can("publish", marketRoot);
   const base = `/${marketId}/${envId}`;
   const [q, setQ] = useState(""); const [type, setType] = useState(""); const mode = useSyncExternalStore(subscribeView, readView, () => "grid" as const);
   const [limit, setLimit] = useState(PAGE); const listKey = `${folder}|${view}|${q}|${type}`; const [seenKey, setSeenKey] = useState(listKey); if (seenKey !== listKey) { setSeenKey(listKey); setLimit(PAGE); }
@@ -145,6 +146,9 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
             <b className="block mt-3 mb-0.5 break-all text-[14px]">{a.name}</b>
             <div className="font-mono text-[12px] text-ink-3">{a.width && a.height ? `${a.width}×${a.height} · ` : ""}{a.size} · {a.folder}</div>
             {(a.uploadedBy || a.uploaded) && <div className="text-[12px] text-ink-3 mt-0.5">Uploaded{a.uploadedBy ? ` by ${who(a.uploadedBy)}` : ""}{a.uploaded ? ` ${when(a.uploaded)}` : ""}</div>}
+            <div className="mt-2 flex items-center gap-2 text-[12.5px]">{a.status === "published"
+              ? <span className="inline-flex items-center gap-1.5 text-good font-semibold"><i className="w-2 h-2 rounded-full bg-good" />Published{a.publishedAt ? <span className="font-normal text-ink-3"> {when(a.publishedAt)}{a.publishedBy ? ` by ${who(a.publishedBy)}` : ""}</span> : null}</span>
+              : <><span className="inline-flex items-center gap-1.5 text-warn font-semibold"><i className="w-2 h-2 rounded-full bg-warn" />Not published</span>{canPublish && <button className="btn btn-sm btn-primary ml-auto" disabled={!!busy} onClick={() => { const x = a; run("publish", async () => { await ucpApi.publishAssets(marketId, [x.id]); say(`Published ${x.name}`); }); }}>{busy === "publish" ? "Publishing…" : "Publish"}</button>}</>}</div>
             <A11yPanel key={`${a.id}:${JSON.stringify(a.a11y ?? {})}`} asset={a} locales={locales} canEdit={canEdit} busy={busy === "a11y"} onSave={saveA11y} />
             <UsedOnPages key={a.id} used={used} hrefOf={(p) => `${base}/page${p.replace(root, "")}`} />
             <div className="flex flex-wrap gap-1.5 mt-4">

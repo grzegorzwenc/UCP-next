@@ -13,8 +13,8 @@ test.describe("builder", () => {
     const blocks = page.locator(".cblk");
     await expect(blocks.nth(1)).toBeVisible();
     // Clicking a text edits it straight away, so select the block by clicking next to its texts (bottom-right corner).
-    const box = (await blocks.nth(1).boundingBox())!;
-    await blocks.nth(1).click({ position: { x: box.width - 8, y: box.height - 6 } });
+    // (dispatched on the block itself: a click at coordinates can land on a moving layout while the editor settles)
+    await blocks.nth(1).dispatchEvent("click");
     const bar = page.getByRole("toolbar", { name: / actions$/ }); // the block toolbar (Configure has its own formatting toolbar)
     await expect(bar).toBeVisible();
     await expect(bar.getByRole("button", { name: "✎ Edit" })).toBeVisible();
