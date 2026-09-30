@@ -14,7 +14,7 @@ import { ShareReviewDialog } from "./ShareReviewDialog";
 import { PublishDialog } from "@/components/pages/PublishDialog";
 import { MARKETS, market as marketById, env as envById } from "@/lib/markets";
 
-export type PublishedItem = { path: string; title: string; when?: string; who?: string };
+export type PublishedItem = { path: string; title: string; when?: string; who?: string; whoId?: string };
 type View = "backlog" | "mine" | "inreview" | "sendbiz" | "bizreview" | "ready" | "published";
 type Props = { marketId: string; envId: string; tasks: Task[]; published: PublishedItem[]; view: string };
 
@@ -41,8 +41,8 @@ const marketOfPath = (path: string) => MARKETS.find((m) => path === m.root || pa
 
 /** The five stages of the review flow, as tabs. */
 const VIEWS: { id: View; label: string; empty: string; of: (t: Task, me: string) => boolean }[] = [
-  { id: "backlog", label: "Backlog", empty: "No page is waiting for a reviewer.", of: (t, me) => t.kind === "Review" && t.page.status === "review" && t.assignee !== me },
-  { id: "mine", label: "Ready for review", empty: "Nothing assigned to you yet · take a page from the Backlog.", of: (t, me) => t.kind === "Review" && t.page.status === "review" && t.assignee === me },
+  { id: "backlog", label: "Backlog", empty: "No page is waiting for a reviewer.", of: (t) => t.kind === "Review" && t.page.status === "review" && !t.assignee },
+  { id: "mine", label: "Ready for review", empty: "Nothing assigned and waiting to start · take a page from the Backlog.", of: (t) => t.kind === "Review" && t.page.status === "review" && !!t.assignee },
   { id: "inreview", label: "In review", empty: "No author's review is in progress.", of: (t) => t.kind === "Review" && t.page.status === "inreview" },
   { id: "sendbiz", label: "Reviewed by author / Send to business review", empty: "Nothing reviewed by an author is waiting to be sent on.", of: (t) => t.kind === "SendBiz" },
   { id: "bizreview", label: "In business review", empty: "No page is in the business review.", of: (t) => t.kind === "BizReview" },
@@ -83,21 +83,26 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
     const p = t.page.path; const st = t.page.status; const b = busy === p; const out: React.ReactNode[] = [];
     const mine = !t.assignee || t.assignee === user.id; const btn = (k: string, label: string, onClick: () => void, next = false) => out.push(<button key={k} type="button" className={`btn btn-sm ${next ? "btn-next" : ""}`} disabled={b} onClick={(e) => { e.stopPropagation(); onClick(); }}>{b && next ? "Working…" : label}</button>);
     const remind = () => run(t, () => ucpApi.remindReviewer(mid(t), p), "Reminder sent");
-    if (st === "review" && t.assignee !== user.id) { // Backlog: take it, or (site admins) give it to someone
-      if (isAdmin) btn("assign", t.assigneeName ? "Change" : "Assign…", () => setAssigning(t));
-      if (can("review", p) && !t.assignee) btn("claim", "Assign to me", () => run(t, () => ucpApi.claimReview(mid(t), p), `${t.page.title} is yours · find it in Ready for review`), true);
-    } else if (st === "review") { // Ready for review: assigned to me
-      btn("start", "Start review", () => run(t, () => status(t, "inreview"), `${t.page.title}: review started`), true);
+    const change = () => { if (isAdmin) btn("person", t.assigneeName ? "Change person" : "Assign…", () => setAssigning(t)); }; // site admins: who does this step
+    if (st === "review" && !t.assignee) { // Backlog: take it, or (site admins) give it to someone
+      if (isAdmin) btn("assign", "Assign to someone else", () => setAssigning(t));
+      if (can("review", p)) btn("claim", "Assign to me", () => run(t, () => ucpApi.claimReview(mid(t), p), `${t.page.title} is yours · find it in Ready for review`), true);
+    } else if (st === "review") { // Ready for review: assigned, not started
+      change();
+      if (t.assignee === user.id) btn("start", "Start review", () => run(t, () => status(t, "inreview"), `${t.page.title}: review started`), true);
     } else if (st === "inreview") {
+      change();
       if (can("edit", p) && !(t.assignee === user.id)) btn("remind", "Remind", remind);
       if (can("review", p) && (mine || isAdmin)) btn("reviewed", t.assignee && t.assignee !== user.id ? `Reviewed for ${t.assigneeName?.split(" ")[0]}` : "Reviewed", () => run(t, () => status(t, "reviewed"), `${t.page.title}: marked reviewed`), true);
     } else if (st === "reviewed") {
       if (can("edit", p)) btn("send", "Send to business review", () => run(t, () => status(t, "bizreview"), `${t.page.title} sent to business review`, () => setSharing({ t, stage: "bizreview" })), true);
     } else if (st === "bizreview") {
+      change();
       if (can("edit", p)) btn("share", "Share", () => setSharing({ t, stage: "bizreview" }));
       if (can("edit", p) && !(t.assignee === user.id)) btn("remind", "Remind", remind);
       if (can("review", p) || isAdmin) btn("signoff", "Sign off", () => run(t, () => status(t, "approved"), `${t.page.title}: signed off · ready to publish`), true);
     } else if (st === "approved" || st === "scheduled") {
+      change();
       if (can("publish", p)) btn("publish", "Publish", () => setPublishing(t), true); // the dialog offers Publish now or Schedule (and moves or cancels an existing schedule)
       else out.push(<span key="w" className="text-[12px] text-ink-3 whitespace-nowrap">Waiting for a publisher</span>);
     }
@@ -106,13 +111,44 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   /** Who the page is with at this stage. */
   const who = (t: Task) => {
     const st = t.page.status;
-    const person = st === "review" || st === "inreview" ? t.assigneeName : st === "bizreview" ? t.assigneeName : undefined;
-    const label = st === "review" ? (t.assigneeName ? "Assigned to" : "Not assigned yet") : st === "inreview" ? "Reviewed by" : st === "reviewed" ? "Reviewed by" : st === "bizreview" ? (t.assigneeName ? "Sign-off by" : "Any business reviewer") : "Approved by";
+    const person = st === "review" || st === "inreview" || st === "bizreview" || st === "approved" || st === "scheduled" ? t.assigneeName : undefined;
+    const label = st === "review" ? (t.assigneeName ? "Assigned to" : "Not assigned yet") : st === "inreview" ? "Reviewed by" : st === "reviewed" ? "Reviewed by" : st === "bizreview" ? (t.assigneeName ? "Sign-off by" : "Any business reviewer") : t.assigneeName ? "Publish by" : "Approved by";
     const name = person ?? (st === "reviewed" || st === "approved" || st === "scheduled" ? t.from.replace(/ \(.*\)$/, "") : "");
     return <span className="inline-flex items-center gap-2 text-[12.5px] min-w-0"><span className="text-ink-3 whitespace-nowrap">{label}</span>{name && <><Avatar name={name} size={20} /><span className="truncate">{t.assignee === user.id && person ? "you" : name}</span></>}</span>;
   };
 
   const rows = view === "published" ? [] : byView[view]; const cur = VIEWS.find((v) => v.id === view)!;
+  const empty = (txt: string) => <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl text-[13px] text-ink-3">{q || mkt ? <>No pages match. <button className="underline text-ink" onClick={() => { setQ(""); setMkt(""); }}>Clear filters</button></> : txt}</div>;
+  const taskList = (items: Task[]) => items.length ? <ul className="bg-surface border border-line rounded-xl divide-y divide-line overflow-hidden">
+        {items.map((t) => { const m = marketOfPath(t.page.path); const d = dueLabel(t); const acts = actions(t);
+          return <li key={t.page.path + t.kind} className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,220px)_auto] gap-x-4 gap-y-2 items-center px-4 py-3 hover:bg-surface-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} className="font-semibold truncate hover:underline underline-offset-2">{t.page.title}</Link>{view === "ready" ? <Pill status={t.page.status} /> : null}</div>
+              <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.name.replace(/^HSBC /, "")} · {routeOf(t.page.path)} · sent by {t.from.replace(/ \(.*\)$/, "")}{waitingLabel(t.sentAt) !== "—" ? ` · waiting ${waitingLabel(t.sentAt)}` : ""}</div>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-[26px] md:pl-0 min-w-0">{who(t)}<span suppressHydrationWarning className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span></div>
+            <div className="flex items-center gap-1.5 pl-[26px] md:pl-0 md:justify-end">{acts.length ? acts : <Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link>}</div>
+          </li>; })}
+      </ul> : null;
+  const pubList = (items: PublishedItem[]) => items.length ? <ul className="bg-surface border border-line rounded-xl divide-y divide-line overflow-hidden">
+        {items.map((p) => { const m = marketOfPath(p.path); return <li key={p.path} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-surface-2">
+          <div className="min-w-0 flex-1"><div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(p.path)} className="font-semibold truncate hover:underline underline-offset-2">{p.title}</Link><Pill status="published" /></div>
+            <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.domain}{routeOf(p.path)}</div></div>
+          <span className="text-[12px] text-ink-3 pl-[26px] sm:pl-0" suppressHydrationWarning>{p.when ? `Published ${taskDate(p.when)}` : "Published"}{p.who ? ` · ${p.who}` : ""}</span>
+          <Link href={builderHref(p.path)} className="btn btn-sm">Open</Link>
+        </li>; })}
+      </ul> : null;
+  /** Yours first, then other people's (the second group only when there is one). */
+  function split<T>(items: T[], mine: (x: T) => boolean, render: (x: T[]) => React.ReactNode) {
+    if (!items.length) return empty(cur.empty);
+    const a = items.filter(mine), b = items.filter((x) => !mine(x));
+    const head = (t: string, n: number) => <h3 className="flex items-baseline gap-2 text-[11.5px] uppercase tracking-[.08em] font-semibold text-ink-3 mt-5 mb-2 first:mt-0">{t}<span className="normal-case tracking-normal font-normal">{n}</span></h3>;
+    return <div>
+      {head("Yours", a.length)}{a.length ? render(a) : <p className="text-[12.5px] text-ink-3 bg-surface border border-dashed border-line-2 rounded-xl px-4 py-3">Nothing of yours at this stage.</p>}
+      {b.length > 0 && <>{head(isAdmin ? "Other people" : "Others you can act on", b.length)}{render(b)}</>}
+    </div>;
+  }
+
   return (
     <div className="p-4 md:p-7">
       <div className="mb-4"><h1 className="text-2xl font-semibold">My tasks</h1><p className="text-ink-3 text-[13px] mt-1">Pages by stage of the review flow, across all markets.</p></div>
@@ -130,25 +166,10 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
         <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface" value={mkt} onChange={(e) => setMkt(e.target.value)} aria-label="Filter by market"><option value="">All markets</option>{markets.map((m) => <option key={m.id} value={m.id}>{m.flag} {m.name}</option>)}</select>
       </div>
 
-      {view !== "published" ? (rows.length ? <ul className="bg-surface border border-line rounded-xl divide-y divide-line overflow-hidden">
-        {rows.map((t) => { const m = marketOfPath(t.page.path); const d = dueLabel(t); const acts = actions(t);
-          return <li key={t.page.path + t.kind} className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,220px)_auto] gap-x-4 gap-y-2 items-center px-4 py-3 hover:bg-surface-2">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} className="font-semibold truncate hover:underline underline-offset-2">{t.page.title}</Link>{view === "ready" ? <Pill status={t.page.status} /> : null}</div>
-              <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.name.replace(/^HSBC /, "")} · {routeOf(t.page.path)} · sent by {t.from.replace(/ \(.*\)$/, "")}{waitingLabel(t.sentAt) !== "—" ? ` · waiting ${waitingLabel(t.sentAt)}` : ""}</div>
-            </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-[26px] md:pl-0 min-w-0">{who(t)}<span suppressHydrationWarning className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span></div>
-            <div className="flex items-center gap-1.5 pl-[26px] md:pl-0 md:justify-end">{acts.length ? acts : <Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link>}</div>
-          </li>; })}
-      </ul> : <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl text-[13px] text-ink-3">{q || mkt ? <>No pages match. <button className="underline text-ink" onClick={() => { setQ(""); setMkt(""); }}>Clear filters</button></> : cur.empty}</div>)
-      : pub.length ? <ul className="bg-surface border border-line rounded-xl divide-y divide-line overflow-hidden">
-        {pub.map((p) => { const m = marketOfPath(p.path); return <li key={p.path} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-surface-2">
-          <div className="min-w-0 flex-1"><div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(p.path)} className="font-semibold truncate hover:underline underline-offset-2">{p.title}</Link><Pill status="published" /></div>
-            <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.domain}{routeOf(p.path)}</div></div>
-          <span className="text-[12px] text-ink-3 pl-[26px] sm:pl-0" suppressHydrationWarning>{p.when ? `Published ${taskDate(p.when)}` : "Published"}{p.who ? ` · ${p.who}` : ""}</span>
-          <Link href={builderHref(p.path)} className="btn btn-sm">Open</Link>
-        </li>; })}
-      </ul> : <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl text-[13px] text-ink-3">{cur.empty}</div>}
+      {/* backlog: one list; other stages: yours on top, other people below (authors only see their own; site admins see everyone) */}
+      {view === "backlog" ? (taskList(rows) ?? empty(cur.empty))
+        : view !== "published" ? split(rows, (t) => t.assignee === user.id || t.author === user.id, taskList)
+        : split(pub, (p) => p.whoId === user.id, pubList)}
 
       {assigning && <AssignDialog marketId={marketOfPath(assigning.page.path).id} task={assigning} pageHref={builderHref(assigning.page.path)} onClose={() => setAssigning(null)} onDone={(name) => { setToast(name ? `${assigning.page.title}: assigned to ${name}` : `${assigning.page.title}: not assigned`); setAssigning(null); router.refresh(); }} />}
       {sharing && <ShareReviewDialog key={sharing.t.page.path + sharing.stage} marketId={marketOfPath(sharing.t.page.path).id} path={sharing.t.page.path} title={sharing.t.page.title} stage={sharing.stage} onClose={() => { setSharing(null); router.refresh(); }} />}
