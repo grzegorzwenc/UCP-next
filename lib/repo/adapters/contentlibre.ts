@@ -133,7 +133,8 @@ export const contentLibreRepo: ContentRepository = {
   moveNode: async (path, dest) => { await clSlingPost(requireStorage(path), [[":operation", "move"], [":dest", requireStorage(dest)]]); return mustRead(dest, 1); },
   getPage: async (path) => { try { return toView(await clApi<ClPage>("GET", "content/v1/page", { path })); } catch (e) { if (e instanceof RepoError && e.status === 404) return undefined; throw e; } },
   listChildren: async (path, { offset = 0, limit = 50 } = {}) => { const l = await clApi<ClPageList>("GET", "content/v1/children", { path, offset, limit }); return { items: l.items.map(toSummary), more: l.more }; },
-  createPage: async (input) => toView(await clApi<ClPage>("POST", "content/v1/pages", {}, input)),
+  // content/v1/pages accepts exactly these four and refuses anything else; the body is built, not passed through.
+  createPage: async ({ parentPath, name, template, title }) => toView(await clApi<ClPage>("POST", "content/v1/pages", {}, { parentPath, name, template, title })),
   updateContent: async (path, patch) => {
     if (patch.status) throw notYet(`status ${patch.status}: publication goes through drafts (the builder)`);
     return toView(await clApi<ClPage>("PATCH", "content/v1/page", { path }, patch, "application/merge-patch+json"));

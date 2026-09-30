@@ -91,6 +91,13 @@ Still to do on this side:
       mock's `RichField`, `select`, `image` with a thumbnail, `link`, `number`, `checkbox`, `lines`), required mark
       and hint. **Send for review** is refused while a required field anywhere on the page is empty. Nested
       components are selectable from their parent's panel.
+- [x] **New page on ContentLIBRE** (29.09): the dialog offers the backend's templates for the chosen place
+      (`/api/cl/templates` → `.libre-templates.json`, reloaded when the place changes; a template is named by its
+      path), any page can be the place (there are no folders here, so **New folder** is hidden), and the body sent
+      to `content/v1/pages` is exactly `{parentPath, name, template, title}` - it used to carry the mock's
+      `components` and was refused with *components: unknown property*. At a site's root only a new language
+      root (`home`) may be created, and the dialog says so.
+- [ ] Duplicate on ContentLIBRE creates an empty page from the source's template (no content copy yet).
 - [ ] Blur-to-save in the preview not tried in a focused browser (the in-app pane was hidden); drag and drop
       in the preview; an image picker.
 - [ ] Re-run the Playwright suite and a mock-mode pass after the merge (only type check and lint were run).

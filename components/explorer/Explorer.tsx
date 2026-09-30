@@ -17,7 +17,7 @@ import { FolderTree } from "@/components/explorer/FolderTree";
 import { FolderIcon, PageIcon } from "@/components/ui/Icons";
 
 type Folder = { path: string; title: string };
-type Props = { marketId: string; envId: string; root: string; marketName: string; flag: string; folder: Folder; items: PageSummary[]; tree: Folder[]; allPages: PageSummary[]; templates: Template[]; openNew?: boolean; newTemplate?: string };
+type Props = { marketId: string; envId: string; root: string; marketName: string; flag: string; folder: Folder; items: PageSummary[]; tree: Folder[]; allPages: PageSummary[]; templates: Template[]; openNew?: boolean; newTemplate?: string; backendTemplates?: boolean; parents?: Folder[] };
 type Modal =
   | { kind: "new" } | { kind: "folder" }
   | { kind: "rename"; page: PageSummary } | { kind: "move"; pages: PageSummary[] }
@@ -95,7 +95,9 @@ function TranslateModal({ pages, marketId, base, root, marketName, tree, rel, fo
 }
 
 /* ---------------- explorer ---------------- */
-export function Explorer({ marketId, envId, root, marketName, flag, folder, items, tree, allPages, templates, openNew, newTemplate }: Props) {
+export function Explorer({ marketId, envId, root, marketName, flag, folder, items, tree, allPages, templates: library, openNew, newTemplate, backendTemplates = false, parents }: Props) {
+  // On ContentLIBRE every page may hold pages, so any page is a place a new page can go; elsewhere, folders.
+  const placeChoices = parents ?? tree;
   const router = useRouter();
   const { can } = useSession();
   const base = `/${marketId}/${envId}`;
@@ -104,8 +106,19 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
   const [limit, setLimit] = useState(PAGE); const [seenKey, setSeenKey] = useState(q + "|" + folder.path); if (seenKey !== q + "|" + folder.path) { setSeenKey(q + "|" + folder.path); setLimit(PAGE); }
   const canEditHere = can("edit", folder.path);
   const [modal, setModal] = useState<Modal | null>(openNew ? { kind: "new" } : null);
-  const [title, setTitle] = useState(""); const [slug, setSlug] = useState(""); const [tpl, setTpl] = useState(newTemplate && templates.some((t) => t.id === newTemplate) ? newTemplate : templates.some((t) => t.id === "product") ? "product" : templates[0]?.id ?? "blank"); const [parent, setParent] = useState(folder.path); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
+  const [title, setTitle] = useState(""); const [slug, setSlug] = useState(""); const [tpl, setTpl] = useState(newTemplate && library.some((t) => t.id === newTemplate) ? newTemplate : library.some((t) => t.id === "product") ? "product" : library[0]?.id ?? "blank"); const [parent, setParent] = useState(folder.path); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
   const [sel, setSel] = useState<string[]>([]); const [toast, setToast] = useState<string | null>(null);
+  // On ContentLIBRE the templates are the backend's, and which ones may be used depends on where the page goes.
+  const [backendOffer, setBackendOffer] = useState<{ parent: string; templates: Template[] } | null>(null);
+  useEffect(() => {
+    if (!backendTemplates || modal?.kind !== "new") return;
+    let live = true;
+    fetch(`/api/cl/templates?path=${encodeURIComponent(parent)}`).then((r) => (r.ok ? r.json() : [])).then((t: Template[]) => { if (live) setBackendOffer({ parent, templates: t }); }, () => { if (live) setBackendOffer({ parent, templates: [] }); });
+    return () => { live = false; };
+  }, [backendTemplates, modal?.kind, parent]);
+  const offerLoading = backendTemplates && backendOffer?.parent !== parent;
+  const templates = backendTemplates ? (offerLoading ? [] : backendOffer?.templates ?? []) : library;
+  const chosenTpl = templates.some((t) => t.id === tpl) ? tpl : templates[0]?.id ?? "";
   const crumbs = useMemo(() => { const segs = rel(folder.path).split("/").filter(Boolean); return segs.map((s, i) => ({ name: s, path: root + "/" + segs.slice(0, i + 1).join("/") })); }, [folder.path, root]);
   const rows = q ? allPages.filter((p) => (p.title ?? "").toLowerCase().includes(q.toLowerCase()) || rel(p.path).includes(q.toLowerCase())) : items;
   const shown = rows.slice(0, limit);
@@ -118,7 +131,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
 
   async function create() {
     setBusy(true); setErr(null);
-    try { const t = templates.find((x) => x.id === tpl); const page = await repoApi.createPage({ parentPath: parent, name: slug || slugify(title), template: tpl, title, components: componentsFor(t, title) }); setModal(null); router.push(`${base}/page${rel(page.path)}`); router.refresh(); }
+    try { const t = templates.find((x) => x.id === chosenTpl); const page = await repoApi.createPage({ parentPath: parent, name: slug || slugify(title), template: chosenTpl, title, ...(backendTemplates ? {} : { components: componentsFor(t, title) }) }); setModal(null); router.push(`${base}/page${rel(page.path)}`); router.refresh(); }
     catch (e) { setErr(errText(e)); } finally { setBusy(false); }
   }
   async function createFolder() {
@@ -166,7 +179,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
       <div className="p-4 md:p-6 overflow-auto min-w-0 relative">
         <div className="text-[13px] text-ink-3 mb-2 flex gap-1.5 flex-wrap"><Link href={`${base}/pages`} className="hover:text-ink">{marketName}</Link>{crumbs.map((c, i) => <span key={c.path}><span className="text-ink-4"> / </span>{i === crumbs.length - 1 ? <b className="text-ink">{c.name}</b> : <Link href={`${base}/pages${rel(c.path)}`} className="hover:text-ink">{c.name}</Link>}</span>)}</div>
         <div className="flex flex-wrap items-end gap-3 md:gap-4 mb-5"><div><h1 className="text-2xl font-semibold">{q ? `Search results for “${q}”` : folder.title}</h1><p className="text-[13px] text-ink-3 mt-1 font-mono">{q ? `${rows.length} pages match` : `${rel(folder.path)} · ${items.filter(isFolder).length} folders · ${items.filter((i) => !isFolder(i)).length} pages`}</p></div>
-          <div className="ml-auto flex flex-wrap gap-2 items-center">{canEditHere ? <><button className="btn" onClick={() => { setParent(folder.path); openModal({ kind: "folder" }); }}>＋ New folder</button><button className="btn btn-primary" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}>＋ New page</button></> : <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="You don't have Edit on this folder. Ask a site admin."><span aria-hidden="true">🔒</span>Read-only in this folder</span>}</div></div>
+          <div className="ml-auto flex flex-wrap gap-2 items-center">{canEditHere ? <>{!backendTemplates && <button className="btn" onClick={() => { setParent(folder.path); openModal({ kind: "folder" }); }}>＋ New folder</button>}<button className="btn btn-primary" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}>＋ New page</button></> : <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="You don't have Edit on this folder. Ask a site admin."><span aria-hidden="true">🔒</span>Read-only in this folder</span>}</div></div>
         <div className="flex gap-2 mb-3.5"><label className="flex items-center gap-2 bg-surface border border-line-2 rounded-lg px-2.5 py-1.5 min-w-[280px]"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13.5px]" placeholder="Find a page by title or URL" value={q} onChange={(e) => setQ(e.target.value)} /></label></div>
         {rows.length ? <div className="overflow-auto -mx-4 md:mx-0 px-4 md:px-0"><table className="w-full text-[13.5px] [&_tr>*:nth-child(4)]:hidden md:[&_tr>*:nth-child(4)]:table-cell [&_tr>*:nth-child(5)]:hidden xl:[&_tr>*:nth-child(5)]:table-cell [&_tr>*:nth-child(6)]:hidden xl:[&_tr>*:nth-child(6)]:table-cell"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="py-2.5 px-3 border-b border-line-2 w-8"><input type="checkbox" aria-label="Select all" checked={allChecked} onChange={(e) => setSel(e.target.checked ? shown.map((r) => r.path) : [])} /></th><th className="py-2.5 px-3 border-b border-line-2 md:w-[36%]">Name</th><th className="py-2.5 px-3 border-b border-line-2">Status</th><th className="py-2.5 px-3 border-b border-line-2">URL</th><th className="py-2.5 px-3 border-b border-line-2">Template</th><th className="py-2.5 px-3 border-b border-line-2">Updated</th><th className="border-b border-line-2" /></tr></thead>
           <tbody>{shown.map((n) => { const on = sel.includes(n.path); const editable = can("edit", n.path); const src = n.meta?.["ucp:sourcePath"] as string | undefined; return <tr key={n.path} className={`${on ? "bg-accent-soft/40" : "hover:bg-surface-2"}`}>
@@ -188,17 +201,20 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
           <button className={barBtn} style={{ ...barStyle, borderColor: "transparent", opacity: .75 }} onClick={() => setSel([])}>Clear</button></div>}
       </div>
 
-      {modal?.kind === "new" && <ModalShell title="New page" onClose={() => setModal(null)} footer={<><button className="btn" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={!title.trim() || busy} onClick={create}>{busy ? "Creating…" : "Create and open"}</button></>}>
+      {modal?.kind === "new" && <ModalShell title="New page" onClose={() => setModal(null)} footer={<><button className="btn" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={!title.trim() || busy || !chosenTpl} onClick={create}>{busy ? "Creating…" : "Create and open"}</button></>}>
         <div className="grid grid-cols-2 gap-x-4 gap-y-3">
           <label className="col-span-2 text-xs text-ink-3">Page title<input autoFocus className={inputCls} value={title} onChange={(e) => { setTitle(e.target.value); setSlug(slugify(e.target.value)); }} placeholder="e.g. Regular saver" /></label>
-          <label className="text-xs text-ink-3">Where should it live?<FolderSelect value={parent} onChange={setParent} root={root} marketName={marketName} tree={tree} rel={rel} /></label>
+          <label className="text-xs text-ink-3">Where should it live?<FolderSelect value={parent} onChange={setParent} root={root} marketName={marketName} tree={placeChoices} rel={rel} /></label>
           <label className="text-xs text-ink-3">URL name<input className={`${inputCls} font-mono`} value={slug} onChange={(e) => setSlug(slugify(e.target.value))} /><span className="block mt-1 font-mono text-[11px]">{rel(parent)}/{slug || "…"}</span></label>
-          <div className="col-span-2 text-xs text-ink-3">Template<div className="mt-1 grid grid-cols-5 gap-2">{templates.map((t) => <button type="button" key={t.id} onClick={() => setTpl(t.id)} className={`text-left border rounded-lg p-2.5 ${tpl === t.id ? "border-accent bg-accent-soft" : "border-line hover:border-ink-4"}`}><b className="block text-[12.5px] text-ink">{t.name}</b><small className="text-ink-3">{t.blocks.length} blocks</small></button>)}</div></div>
+          <div className="col-span-2 text-xs text-ink-3">Template<div className="mt-1 grid grid-cols-5 gap-2">{templates.map((t) => <button type="button" key={t.id} onClick={() => setTpl(t.id)} className={`text-left border rounded-lg p-2.5 ${chosenTpl === t.id ? "border-accent bg-accent-soft" : "border-line hover:border-ink-4"}`}><b className="block text-[12.5px] text-ink">{t.name}</b><small className="text-ink-3">{backendTemplates ? t.desc : `${t.blocks.length} blocks`}</small></button>)}</div>
+            {offerLoading && <p className="mt-1 text-ink-3">Loading the templates allowed here…</p>}
+            {backendTemplates && !offerLoading && !templates.length && <p className="mt-1 text-crit">No template may be used here. Choose another place for the page.</p>}
+            {backendTemplates && !offerLoading && templates.length > 0 && templates.every((t) => t.desc === "home") && <p className="mt-1 text-ink-3">Here only a new site root (a language version) can be created. For a page of the site, choose its home page above, e.g. {rel(placeChoices[0]?.path ?? root)}.</p>}</div>
         </div><Err err={err} /></ModalShell>}
 
       {modal?.kind === "folder" && <ModalShell title="New folder" width={460} onClose={() => setModal(null)} footer={<><button className="btn" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={!title.trim() || busy} onClick={createFolder}>{busy ? "Creating…" : "Create folder"}</button></>}>
         <label className="text-xs text-ink-3">Folder name<input autoFocus className={inputCls} value={title} onChange={(e) => { setTitle(e.target.value); setSlug(slugify(e.target.value)); }} placeholder="e.g. Insurance" onKeyDown={(e) => { if (e.key === "Enter" && title.trim()) createFolder(); }} /></label>
-        <label className="block mt-3 text-xs text-ink-3">Where<FolderSelect value={parent} onChange={setParent} root={root} marketName={marketName} tree={tree} rel={rel} /></label>
+        <label className="block mt-3 text-xs text-ink-3">Where<FolderSelect value={parent} onChange={setParent} root={root} marketName={marketName} tree={placeChoices} rel={rel} /></label>
         <div className="mt-2 font-mono text-[11px] text-ink-3">{rel(parent)}/{slug || "…"}</div><Err err={err} /></ModalShell>}
 
       {modal?.kind === "rename" && <ModalShell title={`Rename “${modal.page.title}”`} width={460} onClose={() => setModal(null)} footer={<><button className="btn" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={!title.trim() || busy} onClick={rename}>{busy ? "Saving…" : "Rename"}</button></>}>
@@ -206,7 +222,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
         <div className="mt-2 text-[12px] text-ink-3">The URL <span className="font-mono">{rel(modal.page.path)}</span> stays the same.</div><Err err={err} /></ModalShell>}
 
       {modal?.kind === "move" && <ModalShell title={modal.pages.length === 1 ? `Move “${modal.pages[0].title}”` : `Move ${modal.pages.length} items`} width={460} onClose={() => setModal(null)} footer={<><button className="btn" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={move}>{busy ? "Moving…" : "Move here"}</button></>}>
-        <label className="text-xs text-ink-3">Destination folder<FolderSelect value={parent} onChange={setParent} root={root} marketName={marketName} tree={tree} rel={rel} exclude={modal.pages.filter((p) => p.isFolder).map((p) => p.path)} /></label>
+        <label className="text-xs text-ink-3">Destination folder<FolderSelect value={parent} onChange={setParent} root={root} marketName={marketName} tree={placeChoices} rel={rel} exclude={modal.pages.filter((p) => p.isFolder || parents).map((p) => p.path)} /></label>
         <ul className="mt-3 text-[12.5px] text-ink-2 grid gap-1 max-h-[160px] overflow-auto">{modal.pages.map((p) => <li key={p.path} className="font-mono text-[12px]">{rel(p.path)} → {rel(parent)}/{p.name}</li>)}</ul><Err err={err} /></ModalShell>}
 
       {modal?.kind === "publish" && <PublishDialog marketId={marketId} envName={env(envId).name} pages={modal.pages.map((p) => ({ path: p.path, title: p.title, status: p.status, publishAt: typeof p.meta?.["ucp:publishAt"] === "string" ? String(p.meta["ucp:publishAt"]) : undefined }))} mayPublish={(path) => can("publish", path)} onClose={() => setModal(null)}

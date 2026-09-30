@@ -41,6 +41,7 @@ async function done(result: unknown, path: string, type: "content" | "publishing
  *   POST   /api/cl/component/properties            { node, entries: [name, value][] }
  *   POST   /api/cl/component/remove                { node }
  *   POST   /api/cl/component/move                  { slot, source, before? }
+ *   GET    /api/cl/templates?path=                 the templates a page may be created from under path (`.libre-templates.json`)
  *   GET    /api/cl/preview?path=&draft=&edit=1     the server's render, for the preview iframe (edit=1: with component and field markers)
  *
  * Components use the editor's own contracts (model JSON + Sling POST), so the backend's composition validator and
@@ -106,6 +107,12 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       const entries: [string, string][] = [[":operation", "libre:moveComponent"], [":source", requireEditable(b.source)]];
       if (b.before) entries.push([":before", b.before]);
       return done(await clSlingPost(requireEditable(b.slot), entries), b.slot, "content", "reordered");
+    }
+    if (o === "templates" && req.method === "GET") {
+      // content/v1/pages names a template by its path. The catalog's own eligibility (allowed parents and parent templates). Names only: titles live under /apps,
+      // which authors cannot read, so the label is the name, sentence-cased.
+      const r = await clSlingJson<{ templates?: { path: string; name: string }[] }>(`${requireEditable(path)}.libre-templates.json`);
+      return NextResponse.json((r.templates ?? []).map((t) => ({ id: t.path, path: t.path, name: t.name.replace(/[-_]+/g, " ").replace(/^./, (c) => c.toUpperCase()), desc: t.name, blocks: [], folder: "" })));
     }
     if (o === "preview" && req.method === "GET") {
       const html = await clRender(requireEditable(path), draft, q.get("edit") === "1");
