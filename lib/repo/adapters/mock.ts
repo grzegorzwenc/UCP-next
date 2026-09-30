@@ -19,7 +19,7 @@ import { syncIn, syncOut } from "./shared";
  *   /var/audit/ucp/<market>/<id>   audit events (append-only)
  * Same node shapes the Sling adapter produces, so switching backends changes nothing above the port.
  */
-const g = globalThis as unknown as { __ucpRepo_v12?: RepoNode };
+const g = globalThis as unknown as { __ucpRepo_v13?: RepoNode };
 
 /** Demo timestamps relative to now, so "waiting 2 days" and notification order stay meaningful. */
 const ago = (days: number) => new Date(Date.now() - days * 86400000).toISOString();
@@ -51,6 +51,42 @@ function seedUk(r: string): RepoNode[] {
     folder(r, "campaigns", "Campaigns", (p) => [page(p, "autumn-rates", "Autumn rates campaign", "scheduled", "campaign", [makeBlock("mast", { heading: "Autumn rates campaign", intro: "Limited-time rates on savings", image: "campaign-autumn" }), makeBlock("text"), makeBlock("banner"), makeBlock("form"), makeBlock("disclaimer")], { "ucp:sentBy": "michael.osei", "ucp:publishAt": "2027-10-01T06:00:00Z" })]),
     folder(r, "help", "Help", (p) => [page(p, "contact", "Contact us", "published", "hub"), page(p, "branch-finder", "Branch finder", "published", "hub")]),
   ];
+}
+/**
+ * Demo: UK pages at every stage of the review flow, with different authors, reviewers and business owners,
+ * so My tasks and the builder show a realistic picture (Backlog → Ready for review → In review → Reviewed → In business review → Ready → Live).
+ */
+function demoFlow(content: RepoNode) {
+  const ahead = (d: number) => ago(-d);
+  const at = (path: string) => walk(content).find((n) => n.path === path);
+  const add = (folderPath: string, name: string, title: string, status: PageView["status"], author: string, meta: NodeProps, template = "product") => {
+    const f = at(folderPath); if (!f) return;
+    const n = page(folderPath, name, title, status, template, undefined, { "ucp:requestedBy": author, "ucp:sentBy": author, ...meta });
+    const c = n.children?.find((x) => x.name === "jcr:content"); if (c) c.properties["cq:lastModifiedBy"] = author;
+    f.children = [...(f.children ?? []), n];
+  };
+  const uk = "/content/uk";
+  // 1 Backlog: sent, nobody has taken it
+  add(`${uk}/banking/savings`, "regular-saver", "Regular saver", "review", "sunita.patel", { "ucp:sentAt": ago(1), "ucp:due": ahead(2) });
+  add(`${uk}/borrowing/loans`, "car-loans", "Car loans", "review", "anna.kowalczyk", { "ucp:sentAt": ago(2), "ucp:due": ahead(1) });
+  add(`${uk}/insurance`, "travel-insurance", "Travel insurance", "review", "elin.llewelyn", { "ucp:sentAt": ago(4), "ucp:due": ago(1) });
+  // 2 Ready for review: assigned, not started
+  add(`${uk}/banking/savings`, "childrens-saver", "Children's savings account", "review", "content.author", { "ucp:sentAt": ago(1), "ucp:due": ahead(2), "ucp:assignee": "aisha.khan", "ucp:assignedBy": "priya.kaur" });
+  add(`${uk}/borrowing/mortgages`, "first-time-buyers", "First-time buyer mortgages", "review", "sunita.patel", { "ucp:sentAt": ago(2), "ucp:due": ahead(1), "ucp:assignee": "michael.osei", "ucp:assignedBy": "michael.osei" });
+  // 3 In review: the reviewer is on it
+  add(`${uk}/insurance`, "pet-insurance", "Pet insurance", "inreview", "anna.kowalczyk", { "ucp:sentAt": ago(2), "ucp:due": ahead(1), "ucp:assignee": "rachel.hughes", "ucp:startedAt": ago(1) });
+  add(`${uk}/investing`, "stocks-and-shares-isa", "Stocks and shares ISA", "inreview", "sunita.patel", { "ucp:sentAt": ago(3), "ucp:due": ago(0), "ucp:assignee": "aisha.khan", "ucp:startedAt": ago(2) });
+  add(`${uk}/help`, "fraud-and-scams", "Fraud and scams", "inreview", "elin.llewelyn", { "ucp:sentAt": ago(1), "ucp:due": ahead(3), "ucp:assignee": "jordan.mensah", "ucp:startedAt": ago(0.2) }, "hub");
+  // 4 Reviewed by author: waiting to be sent to the business review
+  add(`${uk}/borrowing/credit-cards`, "student-credit-card", "Student credit card", "reviewed", "anna.kowalczyk", { "ucp:sentAt": ago(3), "ucp:due": ahead(2), "ucp:assignee": "rachel.hughes", "ucp:authorReviewedBy": "rachel.hughes" });
+  add(`${uk}/banking`, "international-payments", "International payments", "reviewed", "content.author", { "ucp:sentAt": ago(4), "ucp:due": ahead(1), "ucp:assignee": "aisha.khan", "ucp:authorReviewedBy": "aisha.khan" });
+  // 5 In business review: business owners sign off
+  add(`${uk}/borrowing/mortgages`, "remortgage", "Remortgage", "bizreview", "sunita.patel", { "ucp:sentAt": ago(5), "ucp:due": ahead(1), "ucp:authorReviewedBy": "rachel.hughes", "ucp:taskAssignee": "david.clarke", "ucp:taskKind": "BizReview" });
+  add(`${uk}/insurance`, "life-insurance", "Life insurance", "bizreview", "content.author", { "ucp:sentAt": ago(4), "ucp:due": ago(1), "ucp:authorReviewedBy": "aisha.khan", "ucp:taskAssignee": "maria.santos", "ucp:taskKind": "BizReview" });
+  add(`${uk}/campaigns`, "spring-isa", "Spring ISA campaign", "bizreview", "anna.kowalczyk", { "ucp:sentAt": ago(2), "ucp:due": ahead(2), "ucp:authorReviewedBy": "jordan.mensah" }, "campaign");
+  // 6 Ready for publish
+  add(`${uk}/banking/savings`, "online-bonus-saver", "Online bonus saver", "approved", "elin.llewelyn", { "ucp:sentAt": ago(6), "ucp:due": ahead(1), "ucp:authorReviewedBy": "aisha.khan", "ucp:approvedBy": "david.clarke" });
+  add(`${uk}/borrowing/credit-cards`, "cashback-card", "Cashback credit card", "approved", "anna.kowalczyk", { "ucp:sentAt": ago(5), "ucp:due": ago(0), "ucp:authorReviewedBy": "rachel.hughes", "ucp:approvedBy": "maria.santos", "ucp:taskAssignee": "michael.osei", "ucp:taskKind": "Publish" });
 }
 /** Other markets: a smaller copy of the UK site with market-specific statuses, so switching market really changes the data. */
 function seedMarket(m: (typeof MARKETS)[number]): RepoNode[] {
@@ -99,9 +135,10 @@ function seed(): RepoNode {
   ])))])]);
   // Give the demo "User" account (content.author) a couple of drafts of their own, so their task list is not empty.
   for (const n of walk(content)) if (["credit-builder", "fixed-rate-bonds"].includes(n.name)) { const c = n.children?.find((x) => x.name === "jcr:content"); if (c) c.properties["cq:lastModifiedBy"] = "content.author"; }
+  demoFlow(content);
   return node("/", "rep:root", {}, [content, home, conf, varNode]);
 }
-const tree = () => (g.__ucpRepo_v12 ??= seed());
+const tree = () => (g.__ucpRepo_v13 ??= seed());
 function find(n: RepoNode, path: string): RepoNode | undefined { if (n.path === path) return n; if (path !== "/" && !path.startsWith(n.path === "/" ? "/" : n.path + "/")) return undefined; for (const c of n.children ?? []) { const f = find(c, path); if (f) return f; } }
 const parentPath = (p: string) => p.replace(/\/[^/]+$/, "") || "/";
 const content = (n: RepoNode) => n.children?.find((c) => c.name === "jcr:content");
@@ -129,7 +166,7 @@ const baseRepo: ContentRepository = {
 };
 /* Hosted demo: keep the tree shared between Worker isolates (see ./shared). Every call first syncs in; changes sync out. */
 const WRITES = new Set(["createNode", "setProps", "putFile", "deleteNode", "moveNode", "createPage", "updateContent", "saveComponents", "deletePage", "movePage"]);
-export const syncTree = () => syncIn(() => g.__ucpRepo_v12, (t) => { g.__ucpRepo_v12 = t; });
+export const syncTree = () => syncIn(() => g.__ucpRepo_v13, (t) => { g.__ucpRepo_v13 = t; });
 export const mockRepo: ContentRepository = Object.fromEntries(Object.entries(baseRepo).map(([k, v]) => [k, typeof v !== "function" ? v
   : async (...a: unknown[]) => { await syncTree(); const r = await (v as (...x: unknown[]) => Promise<unknown>)(...a); if (WRITES.has(k)) await syncOut(tree()); return r; }])) as unknown as ContentRepository;
 /** Whole market listing (pages and folders) for dashboard / search on the mock backend. */

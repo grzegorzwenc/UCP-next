@@ -20,6 +20,11 @@ export const SEED_USERS: { id: string; name: string; email: string; role: Role; 
   { id: "michael.osei", name: "Michael Osei", email: "michael.osei@hsbc.com", role: "publisher", team: "Digital channel", perms: { root: { read: true, review: true, publish: true } } },
   { id: "priya.kaur", name: "Priya Kaur", email: "priya.kaur@hsbc.com", role: "admin", team: "Platform", perms: { root: { read: true, edit: true, review: true, publish: true, manage: true } } },
   { id: "elin.llewelyn", name: "Elin Llewelyn", email: "elin.llewelyn@hsbc.com", role: "author", team: "Welsh language", perms: { root: { read: true }, banking: { read: true, edit: true } } },
+  { id: "sunita.patel", name: "Sunita Patel", email: "sunita.patel@hsbc.com", role: "author", team: "Investments", perms: { root: { read: true, edit: true } } },
+  { id: "li.chen", name: "Li Chen", email: "li.chen@hsbc.com", role: "author", team: "Asia content", perms: { root: { read: true, edit: true } } },
+  { id: "aisha.khan", name: "Aisha Khan", email: "aisha.khan@hsbc.com", role: "reviewer", team: "Legal", perms: { root: { read: true, review: true } } },
+  { id: "david.clarke", name: "David Clarke", email: "david.clarke@hsbc.com", role: "reviewer", team: "Business owner · Savings & Mortgages", perms: { root: { read: true, review: true } } },
+  { id: "maria.santos", name: "Maria Santos", email: "maria.santos@hsbc.com", role: "reviewer", team: "Business owner · Cards & Insurance", perms: { root: { read: true, review: true } } },
   { id: "tunde.boateng", name: "Tunde Boateng", email: "tunde.boateng@hsbc.com", role: "viewer", team: "Marketing", perms: { root: { read: true } } },
 ];
 export const ME = "jordan.mensah";

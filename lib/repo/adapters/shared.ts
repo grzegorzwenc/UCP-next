@@ -8,7 +8,7 @@ import type { RepoNode } from "../types";
  * reloads the tree when another isolate changed it. Locally (next dev, no KV binding) nothing here runs.
  */
 type KV = { get(key: string): Promise<string | null>; put(key: string, value: string): Promise<void> };
-const TREE = "repo:v12:tree", VER = "repo:v12:ver";
+const TREE = "repo:v13:tree", VER = "repo:v13:ver"; // bump with the seed (v13: review-flow demo pages and people)
 const s = globalThis as unknown as { __ucpShared?: { ver: number; checked: number } };
 const st = () => (s.__ucpShared ??= { ver: 0, checked: 0 });
 
