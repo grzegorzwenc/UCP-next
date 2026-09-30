@@ -15,7 +15,7 @@ import { PublishDialog } from "@/components/pages/PublishDialog";
 import { MARKETS, market as marketById, env as envById } from "@/lib/markets";
 
 export type PublishedItem = { path: string; title: string; when?: string; who?: string; whoId?: string };
-type View = "backlog" | "mine" | "inreview" | "sendbiz" | "bizreview" | "ready" | "published";
+type View = "all" | "backlog" | "mine" | "inreview" | "sendbiz" | "bizreview" | "ready" | "published";
 type Props = { marketId: string; envId: string; tasks: Task[]; published: PublishedItem[]; view: string };
 
 /** Due chip copy: overdueDays > 0 = overdue, 0 = today, -1 = tomorrow, else the date. */
@@ -47,8 +47,10 @@ const markSeen = (keys: string[]) => { if (!keys.length) return; try { const all
 /** A task is "the same thing" while its page, stage and person do not change; a new stage or a new assignee makes it new again. */
 const seenKey = (t: Task) => `${t.page.path}|${t.page.status}|${t.assignee ?? ""}`;
 
-/** The five stages of the review flow, as tabs. */
+const STAGE_ORDER = ["review", "inreview", "reviewed", "bizreview", "approved", "scheduled"];
+/** All (yours, any stage) and the stages of the review flow, as tabs. */
 const VIEWS: { id: View; label: string; empty: string; of: (t: Task, me: string) => boolean }[] = [
+  { id: "all", label: "All", empty: "Nothing is assigned to you right now.", of: (t, me) => (t.assignee === me || t.author === me) && ["review", "inreview", "reviewed", "bizreview", "approved", "scheduled"].includes(t.page.status) },
   { id: "backlog", label: "Backlog", empty: "No page is waiting for a reviewer.", of: (t) => t.kind === "Review" && t.page.status === "review" && !t.assignee },
   { id: "mine", label: "Ready for review", empty: "Nothing assigned and waiting to start · take a page from the Backlog.", of: (t) => t.kind === "Review" && t.page.status === "review" && !!t.assignee },
   { id: "inreview", label: "In review", empty: "No author's review is in progress.", of: (t) => t.kind === "Review" && t.page.status === "inreview" },
@@ -64,27 +66,27 @@ const VIEWS: { id: View; label: string; empty: string; of: (t: Task, me: string)
  */
 export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props) {
   const router = useRouter(); const { can, user } = useSession(); const isAdmin = user.role === "admin" || !!user.perms.root?.manage;
-  const [view, setView] = useState<View>(() => (VIEWS.some((v) => v.id === view0) ? view0 as View : "backlog"));
+  const [view, setView] = useState<View>(() => (VIEWS.some((v) => v.id === view0) ? view0 as View : "all"));
   const [q, setQ] = useState(""); const [mkt, setMkt] = useState("");
   const [busy, setBusy] = useState<string | null>(null); const [toast, setToast] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<Task | null>(null); const [sharing, setSharing] = useState<{ t: Task; stage: "review" | "bizreview" } | null>(null);
   const [publishing, setPublishing] = useState<Task | null>(null); // Publish now or Schedule
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
-  useEffect(() => { window.history.replaceState(null, "", `/${marketId}/${envId}/tasks${view === "backlog" ? "" : `?view=${view}`}`); }, [view, marketId, envId]); // the tab is in the URL (shareable)
+  useEffect(() => { window.history.replaceState(null, "", `/${marketId}/${envId}/tasks${view === "all" ? "" : `?view=${view}`}`); }, [view, marketId, envId]); // the tab is in the URL (shareable)
 
   const routeOf = (path: string) => path.replace(marketOfPath(path).root, "") || "/";
   const builderHref = (path: string) => `/${marketOfPath(path).id}/${envId}/page${routeOf(path)}`;
   const match = (path: string, title: string, extra = "") => (!mkt || marketOfPath(path).id === mkt) && (!q.trim() || `${title} ${routeOf(path)} ${extra}`.toLowerCase().includes(q.toLowerCase().trim()));
-  const byView = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.id, tasks.filter((t) => v.of(t, user.id)).filter((t) => match(t.page.path, t.page.title, `${t.from} ${t.assigneeName ?? ""}`)).sort((a, b) => (a.sentAt ?? "").localeCompare(b.sentAt ?? ""))])) as Record<View, Task[]>, [tasks, q, mkt, user.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const byView = useMemo(() => Object.fromEntries(VIEWS.map((v) => [v.id, tasks.filter((t) => v.of(t, user.id)).filter((t) => match(t.page.path, t.page.title, `${t.from} ${t.assigneeName ?? ""}`)).sort((a, b) => (v.id === "all" ? STAGE_ORDER.indexOf(a.page.status) - STAGE_ORDER.indexOf(b.page.status) : 0) || (a.sentAt ?? "").localeCompare(b.sentAt ?? ""))])) as Record<View, Task[]>, [tasks, q, mkt, user.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const pub = useMemo(() => published.filter((p) => match(p.path, p.title, p.who ?? "")), [published, q, mkt]); // eslint-disable-line react-hooks/exhaustive-deps
   const count = (v: View) => (v === "published" ? pub.length : byView[v].length);
   /* yours = assigned to you or you are the author; in the Backlog, pages you could take */
   const seenSnap = useSyncExternalStore(subscribeSeen, readSeen, () => "[]"); const seen = useMemo(() => new Set<string>(JSON.parse(seenSnap)), [seenSnap]);
-  const yoursOf = (v: View, t: Task) => (v === "backlog" ? can("review", t.page.path) : t.assignee === user.id || t.author === user.id);
+  const yoursOf = (v: View, t: Task) => (v === "all" ? true : v === "backlog" ? can("review", t.page.path) : t.assignee === user.id || t.author === user.id);
   const yours = (v: View) => (v === "published" ? [] : byView[v].filter((t) => yoursOf(v, t)));
   const fresh = (v: View) => yours(v).filter((t) => !seen.has(seenKey(t)));
   const isNew = (t: Task) => yoursOf(view, t) && !seen.has(seenKey(t));
-  const totalNew = VIEWS.reduce((n, v) => n + (v.id === "backlog" ? 0 : fresh(v.id).length), 0), totalYours = VIEWS.reduce((n, v) => n + (v.id === "backlog" ? 0 : yours(v.id).length), 0);
+  const totalNew = fresh("all").length, totalYours = yours("all").length;
   /* what is on screen counts as seen when you leave the tab (so "New" stays visible while you look at it) */
   const onScreen = useRef<string[]>([]);
   useEffect(() => { onScreen.current = yours(view).map(seenKey); });
@@ -143,8 +145,8 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
         {items.map((t) => { const m = marketOfPath(t.page.path); const d = dueLabel(t); const acts = actions(t);
           return <li key={t.page.path + t.kind} className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,220px)_auto] gap-x-4 gap-y-2 items-center px-4 py-3 hover:bg-surface-2">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} onClick={() => markSeen(onScreen.current)} className="font-semibold truncate hover:underline underline-offset-2">{t.page.title}</Link>{isNew(t) && <span suppressHydrationWarning className="flex-none text-[10px] font-bold uppercase tracking-[.06em] text-white bg-accent rounded px-1.5 py-0.5">New</span>}{view === "ready" ? <Pill status={t.page.status} /> : null}</div>
-              <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.name.replace(/^HSBC /, "")} · {routeOf(t.page.path)} · sent by {t.from.replace(/ \(.*\)$/, "")}{waitingLabel(t.sentAt) !== "—" ? ` · waiting ${waitingLabel(t.sentAt)}` : ""}</div>
+              <div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} onClick={() => markSeen(onScreen.current)} className="font-semibold truncate hover:underline underline-offset-2">{t.page.title}</Link>{isNew(t) && <span suppressHydrationWarning className="flex-none text-[10px] font-bold uppercase tracking-[.06em] text-white bg-accent rounded px-1.5 py-0.5">New</span>}{view === "ready" || view === "all" ? <Pill status={t.page.status} /> : null}</div>
+              <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.name.replace(/^HSBC /, "")} · {routeOf(t.page.path)} · by {t.authorName ?? t.from.replace(/ \(.*\)$/, "")}{waitingLabel(t.sentAt) !== "—" ? ` · waiting ${waitingLabel(t.sentAt)}` : ""}</div>
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-[26px] md:pl-0 min-w-0">{who(t)}<span suppressHydrationWarning className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span></div>
             <div className="flex items-center gap-1.5 pl-[26px] md:pl-0 md:justify-end">{acts.length ? acts : <Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link>}</div>
@@ -182,7 +184,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
               return <span className="flex items-center gap-1.5" title={tip} suppressHydrationWarning>
                 {v.id !== "backlog" && v.id !== "published" && <span className={`min-w-[20px] h-5 px-1.5 rounded-full grid place-items-center text-[11px] font-bold ${nw ? "bg-accent text-white" : y ? "bg-ink text-white" : "bg-surface-3 text-ink-4"}`} aria-label={`${y} for you`}>{y}</span>}
                 {nw > 0 && <span className="text-[11px] font-semibold text-accent">{nw} new</span>}
-                <span className={`text-[11px] ${v.id === "backlog" || v.id === "published" ? "min-w-[20px] h-5 px-1.5 rounded-full grid place-items-center font-semibold bg-surface-3 text-ink-2" : "text-ink-4"}`}>{v.id === "backlog" || v.id === "published" ? n : `of ${n}`}</span>
+                {v.id !== "all" && <span className={`text-[11px] ${v.id === "backlog" || v.id === "published" ? "min-w-[20px] h-5 px-1.5 rounded-full grid place-items-center font-semibold bg-surface-3 text-ink-2" : "text-ink-4"}`}>{v.id === "backlog" || v.id === "published" ? n : `of ${n}`}</span>}
               </span>; })()}</button>; })}
       </div>
 
@@ -192,7 +194,8 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
       </div>
 
       {/* backlog: one list; other stages: yours on top, other people below (authors only see their own; site admins see everyone) */}
-      {view === "backlog" ? (taskList(rows) ?? empty(cur.empty))
+      {view === "all" ? (taskList(rows) ?? empty(cur.empty))
+        : view === "backlog" ? (taskList(rows) ?? empty(cur.empty))
         : view !== "published" ? split(rows, (t) => t.assignee === user.id || t.author === user.id, taskList)
         : split(pub, (p) => p.whoId === user.id, pubList)}
 

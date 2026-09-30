@@ -106,6 +106,7 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
     else if (p.status === "scheduled") out.push(await mk(p, "Check", "Check scheduled publish", await sender(p, "Michael Osei")));
     else if (p.status === "draft" && (p.lastModifiedBy ?? ME) === meId) out.push(await mk(p, "Finish", "Finish draft and send for review", "You"));
   }
+  for (const t of out) if (t.author) t.authorName = await userName(t.author);
   for (const t of out) { const a = taskAssignee(pages.find((p) => p.path === t.page.path)!, t.kind); if (a) { t.assignee = a; t.assigneeName = await userName(a); } }
   return out.filter((t) => mine(pages.find((p) => p.path === t.page.path)!, t.kind)).sort((a, b) => a.due.localeCompare(b.due));
 }

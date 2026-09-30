@@ -32,7 +32,7 @@ export type AuditEvent = { id: string; path: string; time: string; type: AuditTy
 
 export type TaskKind = "Review" | "SendBiz" | "BizReview" | "Publish" | "Fix" | "Check" | "Finish";
 /** `author`: who sent the page for review (for "yours" vs "other people" in My tasks). */
-export type Task = { kind: TaskKind; what: string; from: string; author?: string; sentAt?: string; due: string; overdueDays: number; assignee?: string; assigneeName?: string; remindedAt?: string; remindedBy?: string; page: { path: string; title: string; status: string; template?: string } };
+export type Task = { kind: TaskKind; what: string; from: string; author?: string; authorName?: string; sentAt?: string; due: string; overdueDays: number; assignee?: string; assigneeName?: string; remindedAt?: string; remindedBy?: string; page: { path: string; title: string; status: string; template?: string } };
 
 /** A concrete content item built from a content model (e.g. Product → "HSBC Savings Account"). */
 export type EntityValues = Record<string, unknown>;
