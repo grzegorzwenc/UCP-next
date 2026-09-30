@@ -148,7 +148,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   const th = "px-4 py-2 text-left text-[10.5px] uppercase tracking-[.08em] font-semibold text-ink-3 border-b border-line";
   const sortTasks = (items: Task[]) => [...items].sort((a, b) => sort === "due" ? a.due.localeCompare(b.due) : sort === "due-desc" ? b.due.localeCompare(a.due) : Number(isNew(b)) - Number(isNew(a)));
   const taskRow = (t: Task) => { const m = marketOfPath(t.page.path); const acts = actions(t); const [pl, pn, py] = stagePerson(t); const w = waitingLabel(t.sentAt);
-          return <tr key={t.page.path + t.kind} className="hover:bg-surface-2 align-middle">
+          return <tr key={t.page.path + t.kind} className="hover:bg-surface-2 align-middle border-t border-line">
             <td className="px-4 py-3 max-w-0 w-full">
               <div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} onClick={() => markSeen(onScreen.current)} className="font-semibold truncate hover:underline underline-offset-2">{t.page.title}</Link>{isNew(t) && <span suppressHydrationWarning className="flex-none text-[10px] font-bold uppercase tracking-[.06em] text-white bg-accent rounded px-1.5 py-0.5">New</span>}{view === "ready" ? <Pill status={t.page.status} /> : null}</div>
               <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.name.replace(/^HSBC /, "")} · {routeOf(t.page.path)}</div>
@@ -156,31 +156,35 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
               <div className="xl:hidden mt-1.5 pl-[26px] flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]"><span className="text-ink-3">{pl}</span>{pn ? <span className="inline-flex items-center gap-1.5"><Avatar name={pn} size={18} />{py ? "You" : pn}</span> : <span className="text-ink-4">—</span>}<span className="md:hidden">{dueChip(t)}</span></div>
               <div className="md:hidden mt-2 pl-[26px] flex flex-wrap items-center gap-1.5">{acts.length ? acts : <Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link>}</div>
             </td>
-            <td className="px-4 py-3 hidden xl:table-cell"><div className="grid gap-1.5 w-[250px]">{personLine("Author", t.authorName ?? t.from.replace(/ \(.*\)$/, ""), t.author === user.id)}{personLine(pl, pn, py)}</div></td>
+            <td className="p-0 xl:px-4 xl:py-3"><div className="hidden xl:grid gap-1.5 w-[250px]">{personLine("Author", t.authorName ?? t.from.replace(/ \(.*\)$/, ""), t.author === user.id)}{personLine(pl, pn, py)}</div></td>
             <td className="px-4 py-3 hidden md:table-cell"><div className="grid gap-1 justify-items-start w-[170px]">{dueChip(t)}<span className="text-[11.5px] text-ink-3 whitespace-nowrap" suppressHydrationWarning>{t.sentAt ? `Sent ${taskDate(t.sentAt)}` : ""}{w !== "—" ? <span className="block text-ink-4">waiting {w}</span> : null}</span></div></td>
-            <td className="px-4 py-3 hidden md:table-cell"><div className="flex items-center justify-end gap-1.5 whitespace-nowrap">{acts.length ? acts : <><span className="hidden lg:inline text-[12px] text-ink-4">No action for you</span><Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link></>}</div></td>
+            <td className="px-4 py-3 hidden md:table-cell"><div className="flex flex-wrap items-center justify-end gap-1.5">{acts.length ? acts : <><span className="hidden lg:inline text-[12px] text-ink-4">No action for you</span><Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link></>}</div></td>
           </tr>; };
-  const pubRow = (p: PublishedItem) => { const m = marketOfPath(p.path); return <tr key={p.path} className="hover:bg-surface-2">
+  const pubRow = (p: PublishedItem) => { const m = marketOfPath(p.path); return <tr key={p.path} className="hover:bg-surface-2 border-t border-line">
           <td className="px-4 py-3 max-w-0 w-full"><div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(p.path)} className="font-semibold truncate hover:underline underline-offset-2">{p.title}</Link><Pill status="published" /></div>
             <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.domain}{routeOf(p.path)}</div>
             <div className="md:hidden mt-1 pl-[26px] text-[12px] text-ink-3" suppressHydrationWarning>{p.when ? `Published ${taskDate(p.when)}` : "Published"}{p.who ? ` · ${p.who}` : ""}</div></td>
-          <td className="px-4 py-3 hidden xl:table-cell"><div className="w-[250px]">{personLine("Published by", p.who, p.whoId === user.id)}</div></td>
+          <td className="p-0 xl:px-4 xl:py-3"><div className="hidden xl:block w-[250px]">{personLine("Published by", p.who, p.whoId === user.id)}</div></td>
           <td className="px-4 py-3 hidden md:table-cell"><span className="inline-block w-[170px]"><span className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full bg-good-soft text-good whitespace-nowrap" suppressHydrationWarning>{p.when ? taskDate(p.when) : "Live"}</span></span></td>
           <td className="px-4 py-3 text-right"><Link href={builderHref(p.path)} className="btn btn-sm">Open</Link></td>
         </tr>; };
   /* One table per view (so the columns line up), with group rows: a stage heading (All) and Yours / Other people */
   type Part = { label?: string; rows: React.ReactNode[]; empty?: string };
   const othersLabel = isAdmin ? "Other people" : "Others you can act on";
-  const board = (groups: { key: string; head?: React.ReactNode; parts: Part[] }[]) => <div className="bg-surface border border-line rounded-xl overflow-hidden"><table className="w-full text-[13px]">
-    <thead className="bg-surface-2"><tr><th className={th}>Page</th><th className={`${th} hidden xl:table-cell w-[250px]`}>People</th><th className={`${th} hidden md:table-cell w-[190px]`} aria-sort={sort === "due" ? "ascending" : sort === "due-desc" ? "descending" : undefined}><button type="button" onClick={() => setSort(sort === "due" ? "due-desc" : "due")} className={`inline-flex items-center gap-1 uppercase tracking-[.08em] hover:text-ink ${sort !== "new" ? "text-ink" : ""}`} title="Sort by due date">Dates<span aria-hidden className={sort === "new" ? "opacity-30" : ""}>{sort === "due-desc" ? "▼" : "▲"}</span></button></th><th className={`${th} hidden md:table-cell text-right w-[1%]`}><span className="sr-only">Action</span></th></tr></thead>
-    {groups.map((g) => <tbody key={g.key} className="divide-y divide-line">
-      {g.head && <tr><td colSpan={4} className="px-4 pt-4 pb-2 border-t border-line first:border-t-0 bg-surface-2/50">{g.head}</td></tr>}
+  /* separate cards per group (stage), with fixed column widths so People, Dates and Action line up across cards */
+  const cols = <colgroup><col /><col className="w-0 xl:w-[270px]" /><col className="hidden md:table-column w-[200px]" /><col className="hidden md:table-column w-[330px]" /></colgroup>;
+  const board = (groups: { key: string; head?: React.ReactNode; parts: Part[] }[]) => <div className="grid gap-6">{groups.map((g, gi) => <section key={g.key} aria-label={g.key}>
+    {g.head && <div className="mb-2">{g.head}</div>}
+    <div className="bg-surface border border-line rounded-xl overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,.04)]"><table className="w-full text-[13px] md:table-fixed">
+      {cols}
+      {gi === 0 ? <thead className="bg-surface-2"><tr><th className={th}>Page</th><th className={`${th} !p-0 xl:!px-4 xl:!py-2`}><span className="hidden xl:inline">People</span></th><th className={`${th} hidden md:table-cell`} aria-sort={sort === "due" ? "ascending" : sort === "due-desc" ? "descending" : undefined}><button type="button" onClick={() => setSort(sort === "due" ? "due-desc" : "due")} className={`inline-flex items-center gap-1 uppercase tracking-[.08em] hover:text-ink ${sort !== "new" ? "text-ink" : ""}`} title="Sort by due date">Dates<span aria-hidden className={sort === "new" ? "opacity-30" : ""}>{sort === "due-desc" ? "▼" : "▲"}</span></button></th><th className={`${th} hidden md:table-cell text-right`}><span className="sr-only">Action</span></th></tr></thead> : null}
+      <tbody>
       {g.parts.map((p, i) => <Fragment key={i}>
-        {p.label && <tr><td colSpan={4} className="px-4 pt-3 pb-1.5 text-[10.5px] uppercase tracking-[.08em] font-semibold text-ink-3">{p.label} <span className="normal-case tracking-normal font-normal">{p.rows.length}</span></td></tr>}
-        {p.rows.length ? p.rows : p.empty ? <tr><td colSpan={4} className="px-4 py-2.5 text-[12.5px] text-ink-4">{p.empty}</td></tr> : null}
+        {p.label && <tr><td colSpan={4} className={`px-4 py-2 text-[11px] uppercase tracking-[.08em] font-semibold border-t border-line first:border-t-0 ${p.label === "Yours" ? "bg-accent-soft/50 text-accent-hover shadow-[inset_3px_0_0_var(--accent)]" : "bg-surface-2 text-ink-2 shadow-[inset_3px_0_0_var(--line-2)]"}`}>{p.label} <span className="normal-case tracking-normal font-normal opacity-80">· {p.rows.length}</span></td></tr>}
+        {p.rows.length ? p.rows : p.empty ? <tr><td colSpan={4} className="px-4 py-3 text-[12.5px] text-ink-4 border-t border-line">{p.empty}</td></tr> : null}
       </Fragment>)}
-    </tbody>)}
-  </table></div>;
+      </tbody>
+    </table></div></section>)}</div>;
   const mineT = (t: Task) => t.assignee === user.id || t.author === user.id;
   const splitParts = (items: Task[], emptyYours: string): Part[] => { const a = sortTasks(items.filter(mineT)), b = sortTasks(items.filter((t) => !mineT(t)));
     return [{ label: "Yours", rows: a.map(taskRow), empty: emptyYours }, ...(b.length ? [{ label: othersLabel, rows: b.map(taskRow) }] : [])]; };
@@ -212,7 +216,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
           const st = v.id === "backlog" || v.id === "mine" ? "review" : v.id === "inreview" ? "inreview" : v.id === "sendbiz" ? "reviewed" : v.id === "bizreview" ? "bizreview" : v.id === "ready" ? "approved" : "published";
           const items = v.id === "published" ? [] : rows.filter((t) => v.of(t, user.id)); const mine = pub.filter((x) => x.whoId === user.id);
           const n = v.id === "published" ? mine.length : items.length;
-          const head = <span className="flex items-center gap-2"><button type="button" onClick={() => openView(v.id)} title={`Open the ${v.label} tab`} className={`pill pill-${st} hover:underline underline-offset-2 ${n ? "" : "opacity-60"}`}>{v.label}</button><span className="text-[12px] text-ink-3">{n}</span></span>;
+          const head = <h3 className="flex items-center gap-2.5"><button type="button" onClick={() => openView(v.id)} title={`Open the ${v.label} tab`} className={`pill pill-${st} text-[12.5px] px-3 py-1 hover:underline underline-offset-2 ${n ? "" : "opacity-60"}`}>{v.label}</button><span className="text-[13px] text-ink-3">{n} page{n === 1 ? "" : "s"}</span></h3>;
           return { key: v.id, head, parts: v.id === "published" ? [{ label: "Yours", rows: mine.map(pubRow), empty: "Nothing of yours published recently." }] : splitParts(items, "No actions for you at this step.") };
         }))
         : view === "backlog" ? (rows.length ? board([{ key: "b", parts: [{ rows: sortTasks(rows).map(taskRow) }] }]) : empty(cur.empty))
