@@ -68,6 +68,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   const router = useRouter(); const { can, user } = useSession(); const isAdmin = user.role === "admin" || !!user.perms.root?.manage;
   const [view, setView] = useState<View>(() => (VIEWS.some((v) => v.id === view0) ? view0 as View : "all"));
   const [q, setQ] = useState(""); const [mkt, setMkt] = useState("");
+  const [sort, setSort] = useState<"new" | "due" | "due-desc">("new"); // New first, or by due date
   const [busy, setBusy] = useState<string | null>(null); const [toast, setToast] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<Task | null>(null); const [sharing, setSharing] = useState<{ t: Task; stage: "review" | "bizreview" } | null>(null);
   const [publishing, setPublishing] = useState<Task | null>(null); // Publish now or Schedule
@@ -130,36 +131,49 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
     }
     return out;
   }
-  /** Who the page is with at this stage. */
-  const who = (t: Task) => {
-    const st = t.page.status;
-    const person = st === "review" || st === "inreview" || st === "bizreview" || st === "approved" || st === "scheduled" ? t.assigneeName : undefined;
-    const label = st === "review" ? (t.assigneeName ? "Assigned to" : "Not assigned yet") : st === "inreview" ? "Reviewed by" : st === "reviewed" ? "Reviewed by" : st === "bizreview" ? (t.assigneeName ? "Sign-off by" : "Any business reviewer") : t.assigneeName ? "Publish by" : "Approved by";
-    const name = person ?? (st === "reviewed" || st === "approved" || st === "scheduled" ? t.from.replace(/ \(.*\)$/, "") : "");
-    return <span className="inline-flex items-center gap-2 text-[12.5px] min-w-0"><span className="text-ink-3 whitespace-nowrap">{label}</span>{name && <><Avatar name={name} size={20} /><span className="truncate">{t.assignee === user.id && person ? "you" : name}</span></>}</span>;
-  };
 
   const rows = view === "published" ? [] : byView[view]; const cur = VIEWS.find((v) => v.id === view)!;
   const empty = (txt: string) => <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl text-[13px] text-ink-3">{q || mkt ? <>No pages match. <button className="underline text-ink" onClick={() => { setQ(""); setMkt(""); }}>Clear filters</button></> : txt}</div>;
-  const taskList = (items: Task[]) => items.length ? <ul className="bg-surface border border-line rounded-xl divide-y divide-line overflow-hidden">
-        {[...items].sort((a, b) => Number(isNew(b)) - Number(isNew(a))).map((t) => { const m = marketOfPath(t.page.path); const d = dueLabel(t); const acts = actions(t);
-          return <li key={t.page.path + t.kind} className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,220px)_auto] gap-x-4 gap-y-2 items-center px-4 py-3 hover:bg-surface-2">
-            <div className="min-w-0">
+  /* People: the author and whoever has the page now; Dates: due (coloured) and when it was sent */
+  const personLine = (label: string, name?: string, you?: boolean) => <div className="flex items-center gap-2 min-w-0 text-[12.5px]"><span className="w-[92px] flex-none text-ink-3 text-[11.5px]">{label}</span>{name ? <><Avatar name={name} size={20} /><span className="truncate">{you ? "You" : name}</span></> : <span className="text-ink-4">—</span>}</div>;
+  const stagePerson = (t: Task): [string, string | undefined, boolean] => {
+    const st = t.page.status; const reviewer = t.from.replace(/ \(.*\)$/, "");
+    if (st === "review" || st === "inreview") return ["Reviewer", t.assigneeName, t.assignee === user.id];
+    if (st === "reviewed") return ["Reviewed by", reviewer, false];
+    if (st === "bizreview") return [t.assigneeName ? "Business owner" : "Business owner", t.assigneeName ?? undefined, t.assignee === user.id];
+    return t.assigneeName ? ["Publisher", t.assigneeName, t.assignee === user.id] : ["Approved by", reviewer, false];
+  };
+  const dueChip = (t: Task) => { const d = dueLabel(t); return <span suppressHydrationWarning className={`inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span>; };
+  const th = "px-4 py-2 text-left text-[10.5px] uppercase tracking-[.08em] font-semibold text-ink-3 border-b border-line";
+  const taskList = (items: Task[]) => items.length ? <div className="bg-surface border border-line rounded-xl overflow-hidden"><table className="w-full text-[13px]">
+    <thead className="bg-surface-2"><tr><th className={th}>Page</th><th className={`${th} hidden xl:table-cell w-[250px]`}>People</th><th className={`${th} hidden md:table-cell w-[190px]`} aria-sort={sort === "due" ? "ascending" : sort === "due-desc" ? "descending" : undefined}><button type="button" onClick={() => setSort(sort === "due" ? "due-desc" : "due")} className={`inline-flex items-center gap-1 uppercase tracking-[.08em] hover:text-ink ${sort !== "new" ? "text-ink" : ""}`} title="Sort by due date">Dates<span aria-hidden className={sort === "new" ? "opacity-30" : ""}>{sort === "due-desc" ? "▼" : "▲"}</span></button></th><th className={`${th} hidden md:table-cell text-right w-[1%]`}><span className="sr-only">Action</span></th></tr></thead>
+    <tbody className="divide-y divide-line">
+        {[...items].sort((a, b) => sort === "due" ? a.due.localeCompare(b.due) : sort === "due-desc" ? b.due.localeCompare(a.due) : Number(isNew(b)) - Number(isNew(a))).map((t) => { const m = marketOfPath(t.page.path); const acts = actions(t); const [pl, pn, py] = stagePerson(t); const w = waitingLabel(t.sentAt);
+          return <tr key={t.page.path + t.kind} className="hover:bg-surface-2 align-middle">
+            <td className="px-4 py-3 max-w-0 w-full">
               <div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} onClick={() => markSeen(onScreen.current)} className="font-semibold truncate hover:underline underline-offset-2">{t.page.title}</Link>{isNew(t) && <span suppressHydrationWarning className="flex-none text-[10px] font-bold uppercase tracking-[.06em] text-white bg-accent rounded px-1.5 py-0.5">New</span>}{view === "ready" ? <Pill status={t.page.status} /> : null}</div>
-              <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.name.replace(/^HSBC /, "")} · {routeOf(t.page.path)} · by {t.authorName ?? t.from.replace(/ \(.*\)$/, "")}{waitingLabel(t.sentAt) !== "—" ? ` · waiting ${waitingLabel(t.sentAt)}` : ""}</div>
-            </div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-[26px] md:pl-0 min-w-0">{who(t)}<span suppressHydrationWarning className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span></div>
-            <div className="flex items-center gap-1.5 pl-[26px] md:pl-0 md:justify-end">{acts.length ? acts : <><span className="text-[12px] text-ink-4 whitespace-nowrap">No action for you</span><Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link></>}</div>
-          </li>; })}
-      </ul> : null;
-  const pubList = (items: PublishedItem[]) => items.length ? <ul className="bg-surface border border-line rounded-xl divide-y divide-line overflow-hidden">
-        {items.map((p) => { const m = marketOfPath(p.path); return <li key={p.path} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 hover:bg-surface-2">
-          <div className="min-w-0 flex-1"><div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(p.path)} className="font-semibold truncate hover:underline underline-offset-2">{p.title}</Link><Pill status="published" /></div>
-            <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.domain}{routeOf(p.path)}</div></div>
-          <span className="text-[12px] text-ink-3 pl-[26px] sm:pl-0" suppressHydrationWarning>{p.when ? `Published ${taskDate(p.when)}` : "Published"}{p.who ? ` · ${p.who}` : ""}</span>
-          <Link href={builderHref(p.path)} className="btn btn-sm">Open</Link>
-        </li>; })}
-      </ul> : null;
+              <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.name.replace(/^HSBC /, "")} · {routeOf(t.page.path)}</div>
+              {/* phones: people and due date under the title */}
+              <div className="xl:hidden mt-1.5 pl-[26px] flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]"><span className="text-ink-3">{pl}</span>{pn ? <span className="inline-flex items-center gap-1.5"><Avatar name={pn} size={18} />{py ? "You" : pn}</span> : <span className="text-ink-4">—</span>}<span className="md:hidden">{dueChip(t)}</span></div>
+              <div className="md:hidden mt-2 pl-[26px] flex flex-wrap items-center gap-1.5">{acts.length ? acts : <Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link>}</div>
+            </td>
+            <td className="px-4 py-3 hidden xl:table-cell"><div className="grid gap-1.5 w-[250px]">{personLine("Author", t.authorName ?? t.from.replace(/ \(.*\)$/, ""), t.author === user.id)}{personLine(pl, pn, py)}</div></td>
+            <td className="px-4 py-3 hidden md:table-cell"><div className="grid gap-1 justify-items-start w-[170px]">{dueChip(t)}<span className="text-[11.5px] text-ink-3 whitespace-nowrap" suppressHydrationWarning>{t.sentAt ? `Sent ${taskDate(t.sentAt)}` : ""}{w !== "—" ? <span className="block text-ink-4">waiting {w}</span> : null}</span></div></td>
+            <td className="px-4 py-3 hidden md:table-cell"><div className="flex items-center justify-end gap-1.5 whitespace-nowrap">{acts.length ? acts : <><span className="hidden lg:inline text-[12px] text-ink-4">No action for you</span><Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link></>}</div></td>
+          </tr>; })}
+    </tbody></table></div> : null;
+  const pubList = (items: PublishedItem[]) => items.length ? <div className="bg-surface border border-line rounded-xl overflow-hidden"><table className="w-full text-[13px]">
+    <thead className="bg-surface-2"><tr><th className={th}>Page</th><th className={`${th} hidden xl:table-cell w-[250px]`}>People</th><th className={`${th} hidden md:table-cell w-[190px]`}>Dates</th><th className={`${th} text-right w-[1%]`}><span className="sr-only">Action</span></th></tr></thead>
+    <tbody className="divide-y divide-line">
+        {items.map((p) => { const m = marketOfPath(p.path); return <tr key={p.path} className="hover:bg-surface-2">
+          <td className="px-4 py-3 max-w-0 w-full"><div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(p.path)} className="font-semibold truncate hover:underline underline-offset-2">{p.title}</Link><Pill status="published" /></div>
+            <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.domain}{routeOf(p.path)}</div>
+            <div className="md:hidden mt-1 pl-[26px] text-[12px] text-ink-3" suppressHydrationWarning>{p.when ? `Published ${taskDate(p.when)}` : "Published"}{p.who ? ` · ${p.who}` : ""}</div></td>
+          <td className="px-4 py-3 hidden xl:table-cell"><div className="w-[250px]">{personLine("Published by", p.who, p.whoId === user.id)}</div></td>
+          <td className="px-4 py-3 hidden md:table-cell"><span className="inline-block w-[170px]"><span className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full bg-good-soft text-good whitespace-nowrap" suppressHydrationWarning>{p.when ? taskDate(p.when) : "Live"}</span></span></td>
+          <td className="px-4 py-3 text-right"><Link href={builderHref(p.path)} className="btn btn-sm">Open</Link></td>
+        </tr>; })}
+    </tbody></table></div> : null;
   /** Yours first, then other people's (the second group only when there is one). */
   function split<T>(items: T[], mine: (x: T) => boolean, render: (x: T[]) => React.ReactNode) {
     if (!items.length) return empty(cur.empty);
@@ -187,6 +201,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
 
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <label className="flex items-center gap-2 bg-surface border border-line-2 rounded-md px-2.5 py-1.5 min-w-[220px] flex-1 sm:flex-none sm:w-[300px]"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-[13px] bg-transparent" placeholder="Find a page or person" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search tasks" /></label>
+        <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface" value={sort} onChange={(e) => setSort(e.target.value as typeof sort)} aria-label="Sort"><option value="new">Sort: new first</option><option value="due">Sort: due date, soonest first</option><option value="due-desc">Sort: due date, latest first</option></select>
         <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface" value={mkt} onChange={(e) => setMkt(e.target.value)} aria-label="Filter by market"><option value="">All markets</option>{markets.map((m) => <option key={m.id} value={m.id}>{m.flag} {m.name}</option>)}</select>
       </div>
 
