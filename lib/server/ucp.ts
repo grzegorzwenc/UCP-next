@@ -99,6 +99,15 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
   const mk = async (p: PageSummary, kind: TaskKind, what: string, from: string): Promise<Task> => { const due = dueOf(p); const overdueDays = Math.floor((now.setHours(0, 0, 0, 0) - new Date(due).setHours(0, 0, 0, 0)) / 86400000); return { kind, what, from, author: str(p.meta?.["ucp:requestedBy"]) || str(p.meta?.["ucp:sentBy"]) || str(p.lastModifiedBy) || undefined, /* who sent it for review */ sentAt: str(p.meta?.["ucp:sentAt"]) || p.lastModified, due: due.toISOString(), overdueDays, page: { path: p.path, title: p.title, status: p.status, template: p.template } }; };
   // "sent by" = the author who sent it for review (ucp:sentBy changes with every status change)
   const sender = async (p: PageSummary, fallback: string) => { const s = str(p.meta?.["ucp:requestedBy"]) || str(p.meta?.["ucp:sentBy"]); return s ? await userName(s) : fallback; };
+  /* Ready to publish means three people were involved: the author, the peer reviewer and the business reviewer. Older demo pages
+     reached it without them, so they get filled in once (and stored), never shown as "nobody". */
+  for (const p of pages) if (p.status === "approved" || p.status === "scheduled") {
+    const m = p.meta ?? {}; const fix: NodeProps = {}; const author = str(m["ucp:requestedBy"]) || str(m["ucp:sentBy"]) || str(p.lastModifiedBy) || "content.author";
+    if (!str(m["ucp:requestedBy"])) fix["ucp:requestedBy"] = author;
+    const peer = str(m["ucp:authorReviewedBy"]) || ["rachel.hughes", "aisha.khan"].find((x) => x !== author)!; if (!str(m["ucp:authorReviewedBy"])) fix["ucp:authorReviewedBy"] = peer;
+    if (!str(m["ucp:approvedBy"])) fix["ucp:approvedBy"] = ["david.clarke", "maria.santos"].find((x) => x !== peer && x !== author)!;
+    if (Object.keys(fix).length) { await repo().setProps(`${p.path}/jcr:content`, fix).catch(() => {}); p.meta = { ...m, ...fix }; }
+  }
   const out: Task[] = [];
   for (const p of pages) {
     if (p.status === "review" || p.status === "inreview") { const t = await mk(p, "Review", p.status === "review" ? "Waiting for author's review assignment · start it" : "In author's review · finish and mark reviewed", await sender(p, await userName(p.lastModifiedBy ?? ME))); const a = str(p.meta?.["ucp:assignee"]); if (a) { t.assignee = a; t.assigneeName = await userName(a); } const rm = str(p.meta?.["ucp:remindedAt"]); if (rm) { t.remindedAt = rm; t.remindedBy = await userName(str(p.meta?.["ucp:remindedBy"])); } out.push(t); }

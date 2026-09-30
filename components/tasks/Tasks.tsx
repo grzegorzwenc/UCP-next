@@ -118,7 +118,6 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
     const p = t.page.path; const st = t.page.status; const b = busy === p; const out: React.ReactNode[] = [];
     const mine = !t.assignee || t.assignee === user.id; const btn = (k: string, label: string, onClick: () => void, next = false) => out.push(<button key={k} type="button" className={`btn btn-sm ${next ? "btn-next" : ""}`} disabled={b} onClick={(e) => { e.stopPropagation(); onClick(); }}>{b && next ? "Working…" : label}</button>);
     const remind = () => run(t, () => ucpApi.remindReviewer(mid(t), p), "Reminder sent");
-    const change = () => { if (isAdmin) btn("person", t.assigneeName ? "Change person" : "Assign…", () => setAssigning(t)); }; // site admins: who does this step
     if (st === "review" && !t.assignee) { // Backlog: open to everyone · a reviewer takes it (nobody hands it out)
       if (t.author === user.id && !isAdmin) out.push(<span key="w" className="text-[12px] text-ink-3 whitespace-nowrap">Waiting for a reviewer to take it</span>, <Link key="open" href={builderHref(p)} onClick={() => markSeen(onScreen.current)} className="btn btn-sm">Open</Link>); // your own page: someone else reviews it
       else if (can("review", p)) btn("claim", "Assign to me", () => run(t, () => ucpApi.claimReview(mid(t), p), `${t.page.title} is yours · find it in Ready for review`), true);
@@ -138,8 +137,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
       if (isAdmin) btn("share", "Share", () => setSharing({ t, stage: "bizreview" }));
       if (can("review", p) || can("edit", p) || isAdmin) btn("reauthor", "Reauthor", () => void reauthor(t));
       if (can("review", p) || isAdmin) btn("signoff", "Sign off", () => run(t, () => status(t, "approved"), `${t.page.title}: signed off · ready to publish`), true);
-    } else if (st === "approved" || st === "scheduled") {
-      change();
+    } else if (st === "approved" || st === "scheduled") { // all three people are set by now · nobody is (re)assigned here
       if (can("publish", p)) btn("publish", "Publish", () => setPublishing(t), true); // the dialog offers Publish now or Schedule (and moves or cancels an existing schedule)
       else out.push(<span key="w" className="text-[12px] text-ink-3 whitespace-nowrap">Waiting for a publisher</span>);
     }
