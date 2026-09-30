@@ -115,7 +115,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
      review / approved / published are read-only stages set by the workflow status. "Edit" always brings you back to editing the same page. */
   const [, setStage] = useState<"blocks" | "content">(() => (page.components.length ? "content" : "blocks"));
   const locked = status === "review" || status === "reviewed" || status === "bizreview" || status === "approved" || status === "scheduled" || status === "published";
-  const cur = status === "published" ? 6 : status === "approved" || status === "scheduled" ? 5 : status === "bizreview" ? 4 : status === "reviewed" ? 3 : status === "review" ? 2 : focus || previewCheck ? 1 : 0;
+  /* one step at a time: a draft is on Build until it has been previewed, then on Preview (changing the content sends it back to Build) */
+  const [previewed, setPreviewed] = useState(false);
+  const cur = status === "published" ? 6 : status === "approved" || status === "scheduled" ? 5 : status === "bizreview" ? 4 : status === "reviewed" ? 3 : status === "review" ? 2 : focus || previewCheck || previewed ? 1 : 0;
   const [lockedSeen, setLockedSeen] = useState(false); // locked stages are read-only: switch to preview and drop the selection when the status changes
   if (lockedSeen !== locked) { setLockedSeen(locked); if (locked) { setPreviewRaw(true); setSel(null); setMode("select"); setPop(null); } else if (canEdit) setPreviewRaw(false); }
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(null), 2200); };
@@ -135,7 +137,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [share, setShare] = useState(false); // "Share for review" dialog: link + e-mail invite (opens after sending, and when the business review starts)
   const waitingFor = assigneeName ? `Waiting for ${assigneeName}` : "Waiting for a reviewer";
 
-  const mutate = useCallback((fn: (b: Block[]) => Block[]) => { setBlocks((b) => fn(b)); setDirty(true); setSaving("Unsaved"); }, []);
+  const mutate = useCallback((fn: (b: Block[]) => Block[]) => { setBlocks((b) => fn(b)); setDirty(true); setSaving("Unsaved"); setPreviewed(false); }, [setPreviewed]);
   const setProp = (id: string, k: string, v: unknown) => mutate((b) => b.map((x) => (x.id === id ? { ...x, props: { ...x.props, [k]: v } } : x)));
   const select = (id: string | null) => { setSel(id); setMode("select"); setPop(null); if (id && right && rightTab === "block") setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
   const add = (type: string) => { const nb = makeBlock(type); mutate((b) => { const i = sel ? b.findIndex((x) => x.id === sel) + 1 : b.length; const c = b.slice(); c.splice(i, 0, nb); return c; }); select(nb.id); say(`${BLOCK_BY_TYPE[type].name} added · click ✎ Edit to fill it in`); };
@@ -356,7 +358,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   };
   const flowClick = (i: number) => {
     const notYet = status === "draft" || status === "failed";
-    if (i === 0) { void goEdit(blocks.length ? "content" : "blocks"); return; } // build: blocks and content in one step
+    if (i === 0) { setPreviewed(false); void goEdit(blocks.length ? "content" : "blocks"); return; } // build: blocks and content in one step
     if (i === 1) { if (locked) { setFocusMode(true); return; } setStage("content"); setFocusMode(true); return; }
     if ((i === 2 || i === 3 || i === 4) && (status === "approved" || status === "scheduled")) { if (!canEdit) { say("Reviews are done"); return; } setBackToReview(true); return; }
     if (i === 2) { if (notYet) { openSend(); return; } if (status === "review") { if (mayApproveSelf) transition("reviewed", "Marked as reviewed · send it to the business review next"); else if (canEdit) setRemind(new Date().getTime()); else say(`${waitingFor} to review`); return; } say("The author's review is done"); return; }
@@ -368,10 +370,11 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   /* Next-step buttons on the stepper line right after the step they finish:
      Build → Go to preview → Preview → Send to author's review → Author's review → Reviewed → Reviewed → Send to business review → Business review → Sign off → Ready → Publish */
   const notYet = status === "draft" || status === "failed";
-  const hasAct = (i: number) => (i === 0 && notYet && canEdit) || (i === 1 && notYet && mayStatus("review")) || (i === 2 && status === "review" && mayApprove)
+  const seen = previewed || previewCheck;
+  const hasAct = (i: number) => (i === 0 && notYet && canEdit && !seen) || (i === 1 && notYet && mayStatus("review") && seen) || (i === 2 && status === "review" && mayApprove)
     || (i === 3 && status === "reviewed" && maySendBiz) || (i === 4 && status === "bizreview" && mayBizApprove) || (i === 5 && (status === "approved" || status === "scheduled") && mayStatus("published"));
   const stepAct = (i: number): React.ReactNode =>
-    i === 0 ? <button className="btn btn-sm" onClick={() => flowClick(1)} title="See the page exactly as visitors will">Go to preview</button>
+    i === 0 ? <button className="btn btn-sm btn-primary" onClick={() => flowClick(1)} title="See the page exactly as visitors will">Go to preview</button>
     : i === 1 ? <button className="btn btn-sm btn-primary" onClick={openSend}>Send to author&apos;s review</button>
     : i === 2 ? <button className="btn btn-sm btn-primary" onClick={() => transition("reviewed", onBehalf ? `Marked reviewed on behalf of ${assigneeName || "the reviewer"}` : "Marked as reviewed · send it to the business review next")} title={onBehalf ? `Site admin: on behalf of ${assigneeName || "the reviewer"}` : "The page is fine: hand it back to the author"}>{onBehalf && assigneeName ? `Reviewed for ${assigneeName.split(" ")[0]}` : "Reviewed"}</button>
     : i === 3 ? <button className="btn btn-sm btn-primary" onClick={() => transition("bizreview", "Sent to business review")}>Send to business review</button>
@@ -505,8 +508,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {/* formatting bar over the text being edited (long text fields only) */}
         {editing && inlinePos?.rich && !contentPick && <div data-ui className="fixed z-30 bg-[#0F1013] rounded-lg p-1 shadow-xl" style={{ top: inlinePos.barTop, left: inlinePos.barLeft }}><FormatBar getRoot={getEditingEl} state={fmt} dark lists={inlinePos.lists} /></div>}
         {editing && inlinePos && !contentPick && <button type="button" data-ui className="fixed z-30 w-7 h-7 rounded-full grid place-items-center bg-info text-white shadow-lg hover:scale-105 transition-transform" style={{ top: inlinePos.top, left: inlinePos.left }} onMouseDown={(e) => e.preventDefault()} onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }} title="Choose content from an entity" aria-label="Choose content from an entity"><ContentIcon className="w-3.5 h-3.5" /></button>}
-        {previewCheck && <ModalShell title="Does everything look right?" width={480} onClose={() => setPreviewCheck(false)}
-          footer={<><button className="btn" onClick={() => { setPreviewCheck(false); void goEdit("content"); }}>No, keep editing</button><button className="btn btn-primary" onClick={() => { setPreviewCheck(false); openSend(); }}>Yes, send for review</button></>}>
+        {previewCheck && <ModalShell title="Does everything look right?" width={480} onClose={() => { setPreviewCheck(false); setPreviewed(true); }}
+          footer={<><button className="btn" onClick={() => { setPreviewCheck(false); setPreviewed(false); void goEdit("content"); }}>No, keep editing</button><button className="btn btn-primary" onClick={() => { setPreviewCheck(false); setPreviewed(true); openSend(); }}>Yes, send for review</button></>}>
           <p className="text-[13.5px]">You have just seen <b>{title}</b> the way customers will.</p>
           <ul className="text-[13px] text-ink-2 mt-2 grid gap-1 list-disc pl-5"><li>Texts, prices and rates are correct</li><li>Images and buttons are in the right place</li><li>Nothing is missing on phone and tablet</li></ul>
           {insightBadge > 0 && <p className="text-[12.5px] bg-warn-soft rounded-md px-3 py-2 mt-3">Page insights found {insightBadge} thing{insightBadge === 1 ? "" : "s"} to fix. You can still send it, but the reviewer will see them.</p>}
