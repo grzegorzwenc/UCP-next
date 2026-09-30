@@ -48,6 +48,7 @@ const markSeen = (keys: string[]) => { if (!keys.length) return; try { const all
 const seenKey = (t: Task) => `${t.page.path}|${t.page.status}|${t.assignee ?? ""}`;
 
 const STAGE_ORDER = ["review", "inreview", "reviewed", "bizreview", "approved", "scheduled"];
+const STAGE_HEAD: Record<string, string> = { review: "Waiting for author's review assignment", inreview: "In author's review", reviewed: "Reviewed by author · send to business review", bizreview: "In business review", approved: "Ready for publish", scheduled: "Scheduled to publish" };
 /** All (yours, any stage) and the stages of the review flow, as tabs. */
 const VIEWS: { id: View; label: string; empty: string; of: (t: Task, me: string) => boolean }[] = [
   { id: "all", label: "All", empty: "Nothing is assigned to you right now.", of: (t, me) => (t.assignee === me || t.author === me) && ["review", "inreview", "reviewed", "bizreview", "approved", "scheduled"].includes(t.page.status) },
@@ -145,7 +146,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
         {items.map((t) => { const m = marketOfPath(t.page.path); const d = dueLabel(t); const acts = actions(t);
           return <li key={t.page.path + t.kind} className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,220px)_auto] gap-x-4 gap-y-2 items-center px-4 py-3 hover:bg-surface-2">
             <div className="min-w-0">
-              <div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} onClick={() => markSeen(onScreen.current)} className="font-semibold truncate hover:underline underline-offset-2">{t.page.title}</Link>{isNew(t) && <span suppressHydrationWarning className="flex-none text-[10px] font-bold uppercase tracking-[.06em] text-white bg-accent rounded px-1.5 py-0.5">New</span>}{view === "ready" || view === "all" ? <Pill status={t.page.status} /> : null}</div>
+              <div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} onClick={() => markSeen(onScreen.current)} className="font-semibold truncate hover:underline underline-offset-2">{t.page.title}</Link>{isNew(t) && <span suppressHydrationWarning className="flex-none text-[10px] font-bold uppercase tracking-[.06em] text-white bg-accent rounded px-1.5 py-0.5">New</span>}{view === "ready" ? <Pill status={t.page.status} /> : null}</div>
               <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.name.replace(/^HSBC /, "")} · {routeOf(t.page.path)} · by {t.authorName ?? t.from.replace(/ \(.*\)$/, "")}{waitingLabel(t.sentAt) !== "—" ? ` · waiting ${waitingLabel(t.sentAt)}` : ""}</div>
             </div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pl-[26px] md:pl-0 min-w-0">{who(t)}<span suppressHydrationWarning className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span></div>
@@ -173,19 +174,16 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
 
   return (
     <div className="p-4 md:p-7">
-      <div className="mb-4"><h1 className="text-2xl font-semibold">My tasks</h1><p className="text-ink-3 text-[13px] mt-1" suppressHydrationWarning>{totalYours ? <>You have <b className="text-ink font-semibold">{totalYours}</b> page{totalYours === 1 ? "" : "s"} in the review flow{totalNew ? <> · <b className="text-accent font-semibold">{totalNew} new</b> since you last looked</> : null}. </> : null}Pages by stage, across all markets.</p></div>
+      <div className="mb-4"><h1 className="text-2xl font-semibold">My tasks</h1><p className="text-ink-3 text-[13px] mt-1" suppressHydrationWarning>{totalYours ? <>You have <b className="text-ink font-semibold">{totalYours}</b> page{totalYours === 1 ? "" : "s"} in the review flow{totalNew ? <> · <b className="text-accent font-semibold">{totalNew} new</b> since you last looked</> : null}. </> : null}Pages by stage, across all markets. <span className="inline-flex items-center gap-1 whitespace-nowrap"><i aria-hidden className="inline-block w-2.5 h-2.5 rounded-full bg-accent" /> red number = something new for you</span></p></div>
 
       {/* the five stages as tabs */}
       <div role="tablist" aria-label="Stages" className="flex gap-1 overflow-x-auto border-b border-line mb-4 -mx-1 px-1">
-        {VIEWS.map((v, i) => { const on = view === v.id; const n = count(v.id);
-          return <button key={v.id} role="tab" aria-selected={on} type="button" onClick={() => openView(v.id)} className={`flex items-center gap-2 px-3 py-2.5 text-[13.5px] whitespace-nowrap border-b-2 -mb-px ${on ? "border-accent text-ink font-semibold" : "border-transparent text-ink-3 hover:text-ink"}`}>
-            <span className={`w-5 h-5 rounded-full grid place-items-center text-[10.5px] font-bold ${on ? "bg-accent text-white" : "bg-surface-3 text-ink-2"}`}>{i + 1}</span>{v.label}
-            {(() => { const y = yours(v.id).length, nw = fresh(v.id).length; const tip = v.id === "backlog" ? `${nw} new you could take · ${n} waiting in total` : `${y} for you (${nw} new) · ${n} in total`;
-              return <span className="flex items-center gap-1.5" title={tip} suppressHydrationWarning>
-                {v.id !== "backlog" && v.id !== "published" && <span className={`min-w-[20px] h-5 px-1.5 rounded-full grid place-items-center text-[11px] font-bold ${nw ? "bg-accent text-white" : y ? "bg-ink text-white" : "bg-surface-3 text-ink-4"}`} aria-label={`${y} for you`}>{y}</span>}
-                {nw > 0 && <span className="text-[11px] font-semibold text-accent">{nw} new</span>}
-                {v.id !== "all" && <span className={`text-[11px] ${v.id === "backlog" || v.id === "published" ? "min-w-[20px] h-5 px-1.5 rounded-full grid place-items-center font-semibold bg-surface-3 text-ink-2" : "text-ink-4"}`}>{v.id === "backlog" || v.id === "published" ? n : `of ${n}`}</span>}
-              </span>; })()}</button>; })}
+        {VIEWS.map((v) => { const on = view === v.id; const n = count(v.id); const nw = v.id === "published" ? 0 : fresh(v.id).length;
+          const tip = nw ? `${n} page${n === 1 ? "" : "s"} · ${nw} new for you` : `${n} page${n === 1 ? "" : "s"}`;
+          return <button key={v.id} role="tab" aria-selected={on} type="button" onClick={() => openView(v.id)} title={tip} className={`flex items-center gap-2 px-3 py-2.5 text-[13.5px] whitespace-nowrap border-b-2 -mb-px ${on ? "border-accent text-ink font-semibold" : "border-transparent text-ink-3 hover:text-ink"}`}>
+            {v.label}
+            <span suppressHydrationWarning aria-label={tip} className={`min-w-[22px] h-5 px-1.5 rounded-full grid place-items-center text-[11.5px] font-semibold ${nw ? "bg-accent text-white" : n ? "bg-surface-3 text-ink-2" : "bg-transparent text-ink-4"}`}>{n}</span>
+          </button>; })}
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mb-3">
@@ -194,7 +192,8 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
       </div>
 
       {/* backlog: one list; other stages: yours on top, other people below (authors only see their own; site admins see everyone) */}
-      {view === "all" ? (taskList(rows) ?? empty(cur.empty))
+      {view === "all" ? (rows.length ? <div>{STAGE_ORDER.map((st) => { const g = rows.filter((t) => t.page.status === st); if (!g.length) return null;
+          return <section key={st} aria-label={STAGE_HEAD[st]} className="mt-6 first:mt-0"><h3 className="flex items-center gap-2 text-[11.5px] uppercase tracking-[.08em] font-semibold text-ink-3 mb-2"><span className={`pill pill-${st} normal-case tracking-normal`}>{STAGE_HEAD[st]}</span><span className="normal-case tracking-normal font-normal">{g.length}</span></h3>{taskList(g)}</section>; })}</div> : empty(cur.empty))
         : view === "backlog" ? (taskList(rows) ?? empty(cur.empty))
         : view !== "published" ? split(rows, (t) => t.assignee === user.id || t.author === user.id, taskList)
         : split(pub, (p) => p.whoId === user.id, pubList)}
