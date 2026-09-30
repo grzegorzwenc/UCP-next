@@ -115,6 +115,19 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       await logEvent(mid, { type: "content", text: `put ${pg.title} back in the Backlog${cur !== u.id ? ` (was assigned to ${await userName(cur)})` : ""}`, target: path, requestId: rid });
       return ok({ ok: true });
     }
+    /* ---- take a business review that nobody has taken yet (Waiting for business review assignment → In business review) ---- */
+    if (o === "bizreview/claim" && req.method === "POST") {
+      const u = await me(); const path = q.get("path") ?? ""; const pg = await repo().getPage(path); const admin = u.role === "admin" || !!u.perms.root?.manage;
+      if (!pg) return problem(new RepoError(404, "Page not found", path));
+      if (pg.status !== "bizreview") return problem(new RepoError(409, "The page is not waiting for a business reviewer"));
+      if (!can(u, "review", path, market(mid).root)) return problem(new RepoError(403, "You don't have Review & approve on this page"));
+      const cur = pg.meta?.["ucp:taskKind"] === "BizReview" && typeof pg.meta?.["ucp:taskAssignee"] === "string" ? String(pg.meta["ucp:taskAssignee"]) : "";
+      if (cur && cur !== u.id) return problem(new RepoError(409, `Already taken by ${await userName(cur)}`));
+      if (!admin && pg.meta?.["ucp:authorReviewedBy"] === u.id) return problem(new RepoError(403, "You did the author's review · someone else does the business review"));
+      await repo().setProps(`${path}/jcr:content`, { "ucp:taskAssignee": u.id, "ucp:taskKind": "BizReview", "ucp:assignedBy": u.id });
+      await logEvent(mid, { type: "content", text: `took the business review of ${pg.title}`, target: path, requestId: rid });
+      return ok({ assignee: u.id, assigneeName: u.name });
+    }
     if (o === "review/remind" && req.method === "POST") {
       const u = await me(); const path = q.get("path") ?? ""; const pg = await repo().getPage(path);
       if (!pg) return problem(new RepoError(404, "Page not found", path));

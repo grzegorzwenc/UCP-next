@@ -88,6 +88,7 @@ export const ucpApi = {
   /** Comment from the review screen (signed in, or a guest with name + e-mail). */
   reviewComment: (token: string, body: { text: string; name?: string; email?: string }) => U<PageComment[]>("review/comment", { method: "POST", query: { token }, body: JSON.stringify(body) }),
   /** Take a waiting author's review (assign it to yourself). */
+  claimBizReview: (market: string, path: string) => U<{ assignee: string; assigneeName: string }>("bizreview/claim", { method: "POST", query: { market, path }, body: "{}" }),
   claimReview: (market: string, path: string) => U<{ assignee: string; assigneeName: string }>("review/claim", { method: "POST", query: { market, path }, body: "{}" }),
   releaseReview: (market: string, path: string) => U<{ ok: boolean }>("review/release", { method: "POST", query: { market, path }, body: "{}" }),
   /** Nudge the reviewer of a page in review ("I'm waiting"); at most once every 15 minutes. */

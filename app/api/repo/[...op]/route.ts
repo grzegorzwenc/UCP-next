@@ -50,8 +50,10 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     if (o === "page" && req.method === "PATCH") {
       const patch = await req.json(); const before = await r.getPage(path);
       // Reauthor: the business reviewer (Review) or anyone with Edit sends a page in business review back to the author (→ draft)
-      const reauthor = patch.status === "draft" && before?.status === "bizreview";
-      const who = reauthor ? await guard("edit", path).catch(() => guard("review", path)) : await guard(patch.status && before && patch.status !== before.status ? permForStatus[patch.status] ?? "edit" : "edit", path);
+      const reauthor = patch.status === "draft" && (before?.status === "inreview" || before?.status === "reviewed" || before?.status === "bizreview");
+      // after the author's review the reviewer decides: on to the business review, or back to the author (Reauthor) · Edit or Review will do
+      const reviewerMove = reauthor || (patch.status === "bizreview" && before?.status === "reviewed");
+      const who = reviewerMove ? await guard("edit", path).catch(() => guard("review", path)) : await guard(patch.status && before && patch.status !== before.status ? permForStatus[patch.status] ?? "edit" : "edit", path);
       // an assigned review is approved by that reviewer only (site admins included; they can reassign instead)
       const assigned = typeof before?.meta?.["ucp:assignee"] === "string" ? String(before.meta["ucp:assignee"]) : "";
       const admin = who.role === "admin" || !!who.perms?.root?.manage; // site admins may approve on behalf of the reviewer (recorded in the audit log)

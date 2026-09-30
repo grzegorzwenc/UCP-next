@@ -13,7 +13,7 @@ const abs = (u: string) => `${window.location.origin}${u}`;
  * can still comment through the link. E-mails open in the sender's own mail app — the prototype sends nothing itself.
  * Site admins can approve straight away (on behalf of the reviewer).
  */
-export function ShareReviewDialog({ marketId, path, title, stage, onClose, onApprove }: { marketId: string; path: string; title: string; stage: "review" | "bizreview"; onClose: () => void; onApprove?: () => Promise<void> | void }) {
+export function ShareReviewDialog({ marketId, path, title, stage, onClose, onApprove, onAccess }: { marketId: string; path: string; title: string; stage: "review" | "bizreview"; onClose: () => void; onApprove?: () => Promise<void> | void; /** someone got the review: a person (by e-mail) or a group */ onAccess?: (a: { person?: string; group?: string }) => void }) {
   const [url, setUrl] = useState<string | null>(null); const [copied, setCopied] = useState(false);
   const [email, setEmail] = useState(""); const [sent, setSent] = useState<string | null>(null);
   const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
@@ -29,7 +29,7 @@ export function ShareReviewDialog({ marketId, path, title, stage, onClose, onApp
       setGroups((gs) => gs && gs.map((g) => (g.team === team ? { ...g, shared: true } : g)).sort((a, b) => Number(b.shared) - Number(a.shared) || a.team.localeCompare(b.team)));
       const to = r.members.map((m) => m.email).filter(Boolean).join(","); const subject = `Please review: ${title}`; const body = `Hi ${team},\n\n${title} is ready for business review. Anyone in the group can see the page and leave comments here:\n${link}\n\nThank you!`;
       if (to) window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      setSent(`${team} (${n} ${n === 1 ? "person" : "people"}) now has access · it shows in their My tasks${sign ? `, ${sign} of them can sign off` : ", but nobody there can sign off"}.`); setTeam("");
+      onAccess?.({ group: team }); setSent(`${team} (${n} ${n === 1 ? "person" : "people"}) now has access · it shows in their My tasks${sign ? `, ${sign} of them can sign off` : ", but nobody there can sign off"}.`); setTeam("");
     } catch (e) { setErr(errorText(e)); } finally { setBusy(false); }
   };
   const withAccess = (groups ?? []).filter((g) => g.shared);
@@ -40,7 +40,7 @@ export function ShareReviewDialog({ marketId, path, title, stage, onClose, onApp
       const r = await ucpApi.reviewLink(marketId, path, to); const link = abs(r.url);
       const subject = `Please review: ${title}`; const body = `Hi,\n\n${title} is ready for ${STAGE[stage]}. You can see the page and leave comments here:\n${link}\n\nThank you!`;
       window.location.href = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
-      setSent(r.assigned ? `${r.assigned} is now assigned and sees it in My tasks.` : `${to} can comment through the link.`); setEmail("");
+      setSent(r.assigned ? `${r.assigned} is now assigned and sees it in My tasks.` : `${to} can comment through the link.`); setEmail(""); if (r.assigned) onAccess?.({ person: r.assigned });
     } catch (e) { setErr(errorText(e)); } finally { setBusy(false); }
   };
   return <ModalShell title={`Share for ${STAGE[stage]}`} subtitle={<><b className="text-ink-2">{title}</b> · reviewers see the page and can leave comments, which show up in the page builder</>} width={540} onClose={onClose}

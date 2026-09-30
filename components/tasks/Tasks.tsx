@@ -12,6 +12,7 @@ import { PageIcon } from "@/components/ui/Icons";
 import { AssignDialog } from "./AssignDialog";
 import { useConfirm } from "@/components/ui/Confirm";
 import { ShareReviewDialog } from "./ShareReviewDialog";
+import { ReviewedChoice } from "./ReviewedChoice";
 import { PublishDialog } from "@/components/pages/PublishDialog";
 import { MARKETS, market as marketById, env as envById } from "@/lib/markets";
 
@@ -72,6 +73,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   const [sort, setSort] = useState<"new" | "due" | "due-desc">("new");
   const [onlyMe, setOnlyMe] = useState(false); // "Assigned to me only" // New first, or by due date
   const [busy, setBusy] = useState<string | null>(null); const [toast, setToast] = useState<string | null>(null);
+  const [choosing, setChoosing] = useState<Task | null>(null); // "Reviewed": business review or reauthor
   const [assigning, setAssigning] = useState<Task | null>(null); const [sharing, setSharing] = useState<{ t: Task; stage: "review" | "bizreview" } | null>(null);
   const [publishing, setPublishing] = useState<Task | null>(null); // Publish now or Schedule
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
@@ -125,9 +127,13 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
       if (t.assignee === user.id) btn("start", "Start review", () => run(t, () => status(t, "inreview"), `${t.page.title}: review started`), true);
     } else if (st === "inreview") {
       if (can("edit", p) && !(t.assignee === user.id)) btn("remind", "Remind", remind);
-      if (can("review", p) && (mine || isAdmin)) btn("reviewed", t.assignee && t.assignee !== user.id ? `Reviewed for ${t.assigneeName?.split(" ")[0]}` : "Reviewed", () => run(t, () => status(t, "reviewed"), `${t.page.title}: marked reviewed`), true);
-    } else if (st === "reviewed") {
-      if (can("edit", p)) btn("send", "Send to business review", () => run(t, () => status(t, "bizreview"), `${t.page.title} sent to business review`, () => setSharing({ t, stage: "bizreview" })), true);
+      if (can("review", p) && (mine || isAdmin)) btn("reviewed", t.assignee && t.assignee !== user.id ? `Reviewed for ${t.assigneeName?.split(" ")[0]}` : "Reviewed", () => setChoosing(t), true); // then: business review or reauthor
+    } else if (st === "reviewed") { // author's review done, not sent on yet
+      if (can("edit", p) || can("review", p)) btn("next", "Next step", () => setChoosing(t), true);
+    } else if (st === "bizreview" && !t.biz && !t.bizGroups?.length) { // Waiting for business review assignment
+      if (isAdmin) btn("share", "Share", () => setSharing({ t, stage: "bizreview" }));
+      if (can("review", p) && (isAdmin || t.peer !== user.id)) btn("bizclaim", "Assign to me", () => run(t, () => ucpApi.claimBizReview(mid(t), p), `${t.page.title}: the business review is yours`), true);
+      else if (!isAdmin) out.push(<span key="w" className="text-[12px] text-ink-3 whitespace-nowrap">Waiting for a business reviewer</span>);
     } else if (st === "bizreview") {
       if (isAdmin) btn("share", "Share", () => setSharing({ t, stage: "bizreview" }));
       if (can("review", p) || can("edit", p) || isAdmin) btn("reauthor", "Reauthor", () => void reauthor(t));
@@ -244,6 +250,9 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
         : pub.length ? board([{ key: "p", parts: isAdmin ? [{ label: "Yours", rows: pub.filter((p) => p.whoId === user.id).map(pubRow), empty: "Nothing of yours published recently." }, { label: "Other people", rows: pub.filter((p) => p.whoId !== user.id).map(pubRow) }] : [{ rows: pub.filter((p) => p.whoId === user.id).map(pubRow), empty: "Nothing of yours published recently." }] }]) : empty(cur.empty)}
 
       {assigning && <AssignDialog marketId={marketOfPath(assigning.page.path).id} task={assigning} pageHref={builderHref(assigning.page.path)} onClose={() => setAssigning(null)} onDone={(name) => { setToast(name ? `${assigning.page.title}: assigned to ${name}` : `${assigning.page.title}: not assigned`); setAssigning(null); router.refresh(); }} />}
+      {choosing && <ReviewedChoice title={choosing.page.title} onBehalf={choosing.page.status === "inreview" && choosing.assignee && choosing.assignee !== user.id ? choosing.assigneeName : undefined} onClose={() => setChoosing(null)}
+        onSend={() => run(choosing, async () => { if (choosing.page.status === "inreview") await status(choosing, "reviewed"); await status(choosing, "bizreview"); }, `${choosing.page.title} is waiting for a business reviewer`)}
+        onReauthor={() => run(choosing, () => status(choosing, "draft"), `${choosing.page.title} is back with the author`)} />}
       {sharing && <ShareReviewDialog key={sharing.t.page.path + sharing.stage} marketId={marketOfPath(sharing.t.page.path).id} path={sharing.t.page.path} title={sharing.t.page.title} stage={sharing.stage} onClose={() => { setSharing(null); router.refresh(); }} />}
       {publishing && <PublishDialog marketId={marketOfPath(publishing.page.path).id} envName={envById(envId).name} pages={[{ path: publishing.page.path, title: publishing.page.title, status: publishing.page.status }]} mayPublish={(p) => can("publish", p)}
         onClose={() => setPublishing(null)} onDone={(r, mode) => { setPublishing(null); const ok = r.filter((x) => x.ok).length; setToast(mode === "cancel" ? "Schedule cancelled" : ok ? (mode === "schedule" ? `${publishing.page.title} is scheduled` : `${publishing.page.title} is live`) : r[0]?.reason ?? "Nothing was published"); router.refresh(); }} />}

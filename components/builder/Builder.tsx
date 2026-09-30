@@ -23,6 +23,7 @@ import { LeftPanel } from "./LeftPanel";
 import { LockedVeil } from "./LockedVeil";
 import { ShareReviewDialog } from "@/components/tasks/ShareReviewDialog";
 import { useConfirm } from "@/components/ui/Confirm";
+import { ReviewedChoice } from "@/components/tasks/ReviewedChoice";
 import { FormatBar, RichField, useFormatState, prepareEditable } from "./RichTextEditor";
 import { normalizeRich, cellSafe, toPlain } from "@/lib/blocks/richtext";
 import { useRouter } from "next/navigation";
@@ -43,8 +44,8 @@ const AI_EXAMPLES: { title: string; items: [string, string, string][] }[] = [
 const LEFT_RAIL: ["add", string, string][] = [["add", "Add a component", "M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM12 8.5v7M8.5 12h7"]];
 const RAIL: [RightTab, string, string][] = [["block", "Component settings", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"], ["page", "Page settings", "M6 3h8l5 5v13H6zM14 3v5h5M9 13h6M9 17h6"], ["content", "Entities", "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"], ["ai", "AI assistant", "M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 15l.6 1.6L7.2 17l-1.6.6L5 19.2l-.6-1.6L2.8 17l1.6-.4z"], ["insights", "Page insights", "M12 3a9 9 0 1 0 9 9M12 3v9l6.4-6.4M12 12l4 4"], ["history", "Version history", "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"]];
 /** Short step names used when the stepper is narrow (same order as STEPS). */
-const STEP_SHORT = ["Build", "Preview", "Waiting", "Assigned", "In review", "Reviewed", "Business", "Ready", "Live"];
-const STEPS = [["Build the page", "Add blocks and fill in the content"], ["Preview", "See it exactly as visitors will"], ["Waiting for author's review assignment", "Sent · no reviewer has taken it yet"], ["Assigned to reviewer", "A reviewer has taken it · not started yet"], ["In author's review", "The reviewer is checking it"], ["Reviewed", "Author's review done · send it on"], ["In business review", "Business sign-off"], ["Ready to publish", "Reviewed · click Publish"], ["Published", "Live for customers"]];
+const STEP_SHORT = ["Build", "Preview", "Waiting", "Assigned", "In review", "Biz waiting", "Business", "Ready", "Live"];
+const STEPS = [["Build the page", "Add blocks and fill in the content"], ["Preview", "See it exactly as visitors will"], ["Waiting for author's review assignment", "Sent · no reviewer has taken it yet"], ["Assigned to reviewer", "A reviewer has taken it · not started yet"], ["In author's review", "The reviewer is checking it"], ["Waiting for business review assignment", "Reviewed · no business reviewer has taken it yet"], ["In business review", "Business sign-off"], ["Ready to publish", "Reviewed · click Publish"], ["Published", "Live for customers"]];
 
 /**
  * Interaction model (three levels):
@@ -118,7 +119,6 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   /* one step at a time: a draft is on Build until it has been previewed, then on Preview (changing the content sends it back to Build) */
   const [previewed, setPreviewed] = useState(false);
   const inAuthor = status === "review" || status === "inreview"; // waiting for / in the author's review
-  const cur = status === "published" ? 8 : status === "approved" || status === "scheduled" ? 7 : status === "bizreview" ? 6 : status === "reviewed" ? 5 : status === "inreview" ? 4 : status === "review" ? (assignee ? 3 : 2) : focus || previewCheck || previewed ? 1 : 0;
   const [lockedSeen, setLockedSeen] = useState(false); // locked stages are read-only: switch to preview and drop the selection when the status changes
   if (lockedSeen !== locked) { setLockedSeen(locked); if (locked) { setPreviewRaw(true); setSel(null); setMode("select"); setPop(null); } else if (canEdit) setPreviewRaw(false); }
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(null), 2200); };
@@ -129,7 +129,13 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const mayApprove = mayApproveSelf || isAdmin; const onBehalf = !mayApproveSelf && isAdmin; // site admins may approve for the reviewer // author's review: the assigned reviewer only; site admins reassign, they do not approve for someone else
   /* business review: anyone with Review (or the person a site admin assigned in Tasks), never the one who did the author's review */
   const [authorReviewer, setAuthorReviewer] = useState(() => { const v = page.meta?.["ucp:authorReviewedBy"]; return typeof v === "string" ? v : ""; }); // four eyes: who did the author's review
-  const bizAssignee = status === "bizreview" && page.meta?.["ucp:taskKind"] === "BizReview" && typeof page.meta?.["ucp:taskAssignee"] === "string" ? String(page.meta["ucp:taskAssignee"]) : "";
+  const [bizTaken, setBizTaken] = useState(() => (page.meta?.["ucp:taskKind"] === "BizReview" && typeof page.meta?.["ucp:taskAssignee"] === "string" ? String(page.meta["ucp:taskAssignee"]) : ""));
+  const bizAssignee = status === "bizreview" ? bizTaken : "";
+  /* a business review is "in" once a person took it or a group got access; until then it waits for assignment */
+  const [bizGroups, setBizGroups] = useState<string[]>(() => { try { return JSON.parse(String(page.meta?.["ucp:reviewGroups"] ?? "[]")) as string[]; } catch { return []; } });
+  const bizAssigned = status === "bizreview" && (!!bizAssignee || bizGroups.length > 0);
+  const [decide, setDecide] = useState(false); // "Reviewed": send to business review or reauthor
+  const cur = status === "published" ? 8 : status === "approved" || status === "scheduled" ? 7 : status === "bizreview" ? (bizAssigned ? 6 : 5) : status === "reviewed" || status === "inreview" ? 4 : status === "review" ? (assignee ? 3 : 2) : focus || previewCheck || previewed ? 1 : 0;
   const bizName = bizAssignee ? names[bizAssignee] ?? bizAssignee : "";
   const mayBizSelf = mayStatus("approved") && (bizAssignee ? bizAssignee === user.id : authorReviewer !== user.id);
   const mayBizApprove = mayBizSelf || isAdmin;
@@ -138,7 +144,6 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [commentCount, setCommentCount] = useState(0); // comments on the page (review links included), shown on the Version history rail button
   useEffect(() => { let live = true; ucpApi.comments(marketId, page.path).then((l) => live && setCommentCount(l.length), () => {}); return () => { live = false; }; }, [marketId, page.path, rightTab, right]);
   const [share, setShare] = useState(false); // "Share for review" dialog: link + e-mail invite (opens after sending, and when the business review starts)
-  const waitingFor = assigneeName ? `Waiting for ${assigneeName}` : "Waiting for a reviewer";
 
   const mutate = useCallback((fn: (b: Block[]) => Block[]) => { setBlocks((b) => fn(b)); setDirty(true); setSaving("Unsaved"); setPreviewed(false); }, [setPreviewed]);
   const setProp = (id: string, k: string, v: unknown) => mutate((b) => b.map((x) => (x.id === id ? { ...x, props: { ...x.props, [k]: v } } : x)));
@@ -279,13 +284,25 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   }
   /** Business review → back to the author (Reviewers can do it without Edit): the page returns to Build the page. */
   const ask = useConfirm();
-  async function reauthor() {
-    if (!(await ask({ title: "Send it back to the author?", body: <><b>{title}</b> goes back to the first step, Build the page. The author changes it and sends it for review again · both reviews start over.</>, confirmLabel: "Reauthor" }))) return;
-    setStatus("draft"); try { await save({ status: "draft" }); setAssignee(""); setAuthorReviewer(""); setPreviewed(false); say("Sent back to the author · the page is at Build the page again"); router.refresh(); } catch { setStatus(status); }
+  async function reauthor(confirmed = false) {
+    if (!confirmed && !(await ask({ title: "Send it back to the author?", body: <><b>{title}</b> goes back to the first step, Build the page. The author changes it and sends it for review again · both reviews start over.</>, confirmLabel: "Reauthor" }))) return;
+    setStatus("draft"); try { await save({ status: "draft" }); setAssignee(""); setAuthorReviewer(""); setBizTaken(""); setBizGroups([]); setPreviewed(false); say("Sent back to the author · the page is at Build the page again"); router.refresh(); } catch { setStatus(status); }
+  }
+  /** Reviewed → on to the business review (it then waits for a business reviewer to take it). */
+  async function sendToBiz() {
+    const was = status; try {
+      if (was === "inreview") { setStatus("reviewed"); await save({ status: "reviewed" }); setAuthorReviewer(user.id); }
+      setStatus("bizreview"); await save({ status: "bizreview" }); setBizTaken(""); setBizGroups([]);
+      say(onBehalf && was === "inreview" ? `Reviewed on behalf of ${assigneeName || "the reviewer"} · waiting for a business reviewer` : "Sent to business review · waiting for a business reviewer to take it"); router.refresh();
+    } catch { setStatus(was); }
+  }
+  async function claimBiz() {
+    try { const r = await ucpApi.claimBizReview(marketId, page.path); setBizTaken(r.assignee); say("The business review is yours · sign it off or reauthor"); router.refresh(); }
+    catch (e) { say(e instanceof ApiError ? e.message : "Could not take the business review"); }
   }
   async function transition(next: PageStatus, msg: string) {
     if (blocked(next)) return;
-    setStatus(next); if (next === "reviewed") setAuthorReviewer(user.id); try { await save({ status: next }); say(msg); if (next === "bizreview" && canEdit) setShare(true); } catch { setStatus(status); }
+    setStatus(next); if (next === "reviewed") setAuthorReviewer(user.id); try { await save({ status: next }); say(msg); if (next === "bizreview" && isAdmin) setShare(true); } catch { setStatus(status); }
   }
   /* Send for review goes through the modal (to the Backlog, open to all reviewers + note); the same checks as a plain transition apply first. */
   const openSend = () => { if (status !== "draft" && status !== "failed") { say(inAuthor ? "Already in review" : "Already past review"); return; } if (blocked("review")) return; setPop(null); setSending(true); };
@@ -373,18 +390,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (to === "blocks") { setLeftRaw(true); setRight(false); select(null); setMode("select"); }
     else { setLeftRaw(false); const b = blocks.find((x) => missingRequired(x).length) || blocks[0]; if (b) enterEdit(b.id); }
   };
+  /** Build and Preview (the steps themselves are labels; actions are the buttons between them). */
   const flowClick = (i: number) => {
-    const notYet = status === "draft" || status === "failed";
     if (i === 0) { setPreviewed(false); void goEdit(blocks.length ? "content" : "blocks"); return; } // build: blocks and content in one step
-    if (i === 1) { if (locked) { setFocusMode(true); return; } setStage("content"); setFocusMode(true); return; }
-    if (i >= 2 && i <= 6 && (status === "approved" || status === "scheduled")) { if (!canEdit) { say("Reviews are done"); return; } setBackToReview(true); return; }
-    if (i === 2) { if (notYet) { openSend(); return; } if (status === "review" && !assignee) { if (mayClaim) void claim(); else if (iWrote) say("Waiting for a reviewer to take it from the Backlog"); else say("Only reviewers can take it"); return; } say(status === "review" ? `Assigned to ${assigneeName}` : "The author's review has started"); return; }
-    if (i === 3) { if (status === "review" && assignee) { if (assignee === user.id) transition("inreview", "Review started"); else if (canEdit) setRemind(new Date().getTime()); else say(`${waitingFor} to start`); return; } say(notYet ? "Send the page for review first" : status === "review" ? "Nobody has taken it yet" : "The author's review has started"); return; }
-    if (i === 4) { if (status === "inreview") { if (mayApproveSelf) transition("reviewed", "Marked as reviewed · send it to the business review next"); else if (canEdit) setRemind(new Date().getTime()); else say(`${waitingFor} to review`); return; } say(notYet ? "Send the page for review first" : inAuthor ? "The review has not started yet" : "The author's review is done"); return; }
-    if (i === 5) { if (status === "reviewed") { if (maySendBiz) transition("bizreview", "Sent to business review"); else say("Waiting for the author to send it to the business review"); return; } say(inAuthor ? "The author's review comes first" : notYet ? "Send the page for review first" : "Already sent to the business review"); return; }
-    if (i === 6) { if (status === "bizreview") { if (mayBizSelf) transition("approved", "Business review done · ready to publish"); else if (authorReviewer === user.id && !isAdmin) say("You did the author's review · someone else signs it off"); else if (canEdit) setRemind(new Date().getTime()); else say(bizName ? `Waiting for ${bizName}` : "Waiting for business sign-off"); } else say(inAuthor || status === "reviewed" ? "The author's review and sending it on come first" : notYet ? "Send the page for review first" : "Reviews are done"); return; }
-    if (i === 7) { if (status === "approved" || status === "scheduled") { if (mayStatus("published")) { if (dirty) save().catch(() => {}); setPublishing(true); } else say("Waiting for a publisher"); } else say(status === "published" ? "Already published" : "Both reviews come first"); return; }
-    if (i === 8) { say(status === "published" ? `Live on ${domain}${rel}` : "Not published yet"); }
+    if (i === 1) { if (locked) { setFocusMode(true); return; } setStage("content"); setFocusMode(true); }
   };
   /* Next-step buttons on the stepper line right after the step they finish:
      Build → Go to preview → Preview → Send to author's review → Waiting for assignment → Assign to me → Assigned → Remind · Start review → In author's review
@@ -392,16 +401,19 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const notYet = status === "draft" || status === "failed";
   const seen = previewed || previewCheck;
   const remindBtn = (who: string) => <button className="btn btn-sm" onClick={() => setRemind(new Date().getTime())} title={`Remind ${who} that you are waiting`} aria-label={`Remind ${who}`}><svg viewBox="0 0 24 24" className="w-3.5 h-3.5 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6M10 19a2 2 0 0 0 4 0" /></svg><span className="hidden lg:inline">Remind</span></button>;
+  const mayBizClaim = status === "bizreview" && !bizAssigned && mayStatus("approved") && (isAdmin || authorReviewer !== user.id);
   const hasAct = (i: number) => (i === 0 && notYet && canEdit && !seen) || (i === 1 && notYet && mayStatus("review") && seen)
-    || (i === 2 && status === "review" && !assignee && mayClaim) || (i === 3 && status === "review" && !!assignee && (assignee === user.id || canEdit)) || (i === 4 && status === "inreview" && (mayApprove || canEdit))
-    || (i === 5 && status === "reviewed" && maySendBiz) || (i === 6 && status === "bizreview" && (mayBizApprove || canEdit)) || (i === 7 && (status === "approved" || status === "scheduled") && mayStatus("published"));
+    || (i === 2 && status === "review" && !assignee && mayClaim) || (i === 3 && status === "review" && !!assignee && (assignee === user.id || canEdit))
+    || (i === 4 && ((status === "inreview" && (mayApprove || canEdit)) || (status === "reviewed" && (maySendBiz || mayStatus("review")))))
+    || (i === 5 && status === "bizreview" && !bizAssigned && (mayBizClaim || isAdmin)) || (i === 6 && bizAssigned && (mayBizApprove || canEdit)) || (i === 7 && (status === "approved" || status === "scheduled") && mayStatus("published"));
   const stepAct = (i: number): React.ReactNode =>
     i === 0 ? <button className="btn btn-sm btn-next" onClick={() => flowClick(1)} title="See the page exactly as visitors will">Go to preview</button>
     : i === 1 ? <button className="btn btn-sm btn-next" onClick={openSend} aria-label="Send to author's review"><span className="lg:hidden">Send for review</span><span className="hidden lg:inline">Send to author&apos;s review</span></button>
     : i === 2 ? <button className="btn btn-sm btn-next" onClick={() => void claim()} title="Take this review from the Backlog">Assign to me</button>
     : i === 3 ? (assignee === user.id ? <button className="btn btn-sm btn-next" onClick={() => transition("inreview", "Review started")} title="Start the review: the author sees that you are on it">Start review</button> : remindBtn(assigneeName || "the reviewer"))
-    : i === 4 ? <>{canEdit && !mayApproveSelf && remindBtn(assigneeName || "the reviewer")}{mayApprove && <button className="btn btn-sm btn-next" onClick={() => transition("reviewed", onBehalf ? `Marked reviewed on behalf of ${assigneeName || "the reviewer"}` : "Marked as reviewed · send it to the business review next")} title={onBehalf ? `Site admin: on behalf of ${assigneeName || "the reviewer"}` : "The page is fine: hand it back to the author"}>Reviewed{onBehalf && assigneeName ? <span className="hidden xl:inline">for {assigneeName.split(" ")[0]}</span> : null}</button>}</>
-    : i === 5 ? <button className="btn btn-sm btn-next" onClick={() => transition("bizreview", "Sent to business review")} aria-label="Send to business review"><span className="lg:hidden">Send on</span><span className="hidden lg:inline">Send to business review</span></button>
+    : i === 4 ? (status === "reviewed" ? <button className="btn btn-sm btn-next" onClick={() => setDecide(true)} title="Send it to the business review, or back to the author">Next step</button>
+      : <>{canEdit && !mayApproveSelf && remindBtn(assigneeName || "the reviewer")}{mayApprove && <button className="btn btn-sm btn-next" onClick={() => setDecide(true)} title={onBehalf ? `Site admin: on behalf of ${assigneeName || "the reviewer"}` : "Done: send it on to the business review, or back to the author"}>Reviewed{onBehalf && assigneeName ? <span className="hidden xl:inline">for {assigneeName.split(" ")[0]}</span> : null}</button>}</>)
+    : i === 5 ? <>{isAdmin && <button className="btn btn-sm" onClick={() => setShare(true)} title="Give a person or a group access">Share</button>}{mayBizClaim && <button className="btn btn-sm btn-next" onClick={() => void claimBiz()} title="Take this business review">Assign to me</button>}</>
     : i === 6 ? <>{(mayBizApprove || canEdit) && <button className="btn btn-sm" onClick={() => void reauthor()} title="Send it back to the author: the page returns to Build the page">Reauthor</button>}{mayBizApprove && <button className="btn btn-sm btn-next" onClick={() => transition("approved", bizOnBehalf ? "Signed off as site admin · ready to publish" : "Business review done · ready to publish")} title={bizOnBehalf ? "Site admin: sign off on behalf of the business reviewer" : undefined}>Sign off{bizOnBehalf && bizName ? <span className="hidden xl:inline">for {bizName.split(" ")[0]}</span> : null}</button>}</>
     : i === 7 ? <button className="btn btn-sm btn-next" onClick={() => { if (dirty) save().catch(() => {}); setPublishing(true); }}>{status === "scheduled" ? "Publish / reschedule" : "Publish"}</button> : null;
   /** Why the page cannot be changed right now (Add, Configure and AI are veiled; insights, settings, entities and history stay open); "" when it can. */
@@ -444,8 +456,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               {/* the current stage is shown on the stepper below, so no status pill here */}
               {inAuthor && assignee && <span className="hidden sm:contents"><AssigneeChip name={assigneeName} admin={isAdmin} marketId={marketId} pagePath={page.path} meId={user.id} onReassigned={(r) => { setAssignee(r.assignee); say(`Reassigned to ${r.assigneeName}`); router.refresh(); }} /></span>}
             </div>
-            {inAuthor && !mayApproveSelf && <span className="hidden sm:inline text-[11px] text-ink-3 whitespace-nowrap pr-1">{status === "inreview" ? `${assigneeName ? assigneeName.split(" ")[0] : "The reviewer"} is reviewing it` : assigneeName ? `Waiting for ${assigneeName.split(" ")[0]} to start` : "Waiting for a reviewer"}{canEdit && <> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => flowClick(3)}>Remind</button></>}</span>}
-            {status === "bizreview" && !mayBizSelf && <span className="hidden sm:inline text-[11px] text-ink-3 whitespace-nowrap pr-1">{bizName ? `Waiting for ${bizName.split(" ")[0]} to sign off` : "Waiting for business sign-off"}{canEdit && <> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => flowClick(4)}>Remind</button> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => setShare(true)}>Share link</button></>}</span>}
+            {inAuthor && !mayApproveSelf && <span className="hidden sm:inline text-[11px] text-ink-3 whitespace-nowrap pr-1">{status === "inreview" ? `${assigneeName ? assigneeName.split(" ")[0] : "The reviewer"} is reviewing it` : assigneeName ? `Waiting for ${assigneeName.split(" ")[0]} to start` : "Waiting for a reviewer"}{canEdit && <> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => setRemind(new Date().getTime())}>Remind</button></>}</span>}
+            {status === "bizreview" && !mayBizSelf && <span className="hidden sm:inline text-[11px] text-ink-3 whitespace-nowrap pr-1">{bizName ? `Waiting for ${bizName.split(" ")[0]} to sign off` : bizGroups.length ? `Shared with ${bizGroups.join(", ")}` : "Waiting for a business reviewer"}{canEdit && bizAssigned && <> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => setRemind(new Date().getTime())}>Remind</button></>}{isAdmin && <> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => setShare(true)}>Share link</button></>}</span>}
             {status === "reviewed" && !maySendBiz && <span className="hidden sm:inline text-[11px] text-ink-3 whitespace-nowrap pr-1">Waiting for the author to send it to the business review</span>}
           {(status === "approved" || status === "scheduled") && !mayStatus("published") && <span className="hidden sm:inline text-[11px] text-ink-3 whitespace-nowrap pr-1">Waiting for a publisher</span>}
           </div>
@@ -553,7 +565,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           <p className="text-[13.5px] mt-2">Sending it back removes the approval. {assigneeName ? `The reviewer, ${assigneeName}, has` : "A reviewer has"} to approve it again before it can go live.</p>
           {status === "scheduled" && publishAt && <p className="text-[13px] bg-warn-soft rounded-md px-3 py-2 mt-3">The scheduled publish on <b>{new Date(publishAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</b> is cancelled.</p>}
         </ModalShell>}
-        {share && status === "bizreview" && <ShareReviewDialog key={status} marketId={marketId} path={page.path} title={title} stage="bizreview" onClose={() => setShare(false)}
+        {decide && <ReviewedChoice title={title} onBehalf={status === "inreview" && onBehalf ? assigneeName || "the reviewer" : undefined} onClose={() => setDecide(false)} onSend={sendToBiz} onReauthor={() => reauthor(true)} />}
+        {share && status === "bizreview" && <ShareReviewDialog key={status} marketId={marketId} path={page.path} title={title} stage="bizreview" onClose={() => setShare(false)} onAccess={(a) => { if (a.group) setBizGroups((g) => (g.includes(a.group!) ? g : [...g, a.group!])); if (a.person) setBizTaken(a.person); }}
           onApprove={isAdmin ? () => transition("approved", "Signed off as site admin · ready to publish") : undefined} />}
         {publishing && <PublishDialog marketId={marketId} envName={envName} pages={[{ path: page.path, title, status, publishAt }]} mayPublish={() => mayStatus("published")} onClose={() => setPublishing(false)}
           onDone={(r, m) => { const x = r[0]; setPublishing(false); if (!x?.ok) { say(x?.reason ?? "Nothing was published"); return; } setStatus(x.status as PageStatus); setPublishAt(undefined); say(m === "cancel" ? "Schedule cancelled · back to Approved" : m === "schedule" ? "Scheduled for publishing" : `Published to ${envName}`); router.refresh(); }} />}
