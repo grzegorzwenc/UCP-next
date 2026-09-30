@@ -10,6 +10,7 @@ import { Pill } from "@/components/ui/Pill";
 import { Avatar } from "@/components/ui/Avatar";
 import { PageIcon } from "@/components/ui/Icons";
 import { AssignDialog } from "./AssignDialog";
+import { ShareReviewDialog } from "./ShareReviewDialog";
 import { MARKETS, market as marketById } from "@/lib/markets";
 
 type Sort = "due" | "name" | "kind" | "market" | "from" | "assignee" | "waiting";
@@ -56,7 +57,8 @@ export function Tasks({ marketId, envId, tasks: allTasks, q: q0, kind: kind0, so
   const routeOf = (path: string) => path.replace(marketOfPath(path).root, "") || "/";
   const builderHref = (path: string) => `/${marketOfPath(path).id}/${envId}/page${routeOf(path)}`; // opens the page in its own market
   const [q, setQ] = useState(q0); const [kind, setKind] = useState(kind0); const [sort, setSort] = useState<Sort>(sort0); const [dir, setDir] = useState<"asc" | "desc">("asc"); const [when, setWhen] = useState<"" | "overdue" | "today" | "later">("");
-  const [assigning, setAssigning] = useState<Task | null>(null); // admins: the task whose person is being picked
+  const [assigning, setAssigning] = useState<Task | null>(null);
+  const [sharing, setSharing] = useState<{ t: Task; stage: "review" | "bizreview" } | null>(null); // share a review by link / e-mail // admins: the task whose person is being picked
   const [busy, setBusy] = useState<string | null>(null); const [toast, setToast] = useState<string | null>(null);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
   // keep the URL shareable (?q=&kind=&sort=) without triggering a navigation
@@ -89,6 +91,13 @@ export function Tasks({ marketId, envId, tasks: allTasks, q: q0, kind: kind0, so
     return phone ? <span className="flex flex-wrap items-center gap-x-2 gap-y-1">{chip}</span> : chip;
   }
 
+  /** Site admin: approve a review stage on behalf of the reviewer; after the author's review, share the business review straight away. */
+  async function approveFor(e: React.MouseEvent, t: Task) {
+    e.stopPropagation(); const next = t.kind === "Review" ? "bizreview" : "approved"; setBusy(t.page.path);
+    try { await repoApi.updateContent(t.page.path, { status: next }); setToast(next === "bizreview" ? `${t.page.title}: author's review approved${t.assigneeName ? ` for ${t.assigneeName}` : ""} · business review next` : `${t.page.title}: signed off · ready to publish`);
+      if (next === "bizreview") setSharing({ t, stage: "bizreview" }); router.refresh(); }
+    catch (err) { setToast(errorText(err)); } finally { setBusy(null); }
+  }
   async function act(e: React.MouseEvent, t: Task) {
     e.stopPropagation();
     if (t.kind === "Publish" || t.kind === "Fix") {
@@ -138,13 +147,17 @@ export function Tasks({ marketId, envId, tasks: allTasks, q: q0, kind: kind0, so
                 <td className="px-4 py-3 text-ink-3">{w}</td>
                 <td className="px-4 py-3"><span suppressHydrationWarning className={`inline-block text-[12px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${DUE_CLS[d.c]}`}>{d.t}</span>
                   <div className="text-[11.5px] text-ink-3 mt-1 leading-snug sm:whitespace-nowrap" suppressHydrationWarning><span title="Due date">Due {taskDate(t.due)}</span>{t.sentAt && <span className="block" title="Sent date">Sent {taskDate(t.sentAt)}</span>}</div></td>
-                <td className="px-4 py-3 text-right">{allowed ? <button className={`btn btn-sm ${primary ? "btn-primary" : ""}`} disabled={busy === t.page.path} onClick={(e) => act(e, t)}>{busy === t.page.path ? "Working…" : label}</button> : <span className="inline-flex items-center gap-1.5 text-[12px] text-ink-3 whitespace-nowrap" title={`You don't have ${needs === "publish" ? "Publish" : "Review & approve"} here`}><span aria-hidden="true">🔒</span>{waiting}</span>}</td>
+                <td className="px-4 py-3 text-right">{isAdmin && (t.kind === "Review" || t.kind === "BizReview") ? <span className="inline-flex items-center justify-end gap-1.5">
+                  <button type="button" className="btn btn-sm btn-icon" title="Share for review: link or e-mail" aria-label={`Share ${t.page.title} for review`} onClick={(e) => { e.stopPropagation(); setSharing({ t, stage: t.kind === "Review" ? "review" : "bizreview" }); }}><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7M12 3v12M7 8l5-5 5 5" /></svg></button>
+                  <button className="btn btn-sm btn-primary" disabled={busy === t.page.path} title={`Site admin: approve on behalf of ${t.assigneeName ?? "the reviewer"}`} onClick={(e) => approveFor(e, t)}>{busy === t.page.path ? "Working…" : t.kind === "Review" ? "Approve" : "Sign off"}</button></span>
+                  : allowed ? <button className={`btn btn-sm ${primary ? "btn-primary" : ""}`} disabled={busy === t.page.path} onClick={(e) => act(e, t)}>{busy === t.page.path ? "Working…" : label}</button> : <span className="inline-flex items-center gap-1.5 text-[12px] text-ink-3 whitespace-nowrap" title={`You don't have ${needs === "publish" ? "Publish" : "Review & approve"} here`}><span aria-hidden="true">🔒</span>{waiting}</span>}</td>
               </tr>; })}
           </Fragment>; })}</tbody>
         </table></div></div>
       ) : (
         <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl"><b className="block text-[15px]">{q || kind || when || mkt ? "No tasks match" : "All clear"}</b><p className="text-ink-3 text-[13px] mt-1">{q || kind || when || mkt ? <button className="underline text-ink" onClick={() => { setQ(""); setKind(""); setWhen(""); setMkt(""); }}>Clear filters</button> : "Nothing is waiting on you. New review and publish requests will show up here."}</p></div>
       )}
+      {sharing && <ShareReviewDialog key={sharing.t.page.path + sharing.stage} marketId={marketOfPath(sharing.t.page.path).id} path={sharing.t.page.path} title={sharing.t.page.title} stage={sharing.stage} onClose={() => { setSharing(null); router.refresh(); }} />}
       {assigning && <AssignDialog marketId={marketOfPath(assigning.page.path).id} task={assigning} pageHref={builderHref(assigning.page.path)} onClose={() => setAssigning(null)} onDone={(name) => { setToast(name ? `${assigning.page.title}: assigned to ${name}` : `${assigning.page.title}: waiting for assignment`); setAssigning(null); router.refresh(); }} />}
       {toast && <div role="status" className="fixed bottom-5 left-1/2 -translate-x-1/2 w-max max-w-[calc(100vw-32px)] flex items-center gap-2.5 bg-[#0F1013] text-white pl-3 pr-4 py-2.5 rounded-xl text-[13px] shadow-xl z-50"><span aria-hidden className="grid place-items-center w-5 h-5 rounded-full bg-white/15 text-[11px] flex-none">✓</span><span className="min-w-0">{toast}</span></div>}
     </div>

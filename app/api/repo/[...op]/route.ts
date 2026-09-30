@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import type { PageStatus } from "@/lib/repo";
-import { logEvent, me, snapshotVersion } from "@/lib/server/ucp";
+import { logEvent, me, snapshotVersion, userName } from "@/lib/server/ucp";
 import { can, permForStatus, PERM_LABEL } from "@/lib/ucp/perms";
 import type { PermKey } from "@/lib/ucp/types";
 import { market } from "@/lib/markets";
@@ -52,22 +52,25 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       const who = await guard(patch.status && before && patch.status !== before.status ? permForStatus[patch.status] ?? "edit" : "edit", path);
       // an assigned review is approved by that reviewer only (site admins included; they can reassign instead)
       const assigned = typeof before?.meta?.["ucp:assignee"] === "string" ? String(before.meta["ucp:assignee"]) : "";
-      if (patch.status === "bizreview" && before?.status === "review" && assigned && assigned !== who.id) throw new RepoError(403, "Only the assigned reviewer can approve this page", "Reassign the review if someone else should approve it");
+      const admin = who.role === "admin" || !!who.perms?.root?.manage; // site admins may approve on behalf of the reviewer (recorded in the audit log)
+      if (patch.status === "bizreview" && before?.status === "review" && assigned && assigned !== who.id && !admin) throw new RepoError(403, "Only the assigned reviewer can approve this page", "Reassign the review if someone else should approve it");
       // author's review → business review → ready to publish: the business sign-off cannot be skipped
       if (patch.status === "approved" && before?.status === "review") throw new RepoError(409, "Business review comes next", "Approve the author's review first; the business review then makes the page ready to publish");
       const bizBy = before?.meta?.["ucp:taskKind"] === "BizReview" ? before?.meta?.["ucp:taskAssignee"] : undefined;
-      if (patch.status === "approved" && before?.status === "bizreview" && typeof bizBy === "string" && bizBy && bizBy !== who.id) throw new RepoError(403, "Only the assigned business reviewer can sign this page off");
+      if (patch.status === "approved" && before?.status === "bizreview" && typeof bizBy === "string" && bizBy && bizBy !== who.id && !admin) throw new RepoError(403, "Only the assigned business reviewer can sign this page off");
       // four eyes: the business sign-off comes from someone other than the author's reviewer
-      if (patch.status === "approved" && before?.status === "bizreview" && before.meta?.["ucp:authorReviewedBy"] === who.id) throw new RepoError(403, "Someone else must do the business review", "You approved the author's review of this page");
+      if (patch.status === "approved" && before?.status === "bizreview" && before.meta?.["ucp:authorReviewedBy"] === who.id && !admin) throw new RepoError(403, "Someone else must do the business review", "You approved the author's review of this page");
       if (patch.status && before && patch.status !== before.status) await snapshotVersion(path, `before: ${STATUS_TEXT[patch.status as PageStatus].replace("{t}", "").trim()}`, who.id);
       const p = await r.updateContent(path, patch);
+      /* a site admin approving for the assigned reviewer: recorded as "on behalf of" */
+      const onBehalf = !admin ? "" : patch.status === "bizreview" && before?.status === "review" && assigned && assigned !== who.id ? assigned : patch.status === "approved" && before?.status === "bizreview" && typeof bizBy === "string" && bizBy && bizBy !== who.id ? bizBy : "";
       if (patch.status && before && patch.status !== before.status) {
         const meId = who.id; const meta: Record<string, unknown> = { "ucp:sentBy": meId, "ucp:sentAt": new Date().toISOString() };
         if (patch.status === "review") { const d = new Date(); d.setDate(d.getDate() + 3); meta["ucp:due"] = d.toISOString(); meta["ucp:requestedBy"] = meId; meta["ucp:remindedAt"] = null; } // "send back to review" keeps the same reviewer else meta["ucp:due"] = null;
         if (patch.status === "bizreview") { const d = new Date(); d.setDate(d.getDate() + 3); meta["ucp:due"] = d.toISOString(); meta["ucp:authorReviewedBy"] = meId; meta["ucp:remindedAt"] = null; }
         if (patch.status === "approved") meta["ucp:approvedBy"] = meId; // the author (ucp:requestedBy) keeps getting the "ready to publish" task
         await r.setProps(`${path}/jcr:content`, meta).catch(() => {});
-        await audit(patch.status === "published" || patch.status === "approved" || patch.status === "scheduled" ? "publishing" : "content", STATUS_TEXT[patch.status as PageStatus].replace("{t}", p.title), path, patch.status === "failed" ? "crit" : "");
+        await audit(patch.status === "published" || patch.status === "approved" || patch.status === "scheduled" ? "publishing" : "content", STATUS_TEXT[patch.status as PageStatus].replace("{t}", p.title) + (onBehalf ? ` (on behalf of ${await userName(onBehalf)})` : ""), path, patch.status === "failed" ? "crit" : "");
       } else if (patch.title && before && patch.title !== before.title) await audit("content", `renamed “${before.title}” to “${patch.title}”`, path);
       return ok(await r.getPage(path));
     }

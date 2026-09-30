@@ -2,7 +2,7 @@ import type { PageView, PageSummary, CreatePageInput, PageContentPatch, Componen
 import type { Task, Notification, Asset, AuditEvent, User, Template, Model, ModelField, ModelVersion, Entity, EntityValues, Bindings, ReviewerOption, TaskKind } from "@/lib/ucp/types";
 import type { ResolvedEntities } from "@/lib/ucp/tokens";
 import { ApiError } from "./types";
-export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string } };
+export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string }; stage?: string; guest?: boolean };
 export * from "./types";
 
 type Query = Record<string, string | number | boolean | undefined>;
@@ -81,6 +81,10 @@ export const ucpApi = {
   /* review assignment */
   reviewers: (market: string, path: string) => U<ReviewerOption[]>("reviewers", { query: { market, path } }),
   sendForReview: (market: string, path: string, body: { assignee?: string; auto?: boolean; note?: string }) => U<{ assignee: string; assigneeName: string; auto: boolean }>("review/send", { method: "POST", query: { market, path }, body: JSON.stringify(body) }),
+  /** Link (and optional e-mail invite) for the current review stage; an e-mail of a UCP reviewer also assigns them. */
+  reviewLink: (market: string, path: string, email?: string) => U<{ token: string; stage: "review" | "bizreview"; assigned?: string; url: string }>("review/link", { method: "POST", query: { market, path }, body: JSON.stringify({ email }) }),
+  /** Comment from the review screen (signed in, or a guest with name + e-mail). */
+  reviewComment: (token: string, body: { text: string; name?: string; email?: string }) => U<PageComment[]>("review/comment", { method: "POST", query: { token }, body: JSON.stringify(body) }),
   /** Nudge the reviewer of a page in review ("I'm waiting"); at most once every 15 minutes. */
   remindReviewer: (market: string, path: string) => U<{ remindedAt: string; reviewer: string }>("review/remind", { method: "POST", query: { market, path }, body: "{}" }),
   reassignReview: (market: string, path: string, body: { assignee?: string; auto?: boolean }) => U<{ assignee: string; assigneeName: string }>("review/assign", { method: "POST", query: { market, path }, body: JSON.stringify(body) }),

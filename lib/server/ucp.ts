@@ -11,7 +11,7 @@ import { ME, SEED_USERS } from "@/lib/ucp/seed";
 import { allPages } from "@/lib/server/pages";
 import { sessionUserId } from "@/lib/server/session";
 import { can } from "@/lib/ucp/perms";
-import { market as marketOf } from "@/lib/markets";
+import { market as marketOf, MARKETS } from "@/lib/markets";
 
 /**
  * Domain services over the repository port. Each object is one JCR node; these helpers only map properties.
@@ -133,15 +133,15 @@ export { modelSchema } from "@/lib/ucp/schema";
 export type PageVersion = { id: string; time: string; who: string; note: string; title: string; status: string; blocks: number };
 const VER = (path: string) => `${path}/jcr:content/ucp:versions`;
 /* ---------------- page comments: a thread on the page's history; pinned ones stay on top ---------------- */
-export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string } };
+export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string }; stage?: string; guest?: boolean };
 const readComments = async (path: string): Promise<PageComment[]> => { const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path); return json<PageComment[]>(pg.meta?.["ucp:comments"], []); };
 const writeComments = (path: string, list: PageComment[]) => repo().setProps(`${path}/jcr:content`, { "ucp:comments": JSON.stringify(list) });
 /** Pinned first (latest pin on top), then newest first. */
 export const sortComments = (l: PageComment[]) => l.slice().sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.time.localeCompare(a.time));
 export async function listComments(path: string): Promise<PageComment[]> { return sortComments(await readComments(path)); }
-export async function addComment(path: string, u: User, text: string, version?: { id: string; label: string }): Promise<PageComment[]> {
+export async function addComment(path: string, u: Pick<User, "id" | "name">, text: string, version?: { id: string; label: string }, extra: { stage?: string; guest?: boolean } = {}): Promise<PageComment[]> {
   const t = text.trim(); if (!t) throw new RepoError(400, "Write a comment first"); if (t.length > 2000) throw new RepoError(400, "Keep comments under 2,000 characters");
-  const list = await readComments(path); list.push({ id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, who: u.id, whoName: u.name, time: new Date().toISOString(), text: t, version: version?.id ? { id: version.id, label: String(version.label ?? "").slice(0, 80) } : undefined });
+  const list = await readComments(path); list.push({ id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, who: u.id, whoName: u.name, time: new Date().toISOString(), text: t, version: version?.id ? { id: version.id, label: String(version.label ?? "").slice(0, 80) } : undefined, ...extra });
   await writeComments(path, list); return sortComments(list);
 }
 export async function setCommentPin(path: string, u: User, id: string, pinned: boolean): Promise<PageComment[]> {
@@ -152,6 +152,38 @@ export async function deleteComment(path: string, u: User, id: string, admin: bo
   const list = await readComments(path); const c = list.find((x) => x.id === id); if (!c) throw new RepoError(404, "Comment not found");
   if (c.who !== u.id && !admin) throw new RepoError(403, "You can only delete your own comments");
   const next = list.filter((x) => x.id !== id); await writeComments(path, next); return sortComments(next);
+}
+/* ---------------- review links: send a page in review to someone by link or e-mail ---------------- */
+export type ReviewLink = { token: string; stage: "review" | "bizreview"; email?: string; by: string; at: string };
+export const STAGE_LABEL: Record<string, string> = { review: "Author's review", bizreview: "Business review" };
+/**
+ * A link for the current review stage. The link opens a review screen (preview + comments) and stops working when the stage is over.
+ * With an e-mail of a UCP user who may review the page, that person is also assigned, so the task shows up in their My tasks.
+ */
+export async function createReviewLink(marketId: string, path: string, u: User, email?: string): Promise<{ token: string; stage: string; assigned?: string; created: boolean }> {
+  const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path);
+  if (pg.status !== "review" && pg.status !== "bizreview") throw new RepoError(409, "Send the page for review first");
+  const mail = email?.trim().toLowerCase() || undefined; if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) throw new RepoError(400, "That e-mail address does not look right");
+  const links = json<ReviewLink[]>(pg.meta?.["ucp:reviewLinks"], []);
+  const reuse = links.find((l) => l.stage === pg.status && (l.email ?? "") === (mail ?? ""));
+  const link: ReviewLink = reuse ?? { token: crypto.randomUUID().replace(/-/g, ""), stage: pg.status, email: mail, by: u.id, at: new Date().toISOString() };
+  const props: NodeProps = { "ucp:reviewLinks": JSON.stringify(reuse ? links : [...links, link]) }; let assigned: string | undefined;
+  const person = mail ? (await listUsers()).find((x) => x.email.toLowerCase() === mail) : undefined;
+  if (person && can(person, "review", path, marketOf(marketId).root)) {
+    if (pg.status === "review") props["ucp:assignee"] = person.id; else { props["ucp:taskAssignee"] = person.id; props["ucp:taskKind"] = "BizReview"; }
+    props["ucp:assignedBy"] = u.id; assigned = person.name;
+  }
+  await repo().setProps(`${path}/jcr:content`, props);
+  return { token: link.token, stage: link.stage, assigned, created: !reuse };
+}
+/** Find the page a review link belongs to (any market). `open` is false once the page left that review stage. */
+export async function reviewByToken(token: string) {
+  if (!/^[a-f0-9]{32}$/.test(token)) return undefined;
+  for (const m of MARKETS) for (const p of await allPages(m.root)) {
+    const l = json<ReviewLink[]>(p.meta?.["ucp:reviewLinks"], []).find((x) => x.token === token);
+    if (l) { const page = await repo().getPage(p.path); if (!page) return undefined; return { marketId: m.id, market: m, page, link: l, open: page.status === l.stage }; }
+  }
+  return undefined;
 }
 export async function listVersions(path: string): Promise<PageVersion[]> { const v = await kids(VER(path), 1); return v.map((n) => ({ id: n.name, time: str(n.properties["ucp:time"]), who: str(n.properties["ucp:who"]), note: str(n.properties["ucp:note"]), title: str(n.properties["ucp:title"]), status: str(n.properties["ucp:status"]), blocks: json<unknown[]>(n.properties["ucp:components"], []).length })).sort((a, b) => b.time.localeCompare(a.time)); }
 export async function snapshotVersion(path: string, note: string, who: string): Promise<void> {

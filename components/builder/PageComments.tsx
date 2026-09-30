@@ -32,8 +32,10 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey }: 
             <Avatar name={c.whoName} size={24} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-2 text-[12px]"><b className="font-semibold text-ink">{c.whoName}</b><time className="text-ink-3" dateTime={c.time} title={new Date(c.time).toLocaleString("en-GB")} suppressHydrationWarning>{relativeTime(c.time)}</time>
+                {c.guest && <span className="text-[10.5px] rounded-full bg-surface-3 px-1.5 text-ink-3" title="Commented through a review link without a UCP account">guest</span>}
                 {c.pinned && <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold uppercase tracking-[.06em] text-warn"><svg viewBox="0 0 24 24" className="w-3 h-3 fill-current" aria-hidden><path d={PIN} /></svg>Pinned</span>}</div>
               {c.version && <div className="mt-0.5 text-[11.5px] text-info truncate">About the version from {c.version.label}</div>}
+              {c.stage && <div className="mt-0.5 text-[11.5px] text-info">During the {c.stage === "review" ? "author's review" : "business review"}</div>}
               <p className="mt-0.5 text-[13px] text-ink whitespace-pre-wrap break-words">{c.text}</p>
             </div>
             {mayWrite && <div className="flex flex-none items-center gap-0.5 -mr-1">

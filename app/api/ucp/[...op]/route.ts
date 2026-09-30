@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { listComments, addComment, setCommentPin, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
+import { createReviewLink, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
 import { can } from "@/lib/ucp/perms";
-import { SESSION_COOKIE } from "@/lib/server/session";
+import { SESSION_COOKIE, sessionUserId } from "@/lib/server/session";
 import { PATHS } from "@/lib/ucp/paths";
 import { CY } from "@/lib/ucp/seed";
 import { market } from "@/lib/markets";
@@ -59,6 +59,25 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       await r.updateContent(path, { status: "review" }); await r.setProps(`${path}/jcr:content`, { "ucp:sentBy": u.id, "ucp:requestedBy": u.id, "ucp:sentAt": new Date().toISOString(), "ucp:due": due.toISOString(), "ucp:assignee": pick.id, "ucp:assignedBy": u.id, "ucp:reviewNote": note || null });
       await logEvent(mid, { type: "content", text: `sent ${before.title} for review to ${pick.name}${auto || !assignee ? " (assigned automatically)" : ""}`, target: path, requestId: rid });
       return ok({ assignee: pick.id, assigneeName: pick.name, auto: !!(auto || !assignee) });
+    }
+    /* ---- review links: a link (or e-mail) that opens the review screen for the current stage ---- */
+    if (o === "review/link" && req.method === "POST") {
+      const u = await me(); const path = q.get("path") ?? ""; const root = market(mid).root; const admin = u.role === "admin" || !!u.perms.root?.manage;
+      if (!(admin || can(u, "edit", path, root) || can(u, "review", path, root))) return problem(new RepoError(403, "Only people working on this page can share it for review"));
+      const { email } = await req.json() as { email?: string }; const r = await createReviewLink(mid, path, u, email); const pg = await repo().getPage(path);
+      if (r.created || r.assigned) await logEvent(mid, { type: "content", text: `shared ${pg?.title ?? path} for ${STAGE_LABEL[r.stage].toLowerCase()}${email ? ` with ${email}` : " by link"}${r.assigned ? ` (assigned to ${r.assigned})` : ""}`, target: path, requestId: rid });
+      return ok({ ...r, url: `/review/${r.token}` });
+    }
+    if (o === "review/comment" && req.method === "POST") {
+      const token = q.get("token") ?? ""; const hit = await reviewByToken(token); if (!hit) return problem(new RepoError(404, "This review link does not exist"));
+      if (!hit.open) return problem(new RepoError(409, "This review is finished", "The page has moved on; ask the author for a new link"));
+      const b = await req.json() as { text?: string; name?: string; email?: string }; const signed = await sessionUserId();
+      const name = (b.name ?? "").trim().slice(0, 80); const mail = (b.email ?? "").trim().slice(0, 120);
+      if (!signed && (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail))) return problem(new RepoError(400, "Add your name and e-mail so the team knows who commented"));
+      const who = signed ? await me() : { id: `guest:${mail.toLowerCase()}`, name };
+      const r = await addComment(hit.page.path, who, b.text ?? "", undefined, { stage: hit.link.stage, guest: !signed });
+      await logEvent(hit.marketId, { type: "content", who: signed ? undefined : "system", text: `${signed ? "" : `${name} (${mail}) `}commented during ${STAGE_LABEL[hit.link.stage].toLowerCase()} of ${hit.page.title}: “${String(b.text ?? "").trim().slice(0, 60)}”`, target: hit.page.path, requestId: rid });
+      return ok(r);
     }
     if (o === "review/remind" && req.method === "POST") {
       const u = await me(); const path = q.get("path") ?? ""; const pg = await repo().getPage(path);
