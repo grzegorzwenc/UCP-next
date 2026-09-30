@@ -131,7 +131,6 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
     } else if (st === "reviewed") { // author's review done, not sent on yet
       if (can("edit", p) || can("review", p)) btn("next", "Next step", () => setChoosing(t), true);
     } else if (st === "bizreview" && !t.biz && !t.bizGroups?.length) { // Waiting for business review assignment
-      if (isAdmin) btn("share", "Share", () => setSharing({ t, stage: "bizreview" }));
       if (can("review", p) && (isAdmin || t.peer !== user.id)) btn("bizclaim", "Assign to me", () => run(t, () => ucpApi.claimBizReview(mid(t), p), `${t.page.title}: the business review is yours`), true);
       else if (!isAdmin) out.push(<span key="w" className="text-[12px] text-ink-3 whitespace-nowrap">Waiting for a business reviewer</span>);
     } else if (st === "bizreview") {
@@ -251,7 +250,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
 
       {assigning && <AssignDialog marketId={marketOfPath(assigning.page.path).id} task={assigning} pageHref={builderHref(assigning.page.path)} onClose={() => setAssigning(null)} onDone={(name) => { setToast(name ? `${assigning.page.title}: assigned to ${name}` : `${assigning.page.title}: not assigned`); setAssigning(null); router.refresh(); }} />}
       {choosing && <ReviewedChoice title={choosing.page.title} onBehalf={choosing.page.status === "inreview" && choosing.assignee && choosing.assignee !== user.id ? choosing.assigneeName : undefined} onClose={() => setChoosing(null)}
-        onSend={() => run(choosing, async () => { if (choosing.page.status === "inreview") await status(choosing, "reviewed"); await status(choosing, "bizreview"); }, `${choosing.page.title} is waiting for a business reviewer`)}
+        onSend={() => { const t = choosing; return run(t, async () => { if (t.page.status === "inreview") await status(t, "reviewed"); await status(t, "bizreview"); }, `${t.page.title} sent to business review · share it with the business`, () => setSharing({ t, stage: "bizreview" })); }}
         onReauthor={() => run(choosing, () => status(choosing, "draft"), `${choosing.page.title} is back with the author`)} />}
       {sharing && <ShareReviewDialog key={sharing.t.page.path + sharing.stage} marketId={marketOfPath(sharing.t.page.path).id} path={sharing.t.page.path} title={sharing.t.page.title} stage={sharing.stage} onClose={() => { setSharing(null); router.refresh(); }} />}
       {publishing && <PublishDialog marketId={marketOfPath(publishing.page.path).id} envName={envById(envId).name} pages={[{ path: publishing.page.path, title: publishing.page.title, status: publishing.page.status }]} mayPublish={(p) => can("publish", p)}
