@@ -2,7 +2,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSyncExternalStore } from "react";
-import { market, env } from "@/lib/markets";
 
 const ITEMS: ([string] | [string, string, string])[] = [
   ["dashboard", "Dashboard", "M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"],
@@ -36,7 +35,6 @@ export function useShellMode() {
 export function SideNav({ marketId, envId, forcedMini }: { marketId: string; envId: string; forcedMini?: boolean }) {
   const pathname = usePathname(); const { pref, tablet, phone, drawer } = useShellMode();
   const mini = !phone && (forcedMini || tablet || pref); const seg = pathname.split("/")[3] || "dashboard"; const active = seg === "page" ? "pages" : seg;
-  const mk = market(marketId), e = env(envId);
   if (phone && !drawer) return null;
   const nav = (
     <nav aria-label="Main" className={`relative bg-surface border-r border-line flex flex-col overflow-auto h-full ${mini ? "w-[60px] px-2 py-3" : "w-[264px] px-3.5 pt-4 pb-6"}`}>
@@ -51,7 +49,6 @@ export function SideNav({ marketId, envId, forcedMini }: { marketId: string; env
             <svg viewBox="0 0 24 24" className={`${mini ? "w-6 h-6" : "w-5 h-5"} flex-none stroke-current fill-none`} strokeWidth={mini ? 1.7 : 1.8} strokeLinecap="round" strokeLinejoin="round"><path d={it[2]} /></svg>{!mini && <span>{it[1]}</span>}
           </Link>)}
       </div>
-      {!mini && <div className="mt-auto border-t border-line pt-3 text-[12.5px] text-ink-3"><b className="block text-ink font-semibold text-[13px]">{mk.flag} {mk.name}</b>{e.name} · {mk.locales.join(", ")}</div>}
     </nav>
   );
   if (phone) return <div className="fixed inset-0 z-[70] flex" onClick={(ev) => { if (ev.target === ev.currentTarget) openDrawer(false); }}><div className="absolute inset-0 bg-black/45" aria-hidden onClick={() => openDrawer(false)} /><div className="relative h-full shadow-2xl">{nav}</div></div>;
