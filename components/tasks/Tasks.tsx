@@ -50,9 +50,9 @@ const seenKey = (t: Task) => `${t.page.path}|${t.page.status}|${t.assignee ?? ""
 const STAGE_ORDER = ["review", "inreview", "reviewed", "bizreview", "approved", "scheduled"];
 /** All (yours, any stage) and the stages of the review flow, as tabs. */
 const VIEWS: { id: View; label: string; empty: string; of: (t: Task, me: string) => boolean }[] = [
-  { id: "all", label: "All", empty: "Nothing in the review flow right now.", of: (t, me) => ["review", "inreview", "reviewed", "bizreview", "approved", "scheduled"].includes(t.page.status) && !(t.page.status === "review" && !t.assignee && t.author === me) },
+  { id: "all", label: "All", empty: "Nothing in the review flow right now.", of: (t) => ["review", "inreview", "reviewed", "bizreview", "approved", "scheduled"].includes(t.page.status) },
   { id: "backlog", label: "Backlog", empty: "No page is waiting for a reviewer.", of: (t, me) => t.kind === "Review" && t.page.status === "review" && !t.assignee && t.author !== me }, // open to everyone except the page's author (they cannot take it)
-  { id: "mine", label: "Ready for review", empty: "Nothing assigned and waiting to start · take a page from the Backlog.", of: (t) => t.kind === "Review" && t.page.status === "review" && !!t.assignee },
+  { id: "mine", label: "Ready for review", empty: "Nothing assigned and waiting to start · take a page from the Backlog.", of: (t, me) => t.kind === "Review" && t.page.status === "review" && (!!t.assignee || t.author === me) }, // the author follows their own page here while it waits for a reviewer
   { id: "inreview", label: "In review", empty: "No author's review is in progress.", of: (t) => t.kind === "Review" && t.page.status === "inreview" },
   { id: "sendbiz", label: "Reviewed by author / Send to business review", empty: "Nothing reviewed by an author is waiting to be sent on.", of: (t) => t.kind === "SendBiz" },
   { id: "bizreview", label: "In business review", empty: "No page is in the business review.", of: (t) => t.kind === "BizReview" },
@@ -109,10 +109,12 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
     const remind = () => run(t, () => ucpApi.remindReviewer(mid(t), p), "Reminder sent");
     const change = () => { if (isAdmin) btn("person", t.assigneeName ? "Change person" : "Assign…", () => setAssigning(t)); }; // site admins: who does this step
     if (st === "review" && !t.assignee) { // Backlog: open to everyone · a reviewer takes it (nobody hands it out)
-      if (can("review", p)) btn("claim", "Assign to me", () => run(t, () => ucpApi.claimReview(mid(t), p), `${t.page.title} is yours · find it in Ready for review`), true);
+      if (t.author === user.id) out.push(<span key="w" className="text-[12px] text-ink-3 whitespace-nowrap">Waiting for a reviewer to take it</span>); // your own page: someone else reviews it
+      else if (can("review", p)) btn("claim", "Assign to me", () => run(t, () => ucpApi.claimReview(mid(t), p), `${t.page.title} is yours · find it in Ready for review`), true);
+      else out.push(<button key="claim" type="button" className="btn btn-sm btn-next" disabled title="You need Review & approve on this folder to take it">Assign to me</button>);
     } else if (st === "review") { // Ready for review: assigned, not started
       change();
-      if (t.assignee === user.id || t.author === user.id || isAdmin) btn("release", "Back to backlog", () => run(t, () => ucpApi.releaseReview(mid(t), p), `${t.assignee === user.id ? "You are no longer the reviewer" : `${t.assigneeName ?? "The reviewer"} is no longer the reviewer`} · ${t.page.title} is back in the Backlog`));
+      if (t.assignee === user.id || isAdmin) btn("release", "Back to backlog", () => run(t, () => ucpApi.releaseReview(mid(t), p), `${t.assignee === user.id ? "You are no longer the reviewer" : `${t.assigneeName ?? "The reviewer"} is no longer the reviewer`} · ${t.page.title} is back in the Backlog`));
       if (t.assignee === user.id) btn("start", "Start review", () => run(t, () => status(t, "inreview"), `${t.page.title}: review started`), true);
     } else if (st === "inreview") {
       change();
@@ -139,7 +141,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   /* Backlog: nobody is assigned · a reviewer (not the author) takes it straight from the Reviewer slot */
   const openChip = (t: Task) => can("review", t.page.path) && t.author !== user.id
     ? <button type="button" disabled={busy === t.page.path} onClick={(e) => { e.stopPropagation(); run(t, () => ucpApi.claimReview(mid(t), t.page.path), `${t.page.title} is yours · find it in Ready for review`); }} className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-accent border border-accent/40 hover:bg-accent-soft rounded-full px-2.5 py-0.5 whitespace-nowrap" title="Nobody is assigned yet · take this review">+ Assign to me</button>
-    : <span className="text-[12px] text-ink-4 whitespace-nowrap" title="Nobody is assigned yet · a reviewer takes it from the Backlog">Nobody yet</span>;
+    : <span className="text-[12px] text-ink-4 whitespace-nowrap" title="Nobody is assigned yet · a reviewer takes it from the Backlog">Waiting for a reviewer</span>;
   const personLine = (label: string, name?: string, you?: boolean, open?: Task) => <div className="flex items-center gap-2 min-w-0 text-[12.5px]"><span className="w-[92px] flex-none text-ink-3 text-[11.5px]">{label}</span>{name ? <><Avatar name={name} size={20} /><span className="truncate">{you ? "You" : name}</span></> : open ? openChip(open) : <span className="text-ink-4">—</span>}</div>;
   const stagePerson = (t: Task): [string, string | undefined, boolean] => {
     const st = t.page.status; const reviewer = t.from.replace(/ \(.*\)$/, "");

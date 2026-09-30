@@ -101,8 +101,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       const cur = typeof pg.meta?.["ucp:assignee"] === "string" ? String(pg.meta["ucp:assignee"]) : "";
       if (!cur) return problem(new RepoError(409, "The page is already in the Backlog"));
       const admin = u.role === "admin" || !!u.perms.root?.manage;
-      const author = String(pg.meta?.["ucp:requestedBy"] || pg.meta?.["ucp:sentBy"] || ""); // who sent it for review
-      if (cur !== u.id && author !== u.id && !admin) return problem(new RepoError(403, "Only the author, the assigned reviewer or a site admin can put it back in the Backlog"));
+      if (cur !== u.id && !admin) return problem(new RepoError(403, "Only the assigned reviewer or a site admin can put it back in the Backlog"));
       await repo().setProps(`${path}/jcr:content`, { "ucp:assignee": null, "ucp:assignedBy": null });
       await logEvent(mid, { type: "content", text: `put ${pg.title} back in the Backlog${cur !== u.id ? ` (was assigned to ${await userName(cur)})` : ""}`, target: path, requestId: rid });
       return ok({ ok: true });
