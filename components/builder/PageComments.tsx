@@ -13,16 +13,16 @@ const PIN = "M9 4h6l-1 5 3 3v2h-4v6l-1 1-1-1v-6H7v-2l3-3z";
  * Comments on a page, shown at the top of Version history. Anyone who edits or reviews the page can comment;
  * a comment can be tied to one version ("About the version from …") and pinned so it stays at the top for everyone.
  */
-type Ref = { id: string; label: string };
+type Ref = { id: string; label: string; field?: string };
 /** A comment's component chip: click to show that component on the page. */
-export function BlockChip({ block, onShow }: { block: Ref; onShow?: (id: string) => void }) {
+export function BlockChip({ block, onShow }: { block: Ref; onShow?: (r: Ref) => void }) {
   const body = <><svg aria-hidden width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 9h18" /></svg><span className="truncate">{block.label}</span></>;
   const cls = "inline-flex items-center gap-1 min-w-0 max-w-full rounded-full bg-accent-soft text-accent-hover px-2 py-0.5 text-[11.5px] font-semibold";
-  return onShow ? <button type="button" className={`${cls} hover:underline`} onClick={() => onShow(block.id)} title="Show this component on the page">{body}</button> : <span className={cls}>{body}</span>;
+  return onShow ? <button type="button" className={`${cls} hover:underline`} onClick={() => onShow(block)} title="Show it on the page">{body}</button> : <span className={cls}>{body}</span>;
 }
 
-export function PageComments({ marketId, path, about, onClearAbout, focusKey, target, onClearTarget, onShowBlock, onList }: { marketId: string; path: string; about: { id: string; label: string } | null; onClearAbout: () => void; focusKey: number;
-  /** review: the component picked on the page (the next comment is about it) */ target?: Ref | null; onClearTarget?: () => void; onShowBlock?: (id: string) => void; onList?: (l: PageComment[]) => void }) {
+export function PageComments({ marketId, path, about, onClearAbout, focusKey, target, onClearTarget, onShowBlock, onList, bare }: { /** inside a panel that already says "Comments" */ bare?: boolean; marketId: string; path: string; about: { id: string; label: string } | null; onClearAbout: () => void; focusKey: number;
+  /** review: the component picked on the page (the next comment is about it) */ target?: Ref | null; onClearTarget?: () => void; onShowBlock?: (r: Ref) => void; onList?: (l: PageComment[]) => void }) {
   const { user, can } = useSession(); const admin = user.role === "admin" || !!user.perms.root?.manage;
   const mayWrite = admin || can("edit", path) || can("review", path);
   const [list, setList] = useState<PageComment[] | null>(null); const [text, setText] = useState(""); const [busy, setBusy] = useState(false);
@@ -39,7 +39,7 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
   const pinned = list?.filter((c) => c.pinned) ?? [];
   const rest = list?.filter((c) => !c.pinned) ?? []; const shown = all ? rest : rest.slice(0, FIRST);
   const renderItem = (c: PageComment) => { const mine = c.who === user.id;
-    return <li key={c.id} className={`rounded-lg border px-2.5 py-2 ${c.pinned ? "border-warn/40 bg-warn-soft/60" : "border-line bg-surface"}`}>
+    return <li key={c.id} className={`min-w-0 rounded-lg border px-2.5 py-2 ${c.pinned ? "border-warn/40 bg-warn-soft/60" : "border-line bg-surface"}`}>
           <div className="flex items-start gap-2">
             <Avatar name={c.whoName} size={24} />
             <div className="min-w-0 flex-1">
@@ -64,9 +64,9 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
   // A fragment on purpose: the pinned strip is a direct child of the whole panel's content, so `sticky` keeps it at the top of the panel
   // for the full scroll (inside the short comments section it would leave with the section).
   return <>
-    {pinned.length > 0 && <div className="sticky -top-3.5 z-10 -mx-3.5 -mt-3.5 -mb-1 px-3.5 pt-3.5 pb-2 bg-surface border-b border-line shadow-[0_6px_12px_-10px_rgba(0,0,0,.35)]"><ul className="grid gap-1.5" aria-label="Pinned comments">{pinned.map(renderItem)}</ul></div>}
+    {pinned.length > 0 && <div className="sticky -top-3.5 z-10 -mx-3.5 -mt-3.5 mb-3 px-3.5 pt-3.5 pb-2.5 bg-surface border-b border-line shadow-[0_6px_12px_-10px_rgba(0,0,0,.35)]"><ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5" aria-label="Pinned comments">{pinned.map(renderItem)}</ul></div>}
   <section aria-labelledby="cm-h" className="grid grid-cols-[minmax(0,1fr)] gap-2">
-    <div className="flex items-baseline gap-2"><h3 id="cm-h" className="text-[13px] font-semibold">Comments</h3>{!!list?.length && <span className="text-[12px] text-ink-3">{list.length}</span>}</div>
+    <div className={`flex items-baseline gap-2 ${bare ? "sr-only" : ""}`}><h3 id="cm-h" className="text-[13px] font-semibold">Comments</h3>{!!list?.length && <span className="text-[12px] text-ink-3">{list.length}</span>}</div>
     {mayWrite && <div className="border border-line-2 rounded-lg bg-surface focus-within:border-ink-3">
       {target && <div className="flex items-center gap-2 px-2.5 pt-2 text-[11.5px]"><span className="text-ink-3 flex-none">About</span><BlockChip block={target} onShow={onShowBlock} /><button type="button" className="text-ink-3 hover:text-ink flex-none" onClick={onClearTarget} aria-label="Not about a component">✕</button></div>}
       {about && <div className="flex items-center gap-2 px-2.5 pt-2 text-[11.5px]"><span className="inline-flex items-center gap-1 rounded-full bg-info-soft text-info px-2 py-0.5 min-w-0"><span className="truncate">About the version from {about.label}</span></span><button type="button" className="text-ink-3 hover:text-ink flex-none" onClick={onClearAbout} aria-label="Not about a version">✕</button></div>}
@@ -76,7 +76,7 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
     </div>}
     {err && <div className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</div>}
     {list === null ? <p className="text-[12.5px] text-ink-3">Loading comments…</p> : !list.length ? <p className="text-[12.5px] text-ink-3">No comments yet.{mayWrite ? " Leave a note for the next person who edits or reviews this page." : ""}</p>
-      : <ul className="grid gap-1.5">{shown.filter((c) => !c.pinned).map(renderItem)}</ul>}
+      : <ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5">{shown.filter((c) => !c.pinned).map(renderItem)}</ul>}
     {rest.length > shown.length && <button type="button" className="btn btn-sm btn-quiet justify-self-start" onClick={() => setAll(true)}>Show all {rest.length} comments</button>}
     {all && rest.length > FIRST && <button type="button" className="btn btn-sm btn-quiet justify-self-start" onClick={() => setAll(false)}>Show fewer</button>}
   </section>

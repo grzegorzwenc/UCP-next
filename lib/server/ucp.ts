@@ -148,15 +148,15 @@ export { modelSchema } from "@/lib/ucp/schema";
 export type PageVersion = { id: string; time: string; who: string; note: string; title: string; status: string; blocks: number };
 const VER = (path: string) => `${path}/jcr:content/ucp:versions`;
 /* ---------------- page comments: a thread on the page's history; pinned ones stay on top ---------------- */
-export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string }; stage?: string; guest?: boolean; /** the component on the page the comment is about */ block?: { id: string; label: string } };
+export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string }; stage?: string; guest?: boolean; /** the component (and the text or asset in it) the comment is about */ block?: { id: string; label: string; field?: string } };
 const readComments = async (path: string): Promise<PageComment[]> => { const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path); return json<PageComment[]>(pg.meta?.["ucp:comments"], []); };
 const writeComments = (path: string, list: PageComment[]) => repo().setProps(`${path}/jcr:content`, { "ucp:comments": JSON.stringify(list) });
 /** Pinned first (latest pin on top), then newest first. */
 export const sortComments = (l: PageComment[]) => l.slice().sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.time.localeCompare(a.time));
 export async function listComments(path: string): Promise<PageComment[]> { return sortComments(await readComments(path)); }
-export async function addComment(path: string, u: Pick<User, "id" | "name">, text: string, version?: { id: string; label: string }, extra: { stage?: string; guest?: boolean; block?: { id?: unknown; label?: unknown } } = {}): Promise<PageComment[]> {
+export async function addComment(path: string, u: Pick<User, "id" | "name">, text: string, version?: { id: string; label: string }, extra: { stage?: string; guest?: boolean; block?: { id?: unknown; label?: unknown; field?: unknown } } = {}): Promise<PageComment[]> {
   const t = text.trim(); if (!t) throw new RepoError(400, "Write a comment first"); if (t.length > 2000) throw new RepoError(400, "Keep comments under 2,000 characters");
-  const list = await readComments(path); list.push({ id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, who: u.id, whoName: u.name, time: new Date().toISOString(), text: t, version: version?.id ? { id: version.id, label: String(version.label ?? "").slice(0, 80) } : undefined, stage: extra.stage, guest: extra.guest, block: typeof extra.block?.id === "string" && /^[\w-]{1,60}$/.test(extra.block.id) ? { id: extra.block.id, label: String(extra.block.label ?? "Component").slice(0, 80) } : undefined });
+  const list = await readComments(path); list.push({ id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, who: u.id, whoName: u.name, time: new Date().toISOString(), text: t, version: version?.id ? { id: version.id, label: String(version.label ?? "").slice(0, 80) } : undefined, stage: extra.stage, guest: extra.guest, block: typeof extra.block?.id === "string" && /^[\w-]{1,60}$/.test(extra.block.id) ? { id: extra.block.id, label: String(extra.block.label ?? "Component").slice(0, 90), field: typeof extra.block.field === "string" && /^[\w|:.-]{1,80}$/.test(extra.block.field) ? extra.block.field : undefined } : undefined });
   await writeComments(path, list); return sortComments(list);
 }
 export async function setCommentPin(path: string, u: User, id: string, pinned: boolean): Promise<PageComment[]> {

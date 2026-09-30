@@ -167,8 +167,15 @@ body.focus .cms-shell > div { grid-template-columns: 1fr; }
 .review-pick .cblk { cursor: pointer; }
 .review-pick .cblk:hover { border-color: #376798 !important; }
 .cblk.cmt-target { border-color: #DB0011 !important; box-shadow: 0 0 0 4px rgba(219,0,17,.12) !important; }
-.cmt-pick { position: absolute; top: -1px; right: -2px; z-index: 3; background: #376798; color: #fff; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 0 4px 0 6px; opacity: 0; pointer-events: none; transition: opacity .15s; }
+.cmt-pick { position: absolute; top: -1px; left: -2px; z-index: 3; background: #376798; color: #fff; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 4px 0 6px 0; opacity: 0; pointer-events: none; transition: opacity .15s; }
 .review-pick .cblk:hover .cmt-pick { opacity: 1; } .cblk.cmt-target .cmt-pick { opacity: 1; background: #DB0011; }
-.cmt-badge { position: absolute; top: 8px; left: 8px; z-index: 4; display: inline-flex; align-items: center; gap: 3px; background: #DB0011; color: #fff; font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 999px; box-shadow: 0 2px 6px rgba(0,0,0,.2); cursor: pointer; }
+.cmt-badge { position: absolute; top: 6px; right: 8px; z-index: 4; display: inline-flex; align-items: center; gap: 3px; background: #DB0011; color: #fff; font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 999px; box-shadow: 0 2px 6px rgba(0,0,0,.2); cursor: pointer; }
 @keyframes cmt-flash { 0%, 100% { box-shadow: 0 0 0 0 rgba(219,0,17,0); } 30% { box-shadow: 0 0 0 6px rgba(219,0,17,.35); } }
 .cblk.cmt-flash { animation: cmt-flash 1.4s ease-out 1; border-color: #DB0011 !important; }
+.cmt-flash:not(.cblk) { animation: cmt-flash 1.4s ease-out 1; border-radius: 3px; }
+/* like Build the page: hovering a text or an image shows what a click picks (nothing is editable) */
+.review-pick .ie { cursor: pointer; border-radius: 2px; }
+.review-pick .ie:hover { background: #FDECEE; box-shadow: 0 0 0 1px rgba(219,0,17,.45); }
+.review-pick .cardv, .review-pick .s-icons svg { cursor: pointer; }
+.review-pick .cardv:hover, .review-pick .s-icons svg:hover, .review-pick .s-mast:hover:not(:has(.ie:hover)) { outline: 2px solid rgba(219,0,17,.55); outline-offset: 2px; }
+.cmt-el { outline: 2px solid #DB0011 !important; outline-offset: 2px; border-radius: 2px; } .ie.cmt-el { background: rgba(219,0,17,.06); }

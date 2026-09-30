@@ -11,7 +11,7 @@ import { relativeTime } from "@/components/builder/VersionHistory";
 import { BlockChip } from "@/components/builder/PageComments";
 import { FloatingPanel } from "./FloatingPanel";
 import { BLOCK_BY_TYPE } from "@/lib/blocks/registry";
-import { toPlain } from "@/lib/blocks/richtext";
+import { pickAt, flash, markTarget, type PickTarget } from "@/lib/review/pick";
 
 type Props = {
   missing?: boolean; token?: string; open?: boolean; stage?: "review" | "bizreview"; stageLabel?: string; path?: string; title?: string; status?: string;
@@ -36,14 +36,16 @@ export function ReviewScreen(p: Props) {
   const [name, setName] = useState(() => stored().name ?? ""); const [email, setEmail] = useState(() => stored().email ?? ""); const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null); const [done, setDone] = useState<string | null>(null);
   /* click a component on the page → the next comment is about it; the comments float over the page */
-  const [target, setTarget] = useState<{ id: string; label: string } | null>(null); const wide = useSyncExternalStore(subWide, () => window.matchMedia("(min-width: 1024px)").matches, () => true); const [openPref, setOpen] = useState<boolean | null>(null); const open = openPref ?? wide; // phones: folded until opened
+  const [target, setTarget] = useState<PickTarget | null>(null); const wide = useSyncExternalStore(subWide, () => window.matchMedia("(min-width: 1024px)").matches, () => true); const [openPref, setOpen] = useState<boolean | null>(null); const open = openPref ?? wide; // phones: folded until opened
   const pageRef = useRef<HTMLDivElement>(null); const box = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { markTarget(pageRef.current, target); }, [target]); // outline the picked text or image
 
   if (p.missing) return <main className="min-h-dvh grid place-items-center bg-bg p-6"><div className="max-w-md text-center"><img src="/hsbc-logo.svg" alt="HSBC" className="h-7 mx-auto mb-6" /><h1 className="text-xl font-semibold">This review link does not work</h1><p className="text-ink-3 text-[14px] mt-2">It may be mistyped or the page may have been deleted. Ask the person who sent it for a new link.</p></div></main>;
 
-  const label = (id: string) => { const b = (p.blocks ?? []).find((x) => x.id === id); if (!b) return "Component"; const h = toPlain(b.props.heading ?? b.props.title ?? b.props.label ?? "").trim(); const n = BLOCK_BY_TYPE[b.type]?.name ?? "Component"; return h ? `${n} · ${h.length > 32 ? h.slice(0, 31) + "…" : h}` : n; };
-  const pick = (e: React.MouseEvent) => { if (!p.open) return; const blk = (e.target as HTMLElement).closest<HTMLElement>(".cblk"); if (!blk?.dataset.id) return; e.preventDefault(); setTarget({ id: blk.dataset.id, label: label(blk.dataset.id) }); setOpen(true); setTimeout(() => box.current?.focus(), 0); };
-  const show = (id: string) => { const el = pageRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`); if (!el) return; el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.remove("cmt-flash"); void el.offsetWidth; el.classList.add("cmt-flash"); };
+  const blockName = (id: string) => { const b = (p.blocks ?? []).find((x) => x.id === id); return (b && BLOCK_BY_TYPE[b.type]?.name) || "Component"; };
+  /* like Build the page, nothing editable: a click picks the text, the image or the component the next comment is about */
+  const pick = (e: React.MouseEvent) => { if (!p.open) return; const t = pickAt(e.target as HTMLElement, blockName); if (!t) return; e.preventDefault(); setTarget(t); setOpen(true); setTimeout(() => box.current?.focus(), 0); };
+  const show = (r: { id: string; field?: string }) => { flash(pageRef.current, r); };
   const counts: Record<string, number> = {}; for (const c of list) if (c.block) counts[c.block.id] = (counts[c.block.id] ?? 0) + 1;
   const guest = !p.user; const canPost = p.open && text.trim() && (!guest || (name.trim() && MAIL.test(email.trim())));
   const post = async () => {
@@ -76,14 +78,14 @@ export function ReviewScreen(p: Props) {
     <section className="p-3 md:p-6 lg:pr-[412px] min-w-0" aria-label="Page preview">
       {!p.open && <p className="mb-3 text-[13px] bg-warn-soft text-warn rounded-md px-3 py-2">This {p.stageLabel?.toLowerCase()} is finished. You can still read the page and the comments.</p>}
       <div ref={pageRef} onClick={pick} className={`bg-white shadow-sm rounded-md overflow-hidden ${p.open ? "review-pick" : ""}`}><Preview><AssetsContext.Provider value={p.assets ?? {}}><EntitiesContext.Provider value={p.entities ?? {}}>
-        <SiteChrome marketName={p.market!.name} crumbs={[p.title!]} device="desktop">{(p.blocks ?? []).filter((b) => !b.props.hidden).map((b) => <div key={b.id} data-id={b.id} className={`cblk ${target?.id === b.id ? "cmt-target" : ""}`}>
-          {p.open && <span className="cmt-pick" aria-hidden>{target?.id === b.id ? "Commenting on this" : "Click to comment"}</span>}
+        <SiteChrome marketName={p.market!.name} crumbs={[p.title!]} device="desktop">{(p.blocks ?? []).filter((b) => !b.props.hidden).map((b) => <div key={b.id} data-id={b.id} className={`cblk ${target?.id === b.id && !target.field ? "cmt-target" : ""}`}>
+          {p.open && <span className="cmt-pick" aria-hidden>{target?.id === b.id ? "Commenting here" : "Click a text or image to comment"}</span>}
           {!!counts[b.id] && <span className="cmt-badge" title={`${counts[b.id]} comment${counts[b.id] === 1 ? "" : "s"}`}>{counts[b.id]}</span>}
           <RenderBlock b={b} /></div>)}</SiteChrome>
       </EntitiesContext.Provider></AssetsContext.Provider></Preview></div>
     </section>
-    <FloatingPanel title="Comments" count={list.length} open={open} onToggle={setOpen} top={76} hint={p.open && !target ? "Click a component on the page to comment on it." : undefined}>
-      <div className="flex flex-col gap-3">
+    <FloatingPanel title="Comments" count={list.length} open={open} onToggle={setOpen} top={76} hint={p.open && !target ? "Click a text, an image or a component on the page to comment on it." : undefined}>
+      <div className="flex flex-col gap-3 min-w-0">
         {p.mayApprove && !done && <div className="rounded-lg border border-line bg-surface-2 p-3"><b className="block text-[13px]">Everything right?</b><p className="text-[12.5px] text-ink-3 mt-0.5">{p.stage === "review" ? "Send it on to the business review, or back to the author if something needs changing." : "Signing off makes the page ready to publish."}</p>
           {p.stage === "review" ? <div className="flex flex-wrap gap-2 mt-2"><button className="btn btn-next btn-sm" disabled={busy} onClick={() => void decide("bizreview")}>Send to business review</button><button className="btn btn-sm" disabled={busy} onClick={() => void decide("draft")}>Reauthor</button></div>
             : <button className="btn btn-next btn-sm mt-2" disabled={busy} onClick={approve}>Sign off</button>}</div>}
@@ -95,7 +97,7 @@ export function ReviewScreen(p: Props) {
           <div className="flex items-center gap-2 px-2 pb-2"><span className="text-[11px] text-ink-4">{p.user ? `Commenting as ${p.user.name}` : "Your name is shown with the comment"}</span><button className="btn btn-sm btn-primary ml-auto" disabled={!canPost || busy} onClick={post}>{busy ? "Posting…" : "Post comment"}</button></div>
         </div> : null}
         {err && <p className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</p>}
-        {!sorted.length ? <p className="text-[13px] text-ink-3">No comments yet.</p> : <ul className="grid gap-1.5">{sorted.map((c) => <li key={c.id} className={`rounded-lg border px-2.5 py-2 ${c.pinned ? "border-warn/40 bg-warn-soft/60" : "border-line"}`}>
+        {!sorted.length ? <p className="text-[13px] text-ink-3">No comments yet.</p> : <ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5">{sorted.map((c) => <li key={c.id} className={`min-w-0 rounded-lg border px-2.5 py-2 ${c.pinned ? "border-warn/40 bg-warn-soft/60" : "border-line"}`}>
           <div className="flex items-start gap-2"><Avatar name={c.whoName} size={24} /><div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 text-[12px]"><b className="font-semibold">{c.whoName}</b>{c.guest && <span className="text-[10.5px] rounded-full bg-surface-3 px-1.5 text-ink-3">guest</span>}<time className="text-ink-3" dateTime={c.time} suppressHydrationWarning>{relativeTime(c.time)}</time>{c.pinned && <span className="text-[10.5px] font-semibold uppercase tracking-[.06em] text-warn">Pinned</span>}</div>
             {c.block && <div className="mt-1"><BlockChip block={c.block} onShow={show} /></div>}

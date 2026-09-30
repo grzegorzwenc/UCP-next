@@ -25,6 +25,7 @@ import { ShareReviewDialog } from "@/components/tasks/ShareReviewDialog";
 import { useConfirm } from "@/components/ui/Confirm";
 import { ReviewedChoice } from "@/components/tasks/ReviewedChoice";
 import { FloatingPanel, CommentIcon } from "@/components/review/FloatingPanel";
+import { pickAt, flash, markTarget, type PickTarget } from "@/lib/review/pick";
 import { PageComments } from "@/components/builder/PageComments";
 import { FormatBar, RichField, useFormatState, prepareEditable } from "./RichTextEditor";
 import { normalizeRich, cellSafe, toPlain } from "@/lib/blocks/richtext";
@@ -126,9 +127,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   /* Review stages (author's review, business review): click a component to comment on it; Version history (with the comments) opens by itself */
   const reviewMode = status === "inreview" || status === "bizreview";
   const [reviewSeen, setReviewSeen] = useState(false);
-  const [commentTarget, setCommentTarget] = useState<{ id: string; label: string } | null>(null);
+  const [commentTarget, setCommentTarget] = useState<PickTarget | null>(null);
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({}); const [commentTotal, setCommentTotal] = useState(0);
   const [floatOpen, setFloatOpen] = useState(true); // full screen: the floating comments card
+  useEffect(() => { markTarget(canvasRef.current, commentTarget); }, [commentTarget, focus, blocks]); // outline the picked text or asset
   if (reviewSeen !== reviewMode) { setReviewSeen(reviewMode); if (reviewMode && !phone) { setRightTab("history"); setRight(true); } if (!reviewMode) setCommentTarget(null); }
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(null), 2200); };
   /** In review only the assigned reviewer (or a site admin) approves; unassigned legacy reviews fall back to the Review permission. */
@@ -156,10 +158,11 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
 
   const mutate = useCallback((fn: (b: Block[]) => Block[]) => { setBlocks((b) => fn(b)); setDirty(true); setSaving("Unsaved"); setPreviewed(false); }, [setPreviewed]);
   const setProp = (id: string, k: string, v: unknown) => mutate((b) => b.map((x) => (x.id === id ? { ...x, props: { ...x.props, [k]: v } } : x)));
-  const blockLabel = (id: string) => { const b = blocksRef.current.find((x) => x.id === id); if (!b) return "Component"; const def = BLOCK_BY_TYPE[b.type]; const h = toPlain(b.props.heading ?? b.props.title ?? b.props.label ?? "").trim(); return h ? `${def.name} · ${h.length > 32 ? h.slice(0, 31) + "…" : h}` : def.name; };
-  const pickForComment = (id: string) => { setCommentTarget({ id, label: blockLabel(id) }); if (focus) setFloatOpen(true); else { setRightTab("history"); setRight(true); } };
-  /** A comment's component chip: scroll to that component and flash it. */
-  const showBlock = (id: string) => { const el = canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`); if (!el) { say("That component is not on the page any more"); return; } el.scrollIntoView({ behavior: "smooth", block: "center" }); el.classList.remove("cmt-flash"); void el.offsetWidth; el.classList.add("cmt-flash"); };
+  const blockName = (id: string) => { const b = blocksRef.current.find((x) => x.id === id); return b ? BLOCK_BY_TYPE[b.type].name : "Component"; };
+  /** Review: pick a text, an asset or a component to comment on (like Build the page, but nothing is edited). */
+  const pickForComment = (el: HTMLElement) => { const t = pickAt(el, blockName); if (!t) return; setCommentTarget(t); if (focus) setFloatOpen(true); else { setRightTab("history"); setRight(true); } };
+  /** A comment's chip: scroll to the text, asset or component it is about and flash it. */
+  const showBlock = (r: { id: string; field?: string }) => { if (!flash(canvasRef.current, r)) say("That part is not on the page any more"); };
   const onCommentList = (l: { block?: { id: string } }[]) => { const c: Record<string, number> = {}; for (const x of l) if (x.block) c[x.block.id] = (c[x.block.id] ?? 0) + 1; setCommentCounts(c); setCommentTotal(l.length); };
   const reviewProps = reviewMode ? { target: commentTarget, onClearTarget: () => setCommentTarget(null), onShowBlock: showBlock, onList: onCommentList } : { onShowBlock: showBlock, onList: onCommentList };
   const select = (id: string | null) => { setSel(id); setMode("select"); setPop(null); if (id && right && rightTab === "block") setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
@@ -368,7 +371,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         if (r && el.contains(r.startContainer)) { const sel = window.getSelection(); sel?.removeAllRanges(); sel?.addRange(r); } } }, 0); }
   }
   function onCanvasClick(e: React.MouseEvent) {
-    if (reviewMode) { const t = e.target as HTMLElement; if (t.closest("[data-ui]")) return; const blk = t.closest<HTMLElement>(".cblk"); if (blk?.dataset.id) { e.preventDefault(); pickForComment(blk.dataset.id); } return; }
+    if (reviewMode) { const t = e.target as HTMLElement; if (t.closest("[data-ui]")) return; if (t.closest(".cblk")) { e.preventDefault(); pickForComment(t); } return; }
     if (preview) return;
     const t = e.target as HTMLElement; if (t.closest("[data-ui]")) return;
     const blk = t.closest<HTMLElement>(".cblk"); if (!blk) { if (editing) commitInline(true); select(null); return; }
@@ -452,7 +455,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const railsOn = !preview || !!lockReason; // a locked page keeps the rails (panels open read-only or veiled); a plain preview hides them
   const padL = focus ? 0 : !railsOn ? 24 : left && !narrow ? leftW + 76 : phone ? 12 : narrow ? 64 : 76, padR = focus ? 0 : !railsOn ? 24 : right && !narrow ? rightW + 76 : phone ? 12 : narrow ? 64 : 76;
   const baseHint = !canEdit ? "Read-only: you don't have Edit on this folder. Ask a site admin to grant it." : locked ? (inAuthor ? "Author's review · read-only until the reviewer approves or you click Edit to reopen it" : status === "reviewed" ? "Reviewed · send it to the business review, or click Edit to change it" : status === "bizreview" ? "Business review · read-only until it is signed off or you click Edit to reopen it" : status === "published" ? `Published · live on ${domain}${rel} · click Edit to change it` : "Approved · read-only until it is published · click Edit to reopen it") : preview ? "Preview: exactly what visitors will see" : mode === "edit" ? "Edit mode: click any highlighted text to change it. Enter saves, Esc cancels." : sel ? "Use the toolbar on the block: ✎ Edit text in place · ⚙ Configure everything · ✨ AI · ⋯ More" : "Hover to see block names. Click a block to select it, double-click to edit its text.";
-  const hint = reviewMode ? "Review · click a component on the page to comment on it · comments show in Version history" : baseHint;
+  const hint = reviewMode ? "Review · click a text, an image or a component to comment on it · comments show in Version history" : baseHint;
 
   return (
     <div className={`h-full grid ${focus ? "grid-rows-[1fr]" : "grid-rows-[54px_48px_1fr]"} min-w-0 overflow-hidden`}>
@@ -500,8 +503,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           <div ref={canvasRef} className={`${focus ? "flex-1 overflow-auto p-0 bg-white" : "flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
             {(() => { const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / siteW)) : 1; return <div style={fit < 1 ? { width: siteW * fit, height: siteH ? siteH * fit : undefined, margin: "0 auto" } : undefined}><div ref={siteRef} style={fit < 1 ? { transform: "scale(" + fit + ")", transformOrigin: "top left", width: siteW } : undefined}>
             <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
-              {blocks.length ? blocks.map((b, i) => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""}`} tabIndex={0}>
-                {reviewMode && <span className="cmt-pick" aria-hidden>{commentTarget?.id === b.id ? "Commenting on this" : "Click to comment"}</span>}
+              {blocks.length ? blocks.map((b, i) => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id && !commentTarget.field ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""}`} tabIndex={0}>
+                {reviewMode && <span className="cmt-pick" aria-hidden>{commentTarget?.id === b.id ? "Commenting here" : "Click a text or image to comment"}</span>}
                 {!!commentCounts[b.id] && <button type="button" data-ui className="cmt-badge" title={`${commentCounts[b.id]} comment${commentCounts[b.id] === 1 ? "" : "s"} on this component`} onClick={(e) => { e.stopPropagation(); if (focus) setFloatOpen(true); else { setRightTab("history"); setRight(true); } }}><CommentIcon size={12} />{commentCounts[b.id]}</button>}
                 <span className="tag">{def.name}{b.props.locked ? " · 🔒 locked" : ""}{b.props.hidden ? " · hidden" : ""}</span>
                 {isSel && !preview && <ContextBar block={b} index={i} count={blocks.length} mode={mode} pop={pop} setPop={setPop} clipboard={clipboard} aiSeed={aiSeed}
@@ -560,9 +563,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {rightTab === "block" && selected && !lockReason && <div className="flex justify-end gap-2 px-3.5 py-2.5 border-t border-line bg-surface"><button className="btn btn-sm" onClick={() => closeConfigure(false)}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => { closeConfigure(true); say("Component updated · Save the page when you're done"); }}>Save</button></div>}
         </aside>}
         {focus && <div aria-live="polite" className={`fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-[#0F1013]/85 text-white text-[12px] px-3 py-1.5 rounded-full transition-opacity duration-700 ${fsHint ? "opacity-100" : "opacity-0 pointer-events-none"}`}>Preview · this is what visitors see · press Esc to go back to editing</div>}
-        {focus && reviewMode && <FloatingPanel title="Comments" count={commentTotal} open={floatOpen} onToggle={setFloatOpen} hint={commentTarget ? undefined : "Click a component on the page to comment on it."}
+        {focus && reviewMode && <FloatingPanel title="Comments" count={commentTotal} open={floatOpen} onToggle={setFloatOpen} hint={commentTarget ? undefined : "Click a text, an image or a component on the page to comment on it."}
           actions={<button type="button" className="btn btn-sm" onClick={leavePreview} title="Leave full screen (Esc)">Exit full screen</button>}>
-          <PageComments marketId={marketId} path={page.path} about={null} onClearAbout={() => {}} focusKey={0} {...reviewProps} />
+          <PageComments marketId={marketId} path={page.path} about={null} onClearAbout={() => {}} focusKey={0} bare {...reviewProps} />
         </FloatingPanel>}
         {/* formatting bar over the text being edited (long text fields only) */}
         {editing && inlinePos?.rich && !contentPick && <div data-ui className="fixed z-30 bg-[#0F1013] rounded-lg p-1 shadow-xl" style={{ top: inlinePos.barTop, left: inlinePos.barLeft }}><FormatBar getRoot={getEditingEl} state={fmt} dark lists={inlinePos.lists} /></div>}
