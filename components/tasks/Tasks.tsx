@@ -122,7 +122,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
       if (can("edit", p)) btn("send", "Send to business review", () => run(t, () => status(t, "bizreview"), `${t.page.title} sent to business review`, () => setSharing({ t, stage: "bizreview" })), true);
     } else if (st === "bizreview") {
       change();
-      if (can("edit", p)) btn("share", "Share", () => setSharing({ t, stage: "bizreview" }));
+      if (isAdmin) btn("share", "Share", () => setSharing({ t, stage: "bizreview" }));
       if (can("edit", p) && !(t.assignee === user.id)) btn("remind", "Remind", remind);
       if (can("review", p) || isAdmin) btn("signoff", "Sign off", () => run(t, () => status(t, "approved"), `${t.page.title}: signed off · ready to publish`), true);
     } else if (st === "approved" || st === "scheduled") {
