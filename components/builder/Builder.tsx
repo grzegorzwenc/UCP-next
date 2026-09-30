@@ -14,7 +14,6 @@ import { PublishDialog } from "@/components/pages/PublishDialog";
 import { ModalShell } from "@/components/models/ModalShell";
 import { SendForReviewModal, AssigneeChip, type ReviewBody } from "./SendForReview";
 import { AssetPicker } from "./AssetPicker";
-import { Pill } from "@/components/ui/Pill";
 import { proposeAi, AI_SUGGESTIONS, type AiProposal } from "@/lib/ai/mock";
 import { planFor, revertOp, type Plan, type Change } from "@/lib/ai/planner";
 import { useSession } from "@/components/shell/Session";
@@ -423,7 +422,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             <div className="flex items-center gap-2">
               {saving === "Save failed" ? <button className="hidden sm:inline text-xs text-crit bg-crit-soft rounded-full px-2.5 py-1 hover:underline" onClick={() => save().then(() => say("Saved")).catch(() => {})} title="Your last changes were not saved">Not saved · Retry</button>
                 : <span className="hidden sm:inline text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1" aria-live="polite" title="Changes are saved automatically">{saving === "Unsaved" ? "Saving…" : saving === "Saved just now" || saving === "Saved" ? "✓ Saved" : saving}</span>}
-              {((inAuthor && !mayApprove) || (status === "bizreview" && !mayBizApprove)) && canEdit ? <button type="button" onClick={() => flowClick(status === "bizreview" ? 5 : status === "inreview" ? 3 : 2)} title="Remind the reviewer" className="rounded-full hover:ring-2 hover:ring-info/30"><Pill status={status} /></button> : <Pill status={status} />}
+              {/* the current stage is shown on the stepper below, so no status pill here */}
               {inAuthor && assignee && <span className="hidden sm:contents"><AssigneeChip name={assigneeName} admin={isAdmin} marketId={marketId} pagePath={page.path} meId={user.id} onReassigned={(r) => { setAssignee(r.assignee); say(`Reassigned to ${r.assigneeName}`); router.refresh(); }} /></span>}
             </div>
             {inAuthor && !mayApproveSelf && <span className="hidden sm:inline text-[11px] text-ink-3 whitespace-nowrap pr-1">{status === "inreview" ? `${assigneeName ? assigneeName.split(" ")[0] : "The reviewer"} is reviewing it` : assigneeName ? `Waiting for ${assigneeName.split(" ")[0]} to start` : "Waiting for a reviewer"}{canEdit && <> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => flowClick(3)}>Remind</button> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => setShare(true)}>Share link</button></>}</span>}
