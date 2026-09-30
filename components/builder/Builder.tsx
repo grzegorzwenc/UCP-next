@@ -280,7 +280,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   async function sendForReview(body: ReviewBody) {
     if (dirty) await save();
     const r = await ucpApi.sendForReview(marketId, page.path, body);
-    setSending(false); setAssignee(r.assignee); setStatus("review"); say(`Sent to ${r.assigneeName} for review`); setShare(true); router.refresh();
+    setSending(false); setAssignee(r.assignee); setStatus("review"); say(`Sent to ${r.assigneeName} for review`); router.refresh(); // sharing by link / e-mail is for the business review only
   }
   /* Token chips: while a block is being configured, insert into the last focused Configure field at its caret; otherwise copy. */
   const lastField = useRef<{ blockId: string; k: string; l: string; start: number; end: number } | null>(null);
@@ -425,7 +425,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               {/* the current stage is shown on the stepper below, so no status pill here */}
               {inAuthor && assignee && <span className="hidden sm:contents"><AssigneeChip name={assigneeName} admin={isAdmin} marketId={marketId} pagePath={page.path} meId={user.id} onReassigned={(r) => { setAssignee(r.assignee); say(`Reassigned to ${r.assigneeName}`); router.refresh(); }} /></span>}
             </div>
-            {inAuthor && !mayApproveSelf && <span className="hidden sm:inline text-[11px] text-ink-3 whitespace-nowrap pr-1">{status === "inreview" ? `${assigneeName ? assigneeName.split(" ")[0] : "The reviewer"} is reviewing it` : assigneeName ? `Waiting for ${assigneeName.split(" ")[0]} to start` : "Waiting for a reviewer"}{canEdit && <> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => flowClick(3)}>Remind</button> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => setShare(true)}>Share link</button></>}</span>}
+            {inAuthor && !mayApproveSelf && <span className="hidden sm:inline text-[11px] text-ink-3 whitespace-nowrap pr-1">{status === "inreview" ? `${assigneeName ? assigneeName.split(" ")[0] : "The reviewer"} is reviewing it` : assigneeName ? `Waiting for ${assigneeName.split(" ")[0]} to start` : "Waiting for a reviewer"}{canEdit && <> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => flowClick(3)}>Remind</button></>}</span>}
             {status === "bizreview" && !mayBizSelf && <span className="hidden sm:inline text-[11px] text-ink-3 whitespace-nowrap pr-1">{bizName ? `Waiting for ${bizName.split(" ")[0]} to sign off` : "Waiting for business sign-off"}{canEdit && <> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => flowClick(4)}>Remind</button> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => setShare(true)}>Share link</button></>}</span>}
             {status === "reviewed" && !maySendBiz && <span className="hidden sm:inline text-[11px] text-ink-3 whitespace-nowrap pr-1">Waiting for the author to send it to the business review</span>}
           {(status === "approved" || status === "scheduled") && !mayStatus("published") && <span className="hidden sm:inline text-[11px] text-ink-3 whitespace-nowrap pr-1">Waiting for a publisher</span>}
@@ -534,8 +534,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           <p className="text-[13.5px] mt-2">Sending it back removes the approval. {assigneeName ? `The reviewer, ${assigneeName}, has` : "A reviewer has"} to approve it again before it can go live.</p>
           {status === "scheduled" && publishAt && <p className="text-[13px] bg-warn-soft rounded-md px-3 py-2 mt-3">The scheduled publish on <b>{new Date(publishAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</b> is cancelled.</p>}
         </ModalShell>}
-        {share && (inAuthor || status === "bizreview") && <ShareReviewDialog key={inAuthor ? "review" : status} marketId={marketId} path={page.path} title={title} stage={inAuthor ? "review" : "bizreview"} onClose={() => setShare(false)}
-          onApprove={isAdmin ? () => transition(inAuthor ? "reviewed" : "approved", inAuthor ? `Marked reviewed on behalf of ${assigneeName || "the reviewer"}` : "Signed off as site admin · ready to publish") : undefined} />}
+        {share && status === "bizreview" && <ShareReviewDialog key={status} marketId={marketId} path={page.path} title={title} stage="bizreview" onClose={() => setShare(false)}
+          onApprove={isAdmin ? () => transition("approved", "Signed off as site admin · ready to publish") : undefined} />}
         {publishing && <PublishDialog marketId={marketId} envName={envName} pages={[{ path: page.path, title, status, publishAt }]} mayPublish={() => mayStatus("published")} onClose={() => setPublishing(false)}
           onDone={(r, m) => { const x = r[0]; setPublishing(false); if (!x?.ok) { say(x?.reason ?? "Nothing was published"); return; } setStatus(x.status as PageStatus); setPublishAt(undefined); say(m === "cancel" ? "Schedule cancelled · back to Approved" : m === "schedule" ? "Scheduled for publishing" : `Published to ${envName}`); router.refresh(); }} />}
         {sending && <SendForReviewModal marketId={marketId} pagePath={page.path} meId={user.id} onClose={() => setSending(false)} onSend={sendForReview} />}
