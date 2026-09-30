@@ -243,7 +243,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
           const items = v.id === "published" ? [] : rows.filter((t) => v.of(t, ofMe)); const mine = pub.filter((x) => x.whoId === user.id);
           const n = v.id === "published" ? mine.length : items.length;
           const head = <h3 className="flex items-center gap-2.5"><button type="button" onClick={() => openView(v.id)} title={`Open the ${v.label} tab`} className={`pill pill-${st} text-[12.5px] px-3 py-1 hover:underline underline-offset-2 ${n ? "" : "opacity-60"}`}>{v.label}</button><span className="text-[13px] text-ink-3">{n} page{n === 1 ? "" : "s"}</span></h3>;
-          return { key: v.id, head, parts: v.id === "published" ? [{ label: isAdmin ? "Yours" : undefined, rows: mine.map(pubRow), empty: "Nothing of yours published recently." }] : splitParts(items, "No actions for you at this step.") };
+          return { key: v.id, head, parts: v.id === "published" ? [{ label: isAdmin ? "Yours" : undefined, rows: mine.map(pubRow), empty: "Nothing of yours published recently." }] : v.id === "backlog" ? [{ rows: sortTasks(items).map(taskRow), empty: "No page is waiting for a reviewer." }] /* one shared bucket, nobody's yet */ : splitParts(items, "No actions for you at this step.") };
         }))
         : view === "backlog" ? (rows.length ? board([{ key: "b", parts: [{ rows: sortTasks(rows).map(taskRow) }] }]) : empty(cur.empty))
         : view !== "published" ? (rows.length ? board([{ key: "s", parts: splitParts(rows, "Nothing of yours at this stage.") }]) : empty(cur.empty))
