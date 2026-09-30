@@ -179,3 +179,8 @@ body.focus .cms-shell > div { grid-template-columns: 1fr; }
 .review-pick .cardv, .review-pick .s-icons svg { cursor: pointer; }
 .review-pick .cardv:hover, .review-pick .s-icons svg:hover, .review-pick .s-mast:hover:not(:has(.ie:hover)) { outline: 2px solid rgba(219,0,17,.55); outline-offset: 2px; }
 .cmt-el { outline: 2px solid #DB0011 !important; outline-offset: 2px; border-radius: 2px; } .ie.cmt-el { background: rgba(219,0,17,.06); }
+
+/* the picked text / image slides into the comment box */
+@keyframes cmt-card-in { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
+.cmt-card-in { animation: cmt-card-in .22s ease-out; }
+@media (prefers-reduced-motion: reduce) { .cmt-card-in { animation: none; } }

@@ -8,7 +8,7 @@ import { errorText } from "@/lib/api/errors";
 import { Avatar } from "@/components/ui/Avatar";
 import { Pill } from "@/components/ui/Pill";
 import { relativeTime } from "@/components/builder/VersionHistory";
-import { BlockChip } from "@/components/builder/PageComments";
+import { TargetCard } from "@/components/builder/PageComments";
 import { FloatingPanel } from "./FloatingPanel";
 import { BLOCK_BY_TYPE } from "@/lib/blocks/registry";
 import { pickAt, flash, markTarget, type PickTarget } from "@/lib/review/pick";
@@ -91,16 +91,16 @@ export function ReviewScreen(p: Props) {
             : <button className="btn btn-next btn-sm mt-2" disabled={busy} onClick={approve}>Sign off</button>}</div>}
         {done && <p role="status" className="text-[13px] bg-good-soft text-good rounded-md px-3 py-2">✓ {done}</p>}
         {p.open ? <div className="border border-line-2 rounded-lg bg-surface focus-within:border-ink-3">
-          {target && <div className="flex items-center gap-2 px-2.5 pt-2 text-[11.5px]"><span className="text-ink-3 flex-none">About</span><BlockChip block={target} onShow={show} /><button type="button" className="text-ink-3 hover:text-ink flex-none" onClick={() => setTarget(null)} aria-label="Not about a component">✕</button></div>}
+          {target && <div className="p-2 pb-0"><TargetCard key={`${target.id}|${target.field ?? ""}`} target={target} onShow={show} onClear={() => setTarget(null)} /></div>}
           {guest && <div className="grid grid-cols-2 gap-2 p-2 pb-0"><input value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" aria-label="Your name" suppressHydrationWarning className="border border-line-2 rounded-md px-2 py-1.5 text-[13px]" /><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Your e-mail" aria-label="Your e-mail" suppressHydrationWarning className="border border-line-2 rounded-md px-2 py-1.5 text-[13px]" /></div>}
-          <textarea ref={box} rows={3} value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} placeholder={target ? `What should change in ${target.label}?` : "Click a component on the page, or write a general comment…"} aria-label="Your comment" onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void post(); } }} className="block w-full resize-y bg-transparent px-2.5 py-2 text-[13.5px] outline-none" />
+          <textarea ref={box} rows={3} value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} placeholder={target ? "What should change here?" : "Click a component on the page, or write a general comment…"} aria-label="Your comment" onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void post(); } }} className="block w-full resize-y bg-transparent px-2.5 py-2 text-[13.5px] outline-none" />
           <div className="flex items-center gap-2 px-2 pb-2"><span className="text-[11px] text-ink-4">{p.user ? `Commenting as ${p.user.name}` : "Your name is shown with the comment"}</span><button className="btn btn-sm btn-primary ml-auto" disabled={!canPost || busy} onClick={post}>{busy ? "Posting…" : "Post comment"}</button></div>
         </div> : null}
         {err && <p className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</p>}
         {!sorted.length ? <p className="text-[13px] text-ink-3">No comments yet.</p> : <ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5">{sorted.map((c) => <li key={c.id} className={`min-w-0 rounded-lg border px-2.5 py-2 ${c.pinned ? "border-warn/40 bg-warn-soft/60" : "border-line"}`}>
           <div className="flex items-start gap-2"><Avatar name={c.whoName} size={24} /><div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 text-[12px]"><b className="font-semibold">{c.whoName}</b>{c.guest && <span className="text-[10.5px] rounded-full bg-surface-3 px-1.5 text-ink-3">guest</span>}<time className="text-ink-3" dateTime={c.time} suppressHydrationWarning>{relativeTime(c.time)}</time>{c.pinned && <span className="text-[10.5px] font-semibold uppercase tracking-[.06em] text-warn">Pinned</span>}</div>
-            {c.block && <div className="mt-1"><BlockChip block={c.block} onShow={show} /></div>}
+            {c.block && <TargetCard target={c.block} onShow={show} compact />}
             {c.stage && <div className="text-[11px] text-info mt-0.5">During the {c.stage === "review" ? "author's review" : "business review"}</div>}
             <p className="mt-0.5 text-[13px] whitespace-pre-wrap break-words">{c.text}</p></div></div></li>)}</ul>}
       </div>
