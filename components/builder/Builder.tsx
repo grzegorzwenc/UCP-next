@@ -26,7 +26,8 @@ import { useConfirm } from "@/components/ui/Confirm";
 import { ReviewedChoice } from "@/components/tasks/ReviewedChoice";
 import { FloatingPanel, CommentIcon } from "@/components/review/FloatingPanel";
 import { DecisionOverlay } from "@/components/review/DecisionOverlay";
-import { pickAt, flash, markTarget, type PickTarget } from "@/lib/review/pick";
+import { pickAt, flash, markTarget, findTarget, type PickTarget } from "@/lib/review/pick";
+import { QualityChecklist, type QcTarget } from "./QualityChecklist";
 import { PageComments } from "@/components/builder/PageComments";
 import { FormatBar, RichField, useFormatState, prepareEditable } from "./RichTextEditor";
 import { normalizeRich, cellSafe, toPlain } from "@/lib/blocks/richtext";
@@ -135,7 +136,11 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({}); const [commentTotal, setCommentTotal] = useState(0);
   const [commentAbout, setCommentAbout] = useState<{ id: string; label: string } | null>(null); const [commentFocus, setCommentFocus] = useState(0); // "Comment" on a version
   const [floatOpen, setFloatOpen] = useState(true); // full screen: the floating comments card
+  /* Author's preview (Build the page → Preview): a quality checklist that follows the pointer; a click pins what it shows */
+  const [qcTarget, setQcTarget] = useState<QcTarget | null>(null); const [qcPinned, setQcPinned] = useState(false); const [qcOpen, setQcOpen] = useState(true);
+  const qcMode = focus && canEdit && (status === "draft" || status === "failed");
   useEffect(() => { markTarget(canvasRef.current, commentTarget); }, [commentTarget, focus, blocks]); // outline the picked text or asset
+  useEffect(() => { const root = canvasRef.current; root?.querySelectorAll(".qc-on").forEach((e) => e.classList.remove("qc-on")); if (qcMode && qcTarget) findTarget(root, qcTarget)?.classList.add("qc-on"); }, [qcMode, qcTarget, blocks]); // outline what the checklist shows
   if (reviewSeen !== reviewMode) { setReviewSeen(reviewMode); if (reviewMode && !phone) { setRightTab("comments"); setRight(true); } if (!reviewMode) setCommentTarget(null); }
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(null), 2200); };
   /** In review only the assigned reviewer (or a site admin) approves; unassigned legacy reviews fall back to the Review permission. */
@@ -383,7 +388,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         let r: Range | null = doc.caretRangeFromPoint?.(at.x, at.y) ?? null; if (!r && doc.caretPositionFromPoint) { const p = doc.caretPositionFromPoint(at.x, at.y); if (p) { r = document.createRange(); r.setStart(p.offsetNode, p.offset); r.collapse(true); } }
         if (r && el.contains(r.startContainer)) { const sel = window.getSelection(); sel?.removeAllRanges(); sel?.addRange(r); } } }, 0); }
   }
+  const qcAt = (el: HTMLElement): QcTarget | null => { const t = pickAt(el, blockName); if (!t) return null; const kind = t.field?.startsWith("asset:") ? "image" : t.field ? "text" : "block"; const node = findTarget(canvasRef.current, t); return { id: t.id, field: t.field, kind, text: kind === "text" ? node?.innerText.trim().slice(0, 300) : undefined }; };
+  function onCanvasMove(e: React.MouseEvent) { if (!qcMode || qcPinned) return; const t = qcAt(e.target as HTMLElement); if ((t?.id ?? "") + (t?.field ?? "") !== (qcTarget?.id ?? "") + (qcTarget?.field ?? "")) setQcTarget(t); }
   function onCanvasClick(e: React.MouseEvent) {
+    if (qcMode) { const t = qcAt(e.target as HTMLElement); e.preventDefault(); if (qcPinned && (!t || (t.id === qcTarget?.id && t.field === qcTarget?.field))) { setQcPinned(false); } else if (t) { setQcTarget(t); setQcPinned(true); setQcOpen(true); } return; }
     if (reviewMode) { const t = e.target as HTMLElement; if (t.closest("[data-ui]")) return; if (t.closest(".cblk")) { e.preventDefault(); pickForComment(t); } return; }
     if (preview) return;
     const t = e.target as HTMLElement; if (t.closest("[data-ui]")) return;
@@ -517,7 +525,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
       <div className="relative min-h-0 overflow-hidden bg-bg">
         <div className={`absolute inset-0 flex flex-col ${preview ? "preview" : ""}`}>
           {!focus && <div className="flex items-center gap-3 px-6 py-2 text-[12.5px] text-ink-3 border-b border-line bg-surface-2" style={{ paddingLeft: padL, paddingRight: padR }}><span className="mr-auto truncate" title={hint}>{hint}</span>{reviewMode && (status !== "bizreview" || bizAssigned) && <span className="flex-none">{feedbackBtn}</span>} {/* not while it waits for a business reviewer */}<span className="border border-line-2 rounded px-2 py-0.5 bg-surface whitespace-nowrap">1:1 · {device === "desktop" ? 1200 : device === "tablet" ? 768 : 390} px</span></div>}
-          <div ref={canvasRef} className={`${focus ? "flex-1 overflow-auto p-0 bg-white" : "flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
+          <div ref={canvasRef} className={`${focus ? "flex-1 overflow-auto p-0 bg-white" : "flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onMouseMove={onCanvasMove} onMouseLeave={() => { if (!qcPinned) setQcTarget(null); }} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
             {(() => { const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / siteW)) : 1; return <div style={fit < 1 ? { width: siteW * fit, height: siteH ? siteH * fit : undefined, margin: "0 auto" } : undefined}><div ref={siteRef} style={fit < 1 ? { transform: "scale(" + fit + ")", transformOrigin: "top left", width: siteW } : undefined}>
             <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
               {blocks.length ? blocks.map((b, i) => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id && !commentTarget.field ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""}`} tabIndex={0}>
@@ -591,6 +599,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           </div></section>}
           {status === "bizreview" && bizAssigned && mayBizApprove && <h3 className="text-[11px] font-semibold uppercase tracking-[.08em] text-ink-3 mb-2 pt-3 border-t border-line">Comments <span className="normal-case tracking-normal font-normal text-ink-4">· click a text or an image on the page to comment on it</span></h3>}
           <PageComments marketId={marketId} path={page.path} about={null} onClearAbout={() => {}} focusKey={0} bare {...reviewProps} />
+        </FloatingPanel>}
+        {qcMode && <FloatingPanel title="Quality checklist" open={qcOpen} onToggle={setQcOpen} icon={<svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="M3.5 6l1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" /></svg>}
+          hint={qcPinned ? <span className="flex items-center gap-2">Pinned · this stays while you look<button type="button" className="ml-auto underline" onClick={() => { setQcPinned(false); setQcTarget(null); }}>Whole page</button></span> : qcTarget ? "Click to pin it" : undefined}>
+          <QualityChecklist blocks={blocks} meta={insightMeta} url={`https://${domain}${rel}`} templateName={TEMPLATES.find((t) => t.id === page.template)?.name ?? page.template ?? "Page"} target={qcTarget} />
         </FloatingPanel>}
         {decidedB && <DecisionOverlay decision={decidedB.decision} title={title} by={user.name} at={decidedB.at} action={<button className="btn btn-primary" onClick={() => { setDecidedB(null); if (focus) setFocusMode(false); }}>Back to the builder</button>} />}
         {/* formatting bar over the text being edited (long text fields only) */}

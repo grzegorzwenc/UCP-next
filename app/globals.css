@@ -192,3 +192,6 @@ body.focus .cms-shell > div { grid-template-columns: 1fr; }
 .cmt-card-in { animation: cmt-card-in .22s ease-out; }
 @media (prefers-reduced-motion: reduce) { .cmt-card-in { animation: none; } }
 .cblk:has(.cmt-el) .cmt-pick { display: none; }
+
+/* author's preview: the part the quality checklist is showing */
+.qc-on { outline: 2px dashed #376798 !important; outline-offset: 3px; border-radius: 4px; }
