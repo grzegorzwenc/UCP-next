@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { guestMayDecide, createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, setCommentResolved, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
+import { compareSides, guestMayDecide, createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, setCommentResolved, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
 import { can } from "@/lib/ucp/perms";
 import { SESSION_COOKIE, sessionUserId } from "@/lib/server/session";
 import { PATHS } from "@/lib/ucp/paths";
@@ -236,6 +236,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       return problem(new RepoError(404, "Unknown operation", o));
     }
     if (o === "versions" && req.method === "GET") return ok(await listVersions(q.get("path") ?? ""));
+    if (o === "compare" && req.method === "GET") return ok(await compareSides(q.get("path") ?? "", q.get("version") ?? undefined));
     if (o === "versions/restore" && req.method === "POST") { const { id } = await req.json(); const path = q.get("path") ?? ""; const u = await me(); await snapshotVersion(path, "before restore", u.id); await restoreVersion(path, id); await logEvent(mid, { type: "content", text: `restored version ${id} of ${path.split("/").pop()}`, target: path, requestId: rid }); return ok({ ok: true }); }
     if (o === "me") return ok(await me());
     if (o === "assets") return ok(await listAssets(mid));

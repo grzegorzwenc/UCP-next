@@ -257,6 +257,24 @@ export async function snapshotVersion(path: string, note: string, who: string): 
   try { await repo().createNode(`${VER(path)}/${id}`, "nt:unstructured", { "ucp:time": time, "ucp:who": who, "ucp:note": note, "ucp:title": v.title, "ucp:status": v.status, "ucp:components": JSON.stringify(v.components) });
     const all = await listVersions(path); for (const old of all.slice(20)) await repo().deleteNode(`${VER(path)}/${old.id}`).catch(() => {}); } catch { /* backends without version nodes keep no history */ }
 }
+/** What customers see: a copy of the page taken when it goes live, so later edits can be compared with it. */
+export async function keepLive(path: string): Promise<void> {
+  const p = await repo().getPage(path); if (!p) return;
+  await repo().setProps(`${path}/jcr:content`, { "ucp:liveComponents": JSON.stringify(p.components ?? []), "ucp:liveTitle": p.title, "ucp:liveAt": new Date().toISOString() });
+}
+export type CompareSide = { label: string; title: string; components: unknown[]; time?: string; who?: string };
+/** Authoring (the current draft or a saved version) next to the live page. No live page (never published) → live is null. */
+export async function compareSides(path: string, versionId?: string): Promise<{ live: CompareSide | null; authoring: CompareSide; versions: PageVersion[] }> {
+  const p = await repo().getPage(path); if (!p) throw new RepoError(404, "Page not found", path);
+  const m = p.meta ?? {}; const raw = typeof m["ucp:liveComponents"] === "string" ? String(m["ucp:liveComponents"]) : "";
+  const publishedAt = str(m["ucp:publishedAt"]) || str(m["ucp:liveAt"]) || undefined; const by = str(m["ucp:publishedBy"]);
+  const live: CompareSide | null = raw ? { label: "Live", title: str(m["ucp:liveTitle"]) || p.title, components: json(raw, []), time: publishedAt, who: by ? await userName(by) : undefined }
+    : p.status === "published" ? { label: "Live", title: p.title, components: p.components ?? [], time: publishedAt, who: by ? await userName(by) : undefined } : null;
+  const versions = await listVersions(path);
+  let authoring: CompareSide = { label: "Current draft", title: p.title, components: p.components ?? [], time: p.lastModified, who: p.lastModifiedBy ? await userName(p.lastModifiedBy) : undefined };
+  if (versionId && versionId !== "current") { const n = await repo().getNode(`${VER(path)}/${versionId}`, 0); if (!n) throw new RepoError(404, "Version not found"); authoring = { label: "Saved version", title: str(n.properties["ucp:title"]) || p.title, components: json(n.properties["ucp:components"], []), time: str(n.properties["ucp:time"]), who: await userName(str(n.properties["ucp:who"])) }; }
+  return { live, authoring, versions };
+}
 export async function restoreVersion(path: string, id: string): Promise<void> {
   const n = await repo().getNode(`${VER(path)}/${id}`, 0); if (!n) throw new Error("Version not found");
   await repo().saveComponents(path, json(n.properties["ucp:components"], [])); const title = str(n.properties["ucp:title"]); if (title) await repo().updateContent(path, { title });
@@ -456,7 +474,7 @@ export async function publishPages(marketId: string, paths: string[], opts: { at
       out.push({ ...r, ok: true, status: "scheduled" });
     } else {
       await snapshotVersion(path, "before: published", u.id);
-      await repo().updateContent(path, { status: "published" }); await repo().setProps(`${path}/jcr:content`, { "ucp:publishAt": null, "ucp:publishedAt": stamp, "ucp:publishedBy": u.id, "ucp:sentBy": u.id, "ucp:sentAt": stamp, "ucp:due": null });
+      await repo().updateContent(path, { status: "published" }); await repo().setProps(`${path}/jcr:content`, { "ucp:publishAt": null, "ucp:publishedAt": stamp, "ucp:publishedBy": u.id, "ucp:sentBy": u.id, "ucp:sentAt": stamp, "ucp:due": null }); await keepLive(path);
       await logEvent(marketId, { type: "publishing", who: u.id, text: `published ${pg.title}`, target: path });
       out.push({ ...r, ok: true, status: "published" });
     }
@@ -469,7 +487,7 @@ export async function publishDue(marketId: string): Promise<number> {
   for (const p of await allPages(mk.root).catch(() => [])) {
     const at = typeof p.meta?.["ucp:publishAt"] === "string" ? Date.parse(String(p.meta["ucp:publishAt"])) : NaN;
     if (p.status !== "scheduled" || isNaN(at) || at > now) continue;
-    await repo().updateContent(p.path, { status: "published" }); await repo().setProps(`${p.path}/jcr:content`, { "ucp:publishAt": null, "ucp:publishedAt": new Date().toISOString(), "ucp:publishedBy": "system" });
+    await repo().updateContent(p.path, { status: "published" }); await repo().setProps(`${p.path}/jcr:content`, { "ucp:publishAt": null, "ucp:publishedAt": new Date().toISOString(), "ucp:publishedBy": "system" }); await keepLive(p.path);
     await logEvent(marketId, { type: "publishing", who: "system", text: `published ${p.title} (scheduled)`, target: p.path }); n++;
   }
   return n;

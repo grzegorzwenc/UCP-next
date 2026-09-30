@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { PublishDialog } from "@/components/pages/PublishDialog";
+import { CompareView } from "@/components/pages/CompareView";
 import { env } from "@/lib/markets";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ui/Confirm";
@@ -26,6 +27,7 @@ const BAR_ICONS: Record<string, string[]> = {
   lock: ["M6 11h12v9H6z", "M8.5 11V8a3.5 3.5 0 0 1 7 0v3", "M12 15v2"],
   unlock: ["M6 11h12v9H6z", "M8.5 11V8a3.5 3.5 0 0 1 6.8-1.2", "M12 15v2"],
   copy: ["M9 9h11v11H9z", "M15 9V4H4v11h5"],
+  compare: ["M4 5h7v14H4z", "M13 5h7v14h-7z", "M7 9h1M7 12h1M16 9h1M16 12h1"],
   restore: ["M4 12a8 8 0 1 0 2.4-5.7", "M4 4v4.5h4.5", "M12 8v4l2.5 2"],
   move: ["M3 6h6l2 2h10v11H3z", "M11 13.5h6", "M14.5 11l2.5 2.5-2.5 2.5"],
   delete: ["M5 7h14", "M10 11v6", "M14 11v6", "M6.5 7l1 13h9l1-13", "M9 7V4h6v3"],
@@ -121,6 +123,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
   const [limit, setLimit] = useState(PAGE); const [seenKey, setSeenKey] = useState(q + "|" + folder.path); if (seenKey !== q + "|" + folder.path) { setSeenKey(q + "|" + folder.path); setLimit(PAGE); }
   const canEditHere = can("edit", folder.path);
   const [modal, setModal] = useState<Modal | null>(openNew ? { kind: "new" } : null);
+  const [comparing, setComparing] = useState<string | null>(null); // page path shown in Compare with live
   const [title, setTitle] = useState(""); const [slug, setSlug] = useState(""); const [tpl, setTpl] = useState(newTemplate && templates.some((t) => t.id === newTemplate) ? newTemplate : templates.some((t) => t.id === "product") ? "product" : templates[0]?.id ?? "blank"); const [parent, setParent] = useState(folder.path); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
   const [sel, setSel] = useState<string[]>([]); const [toast, setToast] = useState<string | null>(null);
   const crumbs = useMemo(() => { const segs = rel(folder.path).split("/").filter(Boolean); return segs.map((s, i) => ({ name: s, path: root + "/" + segs.slice(0, i + 1).join("/") })); }, [folder.path, root]);
@@ -242,6 +245,8 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
           {canEditSelected ? <>{(() => { const pagesSel = selected.filter((p) => !p.isFolder); const allLocked = pagesSel.length > 0 && pagesSel.every((p) => lockOf(p)); return <button className={barBtn} style={barStyle} disabled={!pagesSel.length} onClick={() => void setLock(pagesSel, !allLocked)} title={allLocked ? "Let people change these pages again" : "Nobody else can change, move or delete them until they are unlocked"}><BarIcon n={allLocked ? "unlock" : "lock"} />{allLocked ? "Unlock" : "Lock"}</button>; })()}
           <button className={barBtn} style={barStyle} disabled={!selected.some((p) => !p.isFolder)} onClick={() => { openModal({ kind: "copy", pages: selected.filter((p) => !p.isFolder) }); setParent(folder.path); }} title="Copy the pages to a folder"><BarIcon n="copy" />Copy</button>
           <button className={barBtn} style={barStyle} disabled={!selected.some((p) => !p.isFolder)} onClick={() => void restoreLast(selected)} title="Go back to the last saved version"><BarIcon n="restore" />Restore</button>
+          {(() => { const one = selected.length === 1 && !selected[0].isFolder ? selected[0] : null; const live = !!one && (one.status === "published" || typeof one.meta?.["ucp:liveComponents"] === "string" || typeof one.meta?.["ucp:publishedAt"] === "string");
+            return <button className={barBtn} style={barStyle} disabled={!live} onClick={() => one && setComparing(one.path)} title={!one ? "Pick one page to compare" : live ? "Compare an authoring version with the live page" : "Not published yet · nothing to compare"}><BarIcon n="compare" />Compare</button>; })()}
           <span className="w-px h-5 bg-white/20" aria-hidden />
           <button className={barBtn} style={barStyle} onClick={() => { openModal({ kind: "move", pages: selected }); setParent(folder.path === root ? root : parentOf(folder.path)); }}><BarIcon n="move" />Move</button>
           <button className={barBtn} style={barStyle} onClick={() => remove(selected)}><BarIcon n="delete" />Delete</button></> : <span className="text-white/60 text-[12px]">Lock, copy, restore, move and delete need Edit on every selected item</span>}
@@ -265,6 +270,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
         <label className="text-xs text-ink-3">New title<input autoFocus className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && title.trim()) rename(); }} /></label>
         <div className="mt-2 text-[12px] text-ink-3">The URL <span className="font-mono">{rel(modal.page.path)}</span> stays the same.</div><Err err={err} /></ModalShell>}
 
+      {comparing && <CompareView marketId={marketId} marketName={marketName} path={comparing} onClose={() => setComparing(null)} />}
       {modal?.kind === "copy" && <ModalShell title={modal.pages.length === 1 ? `Copy “${modal.pages[0].title}”` : `Copy ${modal.pages.length} pages`} width={460} onClose={() => setModal(null)} footer={<><button className="btn" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={copyTo}>{busy ? "Copying…" : "Copy here"}</button></>}>
         <label className="text-xs text-ink-3">Copy to folder<FolderSelect value={parent} onChange={setParent} root={root} marketName={marketName} tree={tree} rel={rel} exclude={[]} /></label>
         <p className="mt-2 text-[12px] text-ink-3">The copies start as drafts with the same components. In the same folder they are named “… (copy)”.</p>

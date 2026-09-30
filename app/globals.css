@@ -195,3 +195,10 @@ body.focus .cms-shell > div { grid-template-columns: 1fr; }
 
 /* author's preview: the part the quality checklist is showing */
 .qc-on { outline: 2px dashed #376798 !important; outline-offset: 3px; border-radius: 4px; }
+
+/* Compare with live: what differs is outlined on both pages */
+.cmp-added { outline: 3px solid #00847F; outline-offset: -3px; } .cmp-changed { outline: 3px solid #E08A00; outline-offset: -3px; }
+.cmp-removed { outline: 3px solid #DB0011; outline-offset: -3px; } .cmp-moved { outline: 3px dashed #4D6474; outline-offset: -3px; }
+.cmp-tag { position: absolute; top: 0; right: 0; z-index: 3; color: #fff; font: 600 12px/1 system-ui, sans-serif; padding: 5px 9px; border-radius: 0 0 0 6px; }
+.cmp-tag-added { background: #00847F; } .cmp-tag-changed { background: #E08A00; } .cmp-tag-removed { background: #DB0011; } .cmp-tag-moved { background: #4D6474; }
+.preview .cblk.cmp-added, .preview .cblk.cmp-changed, .preview .cblk.cmp-removed, .preview .cblk.cmp-moved { border-color: transparent !important; }

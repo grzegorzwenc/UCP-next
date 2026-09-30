@@ -53,6 +53,7 @@ export const ucpApi = {
   pinComment: (market: string, path: string, id: string, pinned: boolean) => U<PageComment[]>("comments/pin", { method: "POST", query: { market, path }, body: JSON.stringify({ id, pinned }) }),
   resolveComment: (market: string, path: string, id: string, resolved: boolean) => U<PageComment[]>("comments/resolve", { method: "POST", query: { market, path }, body: JSON.stringify({ id, resolved }) }),
   deleteComment: (market: string, path: string, id: string) => U<PageComment[]>("comments/delete", { method: "POST", query: { market, path }, body: JSON.stringify({ id }) }),
+  compare: (path: string, version?: string) => U<{ live: { label: string; title: string; components: unknown[]; time?: string; who?: string } | null; authoring: { label: string; title: string; components: unknown[]; time?: string; who?: string }; versions: { id: string; time: string; who: string; note: string; title: string; status: string; blocks: number }[] }>("compare", { query: { path, version } }),
   versions: (path: string) => U<{ id: string; time: string; who: string; note: string; title: string; status: string; blocks: number }[]>("versions", { query: { path } }),
   restoreVersion: (market: string, path: string, id: string) => U<{ ok: true }>("versions/restore", { method: "POST", query: { market, path }, body: JSON.stringify({ id }) }),
   /* content models (admin-only mutations; the server refuses others with 403) */
