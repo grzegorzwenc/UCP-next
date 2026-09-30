@@ -162,3 +162,13 @@ body.focus .cms-shell > div { grid-template-columns: 1fr; }
 .rti a { color: #DB0011; text-decoration: underline; text-underline-offset: 2px; } .rti strong { font-weight: 700; } .rti em { font-style: italic; } .rti u { text-decoration: underline; }
 .s-cta .rti a, .hs-lnk .rti a { color: inherit; }
 .rte-line:empty::before { content: " "; }
+
+/* Review stages: click a component to comment on it */
+.review-pick .cblk { cursor: pointer; }
+.review-pick .cblk:hover { border-color: #376798 !important; }
+.cblk.cmt-target { border-color: #DB0011 !important; box-shadow: 0 0 0 4px rgba(219,0,17,.12) !important; }
+.cmt-pick { position: absolute; top: -1px; right: -2px; z-index: 3; background: #376798; color: #fff; font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 0 4px 0 6px; opacity: 0; pointer-events: none; transition: opacity .15s; }
+.review-pick .cblk:hover .cmt-pick { opacity: 1; } .cblk.cmt-target .cmt-pick { opacity: 1; background: #DB0011; }
+.cmt-badge { position: absolute; top: 8px; left: 8px; z-index: 4; display: inline-flex; align-items: center; gap: 3px; background: #DB0011; color: #fff; font-size: 11px; font-weight: 700; padding: 3px 7px; border-radius: 999px; box-shadow: 0 2px 6px rgba(0,0,0,.2); cursor: pointer; }
+@keyframes cmt-flash { 0%, 100% { box-shadow: 0 0 0 0 rgba(219,0,17,0); } 30% { box-shadow: 0 0 0 6px rgba(219,0,17,.35); } }
+.cblk.cmt-flash { animation: cmt-flash 1.4s ease-out 1; border-color: #DB0011 !important; }

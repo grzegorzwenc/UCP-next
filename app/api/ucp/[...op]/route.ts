@@ -81,11 +81,11 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     if (o === "review/comment" && req.method === "POST") {
       const token = q.get("token") ?? ""; const hit = await reviewByToken(token); if (!hit) return problem(new RepoError(404, "This review link does not exist"));
       if (!hit.open) return problem(new RepoError(409, "This review is finished", "The page has moved on; ask the author for a new link"));
-      const b = await req.json() as { text?: string; name?: string; email?: string }; const signed = await sessionUserId();
+      const b = await req.json() as { text?: string; name?: string; email?: string; block?: { id: string; label: string } }; const signed = await sessionUserId();
       const name = (b.name ?? "").trim().slice(0, 80); const mail = (b.email ?? "").trim().slice(0, 120);
       if (!signed && (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail))) return problem(new RepoError(400, "Add your name and e-mail so the team knows who commented"));
       const who = signed ? await me() : { id: `guest:${mail.toLowerCase()}`, name };
-      const r = await addComment(hit.page.path, who, b.text ?? "", undefined, { stage: hit.link.stage, guest: !signed });
+      const r = await addComment(hit.page.path, who, b.text ?? "", undefined, { stage: hit.link.stage, guest: !signed, block: b.block });
       await logEvent(hit.marketId, { type: "content", who: signed ? undefined : "system", text: `${signed ? "" : `${name} (${mail}) `}commented during ${STAGE_LABEL[hit.link.stage].toLowerCase()} of ${hit.page.title}: “${String(b.text ?? "").trim().slice(0, 60)}”`, target: hit.page.path, requestId: rid });
       return ok(r);
     }
@@ -191,8 +191,8 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       if (!can(u, "read", path, root)) return problem(new RepoError(403, "You can't see this page", `Signed in as ${u.name}`));
       if (o === "comments" && req.method === "GET") return ok(await listComments(path));
       if (!(admin || can(u, "edit", path, root) || can(u, "review", path, root))) return problem(new RepoError(403, "Only people who edit or review this page can comment"));
-      const b = await req.json() as { text?: string; version?: { id: string; label: string }; id?: string; pinned?: boolean };
-      if (o === "comments/add") { const r = await addComment(path, u, b.text ?? "", b.version); const pg = await repo().getPage(path); await logEvent(mid, { type: "content", text: `commented on ${pg?.title ?? path}: “${String(b.text ?? "").trim().slice(0, 60)}”`, target: path, requestId: rid }); return ok(r); }
+      const b = await req.json() as { text?: string; version?: { id: string; label: string }; block?: { id: string; label: string }; id?: string; pinned?: boolean };
+      if (o === "comments/add") { const st = (await repo().getPage(path))?.status; const r = await addComment(path, u, b.text ?? "", b.version, { block: b.block, stage: st === "inreview" || st === "review" ? "review" : st === "bizreview" ? "bizreview" : undefined }); const pg = await repo().getPage(path); await logEvent(mid, { type: "content", text: `commented on ${pg?.title ?? path}: “${String(b.text ?? "").trim().slice(0, 60)}”`, target: path, requestId: rid }); return ok(r); }
       if (o === "comments/pin") return ok(await setCommentPin(path, u, b.id ?? "", !!b.pinned));
       if (o === "comments/delete") return ok(await deleteComment(path, u, b.id ?? "", admin));
       return problem(new RepoError(404, "Unknown operation", o));

@@ -7,7 +7,7 @@ import { Pill } from "@/components/ui/Pill";
 import { PageComments } from "./PageComments";
 
 type Version = { id: string; time: string; who: string; note: string; title: string; status: string; blocks: number };
-type Props = { marketId: string; path: string; currentBlocks: number; onRestored: () => void };
+type Props = { marketId: string; path: string; currentBlocks: number; onRestored: () => void; review?: Pick<React.ComponentProps<typeof PageComments>, "target" | "onClearTarget" | "onShowBlock" | "onList"> };
 
 const errText = (e: unknown) => (e instanceof ApiError ? `${e.problem.title}${e.problem.detail ? ": " + e.problem.detail : ""} · request ${e.requestId ?? "n/a"}` : String(e));
 const whoName = (id: string) => SEED_USERS.find((u) => u.id === id)?.name ?? id.replace(/\./g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -41,7 +41,7 @@ function Row({ v, isLatest, comparing, currentBlocks, onRestore, onComment, busy
   </li>;
 }
 
-export function VersionHistory({ marketId, path, currentBlocks, onRestored }: Props) {
+export function VersionHistory({ marketId, path, currentBlocks, onRestored, review }: Props) {
   const [list, setList] = useState<Version[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<Version | null>(null);
@@ -63,7 +63,7 @@ export function VersionHistory({ marketId, path, currentBlocks, onRestored }: Pr
   }
 
   return <div className="grid gap-3 text-ink">
-    <PageComments marketId={marketId} path={path} about={about} onClearAbout={() => setAbout(null)} focusKey={focusKey} />
+    <PageComments marketId={marketId} path={path} about={about} onClearAbout={() => setAbout(null)} focusKey={focusKey} {...review} />
     <div className="border-t border-line" />
     {/* the panel header already says "Version history" */}
     <header className="grid gap-2">

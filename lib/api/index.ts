@@ -2,7 +2,7 @@ import type { PageView, PageSummary, CreatePageInput, PageContentPatch, Componen
 import type { Task, Notification, Asset, AuditEvent, User, Template, Model, ModelField, ModelVersion, Entity, EntityValues, Bindings, ReviewerOption, TaskKind } from "@/lib/ucp/types";
 import type { ResolvedEntities } from "@/lib/ucp/tokens";
 import { ApiError } from "./types";
-export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string }; stage?: string; guest?: boolean };
+export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string }; stage?: string; guest?: boolean; block?: { id: string; label: string } };
 export * from "./types";
 
 type Query = Record<string, string | number | boolean | undefined>;
@@ -49,7 +49,7 @@ export const ucpApi = {
   logout: () => U<{ ok: true }>("logout", { method: "POST", body: "{}" }),
   /* page comments (Version history panel) */
   comments: (market: string, path: string) => U<PageComment[]>("comments", { query: { market, path } }),
-  addComment: (market: string, path: string, text: string, version?: { id: string; label: string }) => U<PageComment[]>("comments/add", { method: "POST", query: { market, path }, body: JSON.stringify({ text, version }) }),
+  addComment: (market: string, path: string, text: string, version?: { id: string; label: string }, block?: { id: string; label: string }) => U<PageComment[]>("comments/add", { method: "POST", query: { market, path }, body: JSON.stringify({ text, version, block }) }),
   pinComment: (market: string, path: string, id: string, pinned: boolean) => U<PageComment[]>("comments/pin", { method: "POST", query: { market, path }, body: JSON.stringify({ id, pinned }) }),
   deleteComment: (market: string, path: string, id: string) => U<PageComment[]>("comments/delete", { method: "POST", query: { market, path }, body: JSON.stringify({ id }) }),
   versions: (path: string) => U<{ id: string; time: string; who: string; note: string; title: string; status: string; blocks: number }[]>("versions", { query: { path } }),
@@ -86,7 +86,7 @@ export const ucpApi = {
   shareWithGroup: (market: string, path: string, team: string) => U<{ token: string; url: string; members: { id: string; name: string; email: string; canSignOff: boolean }[]; created: boolean }>("review/group", { method: "POST", query: { market, path }, body: JSON.stringify({ team }) }),
   reviewLink: (market: string, path: string, email?: string) => U<{ token: string; stage: "review" | "bizreview"; assigned?: string; url: string }>("review/link", { method: "POST", query: { market, path }, body: JSON.stringify({ email }) }),
   /** Comment from the review screen (signed in, or a guest with name + e-mail). */
-  reviewComment: (token: string, body: { text: string; name?: string; email?: string }) => U<PageComment[]>("review/comment", { method: "POST", query: { token }, body: JSON.stringify(body) }),
+  reviewComment: (token: string, body: { text: string; name?: string; email?: string; block?: { id: string; label: string } }) => U<PageComment[]>("review/comment", { method: "POST", query: { token }, body: JSON.stringify(body) }),
   /** Take a waiting author's review (assign it to yourself). */
   claimBizReview: (market: string, path: string) => U<{ assignee: string; assigneeName: string }>("bizreview/claim", { method: "POST", query: { market, path }, body: "{}" }),
   claimReview: (market: string, path: string) => U<{ assignee: string; assigneeName: string }>("review/claim", { method: "POST", query: { market, path }, body: "{}" }),
