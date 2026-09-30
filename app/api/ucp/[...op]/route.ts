@@ -82,7 +82,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     if (o === "review/remind" && req.method === "POST") {
       const u = await me(); const path = q.get("path") ?? ""; const pg = await repo().getPage(path);
       if (!pg) return problem(new RepoError(404, "Page not found", path));
-      if (pg.status !== "review" && pg.status !== "bizreview") return problem(new RepoError(409, "The page is not in review any more"));
+      if (pg.status !== "review" && pg.status !== "inreview" && pg.status !== "bizreview") return problem(new RepoError(409, "The page is not in review any more"));
       if (!can(u, "edit", path, market(mid).root)) return problem(new RepoError(403, "Only people who edit this page can send reminders", `Signed in as ${u.name}`));
       const last = typeof pg.meta?.["ucp:remindedAt"] === "string" ? Date.parse(String(pg.meta["ucp:remindedAt"])) : 0;
       if (last && Date.now() - last < 15 * 60_000) return problem(new RepoError(429, "A reminder was sent a few minutes ago", "Give the reviewer a moment before sending another"));
@@ -96,7 +96,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       const path = q.get("path") ?? ""; const { assignee, auto } = await req.json() as { assignee?: string; auto?: boolean };
       const pick = auto || !assignee ? await autoAssignee(mid, path, u.id) : (await reviewerOptions(mid, path)).find((o) => o.id === assignee);
       if (!pick) return problem(new RepoError(400, "That person cannot review this page"));
-      const pg = await repo().getPage(path); if (!pg || pg.status !== "review") return problem(new RepoError(409, "The page is not in review"));
+      const pg = await repo().getPage(path); if (!pg || (pg.status !== "review" && pg.status !== "inreview")) return problem(new RepoError(409, "The page is not in review"));
       const prev = typeof pg.meta?.["ucp:assignee"] === "string" ? await userName(String(pg.meta["ucp:assignee"])) : "nobody";
       await repo().setProps(`${path}/jcr:content`, { "ucp:assignee": pick.id, "ucp:assignedBy": u.id, "ucp:sentAt": new Date().toISOString() });
       await logEvent(mid, { type: "content", text: `reassigned the review of ${pg.title} from ${prev} to ${pick.name}`, target: path, requestId: rid });

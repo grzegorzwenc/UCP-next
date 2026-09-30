@@ -13,8 +13,8 @@ export type RepoNode = {
   children?: RepoNode[];        // present when fetched with depth > 0
 };
 
-/** review = author's review (assigned reviewer), reviewed = author's review done (the author sends it on), bizreview = business review (sign-off), approved = ready to publish. */
-export type PageStatus = "draft" | "review" | "reviewed" | "bizreview" | "approved" | "scheduled" | "published" | "failed";
+/** review = waiting for the author's review, inreview = the reviewer took it (in author's review), reviewed = author's review done (the author sends it on), bizreview = business review (sign-off), approved = ready to publish. */
+export type PageStatus = "draft" | "review" | "inreview" | "reviewed" | "bizreview" | "approved" | "scheduled" | "published" | "failed";
 
 /** Component instance = child node of jcr:content/root. `resourceType` maps 1:1 to the block registry. */
 export type ComponentNode = { name: string; resourceType: string; props: NodeProps };

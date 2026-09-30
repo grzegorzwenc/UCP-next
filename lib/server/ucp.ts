@@ -97,7 +97,7 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
   const sender = async (p: PageSummary, fallback: string) => { const s = str(p.meta?.["ucp:sentBy"]); return s ? await userName(s) : fallback; };
   const out: Task[] = [];
   for (const p of pages) {
-    if (p.status === "review") { const t = await mk(p, "Review", "Author's review · review and approve", await sender(p, await userName(p.lastModifiedBy ?? ME))); const a = str(p.meta?.["ucp:assignee"]); if (a) { t.assignee = a; t.assigneeName = await userName(a); } const rm = str(p.meta?.["ucp:remindedAt"]); if (rm) { t.remindedAt = rm; t.remindedBy = await userName(str(p.meta?.["ucp:remindedBy"])); } out.push(t); }
+    if (p.status === "review" || p.status === "inreview") { const t = await mk(p, "Review", p.status === "review" ? "Waiting for author's review · start it" : "In author's review · finish and mark reviewed", await sender(p, await userName(p.lastModifiedBy ?? ME))); const a = str(p.meta?.["ucp:assignee"]); if (a) { t.assignee = a; t.assigneeName = await userName(a); } const rm = str(p.meta?.["ucp:remindedAt"]); if (rm) { t.remindedAt = rm; t.remindedBy = await userName(str(p.meta?.["ucp:remindedBy"])); } out.push(t); }
     else if (p.status === "reviewed") { const by = str(p.meta?.["ucp:authorReviewedBy"]); out.push(await mk(p, "SendBiz", "Author's review done · send to business review", `${by ? await userName(by) : await sender(p, "Rachel Hughes")} (reviewed)`)); }
     else if (p.status === "bizreview") { const by = str(p.meta?.["ucp:authorReviewedBy"]); const t = await mk(p, "BizReview", "Business review · sign off before publishing", `${by ? await userName(by) : await sender(p, "Rachel Hughes")} (author's review done)`); const rm = str(p.meta?.["ucp:remindedAt"]); if (rm) { t.remindedAt = rm; t.remindedBy = await userName(str(p.meta?.["ucp:remindedBy"])); } out.push(t); }
     else if (p.status === "approved") { const by = str(p.meta?.["ucp:approvedBy"]); out.push(await mk(p, "Publish", "Business review done · ready to publish", `${by ? await userName(by) : await sender(p, "Rachel Hughes")} (approved)`)); }
@@ -163,15 +163,16 @@ export const STAGE_LABEL: Record<string, string> = { review: "Author's review", 
  */
 export async function createReviewLink(marketId: string, path: string, u: User, email?: string): Promise<{ token: string; stage: string; assigned?: string; created: boolean }> {
   const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path);
-  if (pg.status !== "review" && pg.status !== "bizreview") throw new RepoError(409, "Send the page for review first");
+  if (pg.status !== "review" && pg.status !== "inreview" && pg.status !== "bizreview") throw new RepoError(409, "Send the page for review first");
+  const stage: "review" | "bizreview" = pg.status === "bizreview" ? "bizreview" : "review";
   const mail = email?.trim().toLowerCase() || undefined; if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) throw new RepoError(400, "That e-mail address does not look right");
   const links = json<ReviewLink[]>(pg.meta?.["ucp:reviewLinks"], []);
-  const reuse = links.find((l) => l.stage === pg.status && (l.email ?? "") === (mail ?? ""));
-  const link: ReviewLink = reuse ?? { token: crypto.randomUUID().replace(/-/g, ""), stage: pg.status, email: mail, by: u.id, at: new Date().toISOString() };
+  const reuse = links.find((l) => l.stage === stage && (l.email ?? "") === (mail ?? ""));
+  const link: ReviewLink = reuse ?? { token: crypto.randomUUID().replace(/-/g, ""), stage, email: mail, by: u.id, at: new Date().toISOString() };
   const props: NodeProps = { "ucp:reviewLinks": JSON.stringify(reuse ? links : [...links, link]) }; let assigned: string | undefined;
   const person = mail ? (await listUsers()).find((x) => x.email.toLowerCase() === mail) : undefined;
   if (person && can(person, "review", path, marketOf(marketId).root)) {
-    if (pg.status === "review") props["ucp:assignee"] = person.id; else { props["ucp:taskAssignee"] = person.id; props["ucp:taskKind"] = "BizReview"; }
+    if (stage === "review") props["ucp:assignee"] = person.id; else { props["ucp:taskAssignee"] = person.id; props["ucp:taskKind"] = "BizReview"; }
     props["ucp:assignedBy"] = u.id; assigned = person.name;
   }
   await repo().setProps(`${path}/jcr:content`, props);
@@ -182,7 +183,7 @@ export async function reviewByToken(token: string) {
   if (!/^[a-f0-9]{32}$/.test(token)) return undefined;
   for (const m of MARKETS) for (const p of await allPages(m.root)) {
     const l = json<ReviewLink[]>(p.meta?.["ucp:reviewLinks"], []).find((x) => x.token === token);
-    if (l) { const page = await repo().getPage(p.path); if (!page) return undefined; return { marketId: m.id, market: m, page, link: l, open: page.status === l.stage }; }
+    if (l) { const page = await repo().getPage(p.path); if (!page) return undefined; return { marketId: m.id, market: m, page, link: l, open: (page.status === "inreview" ? "review" : page.status) === l.stage }; }
   }
   return undefined;
 }
@@ -349,11 +350,11 @@ export async function resolveBindings(b: Bindings, published = false): Promise<R
 /* ---------------- review assignment ---------------- */
 export async function reviewerOptions(marketId: string, pagePath: string, perm: "review" | "publish" = "review"): Promise<ReviewerOption[]> {
   const [users, pages] = await Promise.all([listUsers(), allPages(PATHS.content(marketId))]); const root = marketOf(marketId).root;
-  const active = (id: string) => pages.filter((p) => (p.status === "review" && str(p.meta?.["ucp:assignee"]) === id) || (p.status !== "review" && str(p.meta?.["ucp:taskAssignee"]) === id && str(p.meta?.["ucp:taskKind"]) === KIND_OF_STATUS[p.status])).length;
+  const active = (id: string) => pages.filter((p) => ((p.status === "review" || p.status === "inreview") && str(p.meta?.["ucp:assignee"]) === id) || (p.status !== "review" && p.status !== "inreview" && str(p.meta?.["ucp:taskAssignee"]) === id && str(p.meta?.["ucp:taskKind"]) === KIND_OF_STATUS[p.status])).length;
   return users.filter((u) => can(u, perm, pagePath, root)).map((u) => ({ id: u.id, name: u.name, team: u.team, activeReviews: active(u.id) })).sort((a, b) => a.activeReviews - b.activeReviews || a.name.localeCompare(b.name));
 }
 /** Which task a page status stands for (tasks other than Review keep their assignee in ucp:taskAssignee + ucp:taskKind). */
-export const KIND_OF_STATUS: Record<string, TaskKind> = { review: "Review", bizreview: "BizReview", approved: "Publish", failed: "Fix", scheduled: "Check" };
+export const KIND_OF_STATUS: Record<string, TaskKind> = { review: "Review", inreview: "Review", bizreview: "BizReview", approved: "Publish", failed: "Fix", scheduled: "Check" };
 /** The permission someone needs to take a task of this kind. */
 export const permOfKind = (k: TaskKind): "review" | "publish" => (k === "Review" || k === "BizReview" ? "review" : "publish");
 /** Assignee of a non-review task, only while the page is still in the state that created it. */
@@ -382,7 +383,7 @@ export async function publishPages(marketId: string, paths: string[], opts: { at
       await repo().updateContent(path, { status: "approved" }); await repo().setProps(`${path}/jcr:content`, { "ucp:publishAt": null });
       await logEvent(marketId, { type: "publishing", who: u.id, text: `cancelled the scheduled publish of ${pg.title}`, target: path }); out.push({ ...r, ok: true, status: "approved" }); continue;
     }
-    if (!PUBLISHABLE.includes(pg.status)) { out.push({ ...r, ok: false, reason: pg.status === "published" ? "Already live" : pg.status === "review" ? "Still in author's review" : pg.status === "reviewed" ? "Business review comes next" : pg.status === "bizreview" ? "Still in business review" : "Needs approval first" }); continue; }
+    if (!PUBLISHABLE.includes(pg.status)) { out.push({ ...r, ok: false, reason: pg.status === "published" ? "Already live" : pg.status === "review" || pg.status === "inreview" ? "Still in author's review" : pg.status === "reviewed" ? "Business review comes next" : pg.status === "bizreview" ? "Still in business review" : "Needs approval first" }); continue; }
     const stamp = new Date().toISOString();
     if (schedule) {
       await snapshotVersion(path, "before: scheduled for publishing", u.id);
