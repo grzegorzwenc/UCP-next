@@ -54,12 +54,12 @@ const filesIn = (components: { props: Record<string, unknown> }[], assets: Asset
   const texts = components.flatMap((c) => Object.values(c.props).map((v) => (typeof v === "string" ? v : v && typeof v === "object" ? JSON.stringify(v) : ""))).filter(Boolean);
   return assets.filter((a) => texts.some((t) => t === a.id || t.includes(`/assets/${a.id}`) || t.includes(a.name) || (a.path && t.includes(a.path)))).map((a) => a.id);
 };
-export type FileRef = { id: string; path?: string; name: string; type: string; status: "draft" | "published"; publishedAt?: string; onlyHere?: boolean };
+export type FileRef = { id: string; path?: string; name: string; type: string; status: "draft" | "published"; publishedAt?: string; onlyHere?: boolean; size?: string; folder?: string; /** small preview (images only) */ thumb?: string };
 /** Files used by these pages, with whether they are live yet (for the Publish dialog). */
 export async function filesForPublish(marketId: string, paths: string[]): Promise<FileRef[]> {
   const assets = await listAssets(marketId); const ids = new Set<string>();
   for (const p of paths) { const v = await repo().getPage(p).catch(() => undefined); for (const id of filesIn(v?.components ?? [], assets)) ids.add(id); }
-  return assets.filter((a) => ids.has(a.id)).map((a) => ({ id: a.id, name: a.name, type: a.type, status: a.status, publishedAt: a.publishedAt }));
+  return assets.filter((a) => ids.has(a.id)).map((a) => ({ id: a.id, name: a.name, type: a.type, status: a.status, publishedAt: a.publishedAt, size: a.size, folder: a.folder, thumb: a.type === "image" && a.data && a.data.length < 300_000 ? a.data : undefined }));
 }
 /**
  * What depends on these pages before a move or delete: other pages that link to them (their links would break or need
