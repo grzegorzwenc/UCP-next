@@ -56,6 +56,9 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       if ((patch.status === "reviewed" || patch.status === "inreview") && (before?.status === "review" || before?.status === "inreview") && assigned && assigned !== who.id && !admin) throw new RepoError(403, "Only the assigned reviewer can approve this page", "Reassign the review if someone else should approve it");
       // author's review → business review → ready to publish: the business sign-off cannot be skipped
       if (patch.status === "inreview" && before?.status !== "review") throw new RepoError(409, "Only a page waiting for its author's review can be started");
+      // the author never takes their own page from the Backlog (four eyes)
+      const authorId = String(before?.meta?.["ucp:requestedBy"] || before?.meta?.["ucp:sentBy"] || "");
+      if (patch.status === "inreview" && !assigned && authorId === who.id) throw new RepoError(403, "You wrote this page, so someone else reviews it", "Another reviewer takes it from the Backlog");
       if (patch.status === "bizreview" && (before?.status === "review" || before?.status === "inreview")) throw new RepoError(409, "The author's review comes first", "The reviewer marks it Reviewed; then it can go to the business review");
       if (patch.status === "approved" && (before?.status === "review" || before?.status === "inreview" || before?.status === "reviewed")) throw new RepoError(409, "Business review comes next", "Approve the author's review first; the business review then makes the page ready to publish");
       const bizBy = before?.meta?.["ucp:taskKind"] === "BizReview" ? before?.meta?.["ucp:taskAssignee"] : undefined;

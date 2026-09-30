@@ -6,7 +6,7 @@ import { errorText } from "@/lib/api/errors";
 import { Avatar } from "@/components/ui/Avatar";
 import { ModalShell, Err } from "@/components/models/ModalShell";
 
-export type ReviewBody = { assignee?: string; auto?: boolean; note?: string };
+export type ReviewBody = { note?: string };
 const openTxt = (n: number) => `${n} open review${n === 1 ? "" : "s"}`;
 /** Automatic choice: the reviewer with the fewest open reviews who is not the sender (list comes sorted from the server). */
 export const autoPick = (rs: ReviewerOption[], meId: string) => rs.find((r) => r.id !== meId) ?? rs[0];
@@ -17,35 +17,22 @@ function useReviewers(marketId: string, pagePath: string) {
   return { list, err };
 }
 
-/** Reviewer rows: Avatar, name, team, open reviews. */
-function ReviewerList({ list, value, onPick }: { list: ReviewerOption[]; value: string; onPick: (id: string) => void }) {
-  return <div role="radiogroup" aria-label="Reviewers" className="border border-line rounded-lg divide-y divide-line max-h-60 overflow-auto">{list.map((r) => <label key={r.id} className={`flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-surface-2 ${value === r.id ? "bg-surface-2" : ""}`}>
-    <input type="radio" name="reviewer" className="accent-[#DB0011]" checked={value === r.id} onChange={() => onPick(r.id)} />
-    <Avatar name={r.name} size={26} /><span className="min-w-0 flex-1"><b className="block text-[13px] font-medium truncate">{r.name}</b><span className="block text-[11.5px] text-ink-3 truncate">{r.team || "—"}</span></span>
-    <span className="text-[11.5px] text-ink-3 whitespace-nowrap">{openTxt(r.activeReviews)}</span>
-  </label>)}</div>;
-}
-
-/** "Send page for review": automatic assignment (default) or a chosen reviewer, plus an optional note. */
-export function SendForReviewModal({ marketId, pagePath, meId, onClose, onSend }: { marketId: string; pagePath: string; meId: string; onClose: () => void; onSend: (body: ReviewBody) => Promise<void> }) {
+/** "Send page for review": the page goes to the Backlog, open to every reviewer (nobody is assigned · a reviewer takes it in My tasks), plus an optional note. */
+export function SendForReviewModal({ marketId, pagePath, onClose, onSend }: { marketId: string; pagePath: string; onClose: () => void; onSend: (body: ReviewBody) => Promise<void> }) {
   const { list, err: loadErr } = useReviewers(marketId, pagePath);
-  const [mode, setMode] = useState<"auto" | "pick">("auto"); const [pick, setPick] = useState(""); const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
-  const auto = list ? autoPick(list, meId) : undefined; const none = list !== null && !list.length;
-  const ready = !busy && !none && list !== null && (mode === "auto" || !!pick);
+  const [note, setNote] = useState(""); const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
+  const none = list !== null && !list.length; const ready = !busy && !none && list !== null;
   async function send() {
     if (!ready) return; setBusy(true); setErr(null);
-    try { await onSend(mode === "auto" ? { auto: true, note: note.trim() || undefined } : { assignee: pick, note: note.trim() || undefined }); }
+    try { await onSend({ note: note.trim() || undefined }); }
     catch (e) { setErr(errorText(e)); setBusy(false); }
   }
-  return <ModalShell title="Send page for review" subtitle="The page becomes read-only until the reviewer approves it or someone reopens it." width={520} onClose={() => { if (!busy) onClose(); }}
-    footer={<><button className="btn" onClick={onClose} disabled={busy}>Cancel</button><button className="btn btn-primary" onClick={() => void send()} disabled={!ready}>{busy ? "Sending…" : "Send for review"}</button></>}>
+  return <ModalShell title="Send page for review" subtitle="The page becomes read-only until the review is finished or someone reopens it." width={520} onClose={() => { if (!busy) onClose(); }}
+    footer={<><button className="btn" onClick={onClose} disabled={busy}>Cancel</button><button className="btn btn-primary" onClick={() => void send()} disabled={!ready}>{busy ? "Sending…" : "Send to the Backlog"}</button></>}>
     <div className="flex flex-col gap-3 text-[13px]">
-      <label className={`flex gap-2.5 items-start border rounded-lg p-3 cursor-pointer ${mode === "auto" ? "border-ink" : "border-line"}`}><input type="radio" name="assign" className="mt-0.5 accent-[#DB0011]" checked={mode === "auto"} onChange={() => setMode("auto")} />
-        <span><b className="block font-medium">Assign automatically</b><span className="text-[12px] text-ink-3">{list === null ? "Finding a reviewer…" : auto ? `We pick the reviewer with the fewest open reviews: ${auto.name} (${auto.activeReviews} open)` : "Nobody has Review on this folder yet. Ask a site admin to grant it."}</span></span></label>
-      <label className={`flex gap-2.5 items-start border rounded-lg p-3 cursor-pointer ${mode === "pick" ? "border-ink" : "border-line"}`}><input type="radio" name="assign" className="mt-0.5 accent-[#DB0011]" checked={mode === "pick"} onChange={() => setMode("pick")} disabled={none} />
-        <span><b className="block font-medium">Choose a reviewer</b><span className="text-[12px] text-ink-3">Everyone who can review this page</span></span></label>
-      {mode === "pick" && list && list.length > 0 && <ReviewerList list={list} value={pick} onPick={setPick} />}
+      <div className="border border-line rounded-lg p-3 bg-surface-2"><b className="block font-medium">It goes to the Backlog · open to all reviewers</b>
+        <span className="block text-[12px] text-ink-3 mt-0.5">{list === null ? "Checking who can review it…" : none ? "Nobody has Review on this folder yet. Ask a site admin to grant it." : `Nobody is assigned. Any of the ${list.length} reviewer${list.length === 1 ? "" : "s"} who can review this page takes it from My tasks → Backlog.`}</span>
+        {list && list.length > 0 && <span className="flex items-center gap-1 mt-2" aria-label="Reviewers who can take it">{list.slice(0, 8).map((r) => <span key={r.id} title={r.name}><Avatar name={r.name} size={22} /></span>)}{list.length > 8 && <span className="text-[11.5px] text-ink-3 ml-1">+{list.length - 8}</span>}</span>}</div>
       <label className="text-xs text-ink-2 font-medium">Note for the reviewer <span className="font-normal text-ink-3">(optional)</span><textarea rows={3} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] font-normal text-ink bg-surface" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What should they look at?" /></label>
       <Err err={err ?? loadErr} />
     </div>

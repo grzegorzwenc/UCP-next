@@ -80,7 +80,7 @@ export const ucpApi = {
   saveBindings: (market: string, path: string, bindings: Bindings) => U<Bindings>("bindings", { method: "POST", query: { market, path }, body: JSON.stringify(bindings) }),
   /* review assignment */
   reviewers: (market: string, path: string) => U<ReviewerOption[]>("reviewers", { query: { market, path } }),
-  sendForReview: (market: string, path: string, body: { assignee?: string; auto?: boolean; note?: string }) => U<{ assignee: string; assigneeName: string; auto: boolean }>("review/send", { method: "POST", query: { market, path }, body: JSON.stringify(body) }),
+  sendForReview: (market: string, path: string, body: { note?: string }) => U<{ assignee: string; assigneeName: string }>("review/send", { method: "POST", query: { market, path }, body: JSON.stringify(body) }),
   /** Link (and optional e-mail invite) for the current review stage; an e-mail of a UCP reviewer also assigns them. */
   reviewLink: (market: string, path: string, email?: string) => U<{ token: string; stage: "review" | "bizreview"; assigned?: string; url: string }>("review/link", { method: "POST", query: { market, path }, body: JSON.stringify({ email }) }),
   /** Comment from the review screen (signed in, or a guest with name + e-mail). */

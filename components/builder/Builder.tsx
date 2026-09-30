@@ -122,7 +122,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   if (lockedSeen !== locked) { setLockedSeen(locked); if (locked) { setPreviewRaw(true); setSel(null); setMode("select"); setPop(null); } else if (canEdit) setPreviewRaw(false); }
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(null), 2200); };
   /** In review only the assigned reviewer (or a site admin) approves; unassigned legacy reviews fall back to the Review permission. */
-  const mayApproveSelf = mayStatus("reviewed") && (!assignee || assignee === user.id);
+  const iWrote = String(page.meta?.["ucp:requestedBy"] || page.meta?.["ucp:sentBy"] || "") === user.id; // the author never takes their own page from the Backlog
+  const mayApproveSelf = mayStatus("reviewed") && (assignee ? assignee === user.id : !iWrote);
   const mayApprove = mayApproveSelf || isAdmin; const onBehalf = !mayApproveSelf && isAdmin; // site admins may approve for the reviewer // author's review: the assigned reviewer only; site admins reassign, they do not approve for someone else
   /* business review: anyone with Review (or the person a site admin assigned in Tasks), never the one who did the author's review */
   const [authorReviewer, setAuthorReviewer] = useState(() => { const v = page.meta?.["ucp:authorReviewedBy"]; return typeof v === "string" ? v : ""; }); // four eyes: who did the author's review
@@ -275,12 +276,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (blocked(next)) return;
     setStatus(next); if (next === "reviewed") setAuthorReviewer(user.id); try { await save({ status: next }); say(msg); if (next === "bizreview" && canEdit) setShare(true); } catch { setStatus(status); }
   }
-  /* Send for review goes through the modal (reviewer choice + note); the same checks as a plain transition apply first. */
+  /* Send for review goes through the modal (to the Backlog, open to all reviewers + note); the same checks as a plain transition apply first. */
   const openSend = () => { if (status !== "draft" && status !== "failed") { say(inAuthor ? "Already in review" : "Already past review"); return; } if (blocked("review")) return; setPop(null); setSending(true); };
   async function sendForReview(body: ReviewBody) {
     if (dirty) await save();
     const r = await ucpApi.sendForReview(marketId, page.path, body);
-    setSending(false); setAssignee(r.assignee); setStatus("review"); say(`Sent to ${r.assigneeName} for review`); router.refresh(); // sharing by link / e-mail is for the business review only
+    setSending(false); setAssignee(r.assignee); setStatus("review"); say("Sent for review · it is in the Backlog, any reviewer can take it"); router.refresh(); // sharing by link / e-mail is for the business review only
   }
   /* Token chips: while a block is being configured, insert into the last focused Configure field at its caret; otherwise copy. */
   const lastField = useRef<{ blockId: string; k: string; l: string; start: number; end: number } | null>(null);
@@ -380,7 +381,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const stepAct = (i: number): React.ReactNode =>
     i === 0 ? <button className="btn btn-sm btn-next" onClick={() => flowClick(1)} title="See the page exactly as visitors will">Go to preview</button>
     : i === 1 ? <button className="btn btn-sm btn-next" onClick={openSend} aria-label="Send to author's review"><span className="lg:hidden">Send for review</span><span className="hidden lg:inline">Send to author&apos;s review</span></button>
-    : i === 2 ? (mayApproveSelf ? <button className="btn btn-sm btn-next" onClick={() => transition("inreview", "Review started")} title="Take the review: the author sees that you are on it">Start review</button> : null) // the status changes when someone takes it
+    : i === 2 ? (mayApproveSelf ? <button className="btn btn-sm btn-next" onClick={() => transition("inreview", assignee ? "Review started" : "Taken from the Backlog · review started")} title="Take the review: the author sees that you are on it">{assignee ? "Start review" : "Assign to me & start"}</button> : null) // the status changes when someone takes it
     : i === 3 ? <>{canEdit && !mayApproveSelf && remindBtn(assigneeName || "the reviewer")}{mayApprove && <button className="btn btn-sm btn-next" onClick={() => transition("reviewed", onBehalf ? `Marked reviewed on behalf of ${assigneeName || "the reviewer"}` : "Marked as reviewed · send it to the business review next")} title={onBehalf ? `Site admin: on behalf of ${assigneeName || "the reviewer"}` : "The page is fine: hand it back to the author"}>Reviewed{onBehalf && assigneeName ? <span className="hidden xl:inline">for {assigneeName.split(" ")[0]}</span> : null}</button>}</>
     : i === 4 ? <button className="btn btn-sm btn-next" onClick={() => transition("bizreview", "Sent to business review")} aria-label="Send to business review"><span className="lg:hidden">Send on</span><span className="hidden lg:inline">Send to business review</span></button>
     : i === 5 ? <>{canEdit && !mayBizSelf && remindBtn("the business reviewers")}{mayBizApprove && <button className="btn btn-sm btn-next" onClick={() => transition("approved", bizOnBehalf ? "Signed off as site admin · ready to publish" : "Business review done · ready to publish")} title={bizOnBehalf ? "Site admin: sign off on behalf of the business reviewer" : undefined}>Sign off{bizOnBehalf && bizName ? <span className="hidden xl:inline">for {bizName.split(" ")[0]}</span> : null}</button>}</>
@@ -538,7 +539,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           onApprove={isAdmin ? () => transition("approved", "Signed off as site admin · ready to publish") : undefined} />}
         {publishing && <PublishDialog marketId={marketId} envName={envName} pages={[{ path: page.path, title, status, publishAt }]} mayPublish={() => mayStatus("published")} onClose={() => setPublishing(false)}
           onDone={(r, m) => { const x = r[0]; setPublishing(false); if (!x?.ok) { say(x?.reason ?? "Nothing was published"); return; } setStatus(x.status as PageStatus); setPublishAt(undefined); say(m === "cancel" ? "Schedule cancelled · back to Approved" : m === "schedule" ? "Scheduled for publishing" : `Published to ${envName}`); router.refresh(); }} />}
-        {sending && <SendForReviewModal marketId={marketId} pagePath={page.path} meId={user.id} onClose={() => setSending(false)} onSend={sendForReview} />}
+        {sending && <SendForReviewModal marketId={marketId} pagePath={page.path} onClose={() => setSending(false)} onSend={sendForReview} />}
         {translating && <TranslateModal marketId={marketId} path={page.path} title={title} onClose={() => setTranslating(false)} onDone={(created) => { say(`Created ${created.length} translation${created.length === 1 ? "" : "s"}`); router.refresh(); }} />}
         {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] shadow-xl z-50">{toast}</div>}
       </div>

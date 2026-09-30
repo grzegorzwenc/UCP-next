@@ -50,8 +50,8 @@ const seenKey = (t: Task) => `${t.page.path}|${t.page.status}|${t.assignee ?? ""
 const STAGE_ORDER = ["review", "inreview", "reviewed", "bizreview", "approved", "scheduled"];
 /** All (yours, any stage) and the stages of the review flow, as tabs. */
 const VIEWS: { id: View; label: string; empty: string; of: (t: Task, me: string) => boolean }[] = [
-  { id: "all", label: "All", empty: "Nothing in the review flow right now.", of: (t) => ["review", "inreview", "reviewed", "bizreview", "approved", "scheduled"].includes(t.page.status) },
-  { id: "backlog", label: "Backlog", empty: "No page is waiting for a reviewer.", of: (t) => t.kind === "Review" && t.page.status === "review" && !t.assignee },
+  { id: "all", label: "All", empty: "Nothing in the review flow right now.", of: (t, me) => ["review", "inreview", "reviewed", "bizreview", "approved", "scheduled"].includes(t.page.status) && !(t.page.status === "review" && !t.assignee && t.author === me) },
+  { id: "backlog", label: "Backlog", empty: "No page is waiting for a reviewer.", of: (t, me) => t.kind === "Review" && t.page.status === "review" && !t.assignee && t.author !== me }, // open to everyone except the page's author (they cannot take it)
   { id: "mine", label: "Ready for review", empty: "Nothing assigned and waiting to start · take a page from the Backlog.", of: (t) => t.kind === "Review" && t.page.status === "review" && !!t.assignee },
   { id: "inreview", label: "In review", empty: "No author's review is in progress.", of: (t) => t.kind === "Review" && t.page.status === "inreview" },
   { id: "sendbiz", label: "Reviewed by author / Send to business review", empty: "Nothing reviewed by an author is waiting to be sent on.", of: (t) => t.kind === "SendBiz" },
@@ -108,8 +108,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
     const mine = !t.assignee || t.assignee === user.id; const btn = (k: string, label: string, onClick: () => void, next = false) => out.push(<button key={k} type="button" className={`btn btn-sm ${next ? "btn-next" : ""}`} disabled={b} onClick={(e) => { e.stopPropagation(); onClick(); }}>{b && next ? "Working…" : label}</button>);
     const remind = () => run(t, () => ucpApi.remindReviewer(mid(t), p), "Reminder sent");
     const change = () => { if (isAdmin) btn("person", t.assigneeName ? "Change person" : "Assign…", () => setAssigning(t)); }; // site admins: who does this step
-    if (st === "review" && !t.assignee) { // Backlog: take it, or (site admins) give it to someone
-      if (isAdmin) btn("assign", "Assign to someone else", () => setAssigning(t));
+    if (st === "review" && !t.assignee) { // Backlog: open to everyone · a reviewer takes it (nobody hands it out)
       if (can("review", p)) btn("claim", "Assign to me", () => run(t, () => ucpApi.claimReview(mid(t), p), `${t.page.title} is yours · find it in Ready for review`), true);
     } else if (st === "review") { // Ready for review: assigned, not started
       change();
@@ -137,7 +136,8 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   const rows = view === "published" ? [] : byView[view]; const cur = VIEWS.find((v) => v.id === view)!;
   const empty = (txt: string) => <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl text-[13px] text-ink-3">{q || mkt ? <>No pages match. <button className="underline text-ink" onClick={() => { setQ(""); setMkt(""); }}>Clear filters</button></> : txt}</div>;
   /* People: the author and whoever has the page now; Dates: due (coloured) and when it was sent */
-  const personLine = (label: string, name?: string, you?: boolean) => <div className="flex items-center gap-2 min-w-0 text-[12.5px]"><span className="w-[92px] flex-none text-ink-3 text-[11.5px]">{label}</span>{name ? <><Avatar name={name} size={20} /><span className="truncate">{you ? "You" : name}</span></> : <span className="text-ink-4">—</span>}</div>;
+  const openChip = <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-good bg-good-soft rounded-full px-2 py-0.5 whitespace-nowrap" title="Nobody is assigned · any reviewer can take it">Open to all</span>;
+  const personLine = (label: string, name?: string, you?: boolean, open?: boolean) => <div className="flex items-center gap-2 min-w-0 text-[12.5px]"><span className="w-[92px] flex-none text-ink-3 text-[11.5px]">{label}</span>{name ? <><Avatar name={name} size={20} /><span className="truncate">{you ? "You" : name}</span></> : open ? openChip : <span className="text-ink-4">—</span>}</div>;
   const stagePerson = (t: Task): [string, string | undefined, boolean] => {
     const st = t.page.status; const reviewer = t.from.replace(/ \(.*\)$/, "");
     if (st === "review" || st === "inreview") return ["Reviewer", t.assigneeName, t.assignee === user.id];
@@ -154,10 +154,10 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
               <div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} onClick={() => markSeen(onScreen.current)} className="font-semibold truncate hover:underline underline-offset-2">{t.page.title}</Link>{isNew(t) && <span suppressHydrationWarning className="flex-none text-[10px] font-bold uppercase tracking-[.06em] text-white bg-accent rounded px-1.5 py-0.5">New</span>}{view === "ready" ? <Pill status={t.page.status} /> : null}</div>
               <div className="text-[12px] text-ink-3 mt-0.5 pl-[26px] truncate"><span aria-hidden>{m.flag}</span> {m.name.replace(/^HSBC /, "")} · {routeOf(t.page.path)}</div>
               {/* phones: people and due date under the title */}
-              <div className="min-[1400px]:hidden mt-1.5 pl-[26px] flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]"><span className="text-ink-3">{pl}</span>{pn ? <span className="inline-flex items-center gap-1.5"><Avatar name={pn} size={18} />{py ? "You" : pn}</span> : <span className="text-ink-4">—</span>}<span className="md:hidden">{dueChip(t)}</span></div>
+              <div className="min-[1400px]:hidden mt-1.5 pl-[26px] flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px]"><span className="text-ink-3">{pl}</span>{pn ? <span className="inline-flex items-center gap-1.5"><Avatar name={pn} size={18} />{py ? "You" : pn}</span> : t.page.status === "review" && !t.assignee ? openChip : <span className="text-ink-4">—</span>}<span className="md:hidden">{dueChip(t)}</span></div>
               <div className="md:hidden mt-2 pl-[26px] flex flex-wrap items-center gap-1.5">{acts.length ? acts : <Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link>}</div>
             </td>
-            <td className="p-0 min-[1400px]:px-4 min-[1400px]:py-3"><div className="hidden min-[1400px]:grid gap-1.5 w-[230px]">{personLine("Author", t.authorName ?? t.from.replace(/ \(.*\)$/, ""), t.author === user.id)}{personLine(pl, pn, py)}</div></td>
+            <td className="p-0 min-[1400px]:px-4 min-[1400px]:py-3"><div className="hidden min-[1400px]:grid gap-1.5 w-[230px]">{personLine("Author", t.authorName ?? t.from.replace(/ \(.*\)$/, ""), t.author === user.id)}{personLine(pl, pn, py, t.page.status === "review" && !t.assignee)}</div></td>
             <td className="px-4 py-3 hidden md:table-cell"><div className="grid gap-1 justify-items-start w-[170px]">{dueChip(t)}<span className="text-[11.5px] text-ink-3 whitespace-nowrap" suppressHydrationWarning>{t.sentAt ? `Sent ${taskDate(t.sentAt)}` : ""}{w !== "—" ? <span className="block text-ink-4">waiting {w}</span> : null}</span></div></td>
             <td className="px-4 py-3 hidden md:table-cell"><div className="flex flex-wrap xl:flex-nowrap items-center justify-end gap-1.5">{acts.length ? acts : <><span className="hidden lg:inline text-[12px] text-ink-4">No action for you</span><Link href={builderHref(t.page.path)} className="btn btn-sm">Open</Link></>}</div></td>
           </tr>; };

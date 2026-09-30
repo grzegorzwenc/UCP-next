@@ -50,15 +50,16 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     /* ---- review assignment ---- */
     if (o === "reviewers" && req.method === "GET") return ok(await reviewerOptions(mid, q.get("path") ?? ""));
     if (o === "review/send" && req.method === "POST") {
-      const u = await me(); const mk = market(mid); const path = q.get("path") ?? ""; const { assignee, auto, note } = await req.json() as { assignee?: string; auto?: boolean; note?: string };
+      const u = await me(); const mk = market(mid); const path = q.get("path") ?? ""; const { note } = await req.json() as { note?: string };
       if (!can(u, "edit", path, mk.root)) return problem(new RepoError(403, "You don't have Edit on this page", `Signed in as ${u.name}`));
-      const pick = auto || !assignee ? await autoAssignee(mid, path, u.id) : (await reviewerOptions(mid, path)).find((o) => o.id === assignee);
+      // the page goes to the Backlog: nobody is assigned, any reviewer takes it (My tasks → Backlog → Assign to me)
+      const pick = (await reviewerOptions(mid, path)).length > 0;
       if (!pick) return problem(new RepoError(400, "Nobody can review this page", "Ask a site admin to grant Review & approve on this folder"));
       const r = repo(); const before = await r.getPage(path); if (!before) return problem(new RepoError(404, "Page not found", path));
       const due = new Date(); due.setDate(due.getDate() + 3);
-      await r.updateContent(path, { status: "review" }); await r.setProps(`${path}/jcr:content`, { "ucp:sentBy": u.id, "ucp:requestedBy": u.id, "ucp:sentAt": new Date().toISOString(), "ucp:due": due.toISOString(), "ucp:assignee": pick.id, "ucp:assignedBy": u.id, "ucp:reviewNote": note || null });
-      await logEvent(mid, { type: "content", text: `sent ${before.title} for review to ${pick.name}${auto || !assignee ? " (assigned automatically)" : ""}`, target: path, requestId: rid });
-      return ok({ assignee: pick.id, assigneeName: pick.name, auto: !!(auto || !assignee) });
+      await r.updateContent(path, { status: "review" }); await r.setProps(`${path}/jcr:content`, { "ucp:sentBy": u.id, "ucp:requestedBy": u.id, "ucp:sentAt": new Date().toISOString(), "ucp:due": due.toISOString(), "ucp:assignee": null, "ucp:assignedBy": null, "ucp:reviewNote": note || null });
+      await logEvent(mid, { type: "content", text: `sent ${before.title} for review · open to all reviewers in the Backlog`, target: path, requestId: rid });
+      return ok({ assignee: "", assigneeName: "" });
     }
     /* ---- review links: a link (or e-mail) that opens the review screen for the current stage ---- */
     if (o === "review/link" && req.method === "POST") {
@@ -87,6 +88,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       if (!can(u, "review", path, market(mid).root)) return problem(new RepoError(403, "You don't have Review & approve on this page"));
       const cur = typeof pg.meta?.["ucp:assignee"] === "string" ? String(pg.meta["ucp:assignee"]) : "";
       if (cur && cur !== u.id) return problem(new RepoError(409, `Already assigned to ${await userName(cur)}`));
+      if (String(pg.meta?.["ucp:requestedBy"] || pg.meta?.["ucp:sentBy"] || "") === u.id) return problem(new RepoError(403, "You wrote this page, so someone else reviews it", "Another reviewer takes it from the Backlog"));
       await repo().setProps(`${path}/jcr:content`, { "ucp:assignee": u.id, "ucp:assignedBy": u.id });
       await logEvent(mid, { type: "content", text: `took the author's review of ${pg.title}`, target: path, requestId: rid });
       return ok({ assignee: u.id, assigneeName: u.name });
