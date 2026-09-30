@@ -1,4 +1,5 @@
 "use client";
+import { celebrate } from "@/lib/ui/celebrate";
 import { useMemo, useState } from "react";
 import { ModalShell, Err } from "@/components/models/ModalShell";
 import { Pill } from "@/components/ui/Pill";
@@ -38,7 +39,8 @@ export function PublishDialog({ marketId, envName, pages, mayPublish, onClose, o
     if (!cancel && (whenErr || !ready.length)) return; setBusy(true); setErr(null);
     try {
       const r = await ucpApi.publish(marketId, cancel ? [single!.path] : ready.map((p) => p.path), cancel ? { cancel: true } : { at: at?.toISOString() });
-      const m = cancel ? "cancel" : mode; if (r.every((x) => x.ok) && ready.length === pages.length) { onDone(r, m); return; }
+      const m = cancel ? "cancel" : mode; const live = r.filter((x) => x.ok); if (m === "now" && live.length) celebrate(live.map((x) => x.title), envName); // fanfare 🎉
+      if (r.every((x) => x.ok) && ready.length === pages.length) { onDone(r, m); return; }
       setResults([...r, ...pages.filter((p) => !ready.includes(p) && !cancel).map((p) => ({ path: p.path, title: p.title, ok: false, reason: publishBlock(p, mayPublish) }))]); onDone(r, m);
     } catch (e) { setErr(errorText(e)); } finally { setBusy(false); }
   };
