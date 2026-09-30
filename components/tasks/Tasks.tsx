@@ -17,7 +17,7 @@ import { PublishDialog } from "@/components/pages/PublishDialog";
 import { MARKETS, market as marketById, env as envById } from "@/lib/markets";
 
 export type PublishedItem = { path: string; title: string; when?: string; who?: string; whoId?: string };
-type View = "all" | "backlog" | "mine" | "inreview" | "sendbiz" | "bizreview" | "ready" | "published";
+type View = "all" | "backlog" | "mine" | "inreview" | "sendbiz" | "bizwait" | "bizreview" | "ready" | "published";
 type Props = { marketId: string; envId: string; tasks: Task[]; published: PublishedItem[]; view: string };
 
 /** Due chip copy: overdueDays > 0 = overdue, 0 = today, -1 = tomorrow, else the date. */
@@ -57,7 +57,8 @@ const VIEWS: { id: View; label: string; empty: string; of: (t: Task, me: string)
   { id: "mine", label: "Ready for review", empty: "Nothing assigned and waiting to start · take a page from the Backlog.", of: (t, me) => t.kind === "Review" && t.page.status === "review" && (!!t.assignee || t.author === me) }, // the author follows their own page here while it waits for a reviewer
   { id: "inreview", label: "In review", empty: "No author's review is in progress.", of: (t) => t.kind === "Review" && t.page.status === "inreview" },
   { id: "sendbiz", label: "Reviewed", empty: "Nothing reviewed by an author is waiting to be sent on.", of: (t) => t.kind === "SendBiz" },
-  { id: "bizreview", label: "Business review", empty: "No page is in the business review.", of: (t) => t.kind === "BizReview" },
+  { id: "bizwait", label: "Ready for business review", empty: "No page is waiting for a business reviewer.", of: (t) => t.kind === "BizReview" && !t.biz && !t.bizGroups?.length }, // nobody from the business has it yet
+  { id: "bizreview", label: "Business review", empty: "No page is in the business review.", of: (t) => t.kind === "BizReview" && (!!t.biz || !!t.bizGroups?.length) },
   { id: "ready", label: "Ready to publish", empty: "No page is ready to publish.", of: (t) => t.kind === "Publish" || t.kind === "Check" },
   { id: "published", label: "Published", empty: "Nothing published recently.", of: () => false },
 ];
@@ -88,7 +89,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   const count = (v: View) => (v === "published" ? (isAdmin ? pub.length : pub.filter((p) => p.whoId === user.id).length) : byView[v].length);
   /* yours = assigned to you or you are the author; in the Backlog, pages you could take */
   const seenSnap = useSyncExternalStore(subscribeSeen, readSeen, () => "[]"); const seen = useMemo(() => new Set<string>(JSON.parse(seenSnap)), [seenSnap]);
-  const yoursOf = (v: View, t: Task) => (v === "all" ? t.assignee === user.id || t.author === user.id : v === "backlog" ? can("review", t.page.path) : t.assignee === user.id || t.author === user.id);
+  const yoursOf = (v: View, t: Task) => (v === "all" ? t.assignee === user.id || t.author === user.id : v === "backlog" ? can("review", t.page.path) : v === "bizwait" ? can("review", t.page.path) && (isAdmin || t.peer !== user.id) : t.assignee === user.id || t.author === user.id);
   const yours = (v: View) => (v === "published" ? [] : byView[v].filter((t) => yoursOf(v, t)));
   const fresh = (v: View) => yours(v).filter((t) => !seen.has(seenKey(t)));
   const isNew = (t: Task) => yoursOf(view, t) && !seen.has(seenKey(t));
@@ -239,13 +240,13 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
       {/* backlog: one list; other stages: yours on top, other people below (authors only see their own; site admins see everyone) */}
       {view === "all" ? board(VIEWS.filter((v) => v.id !== "all").map((v) => {
           /* every stage under the tab names: yours first, then other people's; an empty stage says there is nothing for you there */
-          const st = v.id === "backlog" || v.id === "mine" ? "review" : v.id === "inreview" ? "inreview" : v.id === "sendbiz" ? "reviewed" : v.id === "bizreview" ? "bizreview" : v.id === "ready" ? "approved" : "published";
+          const st = v.id === "backlog" || v.id === "mine" ? "review" : v.id === "inreview" ? "inreview" : v.id === "sendbiz" ? "reviewed" : v.id === "bizreview" || v.id === "bizwait" ? "bizreview" : v.id === "ready" ? "approved" : "published";
           const items = v.id === "published" ? [] : rows.filter((t) => v.of(t, ofMe)); const mine = pub.filter((x) => x.whoId === user.id);
           const n = v.id === "published" ? mine.length : items.length;
           const head = <h3 className="flex items-center gap-2.5"><button type="button" onClick={() => openView(v.id)} title={`Open the ${v.label} tab`} className={`pill pill-${st} text-[12.5px] px-3 py-1 hover:underline underline-offset-2 ${n ? "" : "opacity-60"}`}>{v.label}</button><span className="text-[13px] text-ink-3">{n ? `${n} page${n === 1 ? "" : "s"}` : "nothing here"}</span></h3>;
-          return { key: v.id, head, slim: n === 0, parts: v.id === "published" ? [{ label: isAdmin ? "Published by me" : undefined, rows: mine.map(pubRow), empty: "Nothing of yours published recently." }] : v.id === "backlog" ? [{ rows: sortTasks(items).map(taskRow), empty: "No page is waiting for a reviewer." }] /* one shared bucket, nobody's yet */ : splitParts(items, "No actions for you at this step.") };
+          return { key: v.id, head, slim: n === 0, parts: v.id === "published" ? [{ label: isAdmin ? "Published by me" : undefined, rows: mine.map(pubRow), empty: "Nothing of yours published recently." }] : v.id === "backlog" || v.id === "bizwait" ? [{ rows: sortTasks(items).map(taskRow), empty: v.empty }] /* one shared bucket, nobody's yet */ : splitParts(items, "No actions for you at this step.") };
         }))
-        : view === "backlog" ? (rows.length ? board([{ key: "b", parts: [{ rows: sortTasks(rows).map(taskRow) }] }]) : empty(cur.empty))
+        : view === "backlog" || view === "bizwait" ? (rows.length ? board([{ key: "b", parts: [{ rows: sortTasks(rows).map(taskRow) }] }]) : empty(cur.empty)) /* shared buckets: nobody's yet */
         : view !== "published" ? (rows.length ? board([{ key: "s", parts: splitParts(rows, "Nothing of yours at this stage.") }]) : empty(cur.empty))
         : pub.length ? board([{ key: "p", parts: isAdmin ? [{ label: "Published by me", rows: pub.filter((p) => p.whoId === user.id).map(pubRow), empty: "Nothing of yours published recently." }, { label: "Published by others", rows: pub.filter((p) => p.whoId !== user.id).map(pubRow) }] : [{ rows: pub.filter((p) => p.whoId === user.id).map(pubRow), empty: "Nothing of yours published recently." }] }]) : empty(cur.empty)}
 
