@@ -55,7 +55,7 @@ export function SendForReviewModal({ marketId, pagePath, meId, onClose, onSend }
 /** Toolbar chip while a page is in review. Site admins can click it to change the reviewer; for everyone else it is plain text. */
 export function AssigneeChip({ name, admin, marketId, pagePath, meId, onReassigned }: { name: string; admin: boolean; marketId: string; pagePath: string; meId: string; onReassigned: (r: { assignee: string; assigneeName: string }) => void }) {
   const [at, setAt] = useState<{ top: number; right: number } | null>(null); const btn = useRef<HTMLButtonElement>(null);
-  const body = <><span className="text-ink-3">Assigned to</span><Avatar name={name} size={20} /><b className="font-medium truncate max-w-[140px]">{name}</b></>;
+  const body = <><span className="text-ink-3 hidden xl:inline">Assigned to</span><Avatar name={name} size={20} /><b className="font-medium truncate max-w-[140px]">{name}</b></>;
   const cls = "inline-flex items-center gap-1.5 text-[12px] whitespace-nowrap border border-line-2 rounded-full pl-2.5 pr-1.5 py-0.5";
   if (!admin) return <span className={cls}>{body}</span>;
   const toggle = () => { if (at) { setAt(null); return; } const r = btn.current?.getBoundingClientRect(); if (r) setAt({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) }); };
