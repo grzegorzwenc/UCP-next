@@ -136,6 +136,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       const path = q.get("path") ?? ""; const { kind, assignee } = await req.json() as { kind: TaskKind; assignee?: string | null };
       const pg = await repo().getPage(path); if (!pg) return problem(new RepoError(404, "Page not found", path));
       if (KIND_OF_STATUS[pg.status] !== kind) return problem(new RepoError(409, "This task is already done", `The page is now ${pg.status}`));
+      if (kind === "BizReview") return problem(new RepoError(409, "The business review is run by the business", "People are not changed during the business review"));
       const pick = assignee ? (await reviewerOptions(mid, path, permOfKind(kind))).find((x) => x.id === assignee) : undefined;
       if (assignee && !pick) return problem(new RepoError(400, `That person doesn't have ${kind === "Review" ? "Review & approve" : "Publish"} on this page`));
       const key = kind === "Review" ? "ucp:assignee" : "ucp:taskAssignee"; const prevId = kind === "Review" ? pg.meta?.["ucp:assignee"] : pg.meta?.["ucp:taskKind"] === kind ? pg.meta?.["ucp:taskAssignee"] : undefined;
