@@ -25,6 +25,7 @@ import { ShareReviewDialog } from "@/components/tasks/ShareReviewDialog";
 import { useConfirm } from "@/components/ui/Confirm";
 import { ReviewedChoice } from "@/components/tasks/ReviewedChoice";
 import { FloatingPanel, CommentIcon } from "@/components/review/FloatingPanel";
+import { DecisionOverlay } from "@/components/review/DecisionOverlay";
 import { pickAt, flash, markTarget, type PickTarget } from "@/lib/review/pick";
 import { PageComments } from "@/components/builder/PageComments";
 import { FormatBar, RichField, useFormatState, prepareEditable } from "./RichTextEditor";
@@ -318,6 +319,13 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
       say(onBehalf && was === "inreview" ? `Reviewed on behalf of ${assigneeName || "the reviewer"} · waiting for a business reviewer` : "Sent to business review · now share it with the business"); setShare(true); router.refresh(); // next step: share it (a person, a group or a link)
     } catch { setStatus(was); }
   }
+  /** Full screen, business review: sign off or send back straight from the floating comments, then a full-screen confirmation. */
+  const [decidedB, setDecidedB] = useState<{ decision: "signoff" | "reauthor"; at: string } | null>(null); const [askingB, setAskingB] = useState<"signoff" | "reauthor" | null>(null);
+  async function decideFS(decision: "signoff" | "reauthor") {
+    const was = status; const next: PageStatus = decision === "signoff" ? "approved" : "draft"; setStatus(next); setAskingB(null);
+    try { await save({ status: next }); if (decision === "reauthor") { setAssignee(""); setAuthorReviewer(""); setBizTaken(""); setBizGroups([]); } setDecidedB({ decision, at: new Date().toISOString() }); router.refresh(); }
+    catch { setStatus(was); }
+  }
   async function claimBiz() {
     try { const r = await ucpApi.claimBizReview(marketId, page.path); setBizTaken(r.assignee); say("The business review is yours · sign it off or reauthor"); router.refresh(); }
     catch (e) { say(e instanceof ApiError ? e.message : "Could not take the business review"); }
@@ -573,8 +581,15 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {focus && <div aria-live="polite" className={`fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-[#0F1013]/85 text-white text-[12px] px-3 py-1.5 rounded-full transition-opacity duration-700 ${fsHint ? "opacity-100" : "opacity-0 pointer-events-none"}`}>Preview · this is what visitors see · press Esc to go back to editing</div>}
         {focus && reviewMode && <FloatingPanel title="Comments" count={commentTotal} open={floatOpen} onToggle={setFloatOpen} hint={commentTarget ? undefined : "Click a text, an image or a component on the page to comment on it."}
           actions={<button type="button" className="btn btn-sm" onClick={leavePreview} title="Leave full screen (Esc)">Exit full screen</button>}>
+          {status === "bizreview" && bizAssigned && mayBizApprove && <div className="mb-3 rounded-lg border border-line bg-surface-2 p-3 text-[13px]">
+            <b className="block">Your decision</b>
+            {askingB ? <><p className="text-[12.5px] mt-1">{askingB === "signoff" ? "Sign off this page? It becomes ready to publish." : "Send it back to the author? The page goes back to Build the page."}</p>
+              <div className="flex gap-2 mt-2"><button className={`btn btn-sm ${askingB === "signoff" ? "btn-next" : "btn-primary"}`} onClick={() => void decideFS(askingB)}>{askingB === "signoff" ? "Yes, sign off" : "Yes, reauthor"}</button><button className="btn btn-sm" onClick={() => setAskingB(null)}>Cancel</button></div></>
+              : <div className="flex flex-wrap gap-2 mt-2"><button className="btn btn-sm btn-next" onClick={() => setAskingB("signoff")}>Sign off</button><button className="btn btn-sm" onClick={() => setAskingB("reauthor")}>Reauthor</button></div>}
+          </div>}
           <PageComments marketId={marketId} path={page.path} about={null} onClearAbout={() => {}} focusKey={0} bare {...reviewProps} />
         </FloatingPanel>}
+        {decidedB && <DecisionOverlay decision={decidedB.decision} title={title} by={user.name} at={decidedB.at} action={<button className="btn btn-primary" onClick={() => { setDecidedB(null); if (focus) setFocusMode(false); }}>Back to the builder</button>} />}
         {/* formatting bar over the text being edited (long text fields only) */}
         {editing && inlinePos?.rich && !contentPick && <div data-ui className="fixed z-30 bg-[#0F1013] rounded-lg p-1 shadow-xl" style={{ top: inlinePos.barTop, left: inlinePos.barLeft }}><FormatBar getRoot={getEditingEl} state={fmt} dark lists={inlinePos.lists} /></div>}
         {editing && inlinePos && !contentPick && <button type="button" data-ui className="fixed z-30 w-7 h-7 rounded-full grid place-items-center bg-info text-white shadow-lg hover:scale-105 transition-transform" style={{ top: inlinePos.top, left: inlinePos.left }} onMouseDown={(e) => e.preventDefault()} onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }} title="Choose content from an entity" aria-label="Choose content from an entity"><ContentIcon className="w-3.5 h-3.5" /></button>}

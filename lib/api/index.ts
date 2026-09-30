@@ -87,6 +87,7 @@ export const ucpApi = {
   shareWithGroup: (market: string, path: string, team: string) => U<{ token: string; url: string; members: { id: string; name: string; email: string; canSignOff: boolean }[]; created: boolean }>("review/group", { method: "POST", query: { market, path }, body: JSON.stringify({ team }) }),
   reviewLink: (market: string, path: string, email?: string) => U<{ token: string; stage: "review" | "bizreview"; assigned?: string; url: string }>("review/link", { method: "POST", query: { market, path }, body: JSON.stringify({ email }) }),
   /** Comment from the review screen (signed in, or a guest with name + e-mail). */
+  reviewDecide: (token: string, body: { decision: "signoff" | "reauthor"; name?: string; email?: string; note?: string }) => U<{ decision: "signoff" | "reauthor"; by: string; at: string }>("review/decide", { method: "POST", query: { token }, body: JSON.stringify(body) }),
   reviewComment: (token: string, body: { text: string; name?: string; email?: string; block?: { id: string; label: string; field?: string } }) => U<PageComment[]>("review/comment", { method: "POST", query: { token }, body: JSON.stringify(body) }),
   /** Take a waiting author's review (assign it to yourself). */
   lockPages: (market: string, paths: string[], locked: boolean) => U<{ changed: number }>("pages/lock", { method: "POST", query: { market }, body: JSON.stringify({ paths, locked }) }),

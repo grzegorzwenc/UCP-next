@@ -46,7 +46,7 @@ const toUser = (n: RepoNode): User => ({ id: n.name, path: n.path, name: str(n.p
 export async function listUsers(): Promise<User[]> { const u = await kids(PATHS.users, 1); return u.length ? u.map(toUser) : SEED_USERS.map((x) => ({ ...x, path: `${PATHS.users}/${x.id}` })); }
 export async function getUser(id: string): Promise<User | undefined> { return (await listUsers()).find((u) => u.id === id); }
 /** A person's e-mail (people outside the seeded directory get the usual firstname.lastname@hsbc.com). */
-export async function userEmail(id: string): Promise<string> { if (!id || id === "system") return ""; return (await getUser(id))?.email || `${id}@hsbc.com`; }
+export async function userEmail(id: string): Promise<string> { if (!id || id === "system") return ""; if (id.startsWith("guest:")) return id.slice(6); /* business reviewers without UCP (review link) */ return (await getUser(id))?.email || `${id}@hsbc.com`; }
 export async function userName(id: string): Promise<string> { if (id === "system") return "System"; const u = await getUser(id); return u?.name ?? id.split(".").map((s) => s[0]?.toUpperCase() + s.slice(1)).join(" "); }
 export async function me(): Promise<User> { const id = (await sessionUserId()) ?? (await repo().identity().catch(() => ({ id: ME }))).id; return (await getUser(id)) ?? { id, path: `${PATHS.users}/${id}`, name: await userName(id), email: "", role: "author", team: "", perms: { root: { read: true } } }; }
 
@@ -104,7 +104,7 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
     if (p.status === "review" || p.status === "inreview") { const t = await mk(p, "Review", p.status === "review" ? "Waiting for author's review assignment · start it" : "In author's review · finish and mark reviewed", await sender(p, await userName(p.lastModifiedBy ?? ME))); const a = str(p.meta?.["ucp:assignee"]); if (a) { t.assignee = a; t.assigneeName = await userName(a); } const rm = str(p.meta?.["ucp:remindedAt"]); if (rm) { t.remindedAt = rm; t.remindedBy = await userName(str(p.meta?.["ucp:remindedBy"])); } out.push(t); }
     else if (p.status === "reviewed") { const by = str(p.meta?.["ucp:authorReviewedBy"]); out.push(await mk(p, "SendBiz", "Author's review done · send to business review", `${by ? await userName(by) : await sender(p, "Rachel Hughes")} (reviewed)`)); }
     else if (p.status === "bizreview") { const by = str(p.meta?.["ucp:authorReviewedBy"]); const t = await mk(p, "BizReview", "Business review · sign off before publishing", `${by ? await userName(by) : await sender(p, "Rachel Hughes")} (author's review done)`); const rm = str(p.meta?.["ucp:remindedAt"]); if (rm) { t.remindedAt = rm; t.remindedBy = await userName(str(p.meta?.["ucp:remindedBy"])); } out.push(t); }
-    else if (p.status === "approved") { const by = str(p.meta?.["ucp:approvedBy"]); out.push(await mk(p, "Publish", "Business review done · ready to publish", `${by ? await userName(by) : await sender(p, "Rachel Hughes")} (approved)`)); }
+    else if (p.status === "approved") { const by = str(p.meta?.["ucp:approvedBy"]); const byName = by.startsWith("guest:") ? str(p.meta?.["ucp:approvedByName"]) || by.slice(6) : by ? await userName(by) : await sender(p, "Rachel Hughes"); out.push(await mk(p, "Publish", "Business review done · ready to publish", `${byName} (approved)`)); }
     else if (p.status === "failed") out.push(await mk(p, "Fix", "Fix failed publish", "System"));
     else if (p.status === "scheduled") out.push(await mk(p, "Check", "Check scheduled publish", await sender(p, "Michael Osei")));
     else if (p.status === "draft" && (p.lastModifiedBy ?? ME) === meId) out.push(await mk(p, "Finish", "Finish draft and send for review", "You"));
@@ -116,7 +116,7 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
     const biz = st === "bizreview" ? taskAssignee(p, "BizReview") : st === "approved" || st === "scheduled" ? str(p.meta?.["ucp:approvedBy"]) : "";
     if (t.author) t.authorEmail = await userEmail(t.author);
     if (peer) { t.peer = peer; t.peerName = await userName(peer); t.peerEmail = await userEmail(peer); }
-    if (biz) { t.biz = biz; t.bizName = await userName(biz); t.bizEmail = await userEmail(biz); }
+    if (biz) { t.biz = biz; t.bizName = biz.startsWith("guest:") ? str(p.meta?.["ucp:approvedByName"]) || biz.slice(6) : await userName(biz); t.bizEmail = await userEmail(biz); }
     if (st === "bizreview") { const g = json<string[]>(p.meta?.["ucp:reviewGroups"], []); if (g.length) t.bizGroups = g; }
   }
   for (const t of out) { const a = taskAssignee(pages.find((p) => p.path === t.page.path)!, t.kind); if (a) { t.assignee = a; t.assigneeName = await userName(a); } }

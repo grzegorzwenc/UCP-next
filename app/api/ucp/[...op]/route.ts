@@ -78,6 +78,25 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       if (r.created) await logEvent(mid, { type: "content", text: `gave the ${team} group (${r.members.length} ${r.members.length === 1 ? "person" : "people"}) access to the business review of ${pg?.title ?? path}`, target: path, requestId: rid });
       return ok({ ...r, url: `/review/${r.token}` });
     }
+    /* ---- the business decides through the link (no UCP account needed): sign off, or back to the author ---- */
+    if (o === "review/decide" && req.method === "POST") {
+      const token = q.get("token") ?? ""; const hit = await reviewByToken(token); if (!hit) return problem(new RepoError(404, "This review link does not exist"));
+      if (!hit.open || hit.link.stage !== "bizreview" || hit.page.status !== "bizreview") return problem(new RepoError(409, "This business review is finished", "The page has moved on"));
+      const b = await req.json() as { decision?: string; name?: string; email?: string; note?: string }; const signed = await sessionUserId();
+      const name = (b.name ?? "").trim().slice(0, 80); const mail = (b.email ?? "").trim().slice(0, 120);
+      if (!signed && (!name || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail))) return problem(new RepoError(400, "Add your name and e-mail so the team knows who decided"));
+      const who = signed ? await me() : { id: `guest:${mail.toLowerCase()}`, name };
+      const path = hit.page.path; const signoff = b.decision === "signoff"; if (!signoff && b.decision !== "reauthor") return problem(new RepoError(400, "Sign off or reauthor"));
+      await snapshotVersion(path, signoff ? "before: signed off" : "before: sent back to the author", who.id);
+      await repo().updateContent(path, { status: signoff ? "approved" : "draft" });
+      const now = new Date().toISOString();
+      await repo().setProps(`${path}/jcr:content`, signoff
+        ? { "ucp:approvedBy": who.id, "ucp:approvedByName": who.name, "ucp:sentBy": who.id, "ucp:sentAt": now, "ucp:due": null }
+        : { "ucp:reauthorBy": who.id, "ucp:reauthorAt": now, "ucp:sentBy": who.id, "ucp:sentAt": now, "ucp:assignee": null, "ucp:authorReviewedBy": null, "ucp:taskAssignee": null, "ucp:taskKind": null, "ucp:reviewGroups": null, "ucp:remindedAt": null, "ucp:due": null });
+      if (b.note?.trim()) await addComment(path, who, b.note, undefined, { stage: "bizreview", guest: !signed });
+      await logEvent(hit.marketId, { type: signoff ? "publishing" : "content", who: signed ? undefined : "system", text: `${signed ? "" : `${name} (${mail}) `}${signoff ? "signed off" : "sent back to the author"} ${hit.page.title} through the business review link`, target: path, requestId: rid });
+      return ok({ decision: signoff ? "signoff" : "reauthor", by: who.name, at: now });
+    }
     if (o === "review/comment" && req.method === "POST") {
       const token = q.get("token") ?? ""; const hit = await reviewByToken(token); if (!hit) return problem(new RepoError(404, "This review link does not exist"));
       if (!hit.open) return problem(new RepoError(409, "This review is finished", "The page has moved on; ask the author for a new link"));
