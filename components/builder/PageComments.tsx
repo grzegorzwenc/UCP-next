@@ -65,10 +65,13 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
 
   const run = async (fn: () => Promise<PageComment[]>) => { setBusy(true); setErr(null); try { setList(await fn()); return true; } catch (e) { setErr(errText(e)); return false; } finally { setBusy(false); } };
   const add = async () => { if (!text.trim() || busy) return; if (await run(() => ucpApi.addComment(marketId, path, text, about ?? undefined, target ?? undefined))) { setText(""); onClearAbout(); onClearTarget?.(); } };
-  const pinned = list?.filter((c) => c.pinned) ?? [];
-  const rest = list?.filter((c) => !c.pinned) ?? []; const shown = all ? rest : rest.slice(0, FIRST);
+  const open = list?.filter((c) => !c.resolved) ?? []; const resolved = list?.filter((c) => c.resolved) ?? []; const [showResolved, setShowResolved] = useState(false);
+  const [undo, setUndo] = useState<string | null>(null); const undoTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined); // "Comment resolved · Undo" for a few seconds
+  const resolve = async (c: PageComment) => { const was = !!c.resolved; if (await run(() => ucpApi.resolveComment(marketId, path, c.id, !was))) { clearTimeout(undoTimer.current); if (!was) { setUndo(c.id); undoTimer.current = setTimeout(() => setUndo(null), 6000); } else setUndo(null); } };
+  const pinned = open.filter((c) => c.pinned);
+  const rest = open.filter((c) => !c.pinned); const shown = all ? rest : rest.slice(0, FIRST);
   const renderItem = (c: PageComment) => { const mine = c.who === user.id;
-    return <li key={c.id} className={`min-w-0 rounded-lg border px-2.5 py-2 ${c.pinned ? "border-warn/40 bg-warn-soft/60" : "border-line bg-surface"}`}>
+    return <li key={c.id} className={`min-w-0 rounded-lg border px-2.5 py-2 ${c.resolved ? "border-line bg-surface-2/70" : c.pinned ? "border-warn/40 bg-warn-soft/60" : "border-line bg-surface"}`}>
           <div className="flex items-start gap-2">
             <Avatar name={c.whoName} size={24} />
             <div className="min-w-0 flex-1">
@@ -78,11 +81,14 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
               {c.block && <TargetCard target={c.block} onShow={onShowBlock} compact />}
               {c.version && <div className="mt-0.5 text-[11.5px] text-info truncate">About the version from {c.version.label}</div>}
               {c.stage && <div className="mt-0.5 text-[11.5px] text-info">During the {c.stage === "review" ? "author's review" : "business review"}</div>}
-              <p className="mt-0.5 text-[13px] text-ink whitespace-pre-wrap break-words">{c.text}</p>
+              <p className={`mt-0.5 text-[13px] whitespace-pre-wrap break-words ${c.resolved ? "text-ink-3" : "text-ink"}`}>{c.text}</p>
+              {c.resolved && <div className="mt-1 inline-flex items-center gap-1 text-[11.5px] text-good"><svg aria-hidden width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>Resolved by {c.resolved.by === user.id ? "you" : c.resolved.name} · <time dateTime={c.resolved.at} suppressHydrationWarning>{relativeTime(c.resolved.at)}</time></div>}
             </div>
             {mayWrite && <div className="flex flex-none items-center gap-0.5 -mr-1">
-              <button type="button" className={`w-7 h-7 rounded grid place-items-center hover:bg-surface-3 ${c.pinned ? "text-warn" : "text-ink-3"}`} disabled={busy} onClick={() => run(() => ucpApi.pinComment(marketId, path, c.id, !c.pinned))} title={c.pinned ? "Unpin" : "Pin to the top"} aria-label={c.pinned ? "Unpin comment" : "Pin comment to the top"} aria-pressed={!!c.pinned}>
-                <svg viewBox="0 0 24 24" className={`w-4 h-4 stroke-current ${c.pinned ? "fill-current" : "fill-none"}`} strokeWidth={1.6} strokeLinejoin="round" aria-hidden><path d={PIN} /></svg></button>
+              <button type="button" className={`w-7 h-7 rounded grid place-items-center hover:bg-surface-3 ${c.resolved ? "text-good" : "text-ink-3 hover:text-good"}`} disabled={busy} onClick={() => void resolve(c)} title={c.resolved ? "Reopen · show it on the page again" : "Resolve · done, no longer shown on the page"} aria-label={c.resolved ? "Reopen comment" : "Resolve comment"} aria-pressed={!!c.resolved}>
+                <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="8.5" /><path d="M8.5 12.2l2.4 2.4 4.6-4.8" /></svg></button>
+              {!c.resolved && <button type="button" className={`w-7 h-7 rounded grid place-items-center hover:bg-surface-3 ${c.pinned ? "text-warn" : "text-ink-3"}`} disabled={busy} onClick={() => run(() => ucpApi.pinComment(marketId, path, c.id, !c.pinned))} title={c.pinned ? "Unpin" : "Pin to the top"} aria-label={c.pinned ? "Unpin comment" : "Pin comment to the top"} aria-pressed={!!c.pinned}>
+                <svg viewBox="0 0 24 24" className={`w-4 h-4 stroke-current ${c.pinned ? "fill-current" : "fill-none"}`} strokeWidth={1.6} strokeLinejoin="round" aria-hidden><path d={PIN} /></svg></button>}
               {(mine || admin) && (ask === c.id
                 ? <span className="inline-flex items-center gap-1 text-[11.5px]"><button type="button" className="text-crit font-semibold hover:underline" onClick={async () => { setAsk(null); await run(() => ucpApi.deleteComment(marketId, path, c.id)); }}>Delete</button><button type="button" className="text-ink-3 hover:underline" onClick={() => setAsk(null)}>Keep</button></span>
                 : <button type="button" className="w-7 h-7 rounded grid place-items-center text-ink-3 hover:bg-surface-3 hover:text-crit" onClick={() => setAsk(c.id)} title="Delete comment" aria-label="Delete comment"><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.6} strokeLinecap="round" aria-hidden><path d="M5 7h14M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg></button>)}
@@ -95,7 +101,7 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
   return <>
     {pinned.length > 0 && <div className="sticky -top-3.5 z-10 -mx-3.5 -mt-3.5 mb-3 px-3.5 pt-3.5 pb-2.5 bg-surface border-b border-line shadow-[0_6px_12px_-10px_rgba(0,0,0,.35)]"><ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5" aria-label="Pinned comments">{pinned.map(renderItem)}</ul></div>}
   <section aria-labelledby="cm-h" className="grid grid-cols-[minmax(0,1fr)] gap-2">
-    <div className={`flex items-baseline gap-2 ${bare ? "sr-only" : ""}`}><h3 id="cm-h" className="text-[13px] font-semibold">Comments</h3>{!!list?.length && <span className="text-[12px] text-ink-3">{list.length}</span>}</div>
+    <div className={`flex items-baseline gap-2 ${bare ? "sr-only" : ""}`}><h3 id="cm-h" className="text-[13px] font-semibold">Comments</h3>{!!open.length && <span className="text-[12px] text-ink-3">{open.length}</span>}</div>
     {mayWrite && <div className="border border-line-2 rounded-lg bg-surface focus-within:border-ink-3">
       {target && <div className="p-2 pb-0"><TargetCard key={`${target.id}|${target.field ?? ""}`} target={target} onShow={onShowBlock} onClear={onClearTarget} /></div>}
       {about && <div className="flex items-center gap-2 px-2.5 pt-2 text-[11.5px]"><span className="inline-flex items-center gap-1 rounded-full bg-info-soft text-info px-2 py-0.5 min-w-0"><span className="truncate">About the version from {about.label}</span></span><button type="button" className="text-ink-3 hover:text-ink flex-none" onClick={onClearAbout} aria-label="Not about a version">✕</button></div>}
@@ -103,11 +109,19 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
         onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void add(); } }} className="block w-full resize-y bg-transparent px-2.5 py-2 text-[13px] outline-none" />
       <div className="flex items-center gap-2 px-2 pb-2"><span className="text-[11px] text-ink-4">⌘/Ctrl + Enter to post</span><button type="button" className="btn btn-sm btn-primary ml-auto" disabled={!text.trim() || busy} onClick={add}>{busy ? "Posting…" : "Add comment"}</button></div>
     </div>}
+    {undo && <div role="status" className="cmt-card-in flex items-center gap-2 bg-[#0F1013] text-white rounded-lg px-3 py-2 text-[12.5px]"><svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-[#7FD1A8]"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>Comment resolved · hidden from the page
+      <button type="button" className="ml-auto font-semibold underline underline-offset-2 hover:text-white/80" disabled={busy} onClick={async () => { const id = undo; setUndo(null); clearTimeout(undoTimer.current); await run(() => ucpApi.resolveComment(marketId, path, id, false)); }}>Undo</button></div>}
     {err && <div className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</div>}
     {list === null ? <p className="text-[12.5px] text-ink-3">Loading comments…</p> : !list.length ? <p className="text-[12.5px] text-ink-3">No comments yet.{mayWrite ? " Leave a note for the next person who edits or reviews this page." : ""}</p>
       : <ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5">{shown.filter((c) => !c.pinned).map(renderItem)}</ul>}
     {rest.length > shown.length && <button type="button" className="btn btn-sm btn-quiet justify-self-start" onClick={() => setAll(true)}>Show all {rest.length} comments</button>}
     {all && rest.length > FIRST && <button type="button" className="btn btn-sm btn-quiet justify-self-start" onClick={() => setAll(false)}>Show fewer</button>}
+    {resolved.length > 0 && <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 pt-1">
+      <button type="button" onClick={() => setShowResolved(!showResolved)} aria-expanded={showResolved} className="flex items-center gap-2 text-[12.5px] font-semibold text-ink-2 hover:text-ink justify-self-start">
+        <svg aria-hidden width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className={`transition-transform ${showResolved ? "rotate-90" : ""}`}><path d="M9 6l6 6-6 6" /></svg>
+        <span className="text-good">Resolved</span><span className="text-ink-3 font-normal">{resolved.length} · not shown on the page</span></button>
+      {showResolved && <ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5">{resolved.map(renderItem)}</ul>}
+    </div>}
   </section>
   </>;
 }

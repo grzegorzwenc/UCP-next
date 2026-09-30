@@ -148,7 +148,7 @@ export { modelSchema } from "@/lib/ucp/schema";
 export type PageVersion = { id: string; time: string; who: string; note: string; title: string; status: string; blocks: number };
 const VER = (path: string) => `${path}/jcr:content/ucp:versions`;
 /* ---------------- page comments: a thread on the page's history; pinned ones stay on top ---------------- */
-export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string }; stage?: string; guest?: boolean; /** the component (and the text or asset in it) the comment is about */ block?: { id: string; label: string; field?: string } };
+export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string }; stage?: string; guest?: boolean; /** the component (and the text or asset in it) the comment is about */ block?: { id: string; label: string; field?: string }; /** done: kept in Comments, no longer marked on the page */ resolved?: { by: string; name: string; at: string } };
 const readComments = async (path: string): Promise<PageComment[]> => { const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path); return json<PageComment[]>(pg.meta?.["ucp:comments"], []); };
 const writeComments = (path: string, list: PageComment[]) => repo().setProps(`${path}/jcr:content`, { "ucp:comments": JSON.stringify(list) });
 /** Pinned first (latest pin on top), then newest first. */
@@ -162,6 +162,12 @@ export async function addComment(path: string, u: Pick<User, "id" | "name">, tex
 export async function setCommentPin(path: string, u: User, id: string, pinned: boolean): Promise<PageComment[]> {
   const list = await readComments(path); const c = list.find((x) => x.id === id); if (!c) throw new RepoError(404, "Comment not found");
   c.pinned = pinned || undefined; c.pinnedBy = pinned ? u.id : undefined; await writeComments(path, list); return sortComments(list);
+}
+/** Resolve (or reopen) a comment: it stays in the list, but the page no longer shows it. Resolving also unpins it. */
+export async function setCommentResolved(path: string, u: User, id: string, resolved: boolean): Promise<PageComment[]> {
+  const list = await readComments(path); const c = list.find((x) => x.id === id); if (!c) throw new RepoError(404, "Comment not found");
+  c.resolved = resolved ? { by: u.id, name: u.name, at: new Date().toISOString() } : undefined; if (resolved) { c.pinned = undefined; c.pinnedBy = undefined; }
+  await writeComments(path, list); return sortComments(list);
 }
 export async function deleteComment(path: string, u: User, id: string, admin: boolean): Promise<PageComment[]> {
   const list = await readComments(path); const c = list.find((x) => x.id === id); if (!c) throw new RepoError(404, "Comment not found");

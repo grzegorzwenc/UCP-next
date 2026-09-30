@@ -46,7 +46,7 @@ export function ReviewScreen(p: Props) {
   /* like Build the page, nothing editable: a click picks the text, the image or the component the next comment is about */
   const pick = (e: React.MouseEvent) => { if (!p.open) return; const t = pickAt(e.target as HTMLElement, blockName); if (!t) return; e.preventDefault(); setTarget(t); setOpen(true); setTimeout(() => box.current?.focus(), 0); };
   const show = (r: { id: string; field?: string }) => { flash(pageRef.current, r); };
-  const counts: Record<string, number> = {}; for (const c of list) if (c.block) counts[c.block.id] = (counts[c.block.id] ?? 0) + 1;
+  const counts: Record<string, number> = {}; for (const c of list) if (c.block && !c.resolved) counts[c.block.id] = (counts[c.block.id] ?? 0) + 1;
   const guest = !p.user; const canPost = p.open && text.trim() && (!guest || (name.trim() && MAIL.test(email.trim())));
   const post = async () => {
     if (!canPost || busy) return; setBusy(true); setErr(null);
@@ -66,7 +66,7 @@ export function ReviewScreen(p: Props) {
       else { if (p.status === "review") await repoApi.updateContent(p.path!, { status: "inreview" }); await repoApi.updateContent(p.path!, { status: "draft" }); setDone("Sent back to the author · the page is at Build the page again"); }
     } catch (e) { setErr(errorText(e)); } finally { setBusy(false); }
   };
-  const sorted = [...list].sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.time.localeCompare(a.time));
+  const sorted = [...list].sort((a, b) => Number(!!a.resolved) - Number(!!b.resolved) || Number(!!b.pinned) - Number(!!a.pinned) || b.time.localeCompare(a.time)); // resolved ones last
 
   return <main className="min-h-dvh bg-bg">
     <header className="bg-[#0F1013] text-white px-4 md:px-6 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -84,7 +84,7 @@ export function ReviewScreen(p: Props) {
           <RenderBlock b={b} /></div>)}</SiteChrome>
       </EntitiesContext.Provider></AssetsContext.Provider></Preview></div>
     </section>
-    <FloatingPanel title="Comments" count={list.length} open={open} onToggle={setOpen} top={76} hint={p.open && !target ? "Click a text, an image or a component on the page to comment on it." : undefined}>
+    <FloatingPanel title="Comments" count={list.filter((c) => !c.resolved).length} open={open} onToggle={setOpen} top={76} hint={p.open && !target ? "Click a text, an image or a component on the page to comment on it." : undefined}>
       <div className="flex flex-col gap-3 min-w-0">
         {p.mayApprove && !done && <div className="rounded-lg border border-line bg-surface-2 p-3"><b className="block text-[13px]">Everything right?</b><p className="text-[12.5px] text-ink-3 mt-0.5">{p.stage === "review" ? "Send it on to the business review, or back to the author if something needs changing." : "Signing off makes the page ready to publish."}</p>
           {p.stage === "review" ? <div className="flex flex-wrap gap-2 mt-2"><button className="btn btn-next btn-sm" disabled={busy} onClick={() => void decide("bizreview")}>Send to business review</button><button className="btn btn-sm" disabled={busy} onClick={() => void decide("draft")}>Reauthor</button></div>
@@ -97,12 +97,12 @@ export function ReviewScreen(p: Props) {
           <div className="flex items-center gap-2 px-2 pb-2"><span className="text-[11px] text-ink-4">{p.user ? `Commenting as ${p.user.name}` : "Your name is shown with the comment"}</span><button className="btn btn-sm btn-primary ml-auto" disabled={!canPost || busy} onClick={post}>{busy ? "Posting…" : "Post comment"}</button></div>
         </div> : null}
         {err && <p className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</p>}
-        {!sorted.length ? <p className="text-[13px] text-ink-3">No comments yet.</p> : <ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5">{sorted.map((c) => <li key={c.id} className={`min-w-0 rounded-lg border px-2.5 py-2 ${c.pinned ? "border-warn/40 bg-warn-soft/60" : "border-line"}`}>
+        {!sorted.length ? <p className="text-[13px] text-ink-3">No comments yet.</p> : <ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5">{sorted.map((c) => <li key={c.id} className={`min-w-0 rounded-lg border px-2.5 py-2 ${c.resolved ? "border-line bg-surface-2/70 opacity-80" : c.pinned ? "border-warn/40 bg-warn-soft/60" : "border-line"}`}>
           <div className="flex items-start gap-2"><Avatar name={c.whoName} size={24} /><div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 text-[12px]"><b className="font-semibold">{c.whoName}</b>{c.guest && <span className="text-[10.5px] rounded-full bg-surface-3 px-1.5 text-ink-3">guest</span>}<time className="text-ink-3" dateTime={c.time} suppressHydrationWarning>{relativeTime(c.time)}</time>{c.pinned && <span className="text-[10.5px] font-semibold uppercase tracking-[.06em] text-warn">Pinned</span>}</div>
             {c.block && <TargetCard target={c.block} onShow={show} compact />}
             {c.stage && <div className="text-[11px] text-info mt-0.5">During the {c.stage === "review" ? "author's review" : "business review"}</div>}
-            <p className="mt-0.5 text-[13px] whitespace-pre-wrap break-words">{c.text}</p></div></div></li>)}</ul>}
+            <p className={`mt-0.5 text-[13px] whitespace-pre-wrap break-words ${c.resolved ? "text-ink-3" : ""}`}>{c.text}</p>{c.resolved && <div className="mt-1 text-[11.5px] text-good">✓ Resolved by {c.resolved.name}</div>}</div></div></li>)}</ul>}
       </div>
     </FloatingPanel>
   </main>;

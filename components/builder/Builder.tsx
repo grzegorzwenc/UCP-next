@@ -157,7 +157,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const bizOnBehalf = !mayBizSelf && isAdmin;
   const maySendBiz = canEdit && mayStatus("bizreview"); // after the author's review, the author (anyone with Edit) sends it to the business review
   const [commentCount, setCommentCount] = useState(0); // comments on the page (review links included), shown on the Version history rail button
-  useEffect(() => { let live = true; ucpApi.comments(marketId, page.path).then((l) => live && setCommentCount(l.length), () => {}); return () => { live = false; }; }, [marketId, page.path, rightTab, right]);
+  useEffect(() => { let live = true; ucpApi.comments(marketId, page.path).then((l) => live && setCommentCount(l.filter((c) => !c.resolved).length), () => {}); return () => { live = false; }; }, [marketId, page.path, rightTab, right]);
   const [share, setShare] = useState(false); // "Share for review" dialog: link + e-mail invite (opens after sending, and when the business review starts)
 
   const mutate = useCallback((fn: (b: Block[]) => Block[]) => { setBlocks((b) => fn(b)); setDirty(true); setSaving("Unsaved"); setPreviewed(false); }, [setPreviewed]);
@@ -167,7 +167,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const pickForComment = (el: HTMLElement) => { const t = pickAt(el, blockName); if (!t) return; setCommentTarget(t); if (focus) setFloatOpen(true); else { setRightTab("comments"); setRight(true); } };
   /** A comment's chip: scroll to the text, asset or component it is about and flash it. */
   const showBlock = (r: { id: string; field?: string }) => { if (!flash(canvasRef.current, r)) say("That part is not on the page any more"); };
-  const onCommentList = (l: { block?: { id: string } }[]) => { const c: Record<string, number> = {}; for (const x of l) if (x.block) c[x.block.id] = (c[x.block.id] ?? 0) + 1; setCommentCounts(c); setCommentTotal(l.length); setCommentCount(l.length); };
+  const onCommentList = (l: { block?: { id: string }; resolved?: unknown }[]) => { const open = l.filter((x) => !x.resolved); const c: Record<string, number> = {}; for (const x of open) if (x.block) c[x.block.id] = (c[x.block.id] ?? 0) + 1; setCommentCounts(c); setCommentTotal(open.length); setCommentCount(open.length); }; // resolved comments stay in the list but leave the page
   const reviewProps = reviewMode ? { target: commentTarget, onClearTarget: () => setCommentTarget(null), onShowBlock: showBlock, onList: onCommentList } : { onShowBlock: showBlock, onList: onCommentList };
   const select = (id: string | null) => { setSel(id); setMode("select"); setPop(null); if (id && right && rightTab === "block") setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
   const add = (type: string) => { const nb = makeBlock(type); mutate((b) => { const i = sel ? b.findIndex((x) => x.id === sel) + 1 : b.length; const c = b.slice(); c.splice(i, 0, nb); return c; }); select(nb.id); say(`${BLOCK_BY_TYPE[type].name} added · click ✎ Edit to fill it in`); };

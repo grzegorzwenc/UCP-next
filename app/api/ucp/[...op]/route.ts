@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
+import { createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, setCommentResolved, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
 import { can } from "@/lib/ucp/perms";
 import { SESSION_COOKIE, sessionUserId } from "@/lib/server/session";
 import { PATHS } from "@/lib/ucp/paths";
@@ -205,9 +205,10 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       if (!can(u, "read", path, root)) return problem(new RepoError(403, "You can't see this page", `Signed in as ${u.name}`));
       if (o === "comments" && req.method === "GET") return ok(await listComments(path));
       if (!(admin || can(u, "edit", path, root) || can(u, "review", path, root))) return problem(new RepoError(403, "Only people who edit or review this page can comment"));
-      const b = await req.json() as { text?: string; version?: { id: string; label: string }; block?: { id: string; label: string; field?: string }; id?: string; pinned?: boolean };
+      const b = await req.json() as { text?: string; version?: { id: string; label: string }; block?: { id: string; label: string; field?: string }; id?: string; pinned?: boolean; resolved?: boolean };
       if (o === "comments/add") { const st = (await repo().getPage(path))?.status; const r = await addComment(path, u, b.text ?? "", b.version, { block: b.block, stage: st === "inreview" || st === "review" ? "review" : st === "bizreview" ? "bizreview" : undefined }); const pg = await repo().getPage(path); await logEvent(mid, { type: "content", text: `commented on ${pg?.title ?? path}: “${String(b.text ?? "").trim().slice(0, 60)}”`, target: path, requestId: rid }); return ok(r); }
       if (o === "comments/pin") return ok(await setCommentPin(path, u, b.id ?? "", !!b.pinned));
+      if (o === "comments/resolve") { const r = await setCommentResolved(path, u, b.id ?? "", !!b.resolved); const pg = await repo().getPage(path); await logEvent(mid, { type: "content", text: `${b.resolved ? "resolved" : "reopened"} a comment on ${pg?.title ?? path}`, target: path, requestId: rid }); return ok(r); }
       if (o === "comments/delete") return ok(await deleteComment(path, u, b.id ?? "", admin));
       return problem(new RepoError(404, "Unknown operation", o));
     }
