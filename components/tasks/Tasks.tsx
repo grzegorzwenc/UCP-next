@@ -142,7 +142,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
   const rows = view === "published" ? [] : byView[view]; const cur = VIEWS.find((v) => v.id === view)!;
   const empty = (txt: string) => <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl text-[13px] text-ink-3">{q || mkt ? <>No pages match. <button className="underline text-ink" onClick={() => { setQ(""); setMkt(""); }}>Clear filters</button></> : txt}</div>;
   const taskList = (items: Task[]) => items.length ? <ul className="bg-surface border border-line rounded-xl divide-y divide-line overflow-hidden">
-        {items.map((t) => { const m = marketOfPath(t.page.path); const d = dueLabel(t); const acts = actions(t);
+        {[...items].sort((a, b) => Number(isNew(b)) - Number(isNew(a))).map((t) => { const m = marketOfPath(t.page.path); const d = dueLabel(t); const acts = actions(t);
           return <li key={t.page.path + t.kind} className="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_minmax(0,220px)_auto] gap-x-4 gap-y-2 items-center px-4 py-3 hover:bg-surface-2">
             <div className="min-w-0">
               <div className="flex items-center gap-2 min-w-0"><PageIcon /><Link href={builderHref(t.page.path)} onClick={() => markSeen(onScreen.current)} className="font-semibold truncate hover:underline underline-offset-2">{t.page.title}</Link>{isNew(t) && <span suppressHydrationWarning className="flex-none text-[10px] font-bold uppercase tracking-[.06em] text-white bg-accent rounded px-1.5 py-0.5">New</span>}{view === "ready" ? <Pill status={t.page.status} /> : null}</div>
