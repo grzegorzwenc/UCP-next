@@ -43,13 +43,13 @@ const VIEWS: { id: View; label: string; empty: string; of: (t: Task, me: string)
   { id: "backlog", label: "Backlog", empty: "No page is waiting for a reviewer.", of: (t, me) => t.kind === "Review" && t.page.status === "review" && t.assignee !== me },
   { id: "mine", label: "Ready for review", empty: "Nothing assigned to you yet · take a page from the Backlog.", of: (t, me) => t.kind === "Review" && t.page.status === "review" && t.assignee === me },
   { id: "inreview", label: "In review", empty: "No author's review is in progress.", of: (t) => t.kind === "Review" && t.page.status === "inreview" },
-  { id: "sendbiz", label: "Send to business review", empty: "Nothing to send to, or waiting in, the business review.", of: (t) => t.kind === "SendBiz" || t.kind === "BizReview" },
+  { id: "sendbiz", label: "Reviewed by author / Send to business review", empty: "Nothing to send to, or waiting in, the business review.", of: (t) => t.kind === "SendBiz" || t.kind === "BizReview" },
   { id: "ready", label: "Ready for publish", empty: "No page is ready to publish.", of: (t) => t.kind === "Publish" || t.kind === "Check" },
   { id: "published", label: "Published", empty: "Nothing published recently.", of: () => false },
 ];
 
 /**
- * My tasks: pages by stage of the review flow — Assign to review · In review · Send to business review · Ready for publish · Published.
+ * My tasks: pages by stage of the review flow — Backlog · Ready for review · In review · Reviewed by author / Send to business review · Ready for publish · Published.
  * Every row has the one action that moves the page on (for the person who may do it), across all markets.
  */
 export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props) {
