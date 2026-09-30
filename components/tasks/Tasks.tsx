@@ -48,7 +48,6 @@ const markSeen = (keys: string[]) => { if (!keys.length) return; try { const all
 const seenKey = (t: Task) => `${t.page.path}|${t.page.status}|${t.assignee ?? ""}`;
 
 const STAGE_ORDER = ["review", "inreview", "reviewed", "bizreview", "approved", "scheduled"];
-const STAGE_HEAD: Record<string, string> = { review: "Waiting for author's review assignment", inreview: "In author's review", reviewed: "Reviewed by author · send to business review", bizreview: "In business review", approved: "Ready for publish", scheduled: "Scheduled to publish" };
 /** All (yours, any stage) and the stages of the review flow, as tabs. */
 const VIEWS: { id: View; label: string; empty: string; of: (t: Task, me: string) => boolean }[] = [
   { id: "all", label: "All", empty: "Nothing is assigned to you right now.", of: (t, me) => (t.assignee === me || t.author === me) && ["review", "inreview", "reviewed", "bizreview", "approved", "scheduled"].includes(t.page.status) },
@@ -192,8 +191,9 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
       </div>
 
       {/* backlog: one list; other stages: yours on top, other people below (authors only see their own; site admins see everyone) */}
-      {view === "all" ? (rows.length ? <div>{STAGE_ORDER.map((st) => { const g = rows.filter((t) => t.page.status === st); if (!g.length) return null;
-          return <section key={st} aria-label={STAGE_HEAD[st]} className="mt-6 first:mt-0"><h3 className="flex items-center gap-2 text-[11.5px] uppercase tracking-[.08em] font-semibold text-ink-3 mb-2"><span className={`pill pill-${st} normal-case tracking-normal`}>{STAGE_HEAD[st]}</span><span className="normal-case tracking-normal font-normal">{g.length}</span></h3>{taskList(g)}</section>; })}</div> : empty(cur.empty))
+      {view === "all" ? (rows.length ? <div>{VIEWS.filter((v) => v.id !== "all" && v.id !== "published").map((v) => { const g = rows.filter((t) => v.of(t, user.id)); if (!g.length) return null; const st = g[0].page.status;
+          /* the same names as the tabs, in the same order */
+          return <section key={v.id} aria-label={v.label} className="mt-6 first:mt-0"><h3 className="flex items-center gap-2 mb-2"><button type="button" onClick={() => openView(v.id)} title={`Open the ${v.label} tab`} className={`pill pill-${st} hover:underline underline-offset-2`}>{v.label}</button><span className="text-[12px] text-ink-3">{g.length}</span></h3>{taskList(g)}</section>; })}</div> : empty(cur.empty))
         : view === "backlog" ? (taskList(rows) ?? empty(cur.empty))
         : view !== "published" ? split(rows, (t) => t.assignee === user.id || t.author === user.id, taskList)
         : split(pub, (p) => p.whoId === user.id, pubList)}
