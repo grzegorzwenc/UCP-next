@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UCP CMS Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600&display=swap">
+<style>
+/* Layout: a reading column for prose; diagrams break out to the frame's width on light sheets (fixed colours in both themes). */
+:root {
+  --bg: #f4f5f3; --surface: #ffffff; --ink: #1b2124; --ink-2: #4a5458; --ink-3: #6b767a; --line: #d5dbd9;
+  --accent: #0e6b63; --accent-soft: #dcefec; --fe: #2c5d9e; --fe-soft: #e3ecf7; --be: #0e6b63; --be-soft: #dcefec; --store: #8a5a00; --store-soft: #f8ecd2;
+  --display: "IBM Plex Sans Condensed", "Arial Narrow", Arial, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+  --mono: "IBM Plex Mono", Consolas, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121618; --surface: #1a2023; --ink: #e8eceb; --ink-2: #b8c2c3; --ink-3: #8f9b9d; --line: #33403f;
+  --accent: #5cc4b8; --accent-soft: #173431; --fe: #8fb4e6; --fe-soft: #1b2a3d; --be: #5cc4b8; --be-soft: #173431; --store: #e7b65b; --store-soft: #3a2d12; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #121618; --surface: #1a2023; --ink: #e8eceb; --ink-2: #b8c2c3; --ink-3: #8f9b9d; --line: #33403f;
+  --accent: #5cc4b8; --accent-soft: #173431; --fe: #8fb4e6; --fe-soft: #1b2a3d; --be: #5cc4b8; --be-soft: #173431; --store: #e7b65b; --store-soft: #3a2d12; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.6 var(--body); margin: 0; }
+.page { max-width: 1240px; margin: 0 auto; padding-inline: 20px; padding-block: 40px 72px; display: grid; gap: 44px; }
+.prose { max-width: 70ch; }
+h1, h2, h3 { font-family: var(--display); font-weight: 600; letter-spacing: -.01em; text-wrap: balance; margin: 0; }
+h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.1; }
+h2 { font-size: 23px; line-height: 1.2; margin-bottom: 10px; }
+h3 { font-size: 17px; margin-bottom: 6px; }
+p { margin: 0 0 10px; }
+.eyebrow { font: 600 12px/1 var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+.lede { color: var(--ink-2); font-size: 17px; margin-top: 12px; }
+code, .mono { font-family: var(--mono); font-size: .88em; }
+a { color: var(--accent); }
+.note { font-size: 13.5px; color: var(--ink-3); }
+
+figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 18px 14px; }
+.sheet { overflow-x: auto; background: #ffffff; border-radius: 6px; color-scheme: light; }
+.sheet svg { display: block; width: 100%; min-width: 900px; height: auto; color: #1b2124; }
+figcaption { font-size: 13.5px; color: var(--ink-2); margin-top: 12px; max-width: 100ch; }
+/* SVG classes: fixed light colours (the sheet), with the same values repeated as presentation attributes in the markup. */
+svg text { font-family: var(--body); fill: #1b2124; }
+svg .t-lab { font: 600 13px var(--display); }
+svg .t-zone { font: 600 14px var(--display); }
+svg .t-sub { font-size: 11.5px; fill: #5f6a6e; }
+svg .t-mono { font: 11px var(--mono); fill: #4a5458; }
+svg .t-edge { font-size: 11px; fill: #4a5458; }
+svg .t-num { font: 600 11px var(--display); fill: #ffffff; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--ink-2); margin-top: 14px; }
+.sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; vertical-align: -1px; margin-right: 6px; border: 1px solid; }
+.sw.fe { background: #e3ecf7; border-color: #2c5d9e; }
+.sw.be { background: #dcefec; border-color: #0e6b63; }
+.sw.st { background: #f8ecd2; border-color: #8a5a00; }
+.sw.dam { background: #ece6f6; border-color: #6a4c9c; }
+.num { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: #2b3338; color: #fff; font: 600 11px var(--display); }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; background: var(--surface); }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+th { font: 600 12px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+tr:last-child td { border-bottom: 0; }
+td.k { white-space: nowrap; font-weight: 600; }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; }
+.cols > * { min-width: 0; }
+@media (max-width: 520px) { .page { padding-block: 28px 56px; gap: 34px; } }
+.pk { display: inline-block; padding: 1px 8px; border-radius: 4px; border: 1px solid; font: 600 11px/1.6 var(--display); letter-spacing: .04em; white-space: nowrap; }
+.pk.tpl { background: #fbe9f0; color: #8a2550; border-color: #b33a6b; }
+.pk.bl { background: #fdeee4; color: #8a3d10; border-color: #b5541c; }
+</style>
+</head>
+<body>
+
+<main class="page">
+  <header class="prose">
+    <div class="eyebrow">Application architecture · as of 1 October 2026 · branch TB-FE-plus-BE</div>
+    <h1>UCP CMS: modules and communication channels</h1>
+    <p class="lede">The CMS is two applications. UCP Frontend (Next.js) gives editors their screens and has its own server layer, the Integration API, which is the only part that talks to the backend. UCP Backend (Apache Sling + Oak) holds content, drafts, review and publishing, renders pages and makes every permission decision. The editor's browser never calls the backend directly, except for the backend's own admin tools. The first two sections show the target state: the logical system and a separate Digital Assets service. The rest shows the modules and channels in today's code.</p>
+    <div class="legend" aria-label="Legend">
+      <span><i class="sw fe"></i>UCP Frontend and Integration API</span>
+      <span><i class="sw be"></i>UCP Backend</span>
+      <span><i class="sw st"></i>data stores</span>
+      <span><i class="sw dam"></i>Digital Assets (new service)</span>
+      <span><i class="num">3</i> channel number from the table below</span>
+    </div>
+  </header>
+
+
+  <section>
+    <div class="prose">
+      <h2>Logical system diagram</h2>
+      <p>The target state in four parts: the CMS for editors, the content service, a separate digital assets service and the delivery layer. Inside each service the diagram marks the deployable packages: <span class="pk tpl">Components · templates</span> for what a page is built from, and <span class="pk bl">Business logic</span> for the rules about what may happen to it. Content and files take separate paths from upload to the visitor. A page stores only the asset's id, and a file never enters the content repository.</p>
+    </div>
+    <figure>
+      <div class="sheet">
+      <svg viewBox="0 0 1200 790" role="img" aria-label="Logical diagram with packages. UCP Frontend holds the screens and editor, the CMS logic package and the Integration API. UCP Backend holds the platform bundles with the business logic, the site packages with components and templates, and the access rules. The Digital Assets service holds the asset rules. Files go from the browser straight to object storage; visitors get HTML from the site CDN and media from a separate media CDN.">
+<defs><marker id="ml" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#4a5458"/></marker></defs>
+<rect x="470" y="70" width="510" height="375" rx="12" fill="#f3faf8" stroke="#0e6b63" stroke-width="1.4"/><text class="t-zone" x="966" y="92" fill="#0e6b63" text-anchor="end">Content domain</text>
+<rect x="470" y="465" width="510" height="270" rx="12" fill="#f8f6fc" stroke="#6a4c9c" stroke-width="1.4"/><text class="t-zone" x="966" y="487" fill="#6a4c9c" text-anchor="end">Digital Assets · new service</text>
+<rect x="1000" y="70" width="190" height="665" rx="12" fill="#f7f8f7" stroke="#6b767a" stroke-width="1.4"/><text class="t-zone" x="1014" y="92" fill="#6b767a">Delivery</text>
+<rect x="20" y="30" width="180" height="50" rx="8" fill="#ffffff" stroke="#6b767a" stroke-width="1.2"/><text class="t-lab" x="32" y="51">Administrators</text><text class="t-sub" x="32" y="70">console, repository</text>
+<rect x="20" y="130" width="180" height="80" rx="8" fill="#ffffff" stroke="#6b767a" stroke-width="1.2"/><text class="t-lab" x="32" y="151">Editors, reviewers</text><text class="t-sub" x="32" y="170">create, review,</text><text class="t-sub" x="32" y="186">publish</text>
+<rect x="240" y="110" width="200" height="612" rx="8" fill="#e3ecf7" stroke="#2c5d9e" stroke-width="1.2"/><text class="t-lab" x="252" y="131">UCP Frontend</text><text class="t-sub" x="252" y="150">Next.js</text>
+<rect x="252" y="165" width="176" height="75" rx="5" fill="#ffffff" stroke="#6b767a" stroke-width="1.2"/><text class="t-lab" x="262" y="186" style="font-size:12px">Screens and editor</text><text class="t-sub" x="262" y="202" style="font-size:11px">CMS screens, ClBuilder</text><text class="t-sub" x="262" y="217" style="font-size:11px">ClCanvas preview</text><text class="t-sub" x="262" y="232" style="font-size:11px">field forms from backend</text>
+<rect x="252" y="262" width="176" height="90" rx="5" fill="#fdeee4" stroke="#b5541c" stroke-width="1.2"/><rect x="262" y="255" width="86" height="14" rx="3" fill="#b5541c"/><text x="305" y="265" text-anchor="middle" fill="#ffffff" style="font: 600 9px var(--display); letter-spacing: .06em">BUSINESS LOGIC</text><text class="t-lab" x="262" y="283" style="font-size:12px">CMS logic</text><text class="t-sub" x="262" y="299" style="font-size:11px">review stages, tasks</text><text class="t-sub" x="262" y="314" style="font-size:11px">comments, locks</text><text class="t-sub" x="262" y="329" style="font-size:11px">review links, audit</text><text class="t-sub" x="262" y="344" style="font-size:11px">lib/server/ucp.ts</text>
+<rect x="252" y="362" width="176" height="75" rx="5" fill="#ffffff" stroke="#2c5d9e" stroke-width="1.2"/><text class="t-lab" x="262" y="383" style="font-size:12px">Integration API</text><text class="t-sub" x="262" y="399" style="font-size:11px">/api/ucp, /api/repo,</text><text class="t-sub" x="262" y="414" style="font-size:11px">/api/cl; adapter, client</text><text class="t-sub" x="262" y="429" style="font-size:11px">sessions, CSRF</text>
+<text class="t-sub" x="252" y="470">No page templates here: the</text><text class="t-sub" x="252" y="486">editor reads components, field</text><text class="t-sub" x="252" y="502">model and markers from the</text><text class="t-sub" x="252" y="518">site packages in UCP Backend.</text>
+<rect x="490" y="110" width="260" height="315" rx="8" fill="#dcefec" stroke="#0e6b63" stroke-width="1.2"/><text class="t-lab" x="502" y="131">Content service · UCP Backend</text><text class="t-sub" x="502" y="150">pages, drafts, review, publishing</text><text class="t-sub" x="502" y="166">page render, permissions</text>
+<rect x="502" y="190" width="236" height="75" rx="5" fill="#fdeee4" stroke="#b5541c" stroke-width="1.2"/><rect x="512" y="183" width="86" height="14" rx="3" fill="#b5541c"/><text x="555" y="193" text-anchor="middle" fill="#ffffff" style="font: 600 9px var(--display); letter-spacing: .06em">BUSINESS LOGIC</text><text class="t-lab" x="512" y="211" style="font-size:12px">Platform bundles</text><text class="t-sub" x="512" y="227" style="font-size:11px">drafts, review states, publishing</text><text class="t-sub" x="512" y="242" style="font-size:11px">scheduler, page create and copy</text><text class="t-sub" x="512" y="257" style="font-size:11px">composition validator, request guards</text>
+<rect x="502" y="280" width="236" height="75" rx="5" fill="#fbe9f0" stroke="#b33a6b" stroke-width="1.2"/><rect x="512" y="273" width="132" height="14" rx="3" fill="#b33a6b"/><text x="578" y="283" text-anchor="middle" fill="#ffffff" style="font: 600 9px var(--display); letter-spacing: .06em">COMPONENTS · TEMPLATES</text><text class="t-lab" x="512" y="301" style="font-size:12px">Site packages · one per site</text><text class="t-sub" x="512" y="317" style="font-size:11px">components: HTL + field model</text><text class="t-sub" x="512" y="332" style="font-size:11px">page templates and page types</text><text class="t-sub" x="512" y="347" style="font-size:11px">use-objects (Java), CSS/JS, content</text>
+<rect x="502" y="370" width="236" height="45" rx="5" fill="#fdeee4" stroke="#b5541c" stroke-width="1.2"/><rect x="512" y="363" width="86" height="14" rx="3" fill="#b5541c"/><text x="555" y="373" text-anchor="middle" fill="#ffffff" style="font: 600 9px var(--display); letter-spacing: .06em">BUSINESS LOGIC</text><text class="t-lab" x="512" y="391" style="font-size:12px">Access rules</text><text class="t-sub" x="512" y="407" style="font-size:11px">groups, ACLs, who may approve</text>
+<rect x="780" y="110" width="180" height="170" rx="8" fill="#f8ecd2" stroke="#8a5a00" stroke-width="1.2"/><text class="t-lab" x="792" y="131">Oak repository</text><text class="t-sub" x="792" y="150">content and drafts</text><text class="t-sub" x="792" y="166">/apps: deployed packages</text><text class="t-sub" x="792" y="182">/conf/ucp: CMS models</text><text class="t-sub" x="792" y="198">/var/ucp: CMS data</text><text class="t-sub" x="792" y="214">assets only as ids</text><text class="t-mono" x="792" y="270">tar segments / MongoDB</text>
+<rect x="490" y="505" width="260" height="120" rx="8" fill="#ece6f6" stroke="#6a4c9c" stroke-width="1.2"/><text class="t-lab" x="502" y="526">DAM API</text><text class="t-sub" x="502" y="545">upload, metadata, search</text>
+<rect x="502" y="558" width="236" height="60" rx="5" fill="#fdeee4" stroke="#b5541c" stroke-width="1.2"/><rect x="512" y="551" width="86" height="14" rx="3" fill="#b5541c"/><text x="555" y="561" text-anchor="middle" fill="#ffffff" style="font: 600 9px var(--display); letter-spacing: .06em">BUSINESS LOGIC</text><text class="t-lab" x="512" y="579" style="font-size:12px">Asset rules</text><text class="t-sub" x="512" y="595" style="font-size:11px">approval, usage lock,</text><text class="t-sub" x="512" y="610" style="font-size:11px">permissions per market</text>
+<rect x="490" y="662" width="260" height="60" rx="8" fill="#ece6f6" stroke="#6a4c9c" stroke-width="1.2"/><text class="t-lab" x="502" y="683">Renditions · workers</text><text class="t-sub" x="502" y="702">scan, thumbnails, WebP/AVIF, video</text>
+<rect x="780" y="505" width="180" height="80" rx="8" fill="#f8ecd2" stroke="#8a5a00" stroke-width="1.2"/><text class="t-lab" x="792" y="526">Metadata database</text><text class="t-sub" x="792" y="545">folders, versions, alt</text><text class="t-sub" x="792" y="561">usage on pages</text>
+<rect x="780" y="625" width="180" height="80" rx="8" fill="#f8ecd2" stroke="#8a5a00" stroke-width="1.2"/><text class="t-lab" x="792" y="646">Object storage</text><text class="t-sub" x="792" y="665">originals, renditions</text><text class="t-sub" x="792" y="681">files, never in Oak</text>
+<rect x="1010" y="110" width="170" height="110" rx="8" fill="#ffffff" stroke="#6b767a" stroke-width="1.2"/><text class="t-lab" x="1022" y="131">Site CDN</text><text class="t-sub" x="1022" y="150">www.*, market hosts</text><text class="t-sub" x="1022" y="166">HTML rendered from</text><text class="t-sub" x="1022" y="182">site package templates</text>
+<rect x="1010" y="330" width="170" height="90" rx="8" fill="#ffffff" stroke="#6b767a" stroke-width="1.2"/><text class="t-lab" x="1022" y="351">Visitors</text><text class="t-sub" x="1022" y="370">browsers,</text><text class="t-sub" x="1022" y="386">apps</text>
+<rect x="1010" y="625" width="170" height="80" rx="8" fill="#ffffff" stroke="#6b767a" stroke-width="1.2"/><text class="t-lab" x="1022" y="646">Media CDN</text><text class="t-sub" x="1022" y="665">media.*</text><text class="t-sub" x="1022" y="681">images, video, PDF</text>
+<path d="M200 170 H240" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ml)"/>
+<g transform="translate(220 170)"><circle r="9" fill="#2b3338"/><text class="t-num" text-anchor="middle" y="4" fill="#ffffff">1</text></g>
+<path d="M200 55 H560 V110" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ml)"/>
+<g transform="translate(380 55)"><circle r="9" fill="#2b3338"/><text class="t-num" text-anchor="middle" y="4" fill="#ffffff">2</text></g>
+<text class="t-edge" x="394" y="48">directly on manage.*</text>
+<path d="M440 400 H490" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ml)"/>
+<g transform="translate(465 400)"><circle r="9" fill="#2b3338"/><text class="t-num" text-anchor="middle" y="4" fill="#ffffff">3</text></g>
+<path d="M440 545 H490" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ml)"/>
+<g transform="translate(465 545)"><circle r="9" fill="#2b3338"/><text class="t-num" text-anchor="middle" y="4" fill="#ffffff">4</text></g>
+<path d="M440 642 H780" fill="none" stroke="#4a5458" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#ml)"/>
+<g transform="translate(465 642)"><circle r="9" fill="#2b3338"/><text class="t-num" text-anchor="middle" y="4" fill="#ffffff">5</text></g>
+<text class="t-edge" x="500" y="656">file straight to storage, signed URL</text>
+<path d="M620 425 V505" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ml)"/>
+<g transform="translate(620 455)"><circle r="9" fill="#2b3338"/><text class="t-num" text-anchor="middle" y="4" fill="#ffffff">6</text></g>
+<text class="t-edge" x="634" y="459">id → rendition URL · usage</text>
+<path d="M750 185 H780" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ml)"/>
+<g transform="translate(765 185)"><circle r="9" fill="#2b3338"/><text class="t-num" text-anchor="middle" y="4" fill="#ffffff">7</text></g>
+<path d="M750 545 H780" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ml)"/>
+<g transform="translate(765 545)"><circle r="9" fill="#2b3338"/><text class="t-num" text-anchor="middle" y="4" fill="#ffffff">8</text></g>
+<path d="M780 692 H750" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ml)" marker-start="url(#ml)"/>
+<g transform="translate(765 692)"><circle r="9" fill="#2b3338"/><text class="t-num" text-anchor="middle" y="4" fill="#ffffff">9</text></g>
+<path d="M680 110 V60 H1095 V110" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ml)"/>
+<g transform="translate(900 60)"><circle r="9" fill="#2b3338"/><text class="t-num" text-anchor="middle" y="4" fill="#ffffff">10</text></g>
+<text class="t-edge" x="914" y="53">HTML (origin)</text>
+<path d="M960 665 H1010" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ml)"/>
+<g transform="translate(985 665)"><circle r="9" fill="#2b3338"/><text class="t-num" text-anchor="middle" y="4" fill="#ffffff">11</text></g>
+<path d="M1095 330 V220" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ml)"/>
+<g transform="translate(1095 275)"><circle r="9" fill="#2b3338"/><text class="t-num" text-anchor="middle" y="4" fill="#ffffff">12</text></g>
+<path d="M1095 420 V625" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ml)"/>
+<g transform="translate(1095 522)"><circle r="9" fill="#2b3338"/><text class="t-num" text-anchor="middle" y="4" fill="#ffffff">12</text></g>
+<rect x="240" y="758" width="22" height="14" rx="3" fill="#fbe9f0" stroke="#b33a6b" stroke-width="1.2"/><text class="t-sub" x="270" y="769">package with components and templates</text><rect x="520" y="758" width="22" height="14" rx="3" fill="#fdeee4" stroke="#b5541c" stroke-width="1.2"/><text class="t-sub" x="550" y="769">package with business logic</text><path d="M760 765 H800" fill="none" stroke="#4a5458" stroke-width="1.4" stroke-dasharray="5 4"/><text class="t-sub" x="810" y="769">browser upload straight to storage</text>
+</svg>
+      </div>
+      <figcaption>The dashed line (5) is the only channel where the browser writes anywhere outside the CMS: it sends the file bytes straight to storage, to an address signed by the DAM API. Administrators (2) go directly to <span class="mono">manage.*</span>, as today. Number 12 marks both of the visitor's paths. Components and templates exist only in UCP Backend's site packages. The frontend has none of its own; it builds its forms from the field model the backend publishes. Business logic sits in three places, each enforcing its own rules: the platform bundles and access rules in the backend, the CMS logic in the frontend, and the asset rules in the DAM.</figcaption>
+    </figure>
+    <div style="margin-top:16px; display:grid; gap:16px">
+      <div><h3>Packages: where components, templates and business logic live</h3><div class="table-wrap"><table>
+          <thead><tr><th>Package</th><th>Kind</th><th>Contains</th><th>Deployed as</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Site packages</strong><br><span class="note">official-site, migration-demo, example: one per site</span></td><td><span class="pk tpl">Components · templates</span></td><td><span class="mono">/apps/&lt;site&gt;/components</span> (HTL and field descriptions), <span class="mono">/apps/&lt;site&gt;/templates</span> and <span class="mono">/pages</span>, Java use-objects, CSS/JS/fonts under <span class="mono">/_frontend/&lt;site&gt;</span>, starter content</td><td>OSGi bundle named in a feature file; <span class="mono">Sling-Initial-Content</span> mounts it at <span class="mono">/apps/&lt;site&gt;</span></td></tr>
+            <tr><td><strong>Platform bundles</strong><br><span class="note">platform/site, kernel, authoring, rest-content</span></td><td><span class="pk bl">Business logic</span></td><td>draft and review states, composition validator, ScheduledPublisher, PageCreator; request boundary; edit mode and markers; the <span class="mono">content/v1</span> API</td><td>the distribution's feature model</td></tr>
+            <tr><td><strong>Access rules</strong><br><span class="note">projects/server: authors.json, ucp-frontend.json</span></td><td><span class="pk bl">Business logic</span></td><td>groups (authors, <span class="mono">content-reviewers</span>), ACLs (who may write, who may approve), CMS storage roots <span class="mono">/conf/ucp</span> and <span class="mono">/var/ucp</span></td><td>repoinit at startup</td></tr>
+            <tr><td><strong>CMS logic</strong><br><span class="note">UCP Frontend: lib/server/ucp.ts</span></td><td><span class="pk bl">Business logic</span></td><td>review stages, tasks, comments, locks, review links, audit log</td><td>the Next.js application image</td></tr>
+            <tr><td><strong>Asset rules</strong><br><span class="note">DAM API (proposal)</span></td><td><span class="pk bl">Business logic</span></td><td>approval, usage lock, per-market permissions, rendition profiles</td><td>the DAM service image</td></tr>
+          </tbody>
+        </table></div>
+        <p class="note" style="margin-top:10px">Two kinds of template exist. Page templates in code (<span class="mono">/apps/&lt;site&gt;/templates</span>) arrive with a site package and need a deployment. Content models and CMS templates that administrators create in the CMS are data in <span class="mono">/conf/ucp</span> and change without one.</p></div>
+      <div><h3>Channels</h3><div class="table-wrap"><table>
+          <thead><tr><th>#</th><th>From → to</th><th>What flows</th><th>How</th></tr></thead>
+          <tbody>
+            <tr><td><span class="num">1</span></td><td class="k">Editor → UCP Frontend</td><td>screens, editing, picking and uploading assets</td><td>HTTPS, CMS session in httpOnly cookies</td></tr>
+            <tr><td><span class="num">2</span></td><td class="k">Administrator → UCP Backend</td><td>console, repository, the <span class="mono">/edit</span> editor</td><td>HTTPS on <span class="mono">manage.*</span>, form sign-in, CSRF, WAF</td></tr>
+            <tr><td><span class="num">3</span></td><td class="k">Integration API → UCP Backend</td><td>content, drafts, review, preview, publishing</td><td><span class="mono">content/v1</span> and Sling, as the signed-in editor, CSRF</td></tr>
+            <tr><td><span class="num">4</span></td><td class="k">Integration API → DAM API</td><td>listing, search, metadata, upload requests</td><td>REST/JSON, service token + short-lived editor token</td></tr>
+            <tr><td><span class="num">5</span></td><td class="k">Browser → object storage</td><td>file bytes, bypassing the Integration API</td><td>HTTPS PUT to a signed URL: one object, 15 min, type and size limits</td></tr>
+            <tr><td><span class="num">6</span></td><td class="k">UCP Backend → DAM API</td><td>on render id → rendition URL; on publish the usage registry</td><td>REST, service account, cached responses</td></tr>
+            <tr><td><span class="num">7</span></td><td class="k">UCP Backend → Oak</td><td>everything except files</td><td>in-process (JCR)</td></tr>
+            <tr><td><span class="num">8</span></td><td class="k">DAM API → database</td><td>metadata, folders, versions, usage, audit log</td><td>SQL</td></tr>
+            <tr><td><span class="num">9</span></td><td class="k">Storage ↔ workers</td><td>new original → scan → renditions</td><td>event and queue; workers accept no inbound traffic</td></tr>
+            <tr><td><span class="num">10</span></td><td class="k">UCP Backend → site CDN</td><td>HTML of published pages</td><td>the CDN pulls from the public hosts (origin)</td></tr>
+            <tr><td><span class="num">11</span></td><td class="k">Storage → media CDN</td><td>renditions of approved assets</td><td>origin reachable only by the CDN; versioned names, 1-year cache</td></tr>
+            <tr><td><span class="num">12</span></td><td class="k">Visitors → CDNs</td><td>pages and media</td><td>HTTPS, anonymous; the HTML points at files on <span class="mono">media.*</span></td></tr>
+          </tbody>
+        </table></div></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="prose">
+      <h2>Digital Assets: a separate service and hosting</h2>
+      <p><strong>Today</strong> a file goes through the Integration API (<span class="mono">POST /api/ucp/upload</span>) into Oak under <span class="mono">/content/dam/&lt;market&gt;/&lt;folder&gt;</span>. An image up to 1.5 MB is stored as a data URL in the <span class="mono">ucp:data</span> property; a larger file or a PDF is stored only as metadata, without its content. The mock delivery API answers with that data URL. That is enough for a demo. In production the binaries bloat the content repository and its backups, pass through the Integration API's memory, and have no renditions and no CDN.</p>
+      <p><strong>Proposal:</strong> digital assets as a separate system with its own API, database, object storage and CDN. Each region gets its own AWS account for it, next to the <span class="mono">ucp-&lt;region&gt;-prod</span> accounts from the hosting page. UCP Frontend and UCP Backend know only the asset's id.</p>
+    </div>
+    <figure>
+      <div class="sheet">
+      <svg viewBox="0 0 1200 580" role="img" aria-label="Digital Assets hosting on AWS, one account per region. The Integration API and UCP Backend in the UCP account reach the DAM API on ECS Fargate, backed by Aurora PostgreSQL, over PrivateLink. The browser uploads the file to a signed URL in a private S3 bucket of originals. GuardDuty scans each new object; clean ones go through EventBridge to an SQS queue, workers write renditions to a second bucket, and CloudFront with WAF serves them to visitors.">
+<defs><marker id="ma" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#4a5458"/></marker></defs>
+<rect x="20" y="100" width="280" height="460" rx="12" fill="#f5f8fc" stroke="#2c5d9e" stroke-width="1.4"/><text class="t-zone" x="34" y="122" fill="#2c5d9e">Account ucp-emea-prod</text>
+<text class="t-sub" x="34" y="139">existing, see the hosting page</text>
+<rect x="330" y="100" width="850" height="460" rx="12" fill="#f8f6fc" stroke="#6a4c9c" stroke-width="1.4"/><text class="t-zone" x="344" y="122" fill="#6a4c9c">Account dam-emea-prod · one per region</text>
+<rect x="350" y="140" width="420" height="400" rx="12" fill="none" stroke="#6a4c9c" stroke-width="1.4" stroke-dasharray="6 4"/><text class="t-zone" x="364" y="162" fill="#6a4c9c">VPC · private subnets, 2 AZs</text>
+<rect x="30" y="20" width="250" height="54" rx="8" fill="#ffffff" stroke="#6b767a" stroke-width="1.2"/><text class="t-lab" x="42" y="41">Editor's browser</text><text class="t-sub" x="42" y="60">CMS screens, file picker</text>
+<rect x="960" y="20" width="200" height="54" rx="8" fill="#ffffff" stroke="#6b767a" stroke-width="1.2"/><text class="t-lab" x="972" y="41">Visitors</text><text class="t-sub" x="972" y="60">market sites</text>
+<rect x="40" y="160" width="240" height="80" rx="8" fill="#e3ecf7" stroke="#2c5d9e" stroke-width="1.2"/><text class="t-lab" x="52" y="181">UCP Frontend · Integration API</text><text class="t-sub" x="52" y="200">ECS Fargate</text><text class="t-sub" x="52" y="216">asks the DAM for a signed URL</text>
+<rect x="40" y="300" width="240" height="80" rx="8" fill="#dcefec" stroke="#0e6b63" stroke-width="1.2"/><text class="t-lab" x="52" y="321">UCP Backend</text><text class="t-sub" x="52" y="340">render: id → rendition URL</text><text class="t-sub" x="52" y="356">publish: usage registry</text>
+<rect x="370" y="175" width="170" height="70" rx="8" fill="#ece6f6" stroke="#6a4c9c" stroke-width="1.2"/><text class="t-lab" x="382" y="196">PrivateLink</text><text class="t-sub" x="382" y="215">endpoint service</text><text class="t-sub" x="382" y="231">NLB → ALB</text>
+<rect x="590" y="175" width="165" height="80" rx="8" fill="#ece6f6" stroke="#6a4c9c" stroke-width="1.2"/><text class="t-lab" x="602" y="196">DAM API</text><text class="t-sub" x="602" y="215">ECS Fargate</text><text class="t-sub" x="602" y="231">at least 2 tasks</text>
+<rect x="590" y="300" width="165" height="70" rx="8" fill="#f8ecd2" stroke="#8a5a00" stroke-width="1.2"/><text class="t-lab" x="602" y="321">Aurora PostgreSQL</text><text class="t-sub" x="602" y="340">metadata, usage</text><text class="t-sub" x="602" y="356">Multi-AZ</text>
+<rect x="370" y="410" width="170" height="100" rx="8" fill="#ece6f6" stroke="#6a4c9c" stroke-width="1.2"/><text class="t-lab" x="382" y="431">Rendition workers</text><text class="t-sub" x="382" y="450">ECS Fargate</text><text class="t-sub" x="382" y="466">libvips, ffmpeg</text><text class="t-sub" x="382" y="482">read the original</text><text class="t-sub" x="382" y="498">scale on queue depth</text>
+<rect x="800" y="175" width="160" height="80" rx="8" fill="#f8ecd2" stroke="#8a5a00" stroke-width="1.2"/><text class="t-lab" x="812" y="196">S3 · originals</text><text class="t-sub" x="812" y="215">private, versioned</text><text class="t-sub" x="812" y="231">KMS encryption</text>
+<rect x="800" y="300" width="160" height="70" rx="8" fill="#ffffff" stroke="#6b767a" stroke-width="1.2"/><text class="t-lab" x="812" y="321">GuardDuty</text><text class="t-sub" x="812" y="340">malware scan for S3</text>
+<rect x="800" y="420" width="160" height="70" rx="8" fill="#ffffff" stroke="#6b767a" stroke-width="1.2"/><text class="t-lab" x="812" y="441">EventBridge → SQS</text><text class="t-sub" x="812" y="460">+ dead-letter queue</text>
+<rect x="1000" y="175" width="160" height="80" rx="8" fill="#ffffff" stroke="#6b767a" stroke-width="1.2"/><text class="t-lab" x="1012" y="196">CloudFront + WAF</text><text class="t-sub" x="1012" y="215">media.&lt;domain&gt;</text><text class="t-sub" x="1012" y="231">1-year cache</text>
+<rect x="1000" y="300" width="160" height="70" rx="8" fill="#f8ecd2" stroke="#8a5a00" stroke-width="1.2"/><text class="t-lab" x="1012" y="321">S3 · renditions</text><text class="t-sub" x="1012" y="340">access only via OAC</text>
+<path d="M250 74 V160" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ma)"/>
+<path d="M280 47 H880 V175" fill="none" stroke="#4a5458" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#ma)"/>
+<text class="t-edge" x="560" y="40">PUT file to a signed URL</text>
+<path d="M1080 74 V175" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ma)"/>
+<text class="t-edge" x="1088" y="92">HTTPS</text>
+<path d="M280 205 H370" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ma)"/>
+<path d="M280 340 H455 V245" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ma)"/>
+<text class="t-edge" x="462" y="292">resolve, usage</text>
+<path d="M540 210 H590" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ma)"/>
+<path d="M672 255 V300" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ma)"/>
+<text class="t-edge" x="680" y="282">SQL</text>
+<path d="M755 215 H800" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ma)"/>
+<path d="M880 255 V300" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ma)"/>
+<text class="t-edge" x="888" y="282">new object</text>
+<path d="M880 370 V420" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ma)"/>
+<text class="t-edge" x="888" y="400">clean</text>
+<path d="M800 455 H540" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ma)"/>
+<text class="t-edge" x="600" y="448">job from the queue</text>
+<path d="M455 510 V530 H1080 V370" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ma)"/>
+<text class="t-edge" x="820" y="524">write renditions</text>
+<path d="M1080 255 V300" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#ma)"/>
+<text class="t-edge" x="1088" y="282">OAC</text>
+</svg>
+      </div>
+      <figcaption>Traffic between the accounts goes only over PrivateLink to the DAM API. Only two addresses are reachable from the internet: the signed upload URL for S3 (valid for 15 minutes, one object) and CloudFront with the renditions. The originals bucket is never public. Backups: S3 versioning and replication to a second region, AWS Backup for Aurora.</figcaption>
+    </figure>
+    <div style="display:grid; gap:18px; margin-top:16px">
+      <div class="prose">
+        <h3>Principles</h3>
+        <ul style="margin:0; padding-left:20px; display:grid; gap:6px">
+          <li>A page stores the id (<span class="mono">image = ast_7Q2…</span>), never the file or a URL. The URL is built at render time, so a new crop or version changes on every page without editing them.</li>
+          <li>The file never passes through the Integration API or UCP Backend. The browser sends it straight to S3, to a signed address.</li>
+          <li>A new file is unavailable until it passes the scan. Only a clean file goes to the rendition queue.</li>
+          <li>Renditions become public only once the asset is approved. A draft preview gets short-lived signed URLs.</li>
+          <li>A rendition's name includes its version (<span class="mono">hero.v3.webp</span>), so the CDN keeps it for a year without invalidation.</li>
+          <li>An asset used on a published page cannot be deleted. The usage registry enforces this (channel 6).</li>
+          <li>Migration: a script moves the <span class="mono">/content/dam</span> nodes with <span class="mono">ucp:data</span> to S3 and the database, leaving only ids in Oak.</li>
+          <li><strong>To decide:</strong> where the DAM gets an editor's roles from. Proposal: after sign-in on UCP Backend, the Integration API issues a short-lived signed token with the user, markets and groups.</li>
+        </ul>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>DAM API (draft)</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td class="mono" style="white-space:nowrap">POST /v1/uploads</td><td>{ assetId, uploadUrl, expires }: a signed PUT to S3</td></tr>
+            <tr><td class="mono" style="white-space:nowrap">POST /v1/uploads/{id}/complete</td><td>closes the upload; the asset is in “scanning”</td></tr>
+            <tr><td class="mono" style="white-space:nowrap">GET /v1/assets?market=&amp;folder=&amp;q=</td><td>list with thumbnails, filters and paging</td></tr>
+            <tr><td class="mono" style="white-space:nowrap">GET /v1/assets/{id}</td><td>metadata, renditions, versions, pages that use it</td></tr>
+            <tr><td class="mono" style="white-space:nowrap">PATCH /v1/assets/{id}</td><td>title, alt text, crop, folder; new rendition version</td></tr>
+            <tr><td class="mono" style="white-space:nowrap">PUT /v1/assets/{id}/usage</td><td>UCP Backend on publish: which pages use it</td></tr>
+            <tr><td class="mono" style="white-space:nowrap">POST /v1/resolve</td><td>a batch of ids → rendition URLs for a page render</td></tr>
+            <tr><td class="mono" style="white-space:nowrap">GET media.*/{market}/{id}/{rendition}.v{n}.{ext}</td><td>the file for visitors, through CloudFront</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="prose">
+      <h2>Module map (current state)</h2>
+      <p>Each arrow is a channel described in the table below the map. Traffic to the backend always passes through Caddy and the kernel filters (CSRF, CORS, admission gate); the arrows show which module a request finally reaches.</p>
+    </div>
+    <figure>
+      <div class="sheet">
+      <svg viewBox="0 0 1200 790" role="img" aria-label="The editor's browser with the CMS screens, page editor and preview talks to the Next.js server. The Integration API and the repository adapter connect to UCP Backend through the Management API, Sling GET and POST, page render, sign-in and the console access API. Admin tools and site visitors connect to the backend directly. Everything ends in the Oak repository.">
+        <defs>
+          <marker id="m" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#4a5458"/></marker>
+          <g id="dot"><circle r="9" fill="#2b3338"/></g>
+        </defs>
+
+        <!-- zones -->
+        <rect x="10" y="64" width="240" height="716" rx="12" fill="none" stroke="#c9d1cf" stroke-width="1.5"/>
+        <text class="t-zone" x="26" y="88">Editor's browser</text>
+        <rect x="290" y="64" width="300" height="716" rx="12" fill="#f5f8fc" stroke="#2c5d9e" stroke-width="1.4"/>
+        <text class="t-zone" x="306" y="88" fill="#2c5d9e">UCP Frontend · Next.js server</text>
+        <rect x="640" y="64" width="550" height="716" rx="12" fill="#f3faf8" stroke="#0e6b63" stroke-width="1.4"/>
+        <text class="t-zone" x="656" y="88" fill="#0e6b63">UCP Backend · Apache Sling (port 6727)</text>
+
+        <!-- browser -->
+        <rect x="24" y="104" width="212" height="112" rx="8" fill="#e3ecf7" stroke="#2c5d9e" stroke-width="1.2"/>
+        <text class="t-lab" x="38" y="126">CMS screens (React)</text>
+        <text class="t-sub" x="38" y="146">Dashboard, Pages, My tasks</text>
+        <text class="t-sub" x="38" y="163">Users, Audit, Models, Assets</text>
+        <text class="t-sub" x="38" y="180">copy, compare, locks</text>
+        <text class="t-mono" x="38" y="200">components/</text>
+        <rect x="24" y="232" width="212" height="112" rx="8" fill="#e3ecf7" stroke="#2c5d9e" stroke-width="1.2"/>
+        <text class="t-lab" x="38" y="254">Page editor · ClBuilder</text>
+        <text class="t-sub" x="38" y="274">structure, field inspector</text>
+        <text class="t-sub" x="38" y="291">review stages, publishing</text>
+        <text class="t-sub" x="38" y="308">Comments, History</text>
+        <text class="t-mono" x="38" y="328">builder/ClBuilder.tsx</text>
+        <rect x="24" y="360" width="212" height="100" rx="8" fill="#e3ecf7" stroke="#2c5d9e" stroke-width="1.2"/>
+        <text class="t-lab" x="38" y="382">Preview · ClCanvas</text>
+        <text class="t-sub" x="38" y="402">iframe without page scripts</text>
+        <text class="t-sub" x="38" y="419">reads markers, inline editing</text>
+        <text class="t-mono" x="38" y="444">builder/ClCanvas.tsx</text>
+        <rect x="24" y="540" width="212" height="112" rx="8" fill="#ffffff" stroke="#6b767a" stroke-width="1.2"/>
+        <text class="t-lab" x="38" y="562">Backend admin tools</text>
+        <text class="t-sub" x="38" y="582">Console /start</text>
+        <text class="t-sub" x="38" y="599">Repository /manage/repository</text>
+        <text class="t-sub" x="38" y="616">Editor /edit</text>
+        <text class="t-sub" x="38" y="636">host manage.*</text>
+
+        <!-- next.js -->
+        <rect x="304" y="104" width="272" height="64" rx="8" fill="#e3ecf7" stroke="#2c5d9e" stroke-width="1.2"/>
+        <text class="t-lab" x="318" y="126">Server pages (RSC)</text>
+        <text class="t-sub" x="318" y="146">app/(cms)/[market]/[env]/…, /review/[token]</text>
+        <rect x="304" y="182" width="272" height="80" rx="8" fill="#e3ecf7" stroke="#2c5d9e" stroke-width="1.2"/>
+        <text class="t-lab" x="318" y="204">Integration API · /api/ucp</text>
+        <text class="t-sub" x="318" y="224">sign-in, tasks, review, comments</text>
+        <text class="t-sub" x="318" y="241">review links, locks, publishing</text>
+        <rect x="304" y="276" width="272" height="64" rx="8" fill="#e3ecf7" stroke="#2c5d9e" stroke-width="1.2"/>
+        <text class="t-lab" x="318" y="298">Integration API · /api/repo</text>
+        <text class="t-sub" x="318" y="318">pages, tree, copy, statuses, nodes</text>
+        <rect x="304" y="354" width="272" height="90" rx="8" fill="#e3ecf7" stroke="#2c5d9e" stroke-width="1.2"/>
+        <text class="t-lab" x="318" y="376">Integration API · /api/cl</text>
+        <text class="t-sub" x="318" y="396">drafts, review, model, components</text>
+        <text class="t-sub" x="318" y="413">preview, templates; enforces locks</text>
+        <text class="t-mono" x="318" y="432">app/api/cl/[...op]/route.ts</text>
+        <rect x="304" y="458" width="272" height="92" rx="8" fill="#e3ecf7" stroke="#2c5d9e" stroke-width="1.2"/>
+        <text class="t-lab" x="318" y="480">CMS logic + repository adapter</text>
+        <text class="t-sub" x="318" y="500">lib/server/ucp.ts: tasks, stages, comments</text>
+        <text class="t-sub" x="318" y="517">ContentRepository: contentlibre | sling | mock</text>
+        <text class="t-mono" x="318" y="537">UCP_BACKEND=contentlibre</text>
+        <rect x="304" y="564" width="272" height="92" rx="8" fill="#e3ecf7" stroke="#2c5d9e" stroke-width="1.2"/>
+        <text class="t-lab" x="318" y="586">UCP Backend client</text>
+        <text class="t-sub" x="318" y="606">clApi, clSlingJson, clSlingPost, clRender</text>
+        <text class="t-sub" x="318" y="623">session cookie + X-CSRF-Token</text>
+        <text class="t-mono" x="318" y="643">lib/server/contentlibre.ts</text>
+        <rect x="304" y="700" width="272" height="64" rx="8" fill="#ffffff" stroke="#6b767a" stroke-width="1.2"/>
+        <text class="t-lab" x="318" y="722">Site visitors</text>
+        <text class="t-sub" x="318" y="742">anonymous · en.*, pl.*, www</text>
+
+        <!-- contentlibre -->
+        <rect x="656" y="104" width="518" height="40" rx="8" fill="#ffffff" stroke="#6b767a" stroke-width="1.2"/>
+        <text class="t-lab" x="670" y="129">Caddy + Coraza WAF (production)</text>
+        <text class="t-sub" x="900" y="129">TLS · OWASP CRS · sign-in rate limit on manage.*</text>
+        <rect x="656" y="154" width="518" height="40" rx="8" fill="#dcefec" stroke="#0e6b63" stroke-width="1.2"/>
+        <text class="t-lab" x="670" y="179">Kernel</text>
+        <text class="t-sub" x="730" y="179">CSRF · CORS · admission gate · anonymous budget · /health · serialization guard</text>
+
+        <rect x="656" y="210" width="246" height="112" rx="8" fill="#dcefec" stroke="#0e6b63" stroke-width="1.2"/>
+        <text class="t-lab" x="670" y="232">Management API</text>
+        <text class="t-mono" x="670" y="250">/api/management</text>
+        <text class="t-sub" x="670" y="270">content/v1: pages, drafts, review,</text>
+        <text class="t-sub" x="670" y="287">schedule, copy · identity/v1</text>
+        <text class="t-sub" x="670" y="304">JAX-RS, OpenAPI, problem+json</text>
+        <rect x="656" y="336" width="246" height="96" rx="8" fill="#dcefec" stroke="#0e6b63" stroke-width="1.2"/>
+        <text class="t-lab" x="670" y="358">Sling GET / POST</text>
+        <text class="t-sub" x="670" y="378">.json · .libre-model.json</text>
+        <text class="t-sub" x="670" y="395">.libre-templates.json</text>
+        <text class="t-sub" x="670" y="412">POST with :operation, @TypeHint</text>
+        <rect x="656" y="446" width="246" height="88" rx="8" fill="#dcefec" stroke="#0e6b63" stroke-width="1.2"/>
+        <text class="t-lab" x="670" y="468">Page render</text>
+        <text class="t-sub" x="670" y="488">PageRenderServlet + HTL</text>
+        <text class="t-sub" x="670" y="505">?draft= · ?authoring=edit</text>
+        <text class="t-sub" x="670" y="522">→ component and field markers</text>
+        <rect x="656" y="548" width="246" height="56" rx="8" fill="#dcefec" stroke="#0e6b63" stroke-width="1.2"/>
+        <text class="t-lab" x="670" y="570">Sign-in</text>
+        <text class="t-mono" x="670" y="590">/j_security_check · /public/csrf</text>
+
+        <rect x="922" y="210" width="252" height="160" rx="8" fill="#dcefec" stroke="#0e6b63" stroke-width="1.2"/>
+        <text class="t-lab" x="936" y="232">Site framework</text>
+        <text class="t-sub" x="936" y="252">hosts, bindings, /etc/map</text>
+        <text class="t-sub" x="936" y="269">components, slots, field model</text>
+        <text class="t-sub" x="936" y="286">composition validator</text>
+        <text class="t-sub" x="936" y="303">drafts, review, schedule</text>
+        <text class="t-sub" x="936" y="320">PageCreator (create, copy)</text>
+        <text class="t-sub" x="936" y="337">ScheduledPublisher (every 60 s)</text>
+        <text class="t-mono" x="936" y="357">platform/site</text>
+        <rect x="922" y="384" width="252" height="88" rx="8" fill="#dcefec" stroke="#0e6b63" stroke-width="1.2"/>
+        <text class="t-lab" x="936" y="406">Authoring</text>
+        <text class="t-sub" x="936" y="426">AuthoringModeFilter (edit mode, draft)</text>
+        <text class="t-sub" x="936" y="443">ComponentBoundaryFilter (markers)</text>
+        <text class="t-sub" x="936" y="460">templates, /edit editor</text>
+        <rect x="922" y="486" width="252" height="118" rx="8" fill="#dcefec" stroke="#0e6b63" stroke-width="1.2"/>
+        <text class="t-lab" x="936" y="508">Console and Repository Manager</text>
+        <text class="t-mono" x="936" y="526">/start · /api/start/v1</text>
+        <text class="t-mono" x="936" y="543">/manage/repository</text>
+        <text class="t-mono" x="936" y="560">/api/manage/repostiory/v1</text>
+        <text class="t-sub" x="936" y="580">access (users, groups, ACL),</text>
+        <text class="t-sub" x="936" y="596">packages, queries, system</text>
+
+        <!-- oak -->
+        <rect x="656" y="622" width="518" height="142" rx="8" fill="#f8ecd2" stroke="#8a5a00" stroke-width="1.3"/>
+        <text class="t-lab" x="670" y="644">Oak repository (Segment Tar)</text>
+        <text class="t-sub" x="900" y="644">JCR session of the requesting user · service users</text>
+        <text class="t-mono" x="670" y="670">/content         published pages</text>
+        <text class="t-mono" x="670" y="688">/var/pages/drafts drafts and archive</text>
+        <text class="t-mono" x="670" y="706">/apps            components, templates</text>
+        <text class="t-mono" x="670" y="724">/home            users, groups</text>
+        <text class="t-mono" x="924" y="670">/conf/ucp         CMS models, templates</text>
+        <text class="t-mono" x="924" y="688">/var/ucp/pages    CMS page data</text>
+        <text class="t-mono" x="924" y="706">/var/ucp/audit    audit log</text>
+        <text class="t-mono" x="924" y="724">/var/ucp/entities, /content/dam</text>
+
+        <!-- channel 1: browser to next -->
+        <path d="M236 136 L304 136" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#m)"/>
+        <path d="M236 200 L304 220" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#m)"/>
+        <path d="M236 290 L304 306" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#m)"/>
+        <path d="M236 330 L304 380" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#m)"/>
+        <use href="#dot" x="270" y="172"/><text class="t-num" x="270" y="176" text-anchor="middle">1</text>
+        <!-- channel 2: preview -->
+        <path d="M236 420 L304 420" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#m)"/>
+        <use href="#dot" x="270" y="408"/><text class="t-num" x="270" y="412" text-anchor="middle">2</text>
+
+        <!-- internal next -->
+        <path d="M440 444 L440 456" fill="none" stroke="#4a5458" stroke-width="1.2" marker-end="url(#m)"/>
+        <path d="M440 550 L440 562" fill="none" stroke="#4a5458" stroke-width="1.2" marker-end="url(#m)"/>
+
+        <!-- bus from client to contentlibre -->
+        <path d="M576 610 L616 610 L616 266" fill="none" stroke="#4a5458" stroke-width="1.4"/>
+        <path d="M616 266 L654 266" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#m)"/>
+        <use href="#dot" x="634" y="252"/><text class="t-num" x="634" y="256" text-anchor="middle">3</text>
+        <path d="M616 384 L654 384" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#m)"/>
+        <use href="#dot" x="634" y="370"/><text class="t-num" x="634" y="374" text-anchor="middle">4</text>
+        <path d="M616 490 L654 490" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#m)"/>
+        <use href="#dot" x="634" y="476"/><text class="t-num" x="634" y="480" text-anchor="middle">5</text>
+        <path d="M616 576 L654 576" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#m)"/>
+        <use href="#dot" x="634" y="562"/><text class="t-num" x="634" y="566" text-anchor="middle">6</text>
+        <path d="M616 541 L910 541 L910 552 L920 552" fill="none" stroke="#4a5458" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#m)"/>
+        <use href="#dot" x="760" y="541"/><text class="t-num" x="760" y="545" text-anchor="middle">7</text>
+
+        <!-- channel 8: admin tools direct -->
+        <path d="M236 596 L272 596 L272 690 L606 690 L606 124 L654 124" fill="none" stroke="#6b767a" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#m)"/>
+        <use href="#dot" x="440" y="690"/><text class="t-num" x="440" y="694" text-anchor="middle">8</text>
+        <!-- channel 9: visitors -->
+        <path d="M576 732 L596 732 L596 114 L654 114" fill="none" stroke="#6b767a" stroke-width="1.4" stroke-dasharray="2 3" marker-end="url(#m)"/>
+        <use href="#dot" x="586" y="760"/><text class="t-num" x="586" y="764" text-anchor="middle">9</text>
+
+        <!-- channel 10: inside backend -->
+        <path d="M902 266 L920 266" fill="none" stroke="#4a5458" stroke-width="1.2" marker-end="url(#m)"/>
+        <path d="M902 490 L912 490 L912 440 L920 440" fill="none" stroke="#4a5458" stroke-width="1.2" marker-end="url(#m)"/>
+        <path d="M1048 604 L1048 620" fill="none" stroke="#4a5458" stroke-width="1.2" marker-end="url(#m)"/>
+        <path d="M780 604 L780 620" fill="none" stroke="#4a5458" stroke-width="1.2" marker-end="url(#m)"/>
+        <use href="#dot" x="912" y="196"/><text class="t-num" x="912" y="200" text-anchor="middle">10</text>
+      </svg>
+      </div>
+      <figcaption>The frontend has three groups of Integration API routes: <code>/api/ucp</code> (CMS logic), <code>/api/repo</code> (pages through the adapter) and <code>/api/cl</code> (backend-specific operations: drafts, the component model, preview). All of them call the backend through one client (<code>lib/server/contentlibre.ts</code>) as the signed-in editor. The backend does not trust the frontend: every request runs in that person's JCR session, and the composition validator and the review rules check every write.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Communication channels (current state)</h2>
+    <div class="table-wrap" style="margin-top:12px">
+      <table>
+        <thead><tr><th>#</th><th>From → to</th><th>Protocol and format</th><th>Identity and protection</th><th>What flows</th></tr></thead>
+        <tbody>
+          <tr><td><span class="num">1</span></td><td>Browser → Next.js</td><td>HTTPS, same origin; HTML from server components and JSON <code>fetch</code> to <code>/api/*</code></td><td>httpOnly cookies: <code>ucp-user</code> (who) and <code>ucp-cl-session</code> (the backend session token, never reaches JavaScript)</td><td>Screens, page lists, tasks, review actions, comments, field saves</td></tr>
+          <tr><td><span class="num">2</span></td><td>Preview (iframe) → Next.js</td><td>HTTPS, HTML from <code>/api/cl/preview?…&amp;edit=1</code>; page assets (CSS, images) from the backend address via <code>&lt;base&gt;</code></td><td><code>sandbox="allow-same-origin"</code>: page scripts do not run; the parent attaches listeners and editing</td><td>Draft render with <code>&lt;!--libre:component--&gt;</code> and <code>data-libre-field</code> markers</td></tr>
+          <tr><td><span class="num">3</span></td><td>Integration API → Management API</td><td>REST JSON (<code>/api/management/content/v1</code>, <code>identity/v1</code>), errors as <code>application/problem+json</code></td><td>The editor's <code>sling.formauth</code> cookie; on writes an <code>X-CSRF-Token</code> from <code>/public/csrf</code></td><td>Pages, children, drafts, review request, decisions, assignment, reminder, schedule, publish, copy, move</td></tr>
+          <tr><td><span class="num">4</span></td><td>Integration API → Sling GET/POST</td><td>GET <code>.json</code>, <code>.libre-model.json</code>, <code>.libre-templates.json</code>; Sling form POST (<code>:operation</code>, <code>@TypeHint</code>, <code>@Delete</code>)</td><td>As above; permissions from repository ACLs (e.g. only administrators write <code>/conf/ucp</code>)</td><td>Component model with field descriptions; insert, move and edit components in a draft; CMS storage (<code>/conf/ucp</code>, <code>/var/ucp/*</code>)</td></tr>
+          <tr><td><span class="num">5</span></td><td>Integration API → page render</td><td>GET <code>&lt;page&gt;.html?draft=…&amp;authoring=edit</code></td><td>Edit mode only on the management host and only for signed-in users; the public host ignores the parameter</td><td>Page or draft HTML, with markers in edit mode</td></tr>
+          <tr><td><span class="num">6</span></td><td>Integration API → sign-in</td><td>POST <code>/j_security_check</code> (<code>j_validate=true</code>), GET <code>/public/csrf</code></td><td>The password passes once; after that only the session token in an httpOnly cookie</td><td>Editor sign-in and sign-out, CSRF token before a write</td></tr>
+          <tr><td><span class="num">7</span></td><td>Integration API → console access API</td><td>REST JSON <code>/api/start/v1/access</code></td><td>Editor session; writes for administrators only</td><td>People and groups (Users, reviewer picker)</td></tr>
+          <tr><td><span class="num">8</span></td><td>Admin browser → backend</td><td>HTTPS directly to the <code>manage.*</code> host: console, Repository Manager, <code>/edit</code> editor</td><td>Backend sign-in form; every write with a CSRF token (one contract for the three UIs, test <code>csrf-clients.test.mjs</code>)</td><td>Administration: access and ACLs, packages, repository browsing, backend editor</td></tr>
+          <tr><td><span class="num">9</span></td><td>Visitors → backend</td><td>HTTPS to delivery hosts; GET, HEAD, OPTIONS only</td><td>Anonymous; node serializations (<code>.json</code>, <code>.xml</code>) blocked, only HTML and files are public</td><td>Published pages and static files; never drafts or anything on <code>manage.*</code></td></tr>
+          <tr><td><span class="num">10</span></td><td>Inside the backend</td><td>OSGi services (<code>PageDrafts</code>, <code>PageCreator</code>, <code>DefinitionCatalog</code>), Sling filters, Sling scheduler</td><td>The requesting person's JCR session; definitions from <code>/apps</code> read with the catalog's identity; scheduled publishing as the <code>libre-scheduler</code> service user</td><td>Composition validation on every write, draft review and publishing, rendering with markers</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="prose">
+      <h2>Flow: inline text edit in the preview</h2>
+      <p>The editor double-clicks a heading in the preview, changes the text and presses Enter.</p>
+    </div>
+    <figure>
+      <div class="sheet">
+      <svg viewBox="0 0 1000 430" role="img" aria-label="Sequence diagram: the browser fetches the preview through the Integration API, which fetches the draft render from the backend, which reads the draft from Oak. After the edit the browser sends the field to the Integration API, which fetches a CSRF token and POSTs to the backend; the validator accepts the write to the draft and the preview reloads.">
+        <defs><marker id="s1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#4a5458"/></marker></defs>
+        <rect x="40" y="16" width="160" height="34" rx="6" fill="#e3ecf7" stroke="#2c5d9e"/><text class="t-lab" x="120" y="38" text-anchor="middle">Browser · ClCanvas</text>
+        <rect x="300" y="16" width="160" height="34" rx="6" fill="#e3ecf7" stroke="#2c5d9e"/><text class="t-lab" x="380" y="38" text-anchor="middle">Integration API</text>
+        <rect x="570" y="16" width="160" height="34" rx="6" fill="#dcefec" stroke="#0e6b63"/><text class="t-lab" x="650" y="38" text-anchor="middle">UCP Backend</text>
+        <rect x="820" y="16" width="160" height="34" rx="6" fill="#f8ecd2" stroke="#8a5a00"/><text class="t-lab" x="900" y="38" text-anchor="middle">Oak</text>
+        <path d="M120 50 V420 M380 50 V420 M650 50 V420 M900 50 V420" fill="none" stroke="#c9d1cf" stroke-width="1.2" stroke-dasharray="4 4"/>
+
+        <path d="M120 82 H378" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s1)"/><text class="t-edge" x="130" y="76">GET /api/cl/preview?path&amp;draft&amp;edit=1</text>
+        <path d="M380 112 H648" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s1)"/><text class="t-edge" x="390" y="106">GET page.html?draft=…&amp;authoring=edit · session</text>
+        <path d="M650 142 H898" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s1)"/><text class="t-edge" x="660" y="136">read the draft payload</text>
+        <path d="M650 172 H382" fill="none" stroke="#4a5458" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#s1)"/><text class="t-edge" x="392" y="166">HTML + component and field markers</text>
+        <path d="M380 202 H122" fill="none" stroke="#4a5458" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#s1)"/><text class="t-edge" x="132" y="196">HTML into the iframe (sandbox)</text>
+        <rect x="56" y="214" width="250" height="40" rx="6" fill="#ffffff" stroke="#6b767a"/><text class="t-sub" x="66" y="231">double-click on data-libre-field="title"</text><text class="t-sub" x="66" y="247">→ contentEditable, Enter saves</text>
+        <path d="M120 282 H378" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s1)"/><text class="t-edge" x="130" y="276">POST /api/cl/component/properties</text>
+        <path d="M380 312 H648" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s1)"/><text class="t-edge" x="390" y="306">GET /public/csrf, POST Sling + X-CSRF-Token</text>
+        <path d="M650 342 H898" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s1)"/><text class="t-edge" x="660" y="336">composition validator → write to the draft</text>
+        <path d="M650 372 H382" fill="none" stroke="#4a5458" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#s1)"/><text class="t-edge" x="392" y="366">200 (or a refusal with a reason)</text>
+        <path d="M380 402 H122" fill="none" stroke="#4a5458" stroke-width="1.4" stroke-dasharray="5 3" marker-end="url(#s1)"/><text class="t-edge" x="132" y="396">“Saved Title.” · preview reloaded</text>
+      </svg>
+      </div>
+      <figcaption>The frontend does not know the page structure on its own: what can be clicked and edited comes from the backend's markers, and whether a field can be edited in place, and with which editor, comes from the field descriptions in <code>.libre-model.json</code>. A write always goes to the draft, never to the published page.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <div class="prose">
+      <h2>Flow: review and publishing</h2>
+      <p>Decisions that belong to the backend (review request, approval, send-back, publishing) go to the Management API. The intermediate review stages, comments and locks are CMS data stored beside the page in <code>/var/ucp/pages</code>.</p>
+    </div>
+    <figure>
+      <div class="sheet">
+      <svg viewBox="0 0 1000 470" role="img" aria-label="Review sequence diagram: the author sends for review through the Management API, the reviewer takes the task, the Integration API stores the intermediate stages in CMS storage, the approval goes to the API, the backend publishes or schedules, and ScheduledPublisher publishes scheduled drafts.">
+        <defs><marker id="s2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#4a5458"/></marker></defs>
+        <rect x="20" y="16" width="130" height="34" rx="6" fill="#e3ecf7" stroke="#2c5d9e"/><text class="t-lab" x="85" y="38" text-anchor="middle">Author</text>
+        <rect x="180" y="16" width="130" height="34" rx="6" fill="#e3ecf7" stroke="#2c5d9e"/><text class="t-lab" x="245" y="38" text-anchor="middle">Reviewer</text>
+        <rect x="370" y="16" width="160" height="34" rx="6" fill="#e3ecf7" stroke="#2c5d9e"/><text class="t-lab" x="450" y="38" text-anchor="middle">Integration API</text>
+        <rect x="600" y="16" width="160" height="34" rx="6" fill="#dcefec" stroke="#0e6b63"/><text class="t-lab" x="680" y="38" text-anchor="middle">UCP Backend</text>
+        <rect x="830" y="16" width="150" height="34" rx="6" fill="#f8ecd2" stroke="#8a5a00"/><text class="t-lab" x="905" y="38" text-anchor="middle">Oak</text>
+        <path d="M85 50 V460 M245 50 V460 M450 50 V460 M680 50 V460 M905 50 V460" fill="none" stroke="#c9d1cf" stroke-width="1.2" stroke-dasharray="4 4"/>
+
+        <path d="M85 80 H448" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s2)"/><text class="t-edge" x="95" y="74">Send for review</text>
+        <path d="M450 104 H678" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s2)"/><text class="t-edge" x="460" y="98">POST content/v1/drafts/review</text>
+        <path d="M680 128 H903" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s2)"/><text class="t-edge" x="690" y="122">draft: IN_REVIEW · Backlog</text>
+
+        <path d="M245 162 H448" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s2)"/><text class="t-edge" x="255" y="156">Assign to me</text>
+        <path d="M450 186 H678" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s2)"/><text class="t-edge" x="460" y="180">POST drafts/review/assign</text>
+
+        <path d="M245 220 H448" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s2)"/><text class="t-edge" x="255" y="214">Start · Mark reviewed · Send to business review</text>
+        <path d="M450 244 H678" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s2)"/><text class="t-edge" x="460" y="238">Sling POST /var/ucp/pages/…</text>
+        <path d="M680 268 H903" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s2)"/><text class="t-edge" x="690" y="262">CMS stage tied to the request</text>
+
+        <path d="M245 302 H448" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s2)"/><text class="t-edge" x="255" y="296">Sign off (or Reauthor)</text>
+        <path d="M450 326 H678" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s2)"/><text class="t-edge" x="460" y="320">POST drafts/decision · approve</text>
+        <path d="M680 350 H903" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s2)"/><text class="t-edge" x="690" y="344">APPROVED (reviewers group)</text>
+
+        <path d="M85 384 H448" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s2)"/><text class="t-edge" x="95" y="378">Publish now or Schedule</text>
+        <path d="M450 408 H678" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s2)"/><text class="t-edge" x="460" y="402">POST drafts/publish | drafts/schedule</text>
+        <path d="M680 432 H903" fill="none" stroke="#4a5458" stroke-width="1.4" marker-end="url(#s2)"/><text class="t-edge" x="690" y="426">draft → jcr:content, old version archived</text>
+        <rect x="612" y="440" width="270" height="24" rx="5" fill="#ffffff" stroke="#6b767a"/><text class="t-sub" x="622" y="456">ScheduledPublisher: due drafts every 60 s</text>
+      </svg>
+      </div>
+      <figcaption>The backend decides who may approve (the <code>content-reviewers</code> group, never one's own request); the frontend only hides buttons the backend would refuse anyway. A stage stored beside the page is tied to one review request, so a new request starts from the beginning.</figcaption>
+    </figure>
+  </section>
+
+  <section>
+    <h2>Modules and their responsibilities</h2>
+    <div class="cols" style="margin-top:12px">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>UCP Frontend</th><th>Responsible for</th></tr></thead>
+          <tbody>
+            <tr><td class="k">CMS screens</td><td>Pages, My tasks, Dashboard, Users, Audit, models, templates, assets. <span class="mono">components/</span></td></tr>
+            <tr><td class="k">ClBuilder, ClCanvas</td><td>The page editor on UCP Backend: structure, field inspector driven by the backend's descriptions, inline editing, review stages, comments, history.</td></tr>
+            <tr><td class="k">Builder (mock)</td><td>The mock's block editor; used only when <span class="mono">UCP_BACKEND</span> is the mock.</td></tr>
+            <tr><td class="k">Integration API /api/ucp</td><td>Sign-in, tasks, review, review links, comments, locks, publishing from a list.</td></tr>
+            <tr><td class="k">Integration API /api/repo</td><td>Pages and nodes through the adapter; copy; status changes (mapped to backend decisions).</td></tr>
+            <tr><td class="k">Integration API /api/cl</td><td>Drafts, review, schedule, model, components, preview, templates; lock checks on editor writes.</td></tr>
+            <tr><td class="k">lib/server/ucp.ts</td><td>CMS logic: tasks from stages, comments, review links, audit log, publishing.</td></tr>
+            <tr><td class="k">Backend adapter</td><td>Translates the CMS model to the backend API; keeps the CMS's page data in <span class="mono">/var/ucp/pages</span>.</td></tr>
+            <tr><td class="k">UCP Backend client</td><td>The only place with a connection to the backend: session, CSRF, errors.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>UCP Backend</th><th>Responsible for</th></tr></thead>
+          <tbody>
+            <tr><td class="k">kernel</td><td>Request boundary: CSRF, CORS, admission gate, anonymous budget, health, serialization guard.</td></tr>
+            <tr><td class="k">site</td><td>Hosts and bindings, page render, components and slots, composition validator, drafts, review, schedule, page create and copy.</td></tr>
+            <tr><td class="k">authoring</td><td>Edit mode, component markers, templates, the <span class="mono">/edit</span> editor. Optional: without it the public host does not change.</td></tr>
+            <tr><td class="k">rest, rest-content</td><td>The API host and <span class="mono">content/v1</span> (JAX-RS, OpenAPI in rest-docs).</td></tr>
+            <tr><td class="k">console, system</td><td>The <span class="mono">/start</span> console: access, packages, pages, system cards.</td></tr>
+            <tr><td class="k">repository-management-api, -ui</td><td>Repository Manager: tree, properties, queries, packages (API and UI).</td></tr>
+            <tr><td class="k">login-form</td><td>Sign-in form and CSRF token for browser sessions.</td></tr>
+            <tr><td class="k">site projects</td><td>official-site, migration-demo, example: HTL components, templates, field descriptions, starter content.</td></tr>
+            <tr><td class="k">server (feature model)</td><td>Composition of the distribution: which bundles and which repoinit (ACLs, groups, <span class="mono">/var/ucp</span> storage).</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <p class="note" style="margin-top:12px">Not yet on UCP Backend: a guest review link without an account (needs a technical identity for the Integration API), a delivery API matching the frontend (<span class="mono">/api/delivery</span> works only on the mock), and a comment pinned to a specific text in the preview. Details: <span class="mono">INTEGRATION-CONTENTLIBRE.md</span> and <span class="mono">docs/FE-INTEGRATION.md</span>.</p>
+  </section>
+</main>
+</body>
+</html>

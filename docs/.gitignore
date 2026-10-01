@@ -1,0 +1,2 @@
+# Standalone SVGs that tools/svg2drawio.mjs writes beside the .drawio files
+diagrams/*.svg
