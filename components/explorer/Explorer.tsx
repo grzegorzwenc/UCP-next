@@ -157,13 +157,28 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
     catch (e) { setErr(errText(e)); } finally { setBusy(false); }
   }
   async function move() {
-    if (modal?.kind !== "move") return; setBusy(true); setErr(null);
+    if (modal?.kind !== "move") return;
+    const moving = modal.pages.filter((p) => parentOf(p.path) !== parent); if (!moving.length) { setModal(null); say("They are already in that folder"); return; }
+    const live = moving.filter((p) => p.status === "published" || allPages.some((x) => x.path.startsWith(p.path + "/") && x.status === "published"));
+    if (!(await ask({ title: moving.length === 1 ? `Move “${moving[0].title}” to ${rel(parent)}?` : `Move ${moving.length} items to ${rel(parent)}?`, confirmLabel: "Move",
+      body: <ul className="list-disc pl-5 grid gap-1">
+        <li>{moving.length === 1 ? "Its address changes" : "Their addresses change"} (see below){moving.some((p) => p.isFolder) ? ", and so do the addresses of every page inside" : ""}.</li>
+        {live.length > 0 && <li className="text-crit"><b>{live.length} live {live.length === 1 ? "page gets" : "pages get"} a new address</b> for customers · old bookmarks and search results stop working.</li>}
+        {moveLinked.length > 0 && <li>{relink ? `Links on ${moveLinked.length} page${moveLinked.length === 1 ? " are" : "s are"} updated to the new address.` : <span className="text-warn">Links on {moveLinked.length} page{moveLinked.length === 1 ? "" : "s"} will stop working (you chose not to update them).</span>}</li>}
+        <li>Content, status and history stay as they are.</li></ul>,
+      items: moving.map((p) => ({ label: p.title, note: `${rel(p.path)} → ${rel(parent)}/${p.name}`, warn: live.includes(p) })) }))) return;
+    setBusy(true); setErr(null);
     try { let n = 0; for (const p of modal.pages) { if (parentOf(p.path) === parent) continue; const to = `${parent}/${p.name}`; await repoApi.movePage(p.path, to); n++; const from = moveRefs?.find((r) => r.path === p.path); if (relink && from?.linkedFrom.length) await ucpApi.relinkPages(marketId, p.path, to, from.linkedFrom.map((x) => x.path)).catch(() => {}); } setModal(null); setSel([]); say(n ? `Moved ${n} item${n === 1 ? "" : "s"} to ${rel(parent)}` : "Nothing to move"); router.refresh(); }
     catch (e) { setErr(errText(e)); } finally { setBusy(false); }
   }
   /** Copy to another folder (or the same one, as “… (copy)”). */
   async function copyTo() {
-    if (modal?.kind !== "copy") return; setBusy(true); setErr(null);
+    if (modal?.kind !== "copy") return;
+    const copying = modal.pages.filter((x) => !isFolder(x));
+    if (!(await ask({ title: copying.length === 1 ? `Copy “${copying[0].title}” to ${rel(parent)}?` : `Copy ${copying.length} pages to ${rel(parent)}?`, confirmLabel: "Copy",
+      body: <ul className="list-disc pl-5 grid gap-1"><li>New pages are created with the same blocks and texts.</li><li>The copies start as <b>drafts</b>: they need review before they can go live.</li><li>The originals do not change.</li></ul>,
+      items: copying.map((p) => ({ label: p.title, note: `→ ${rel(parent)}/${parentOf(p.path) === parent ? p.name + "-copy" : p.name}` })) }))) return;
+    setBusy(true); setErr(null);
     try {
       let n = 0; const names = (await repoApi.children(parent, 0, 500)).items.map((x) => x.name);
       for (const p of modal.pages.filter((x) => !isFolder(x))) {
@@ -175,6 +190,11 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
   }
   /** Lock (nobody else can change, move or delete it) or unlock the selected pages. */
   async function setLock(pages: PageSummary[], locked: boolean) {
+    const list = pages.filter((p) => !isFolder(p));
+    if (!(await ask({ title: `${locked ? "Lock" : "Unlock"} ${list.length === 1 ? `“${list[0].title}”` : `${list.length} pages`}?`, confirmLabel: locked ? "Lock" : "Unlock",
+      body: locked ? <ul className="list-disc pl-5 grid gap-1"><li>Only you and site admins can change, move or delete {list.length === 1 ? "it" : "them"}.</li><li>Others can still open {list.length === 1 ? "it" : "them"}; reviews and publishing go on.</li><li>Unlock any time from here.</li></ul>
+        : <ul className="list-disc pl-5 grid gap-1"><li>Everyone with Edit can change, move and delete {list.length === 1 ? "it" : "them"} again.</li></ul>,
+      items: list.map((p) => ({ label: p.title, note: rel(p.path) })) }))) return;
     try { const r = await ucpApi.lockPages(marketId, pages.filter((p) => !isFolder(p)).map((p) => p.path), locked); say(`${locked ? "Locked" : "Unlocked"} ${r.changed} page${r.changed === 1 ? "" : "s"}`); setSel([]); router.refresh(); }
     catch (e) { say(errText(e)); }
   }
@@ -191,6 +211,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
     catch (e) { say(errText(e)); }
   }
   async function duplicate(p: PageSummary) {
+    if (!(await ask({ title: `Duplicate “${p.title}”?`, confirmLabel: "Duplicate", body: <ul className="list-disc pl-5 grid gap-1"><li>A copy called <b>“{p.title} (copy)”</b> appears in the same folder.</li><li>It starts as a draft; the original does not change.</li></ul> }))) return;
     try { const full = await repoApi.getPage(p.path); const siblings = (await repoApi.children(parentOf(p.path), 0, 200)).items.map((x) => x.name); let name = `${p.name}-copy`; let i = 2; while (siblings.includes(name)) name = `${p.name}-copy-${i++}`;
       await repoApi.createPage({ parentPath: parentOf(p.path), name, template: p.template ?? "blank", title: `${p.title} (copy)`, components: full?.components ?? [] }); say(`Duplicated “${p.title}”`); router.refresh(); }
     catch (e) { say(errText(e)); }
