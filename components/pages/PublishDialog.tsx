@@ -36,14 +36,18 @@ export function PublishDialog({ marketId, envName, pages, mayPublish, onClose, o
   const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
   /* the files these pages use (images, PDFs): ones not live yet go out with the pages, or the pages cannot go live */
   const [files, setFiles] = useState<{ id: string; name: string; type: string; status: "draft" | "published"; publishedAt?: string; size?: string; folder?: string; thumb?: string }[] | null>(null);
-  const [withFiles, setWithFiles] = useState(true);
+  const [picked, setPicked] = useState<string[] | null>(null); // files to publish with the pages (null = every unpublished one)
+  const [step, setStep] = useState<1 | 2>(1); // 1 = images and files, 2 = when
   useEffect(() => { let on = true; ucpApi.publishFiles(marketId, ready.map((p) => p.path)).then((f) => on && setFiles(f), () => on && setFiles([])); return () => { on = false; }; }, [marketId, ready]);
   const draftFiles = (files ?? []).filter((f) => f.status === "draft");
+  const chosen = picked ?? draftFiles.map((f) => f.id); const left = draftFiles.filter((f) => !chosen.includes(f.id));
+  const toggle = (id: string) => setPicked(chosen.includes(id) ? chosen.filter((x) => x !== id) : [...chosen, id]);
+  const hasFiles = !!files?.length; const onFiles = step === 1 && files !== null && hasFiles && !results; // no files → straight to "when"
 
   const run = async (cancel = false) => {
     if (!cancel && (whenErr || !ready.length)) return; setBusy(true); setErr(null);
     try {
-      const r = await ucpApi.publish(marketId, cancel ? [single!.path] : ready.map((p) => p.path), cancel ? { cancel: true } : { at: at?.toISOString(), assets: withFiles ? draftFiles.map((f) => f.id) : [] });
+      const r = await ucpApi.publish(marketId, cancel ? [single!.path] : ready.map((p) => p.path), cancel ? { cancel: true } : { at: at?.toISOString(), assets: chosen });
       const m = cancel ? "cancel" : mode; const live = r.filter((x) => x.ok); if (m === "now" && live.length) celebrate(live.map((x) => x.title), envName); // fanfare 🎉
       if (r.every((x) => x.ok) && ready.length === pages.length) { onDone(r, m); return; }
       setResults([...r, ...pages.filter((p) => !ready.includes(p) && !cancel).map((p) => ({ path: p.path, title: p.title, ok: false, reason: publishBlock(p, mayPublish) }))]); onDone(r, m);
@@ -55,44 +59,43 @@ export function PublishDialog({ marketId, envName, pages, mayPublish, onClose, o
   </ModalShell>;
 
   const title = single ? `Publish “${single.title}”` : `Publish ${pages.length} pages`;
+  const steps = hasFiles && <ol className="flex items-center gap-2 text-[12px] mb-3" aria-label="Steps">{[["1", "Images and files"], ["2", "When"]].map(([n, l], i) => { const on = (i === 0) === onFiles; const done = i === 0 && !onFiles;
+    return <li key={n} className="flex items-center gap-2">{i > 0 && <span aria-hidden className="w-6 h-px bg-line-2" />}<span className={`w-5 h-5 rounded-full grid place-items-center text-[11px] font-bold ${done ? "bg-good text-white" : on ? "bg-accent text-white" : "bg-surface-3 text-ink-3"}`}>{done ? "✓" : n}</span><span className={on ? "font-semibold text-ink" : "text-ink-3"} aria-current={on ? "step" : undefined}>{l}</span></li>; })}</ol>;
   return <ModalShell title={title} subtitle={`Goes live on ${envName}.`} width={560} onClose={onClose}
-    footer={<>{single?.status === "scheduled" && <button className="btn mr-auto text-crit" disabled={busy} onClick={() => run(true)}>Cancel schedule</button>}<button className="btn" onClick={onClose}>Cancel</button>
+    footer={onFiles ? <><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={() => setStep(2)}>Next: when</button></> : <>{single?.status === "scheduled" && <button className="btn mr-auto text-crit" disabled={busy} onClick={() => run(true)}>Cancel schedule</button>}{hasFiles ? <button className="btn" onClick={() => setStep(1)}>Back</button> : <button className="btn" onClick={onClose}>Cancel</button>}
       <button className="btn btn-primary" disabled={busy || !ready.length || !!whenErr || files === null} onClick={() => run()}>{busy ? "Working…" : mode === "now" ? `Publish now${pages.length > 1 ? ` (${ready.length})` : ""}` : `Schedule${pages.length > 1 ? ` (${ready.length})` : ""}`}</button></>}>
     {single?.status === "scheduled" && single.publishAt && <p className="text-[13px] bg-info-soft rounded-md px-3 py-2 mb-3">Scheduled for <b>{fmt(single.publishAt)}</b>. Change the time, publish it now, or cancel the schedule.</p>}
     {pages.length > 1 && <div className="mb-3"><p className="text-[12.5px] text-ink-3 mb-1.5">{ready.length} of {pages.length} can be published{ready.length < pages.length ? ". The others are skipped:" : "."}</p>
       <ul className="grid gap-1 max-h-[180px] overflow-auto">{pages.map((p) => { const why = publishBlock(p, mayPublish); return <li key={p.path} className={`flex items-center gap-2 text-[13px] border rounded-md px-3 py-1.5 ${why ? "border-line bg-surface-2 text-ink-3" : "border-line"}`}><span className="truncate flex-1">{p.title}</span><Pill status={p.status} />{why && <span className="text-[11.5px] text-warn whitespace-nowrap">{why}</span>}</li>; })}</ul></div>}
     {single && publishBlock(single, mayPublish) && <p className="text-[13px] bg-warn-soft rounded-md px-3 py-2 mb-3">{publishBlock(single, mayPublish)}. Only pages that passed review (Ready to publish) can go live.</p>}
-    {ready.length > 0 && <section aria-label="Files" className="mb-3 rounded-xl border border-line overflow-hidden">
+    {steps}
+    {ready.length > 0 && files === null && <div className="mb-3 grid gap-2" aria-label="Checking the images and files">{[0, 1].map((k) => <div key={k} className="h-12 rounded-lg bg-surface-2 animate-pulse" />)}</div>}
+    {onFiles && <section aria-label="Images and files" className="rounded-xl border border-line overflow-hidden">
       <div className="flex items-center gap-2 px-3.5 py-2.5 bg-surface-2 border-b border-line">
-        <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="text-ink-3"><path d="M4 5h16v14H4z" /><path d="M4 15l4.5-4.5 4 4 2.5-2.5L20 17" /></svg>
-        <b className="text-[13px]">Images and files</b>
-        <span className="ml-auto flex items-center gap-1.5 text-[11.5px]">{files === null ? <span className="text-ink-3">Checking…</span> : !files.length ? <span className="text-ink-3">None</span> : <>
-          {draftFiles.length > 0 && <span className="rounded-full bg-warn-soft text-warn font-semibold px-2 py-0.5">{draftFiles.length} to publish</span>}
-          {files.length - draftFiles.length > 0 && <span className="rounded-full bg-good-soft text-good font-semibold px-2 py-0.5">{files.length - draftFiles.length} live</span>}</>}</span>
+        <b className="text-[13px]">Images and files on {single ? "this page" : "these pages"}</b>
+        <span className="ml-auto flex items-center gap-1.5 text-[11.5px]">{draftFiles.length > 0 && <span className="rounded-full bg-warn-soft text-warn font-semibold px-2 py-0.5">{draftFiles.length} not published</span>}{files!.length - draftFiles.length > 0 && <span className="rounded-full bg-good-soft text-good font-semibold px-2 py-0.5">{files!.length - draftFiles.length} live</span>}</span>
       </div>
-      {files === null ? <div className="px-3.5 py-3 grid gap-2" aria-hidden>{[0, 1].map((k) => <div key={k} className="h-9 rounded-md bg-surface-2 animate-pulse" />)}</div>
-        : !files.length ? <p className="px-3.5 py-3 text-[12.5px] text-ink-3">{single ? "This page uses" : "These pages use"} no images or files from Assets, so there is nothing else to publish.</p>
-        : <ul className="divide-y divide-line">{[...files].sort((a, b) => Number(a.status === "published") - Number(b.status === "published")).map((f) => { const live = f.status === "published";
-          return <li key={f.id} className={`flex items-center gap-3 px-3.5 py-2.5 ${live ? "" : "bg-warn-soft/25 shadow-[inset_3px_0_0_var(--warn)]"}`}>
-            <span className={`flex-none w-10 h-10 rounded-md overflow-hidden grid place-items-center ${f.type === "pdf" ? "bg-[#FDECEE] text-accent" : "bg-[linear-gradient(135deg,#dfe3ea,#b8bfcc)] text-white"}`}>
-              {f.thumb ? <img src={f.thumb} alt="" className="w-full h-full object-cover" /> : f.type === "pdf" ? <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5M10 13h6M10 17h4" /></svg> : <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16v14H4z" /><path d="M4 15l4.5-4.5 4 4 2.5-2.5L20 17" /></svg>}
-            </span>
-            <span className="min-w-0 flex-1"><b className="block text-[13px] font-semibold truncate">{f.name}</b><span className="block text-[11.5px] text-ink-3 truncate">{f.type === "image" ? "Image" : f.type.toUpperCase()}{f.size ? ` · ${f.size}` : ""}{f.folder ? ` · ${f.folder}` : ""}</span></span>
-            {live ? <span className="flex-none text-right"><span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-good bg-good-soft rounded-full px-2 py-0.5"><i className="w-1.5 h-1.5 rounded-full bg-good" />Live</span>{f.publishedAt && <span className="block text-[10.5px] text-ink-4 mt-0.5">{fmt(f.publishedAt)}</span>}</span>
-              : <span className="flex-none inline-flex items-center gap-1 text-[11.5px] font-semibold text-warn bg-warn-soft rounded-full px-2 py-0.5"><i className="w-1.5 h-1.5 rounded-full bg-warn" />Not published</span>}
-          </li>; })}</ul>}
-      {draftFiles.length > 0 && <label className={`flex items-start gap-3 px-3.5 py-3 border-t border-line cursor-pointer ${withFiles ? "bg-accent-soft/40" : "bg-surface"}`}>
-        <span className="relative mt-0.5 flex-none"><input type="checkbox" className="peer sr-only" checked={withFiles} onChange={(e) => setWithFiles(e.target.checked)} /><span className={`block w-9 h-5 rounded-full transition-colors ${withFiles ? "bg-accent" : "bg-line-2"}`} /><span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${withFiles ? "translate-x-4" : ""}`} /></span>
-        <span className="text-[12.5px]"><b className="block text-[13px]">Publish {draftFiles.length === 1 ? "the file" : `the ${draftFiles.length} files`} with the page</b>
-          <span className={withFiles ? "text-ink-3" : "text-warn"}>{withFiles ? `${draftFiles.length === 1 ? "It goes" : "They go"} live at the same time, so nothing on the page is missing.` : `Without ${draftFiles.length === 1 ? "it" : "them"} the ${single ? "page stays" : "pages that use them stay"} unpublished.`}</span></span>
-      </label>}
+      {draftFiles.length > 1 && <label className="flex items-center gap-2 px-3.5 py-2 border-b border-line text-[12.5px] cursor-pointer hover:bg-surface-2"><input type="checkbox" className="w-4 h-4 accent-[var(--accent)]" checked={!left.length} ref={(el) => { if (el) el.indeterminate = left.length > 0 && left.length < draftFiles.length; }} onChange={(e) => setPicked(e.target.checked ? draftFiles.map((f) => f.id) : [])} /><b>Publish all {draftFiles.length} unpublished files</b></label>}
+      <ul className="divide-y divide-line max-h-[300px] overflow-auto">{[...files!].sort((a, b) => Number(a.status === "published") - Number(b.status === "published")).map((f) => { const live = f.status === "published"; const on = live || chosen.includes(f.id);
+        return <li key={f.id}><label className={`flex items-center gap-3 px-3.5 py-2.5 ${live ? "cursor-default" : "cursor-pointer hover:bg-surface-2"} ${!live && !on ? "bg-warn-soft/25" : ""}`}>
+          <input type="checkbox" className="w-4 h-4 flex-none accent-[var(--accent)]" checked={on} disabled={live} onChange={() => toggle(f.id)} aria-label={live ? `${f.name} is already live` : `Publish ${f.name}`} />
+          <span className={`flex-none w-10 h-10 rounded-md overflow-hidden grid place-items-center ${f.type === "pdf" ? "bg-[#FDECEE] text-accent" : "bg-[linear-gradient(135deg,#dfe3ea,#b8bfcc)] text-white"}`}>
+            {f.thumb ? <img src={f.thumb} alt="" className="w-full h-full object-cover" onError={(e) => { e.currentTarget.replaceWith(Object.assign(document.createElement("span"), { textContent: "IMG", className: "text-[10px] font-bold" })); }} /> : f.type === "pdf" ? <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 3h7l5 5v13H7z" /><path d="M14 3v5h5M10 13h6M10 17h4" /></svg> : <svg aria-hidden width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16v14H4z" /><path d="M4 15l4.5-4.5 4 4 2.5-2.5L20 17" /></svg>}
+          </span>
+          <span className="min-w-0 flex-1"><b className="block text-[13px] font-semibold truncate">{f.name}</b><span className="block text-[11.5px] text-ink-3 truncate">{f.type === "image" ? "Image" : f.type.toUpperCase()}{f.size ? ` · ${f.size}` : ""}{f.folder ? ` · ${f.folder}` : ""}</span></span>
+          {live ? <span className="flex-none text-right"><span className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-good bg-good-soft rounded-full px-2 py-0.5"><i className="w-1.5 h-1.5 rounded-full bg-good" />Live</span>{f.publishedAt && <span className="block text-[10.5px] text-ink-4 mt-0.5">{fmt(f.publishedAt)}</span>}</span>
+            : <span className={`flex-none inline-flex items-center gap-1 text-[11.5px] font-semibold rounded-full px-2 py-0.5 ${on ? "text-accent bg-accent-soft" : "text-warn bg-warn-soft"}`}><i className={`w-1.5 h-1.5 rounded-full ${on ? "bg-accent" : "bg-warn"}`} />{on ? "Publishes with the page" : "Not published"}</span>}
+        </label></li>; })}</ul>
+      {left.length > 0 && <p className="px-3.5 py-2.5 border-t border-line text-[12.5px] text-warn bg-warn-soft/40">{left.length === 1 ? `${left[0].name} stays unpublished, so` : `${left.length} files stay unpublished, so`} the {single ? "page cannot" : "pages that use them cannot"} go live yet.</p>}
     </section>}
+    {!onFiles && files !== null && <>
+    {hasFiles && <p className="mb-3 text-[12.5px] text-ink-2 bg-surface-2 rounded-md px-3 py-2">{single ? "The page" : `${ready.length} pages`}{chosen.length ? ` and ${chosen.length} file${chosen.length === 1 ? "" : "s"}` : ""} go live together.{left.length ? <span className="text-warn"> {left.length} file{left.length === 1 ? " stays" : "s stay"} unpublished · <button type="button" className="underline" onClick={() => setStep(1)}>change</button></span> : null}</p>}
     <div role="radiogroup" aria-label="When" className="grid gap-2">
       <label className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer ${mode === "now" ? "border-accent bg-accent-soft" : "border-line hover:bg-surface-2"}`}><input type="radio" name="pub-when" className="mt-1 accent-[var(--accent)]" checked={mode === "now"} onChange={() => setMode("now")} /><span><b className="block text-[13.5px]">Publish now</b><small className="text-ink-3 text-[12.5px]">Live for customers straight away.</small></span></label>
       <label className={`flex items-start gap-2.5 px-3 py-2.5 rounded-lg border cursor-pointer ${mode === "schedule" ? "border-accent bg-accent-soft" : "border-line hover:bg-surface-2"}`}><input type="radio" name="pub-when" className="mt-1 accent-[var(--accent)]" checked={mode === "schedule"} onChange={() => setMode("schedule")} /><span className="flex-1 min-w-0"><b className="block text-[13.5px]">Schedule</b><small className="text-ink-3 text-[12.5px]">Goes live automatically at the time you pick.</small>
         {mode === "schedule" && <span className="block mt-2"><input type="datetime-local" className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13.5px] bg-surface" value={when} min={toLocalInput(new Date(openedAt))} onChange={(e) => setWhen(e.target.value)} aria-invalid={!!whenErr} aria-label="Publish date and time" />
           <small className="block text-[11.5px] mt-1">{whenErr ? <span className="text-crit">{whenErr}</span> : <span className="text-ink-4">{at && !isNaN(at.getTime()) ? `${fmt(at.toISOString())} · ` : ""}your time zone ({tz})</span>}</small></span>}</span></label>
-    </div>
+    </div></>}
     <Err err={err} />
   </ModalShell>;
 }
