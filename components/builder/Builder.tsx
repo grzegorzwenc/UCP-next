@@ -477,7 +477,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const watched = useRef<{ canvas: HTMLElement | null; site: HTMLElement | null; ro: ResizeObserver[] }>({ canvas: null, site: null, ro: [] });
   const railsOn = !preview || !!lockReason; // a locked page keeps the rails (panels open read-only or veiled); a plain preview hides them
   const panelW = rightTab === "history" || rightTab === "comments" ? Math.max(rightW, 400) : rightW; // versions and comments need room
-  const padL = focus ? 0 : !railsOn ? 24 : left && !narrow ? leftW + 76 : phone ? 12 : narrow ? 64 : 76, padR = focus ? 0 : !railsOn ? 24 : right && !narrow ? panelW + 76 : phone ? 12 : narrow ? 64 : 76;
+  const floatingOpen = focus && !phone && ((qcMode && qcOpen) || (reviewMode && floatOpen)); // full screen: keep the page clear of the floating panel
+  const padL = focus ? 0 : !railsOn ? 24 : left && !narrow ? leftW + 76 : phone ? 12 : narrow ? 64 : 76, padR = focus ? (floatingOpen ? 412 : 0) : !railsOn ? 24 : right && !narrow ? panelW + 76 : phone ? 12 : narrow ? 64 : 76;
   const baseHint = lockedByOther ? `Locked by ${pageLock!.name} · ask them or a site admin to unlock it in Pages` : !canEdit ? "Read-only: you don't have Edit on this folder. Ask a site admin to grant it." : locked ? (inAuthor ? "In author's review · read-only" : status === "reviewed" ? "Reviewed · read-only" : status === "bizreview" ? "In business review · read-only" : status === "published" ? `Live on ${domain}${rel}` : "Ready to publish · read-only") : preview ? "What visitors will see" : mode === "edit" ? "Click a highlighted text to change it · Esc when done" : sel ? "Change the text on the page, or the details on the right" : "Click a block to change it";
   const hint = reviewMode ? "Or click a text or an image here to comment on it" : baseHint;
 
