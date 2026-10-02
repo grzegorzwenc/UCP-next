@@ -1,0 +1,658 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Market Dashboard Concept</title>
+<!--
+  Concept mock, not product code. A per-market content dashboard for the CMS shell
+  (UCP-next look: tokens copied from UCP-next app/globals.css). All numbers are
+  generated, deterministic demo data. "Data sources" in the toolbar shows, per card,
+  whether ContentLIBRE can answer it today or needs a new read endpoint.
+-->
+<style>
+:root {
+  --accent: #DB0011; --accent-hover: #AF000D; --accent-soft: #FDECEE;
+  --ink: #17181C; --ink-2: #40434C; --ink-3: #5F6470; --ink-4: #9DA1AC;
+  --bg: #F5F5F7; --surface: #FFFFFF; --surface-2: #FAFAFB; --surface-3: #EFEFF2;
+  --line: #E4E5EA; --line-2: #CFD1D8;
+  --good: #00847F; --good-soft: #E0F1F0; --warn: #B25E00; --warn-soft: #FFF1DD;
+  --crit: #DB0011; --crit-soft: #FBE6E8; --info: #4D6474; --info-soft: #E8ECEF;
+  --review: #376798; --review-soft: #E6EDF5; --neutral: #767676; --neutral-soft: #EDEDED;
+  --sched: #1B1C1F; --sched-soft: #E7E7E6;
+  /* data-viz roles: one sequential hue (review blue) for magnitude, three validated categorical slots for the activity mix */
+  --bar: #376798; --bar-soft: #C9D7E8;
+  --s-edit: #2a78d6; --s-create: #eb6834; --s-publish: #1baf7a;
+  --seq-0: #F1F4F8; --seq-1: #D4E0EE; --seq-2: #A9C1DD; --seq-3: #6F97C4; --seq-4: #376798; --seq-5: #1F3F63;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  --sans: "Archivo", "Helvetica Neue", Arial, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--sans); -webkit-font-smoothing: antialiased; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--review); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: var(--mono); }
+
+/* ---------- shell ---------- */
+.shell { display: grid; grid-template-rows: 52px 1fr; min-height: 100vh; }
+.top { background: var(--ink); color: #fff; display: flex; align-items: center; gap: 14px; padding: 0 16px; position: sticky; top: 0; z-index: 20; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 14px; white-space: nowrap; }
+.brand .mark { width: 26px; height: 18px; background: var(--accent); clip-path: polygon(25% 0, 75% 0, 100% 50%, 75% 100%, 25% 100%, 0 50%); }
+.brand .sep { width: 1px; height: 16px; background: rgba(255,255,255,.25); }
+.top .pick { display: flex; align-items: center; gap: 8px; border: 1px solid rgba(255,255,255,.2); border-radius: 8px; padding: 5px 10px; font-size: 13px; }
+.top .pick i { width: 9px; height: 9px; border-radius: 50%; background: #3FBDB7; display: inline-block; }
+.top .search { margin-left: auto; width: min(340px, 30vw); background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.14); border-radius: 8px; padding: 6px 10px; font-size: 13px; color: rgba(255,255,255,.6); display: flex; justify-content: space-between; }
+.top .me { width: 30px; height: 30px; border-radius: 50%; background: #5b6172; display: grid; place-items: center; font-size: 12px; font-weight: 600; }
+.body { display: grid; grid-template-columns: 236px 1fr; min-height: 0; }
+nav.side { background: var(--surface); border-right: 1px solid var(--line); padding: 16px 12px; }
+nav.side h6 { margin: 18px 10px 6px; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-4); font-weight: 600; }
+nav.side a { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; font-size: 13.5px; color: var(--ink-2); }
+nav.side a:hover { background: var(--surface-2); }
+nav.side a[aria-current] { background: var(--accent-soft); color: var(--ink); font-weight: 600; box-shadow: inset 3px 0 0 var(--accent); }
+nav.side svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+main { padding: 24px 28px 56px; min-width: 0; }
+
+/* ---------- header + toolbar ---------- */
+.hero { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 18px 20px; background: var(--surface); border: 1px solid var(--line); border-left: 5px solid var(--accent); margin-bottom: 14px; }
+.hero .flag { font-size: 38px; line-height: 1; }
+.hero h1 { margin: 0; font-size: 24px; font-weight: 600; line-height: 1.15; }
+.hero .meta { font-size: 13px; color: var(--ink-3); margin-top: 4px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.hero .env { margin-left: auto; text-align: right; font-size: 14px; font-weight: 600; }
+.hero .env small { display: block; font-weight: 400; font-size: 12px; color: var(--ink-3); }
+.hero .env i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #3FBDB7; margin-right: 6px; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 18px; }
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: none; padding: 7px 13px; font-size: 13px; cursor: pointer; color: var(--ink-2); }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--ink); color: #fff; box-shadow: inset 0 -3px 0 var(--accent); }
+.btn { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line-2); background: var(--surface); padding: 7px 13px; border-radius: 8px; font-weight: 500; font-size: 13px; min-height: 34px; cursor: pointer; white-space: nowrap; }
+.btn:hover { background: var(--surface-2); border-color: var(--ink-4); }
+.btn[aria-pressed="true"] { background: var(--review-soft); border-color: var(--review); color: var(--review); }
+.toolbar .asof { margin-left: auto; font-size: 12.5px; color: var(--ink-3); }
+select.btn { appearance: none; padding-right: 28px; background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235F6470' fill='none' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 10px center; }
+
+/* ---------- grid + cards ---------- */
+.grid { display: grid; gap: 14px; margin-bottom: 14px; }
+.g-kpi { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+.g-2 { grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr); }
+.g-2e { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.card { background: var(--surface); border: 1px solid var(--line); padding: 18px 20px; min-width: 0; position: relative; }
+.card > header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+.card h3 { margin: 0; font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+.card header .hint { font-size: 12px; color: var(--ink-3); }
+.card header .more { margin-left: auto; font-size: 12.5px; color: var(--info); font-weight: 500; white-space: nowrap; }
+.card header .more:hover { text-decoration: underline; }
+
+/* data-source badges (toggle) */
+.src { display: none; margin: -4px 0 12px; font-size: 11.5px; padding: 6px 9px; border-radius: 6px; line-height: 1.4; }
+.src b { font-weight: 600; }
+.src.today { background: var(--good-soft); color: #005b57; }
+.src.partial { background: var(--warn-soft); color: #7a4100; }
+.src.new { background: var(--review-soft); color: #234a72; }
+body.show-src .src { display: block; }
+
+/* KPI tiles */
+.kpi { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px 14px; border-top: 4px solid var(--c, var(--ink-4)); }
+.kpi .l { font-size: 12.5px; color: var(--ink-2); }
+.kpi .v { font-size: 34px; font-weight: 300; line-height: 1.05; }
+.kpi .d { font-size: 12px; color: var(--ink-3); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.delta { font-weight: 600; font-size: 11.5px; padding: 1px 6px; border-radius: 999px; }
+.delta.up { background: var(--good-soft); color: #005b57; }
+.delta.down { background: var(--warn-soft); color: #7a4100; }
+.delta.flat { background: var(--neutral-soft); color: var(--ink-3); }
+.kpi svg.spark { width: 100%; height: 30px; margin-top: auto; display: block; }
+
+/* pills */
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.pill::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pill-draft { background: var(--neutral-soft); color: var(--neutral); }
+.pill-review { background: var(--review-soft); color: var(--review); }
+.pill-published { background: var(--good-soft); color: var(--good); }
+.pill-modified { background: var(--warn-soft); color: var(--warn); }
+.pill-scheduled { background: var(--sched-soft); color: var(--sched); }
+.pill-failed { background: var(--crit-soft); color: var(--crit); }
+
+/* activity chart */
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--ink-2); margin-bottom: 6px; }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.legend b { color: var(--ink); }
+.chart { position: relative; }
+.chart svg { width: 100%; height: auto; display: block; font-family: var(--mono); font-size: 10.5px; }
+.tip { position: absolute; pointer-events: none; background: var(--ink); color: #fff; font-size: 12px; padding: 8px 10px; border-radius: 6px; white-space: nowrap; z-index: 5; opacity: 0; transform: translate(-50%, calc(-100% - 10px)); transition: opacity .08s; box-shadow: 0 6px 18px rgba(0,0,0,.18); }
+.tip.on { opacity: 1; }
+.tip b { display: block; margin-bottom: 3px; }
+.tip i { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; }
+.tip span { display: flex; justify-content: space-between; gap: 18px; align-items: center; }
+.tablev { display: none; max-height: 240px; overflow: auto; }
+.chart.as-table svg, .chart.as-table + .legend { display: none; }
+.chart.as-table .tablev { display: block; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-size: 11.5px; color: var(--ink-3); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; position: sticky; top: 0; background: var(--surface); }
+td { padding: 8px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+td.r, th.r { text-align: right; }
+tbody tr:hover { background: var(--surface-2); }
+
+/* heatmap */
+.heat { display: grid; grid-template-columns: 34px repeat(24, minmax(0, 1fr)); gap: 2px; font-size: 10.5px; font-family: var(--mono); color: var(--ink-3); }
+.heat .c { aspect-ratio: 1; border-radius: 3px; background: var(--seq-0); }
+.heat .c:hover { outline: 2px solid var(--ink); outline-offset: 1px; }
+.heat .hl { text-align: left; }
+.heat .dl { align-self: center; }
+.scale { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--ink-3); margin-top: 10px; }
+.scale i { width: 16px; height: 10px; border-radius: 2px; display: inline-block; }
+.callouts { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; margin-top: 14px; }
+.callouts div { background: var(--surface-2); border: 1px solid var(--line); padding: 10px 12px; }
+.callouts small { display: block; font-size: 11.5px; color: var(--ink-3); }
+.callouts b { font-size: 15px; }
+
+/* inventory */
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin: -2px 0 12px; }
+.tabs button { border: 0; background: none; padding: 8px 12px; font-size: 13px; cursor: pointer; color: var(--ink-3); border-bottom: 3px solid transparent; margin-bottom: -1px; }
+.tabs button[aria-selected="true"] { color: var(--ink); font-weight: 600; border-bottom-color: var(--accent); }
+.tabs button small { font-weight: 400; color: var(--ink-4); margin-left: 4px; }
+.inv td:first-child { width: 34%; }
+.barcell { display: flex; align-items: center; gap: 8px; }
+.barcell span { flex: 1; height: 8px; background: var(--surface-3); border-radius: 4px; overflow: hidden; }
+.barcell span i { display: block; height: 100%; background: var(--bar); border-radius: 0 4px 4px 0; }
+.typeicon { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; background: var(--surface-3); font-size: 12px; margin-right: 8px; vertical-align: middle; color: var(--ink-2); font-weight: 600; }
+.inv .sub { display: block; font-size: 11.5px; color: var(--ink-3); margin-left: 32px; margin-top: -2px; }
+.inv a.name:hover { text-decoration: underline; }
+
+/* status stack */
+.stack { display: flex; height: 14px; gap: 2px; margin: 4px 0 10px; }
+.stack i { display: block; height: 100%; }
+.stack i:first-child { border-radius: 4px 0 0 4px; }
+.stack i:last-child { border-radius: 0 4px 4px 0; }
+.slist { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.slist li { display: grid; grid-template-columns: 10px 1fr auto 40px; gap: 8px; align-items: center; font-size: 13px; }
+.slist li i { width: 10px; height: 10px; border-radius: 2px; }
+.slist li small { color: var(--ink-3); text-align: right; }
+
+/* recent */
+.who { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.av { width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 10.5px; font-weight: 600; color: #fff; flex: none; }
+.recent td .t { font-weight: 500; display: block; }
+.recent td .p { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+.recent td.what { color: var(--ink-2); font-size: 12.5px; }
+.recent td.when { color: var(--ink-3); font-size: 12.5px; white-space: nowrap; }
+.filterchips { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
+.chip { border: 1px solid var(--line-2); background: var(--surface); border-radius: 999px; padding: 3px 10px; font-size: 12px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+/* lists */
+.rank { list-style: none; margin: 0; padding: 0; }
+.rank li { display: grid; grid-template-columns: 1fr 90px 34px; gap: 10px; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.rank li:last-child { border-bottom: 0; }
+.rank li .n { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank li .n small { display: block; font-family: var(--mono); font-size: 11px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; }
+.rank .mini { height: 6px; background: var(--surface-3); border-radius: 3px; overflow: hidden; }
+.rank .mini i { display: block; height: 100%; background: var(--bar); border-radius: 0 3px 3px 0; }
+.rank b { text-align: right; }
+.people li { grid-template-columns: 24px 1fr 90px 34px; }
+
+.locale { display: grid; gap: 14px; }
+.locale .row { display: grid; gap: 5px; }
+.locale .row header { display: flex; align-items: baseline; gap: 8px; margin: 0; font-size: 13px; }
+.locale .row header b { font-weight: 600; }
+.locale .row header small { margin-left: auto; color: var(--ink-3); font-size: 12px; }
+.prog { height: 10px; background: var(--surface-3); border-radius: 5px; overflow: hidden; display: flex; gap: 2px; }
+.prog i { display: block; height: 100%; }
+.locale .note { font-size: 12px; color: var(--ink-3); }
+
+.health { list-style: none; margin: 0; padding: 0; }
+.health li { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.health li:last-child { border-bottom: 0; }
+.health li small { display: block; color: var(--ink-3); font-size: 11.5px; }
+.health .ic { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; font-weight: 700; }
+.health .ic.warn { background: var(--warn-soft); color: var(--warn); }
+.health .ic.crit { background: var(--crit-soft); color: var(--crit); }
+.health .ic.ok { background: var(--good-soft); color: var(--good); }
+.health .ic.info { background: var(--info-soft); color: var(--info); }
+.health b { font-size: 15px; }
+
+.upcoming { list-style: none; margin: 0; padding: 0; }
+.upcoming li { display: grid; grid-template-columns: 48px 1fr auto; gap: 12px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.upcoming li:last-child { border-bottom: 0; }
+.upcoming .date { text-align: center; border: 1px solid var(--line); border-radius: 6px; padding: 3px 0; line-height: 1.1; }
+.upcoming .date b { display: block; font-size: 16px; }
+.upcoming .date small { font-size: 10.5px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
+.upcoming li span small { display: block; color: var(--ink-3); font-size: 11.5px; }
+
+.foot { font-size: 12px; color: var(--ink-3); margin-top: 22px; border-top: 1px solid var(--line); padding-top: 12px; }
+
+/* ---------- responsive ---------- */
+@media (max-width: 1380px) { .g-kpi { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 1180px) { .g-2, .g-3 { grid-template-columns: minmax(0, 1fr); } .body { grid-template-columns: 64px 1fr; } nav.side h6, nav.side a span { display: none; } nav.side a { justify-content: center; } }
+@media (max-width: 760px) {
+  .body { grid-template-columns: 1fr; } nav.side { display: none; }
+  main { padding: 16px; }
+  .g-kpi { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .g-2e { grid-template-columns: minmax(0, 1fr); }
+  .top .search, .brand .sep, .brand .long { display: none; }
+  .hero .env { margin-left: 0; text-align: left; }
+  .toolbar .asof { margin-left: 0; width: 100%; }
+  .recent .hide-s, .inv .hide-s { display: none; }
+  .kpi .v { font-size: 28px; }
+  .callouts { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <header class="top">
+    <div class="brand"><span class="mark" aria-hidden="true"></span><span class="sep"></span><span class="long">Unified Content Management</span></div>
+    <span class="pick">🇬🇧 HSBC UK ▾</span>
+    <span class="pick"><i></i>Production ▾</span>
+    <span class="search">Search pages, entities, assets… <span class="mono">⌘K</span></span>
+    <span class="me" title="Signed in">TB</span>
+  </header>
+  <div class="body">
+    <nav class="side" aria-label="Main">
+      <a href="#" aria-current="page"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg><span>Dashboard</span></a>
+      <h6>Content</h6>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Pages</span></a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M3 4h18v16H3zM9 10a2 2 0 1 0 0-.1M21 16l-5-5-8 8"/></svg><span>Assets</span></a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M8 3h12a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM4 7v12a1 1 0 0 0 1 1h12M10 7.5h8M10 11h5"/></svg><span>Content entities</span></a>
+      <h6>Structure</h6>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></svg><span>Content models</span></a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M6 3h8l5 5v13H6zM14 3v5h5"/></svg><span>Templates</span></a>
+      <h6>Work</h6>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg><span>My tasks</span></a>
+      <h6>Platform</h6>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg><span>API &amp; delivery</span></a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M9 8a3.5 3.5 0 1 0 0-.1M2.5 20a6.5 6.5 0 0 1 13 0M16 4a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-5-6.3"/></svg><span>Users &amp; roles</span></a>
+      <a href="#"><svg viewBox="0 0 24 24"><path d="M12 3l8 4v6c0 4.5-3.5 7.5-8 8-4.5-.5-8-3.5-8-8V7zM9 12l2 2 4-4"/></svg><span>Audit log</span></a>
+    </nav>
+
+    <main>
+      <section class="hero" aria-label="Market">
+        <div class="flag" aria-hidden="true">🇬🇧</div>
+        <div>
+          <h1>HSBC UK · content overview</h1>
+          <div class="meta"><span class="mono">hsbc.co.uk</span> · en-GB, cy-GB · <span class="pill pill-published">Live on UCP</span> · root <span class="mono">/content/uk</span></div>
+        </div>
+        <div class="env"><i></i>Production<small>Figures count the authoring repository: drafts included.</small></div>
+      </section>
+
+      <div class="toolbar" role="toolbar" aria-label="Dashboard filters">
+        <div class="seg" role="group" aria-label="Period">
+          <button type="button" data-period="7">7 days</button>
+          <button type="button" data-period="30" aria-pressed="true">30 days</button>
+          <button type="button" data-period="90">90 days</button>
+        </div>
+        <select class="btn" id="locale" aria-label="Locale">
+          <option value="all">All locales</option>
+          <option value="en">en-GB</option>
+          <option value="cy">cy-GB</option>
+        </select>
+        <select class="btn" id="section" aria-label="Section">
+          <option>Whole site</option>
+          <option>Current accounts</option>
+          <option>Credit cards</option>
+          <option>Mortgages</option>
+          <option>Savings</option>
+          <option>Help &amp; support</option>
+        </select>
+        <button type="button" class="btn" id="srcToggle" aria-pressed="false" title="Show where each card's data comes from in ContentLIBRE">Data sources</button>
+        <span class="asof" id="asof">Data as of 2 Oct 2026, 14:32 · compared with the previous 30 days</span>
+      </div>
+
+      <!-- KPI row -->
+      <div class="grid g-kpi" id="kpis"></div>
+
+      <!-- activity + rhythm -->
+      <div class="grid g-2">
+        <section class="card">
+          <header><h3>Content changes</h3><span class="hint" id="actHint">per day, last 30 days</span><button class="more btn" style="min-height:28px;padding:3px 10px;font-size:12px" type="button" id="tableToggle" aria-pressed="false">Table</button></header>
+          <p class="src partial"><b>Partly available.</b> Publications and page creation are in the audit trail (<span class="mono">/var/ucp/audit/&lt;market&gt;</span>) that UCP-next writes. Edits made outside the FE (the <span class="mono">/edit</span> editor, Sling POST) are not. Proposed: <span class="mono">GET content/v1/stats/activity?site=&amp;from=&amp;bucket=day</span> from the BE's own change journal.</p>
+          <div class="chart" id="act"><div class="tip" id="actTip"></div><div class="tablev" id="actTable"></div></div>
+          <div class="legend" id="actLegend"></div>
+        </section>
+        <section class="card">
+          <header><h3>When the team edits</h3><span class="hint">changes by weekday and hour, UK time</span></header>
+          <p class="src new"><b>New endpoint.</b> Same journal as Content changes, bucketed by weekday × hour. Cheap once the activity endpoint exists.</p>
+          <div class="chart"><div class="tip" id="heatTip"></div><div class="heat" id="heat" role="img" aria-label="Heatmap of changes by weekday and hour"></div></div>
+          <div class="scale" aria-hidden="true">Fewer <i style="background:var(--seq-0)"></i><i style="background:var(--seq-1)"></i><i style="background:var(--seq-2)"></i><i style="background:var(--seq-3)"></i><i style="background:var(--seq-4)"></i><i style="background:var(--seq-5)"></i> More</div>
+          <div class="callouts">
+            <div><small>Busiest window</small><b>Tue–Thu, 10:00–12:00</b></div>
+            <div><small>Published outside office hours</small><b id="offHours">4 of 159</b></div>
+          </div>
+        </section>
+      </div>
+
+      <!-- inventory + status -->
+      <div class="grid g-2">
+        <section class="card">
+          <header><h3>Content inventory by type</h3><span class="hint">what exists on this market</span><a class="more" href="#">Content models ›</a></header>
+          <p class="src partial"><b>Partly available.</b> Pages by template: a walk of <span class="mono">content/v1/children</span> (slow on big sites). Entities and assets have no BE type today. Proposed: <span class="mono">GET content/v1/stats/inventory?site=</span>, answered from an Oak property index on <span class="mono">sling:resourceType</span> / <span class="mono">jcr:mimeType</span>.</p>
+          <div class="tabs" role="tablist" id="invTabs"></div>
+          <div style="max-height:420px;overflow:auto"><table class="inv" id="inv"></table></div>
+        </section>
+        <section class="card">
+          <header><h3>Pages by status</h3><a class="more" href="#">All pages ›</a></header>
+          <p class="src today"><b>Available today.</b> <span class="mono">status</span> on every page document of <span class="mono">content/v1/children</span>; review stages from <span class="mono">/var/ucp/pages</span>.</p>
+          <div style="font-size:12.5px;color:var(--ink-3)"><b class="num" style="font-size:22px;color:var(--ink);font-weight:600" id="stTotal">1,284</b> pages</div>
+          <div class="stack" id="stack" role="img" aria-label="Share of pages by status"></div>
+          <ul class="slist" id="slist"></ul>
+          <hr style="border:0;border-top:1px solid var(--line);margin:16px 0 12px">
+          <header style="display:flex;margin-bottom:8px"><h3 style="margin:0;font-size:13.5px;color:var(--ink-2)">Coming up</h3><span class="hint" style="margin-left:8px;font-size:12px;color:var(--ink-3)">next 14 days</span></header>
+          <ul class="upcoming" id="upcoming"></ul>
+        </section>
+      </div>
+
+      <!-- recent edits -->
+      <section class="card" style="margin-bottom:14px">
+        <header><h3>Recently edited</h3><span class="hint">pages and entities, newest first</span><a class="more" href="#">Audit log ›</a></header>
+        <p class="src partial"><b>Partly available.</b> Pages: <span class="mono">lastModified</span> and author from the page documents; "what changed" needs the draft history (<span class="mono">content/v1/drafts</span>) diffed per field. Entities need the same once they are BE types.</p>
+        <div class="filterchips" id="recentChips"></div>
+        <div style="overflow:auto"><table class="recent" id="recent"></table></div>
+      </section>
+
+      <!-- hotspots, people, locales, health -->
+      <div class="grid g-3">
+        <section class="card">
+          <header><h3>Most edited</h3><span class="hint" id="hotHint">last 30 days</span></header>
+          <p class="src new"><b>New endpoint.</b> Top-N of the activity journal grouped by path.</p>
+          <ul class="rank" id="hot"></ul>
+        </section>
+        <section class="card">
+          <header><h3>Who is editing</h3><span class="hint">changes per person</span><a class="more" href="#">Users ›</a></header>
+          <p class="src partial"><b>Partly available.</b> Names from <span class="mono">identity/v1</span>; counts need the activity journal.</p>
+          <ul class="rank people" id="people"></ul>
+        </section>
+        <section class="card">
+          <header><h3>Locale coverage</h3><span class="hint">pages that exist in each locale</span></header>
+          <p class="src today"><b>Available today.</b> Locale roots from <span class="mono">content/v1/sites</span>; pages pair by relative path (the same rule <span class="mono">hreflang</span> uses).</p>
+          <div class="locale" id="locales"></div>
+        </section>
+      </div>
+
+      <div class="grid g-2e">
+        <section class="card">
+          <header><h3>Content health</h3><span class="hint">things worth a look</span></header>
+          <p class="src new"><b>New endpoint, mostly.</b> Stale pages and old drafts are computable today from page documents and <span class="mono">content/v1/drafts</span>; unused entities/assets and broken links need a reference index.</p>
+          <ul class="health" id="health"></ul>
+        </section>
+        <section class="card">
+          <header><h3>Review pipeline</h3><span class="hint">where pages wait</span><a class="more" href="#">My tasks ›</a></header>
+          <p class="src today"><b>Available today.</b> Review stages and decisions from the two-stage review in <span class="mono">/var/ucp/pages</span> and BE review state.</p>
+          <ul class="rank" id="pipeline"></ul>
+          <div class="callouts">
+            <div><small>Median time draft → live</small><b>2.4 days</b></div>
+            <div><small>Drafts not yet sent for review</small><b>151</b></div>
+            <div><small>Reviews finished on time</small><b>87%</b></div>
+            <div><small>Sent back for changes</small><b>11% of reviews</b></div>
+          </div>
+        </section>
+      </div>
+
+      <p class="foot">Concept mock · demo data, generated deterministically · UCP-next tokens · not wired to any backend. "Data sources" shows what ContentLIBRE can answer today and what would need a read-only <span class="mono">content/v1/stats/*</span> family.</p>
+    </main>
+  </div>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (s, r = document) => r.querySelector(s);
+  const fmt = (n) => n.toLocaleString("en-GB");
+  const el = (tag, attrs = {}, html = "") => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v); e.innerHTML = html; return e; };
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+  // deterministic PRNG so the mock looks the same on every load
+  let seed = 7;
+  const rnd = () => { seed = (seed * 16807) % 2147483647; return (seed - 1) / 2147483646; };
+
+  const TODAY = new Date(2026, 9, 2);
+  const day = (back) => { const d = new Date(TODAY); d.setDate(d.getDate() - back); return d; };
+  const dLabel = (d) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+
+  // ---------- 90 days of activity: edits, created, published ----------
+  const DAYS = 90;
+  const activity = [];
+  for (let i = DAYS - 1; i >= 0; i--) {
+    const d = day(i); const wd = d.getDay(); const weekend = wd === 0 || wd === 6;
+    const trend = 1 + (DAYS - i) / DAYS * 0.25; // a little growth
+    const campaign = i >= 15 && i <= 19 ? 1.9 : 1; // a launch two weeks ago
+    const base = weekend ? 6 : 58;
+    const e = Math.round((base + rnd() * (weekend ? 8 : 34)) * trend * campaign);
+    const c = Math.round((weekend ? rnd() * 1.4 : 1 + rnd() * 4) * campaign);
+    const p = Math.round((weekend ? rnd() * 0.6 : 3 + rnd() * 6) * (campaign > 1 ? 1.6 : 1));
+    activity.push({ d, e, c, p });
+  }
+  const sum = (arr, k) => arr.reduce((a, x) => a + x[k], 0);
+
+  let period = 30;
+
+  // ---------- KPIs ----------
+  function kpis() {
+    const cur = activity.slice(-period), prev = activity.slice(-2 * period, -period);
+    const prevOk = prev.length === period;
+    const changes = sum(cur, "e") + sum(cur, "c") + sum(cur, "p"), changesPrev = prevOk ? sum(prev, "e") + sum(prev, "c") + sum(prev, "p") : 0;
+    const created = sum(cur, "c"), published = sum(cur, "p"), publishedPrev = prevOk ? sum(prev, "p") : 0;
+    const delta = (a, b) => { if (!b) return '<span class="delta flat">new</span>'; const p = Math.round((a - b) / b * 100); return `<span class="delta ${p > 0 ? "up" : p < 0 ? "down" : "flat"}">${p > 0 ? "▲" : p < 0 ? "▼" : "•"} ${Math.abs(p)}%</span>`; };
+    const spark = (key) => { const vals = cur.map((x) => key === "all" ? x.e + x.c + x.p : x[key]); const mx = Math.max(...vals, 1); const w = 160, h = 30; const pts = vals.map((v, i) => `${(i / (vals.length - 1)) * w},${h - 2 - (v / mx) * (h - 6)}`).join(" "); return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="var(--bar)" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`; };
+    const tiles = [
+      { l: "Pages", v: "1,284", d: `<span class="delta up">+${created}</span> created in ${period} d`, c: "var(--accent)", s: spark("c") },
+      { l: "Content entities", v: "412", d: "across 9 types · 37 unused", c: "var(--review)", s: "" },
+      { l: "Assets", v: "3,906", d: "12.4 GB · 418 unused", c: "var(--info)", s: "" },
+      { l: `Changes · ${period} d`, v: fmt(changes), d: `${delta(changes, changesPrev)} vs previous ${period} d · 23 people`, c: "var(--ink)", s: spark("all") },
+      { l: `Published · ${period} d`, v: fmt(published), d: `${delta(published, publishedPrev)} · 4 failed`, c: "var(--good)", s: spark("p") },
+      { l: "Waiting for review", v: "14", d: '<span class="delta down">oldest 6 d</span> 3 in business review', c: "var(--warn)", s: "" },
+    ];
+    $("#offHours").textContent = `${Math.max(1, Math.round(published / 40))} of ${fmt(published)}`;
+    const box = $("#kpis"); box.innerHTML = "";
+    for (const t of tiles) box.append(el("a", { class: "card kpi", href: "#", style: `--c:${t.c}` }, `<span class="l">${t.l}</span><span class="v num">${t.v}</span><span class="d">${t.d}</span>${t.s}`));
+  }
+
+  // ---------- activity chart: stacked daily bars, one y-axis ----------
+  const SER = [{ k: "e", n: "Edited", c: "var(--s-edit)" }, { k: "c", n: "Created", c: "var(--s-create)" }, { k: "p", n: "Published", c: "var(--s-publish)" }];
+  function actChart() {
+    const data = period === 90 ? weekly(activity) : activity.slice(-period);
+    const W = 720, H = 250, L = 34, R = 8, T = 10, B = 26;
+    const mx0 = Math.max(...data.map((x) => x.e + x.c + x.p)); const step = mx0 > 400 ? 200 : mx0 > 160 ? 50 : 25; const mx = Math.ceil(mx0 / step) * step;
+    const bw = (W - L - R) / data.length; const gap = Math.max(1.5, bw * 0.22);
+    const y = (v) => T + (H - T - B) * (1 - v / mx);
+    let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Content changes per ${period === 90 ? "week" : "day"}">`;
+    for (let v = 0; v <= mx; v += step) s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 6}" y="${y(v) + 3.5}" text-anchor="end" fill="var(--ink-3)">${v}</text>`;
+    data.forEach((x, i) => {
+      const x0 = L + i * bw + gap / 2, w = bw - gap; let acc = 0;
+      SER.forEach((ser, si) => {
+        const v = x[ser.k]; if (!v) return;
+        const top = y(acc + v), bot = y(acc); const h = Math.max(0, bot - top - (acc ? 1 : 0)); // 1px surface gap between segments
+        const isTop = SER.slice(si + 1).every((o) => !x[o.k]);
+        s += isTop && h > 3 ? `<path d="M${x0},${bot - (acc ? 1 : 0)} V${top + 3} q0,-3 3,-3 H${x0 + w - 3} q3,0 3,3 V${bot - (acc ? 1 : 0)} Z" fill="${ser.c}"/>` : `<rect x="${x0}" y="${top}" width="${w}" height="${h}" fill="${ser.c}"/>`;
+        acc += v;
+      });
+      s += `<rect class="hit" data-i="${i}" x="${L + i * bw}" y="${T}" width="${bw}" height="${H - T - B}" fill="transparent"/>`;
+    });
+    const every = period === 7 ? 1 : period === 30 ? 7 : 2;
+    data.forEach((x, i) => { if ((data.length - 1 - i) % every === 0) s += `<text x="${L + i * bw + bw / 2}" y="${H - 8}" text-anchor="middle" fill="var(--ink-3)">${dLabel(x.d)}</text>`; });
+    s += `<line x1="${L}" x2="${W - R}" y1="${y(0)}" y2="${y(0)}" stroke="var(--line-2)"/></svg>`;
+    const box = $("#act"); box.querySelector("svg")?.remove(); box.insertAdjacentHTML("afterbegin", s);
+    const tip = $("#actTip");
+    box.querySelectorAll(".hit").forEach((r) => {
+      r.addEventListener("mouseenter", () => {
+        const x = data[+r.dataset.i]; const rect = box.getBoundingClientRect(); const rr = r.getBoundingClientRect();
+        tip.innerHTML = `<b>${period === 90 ? "Week of " : ""}${x.d.toLocaleDateString("en-GB", { weekday: period === 90 ? undefined : "short", day: "numeric", month: "short" })}</b>${SER.slice().reverse().map((o) => `<span><em style="font-style:normal"><i style="background:${o.c}"></i>${o.n}</em>${x[o.k]}</span>`).join("")}<span style="border-top:1px solid rgba(255,255,255,.2);margin-top:3px;padding-top:3px"><em style="font-style:normal">Total</em>${x.e + x.c + x.p}</span>`;
+        tip.style.left = `${rr.left - rect.left + rr.width / 2}px`; tip.style.top = `${Math.max(60, rr.top - rect.top + 20)}px`; tip.classList.add("on");
+        r.setAttribute("fill", "rgba(23,24,28,.05)");
+      });
+      r.addEventListener("mouseleave", () => { tip.classList.remove("on"); r.setAttribute("fill", "transparent"); });
+    });
+    $("#actLegend").innerHTML = SER.map((o) => `<span><i style="background:${o.c}"></i>${o.n} <b class="num">${fmt(sum(data, o.k))}</b></span>`).join("");
+    $("#actHint").textContent = period === 90 ? "per week, last 90 days" : `per day, last ${period} days`;
+    $("#actTable").innerHTML = `<table><thead><tr><th>${period === 90 ? "Week of" : "Day"}</th>${SER.map((o) => `<th class="r">${o.n}</th>`).join("")}<th class="r">Total</th></tr></thead><tbody>${data.slice().reverse().map((x) => `<tr><td>${dLabel(x.d)}</td>${SER.map((o) => `<td class="r num">${x[o.k]}</td>`).join("")}<td class="r num"><b>${x.e + x.c + x.p}</b></td></tr>`).join("")}</tbody></table>`;
+  }
+  function weekly(a) {
+    const out = []; const src = a.slice(-91 + 0);
+    for (let i = src.length % 7; i < src.length; i += 7) { const w = src.slice(i, i + 7); out.push({ d: w[0].d, e: sum(w, "e"), c: sum(w, "c"), p: sum(w, "p") }); }
+    return out;
+  }
+
+  // ---------- heatmap ----------
+  function heat() {
+    const DAYN = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+    const box = $("#heat"); box.innerHTML = "<span></span>";
+    for (let h = 0; h < 24; h++) box.append(el("span", { class: "hl" }, h % 6 === 0 ? String(h).padStart(2, "0") : ""));
+    const tip = $("#heatTip");
+    DAYN.forEach((dn, di) => {
+      box.append(el("span", { class: "dl" }, dn));
+      for (let h = 0; h < 24; h++) {
+        const work = di < 5 && h >= 8 && h <= 18;
+        const peak = (di >= 1 && di <= 3) && (h >= 10 && h <= 11);
+        let v = work ? 22 + rnd() * 30 : (di < 5 && (h === 7 || h === 19 || h === 20)) ? 6 + rnd() * 8 : rnd() * 3;
+        if (peak) v += 28; if (h === 13 && work) v *= 0.65; if (di === 4 && h > 15) v *= 0.6;
+        v = Math.round(v);
+        const lvl = v === 0 ? 0 : v < 6 ? 1 : v < 18 ? 2 : v < 32 ? 3 : v < 48 ? 4 : 5;
+        const c = el("span", { class: "c", style: `background:var(--seq-${lvl})`, "aria-label": `${dn} ${h}:00, ${v} changes` });
+        c.addEventListener("mouseenter", () => { const r = box.parentElement.getBoundingClientRect(), cr = c.getBoundingClientRect(); tip.innerHTML = `<b>${dn} ${String(h).padStart(2, "0")}:00–${String(h + 1).padStart(2, "0")}:00</b><span><em style="font-style:normal">Changes</em>${v}</span>`; tip.style.left = `${cr.left - r.left + cr.width / 2}px`; tip.style.top = `${cr.top - r.top}px`; tip.classList.add("on"); });
+        c.addEventListener("mouseleave", () => tip.classList.remove("on"));
+        box.append(c);
+      }
+    });
+  }
+
+  // ---------- inventory ----------
+  const INV = {
+    pages: { label: "Pages by template", unit: "pages", rows: [
+      ["Product page", "P", 318, 6, "Credit cards › Premier World Elite", "/apps/ucp/templates/product"],
+      ["Article", "A", 284, 9, "Help › Fraud: what to do", "/apps/ucp/templates/article"],
+      ["Legal & terms", "L", 162, 2, "Terms › Current account T&Cs", "/apps/ucp/templates/legal"],
+      ["Landing page", "H", 104, 3, "Mortgages › First-time buyers", "/apps/ucp/templates/landing"],
+      ["Help topic", "?", 98, 1, "Help › Lost or stolen card", "/apps/ucp/templates/help"],
+      ["Campaign page", "C", 61, 11, "Campaign › Switch & get £200", "/apps/ucp/templates/campaign"],
+      ["Rate table", "%", 47, 0, "Savings › Fixed rate saver", "/apps/ucp/templates/rates"],
+      ["Form page", "F", 38, 1, "Contact › Request a callback", "/apps/ucp/templates/form"],
+      ["Calculator", "=", 22, 0, "Mortgages › Overpayment calculator", "/apps/ucp/templates/calc"],
+      ["Section index", "#", 150, 2, "Savings", "/apps/ucp/templates/section"],
+    ] },
+    entities: { label: "Entities by type", unit: "entities", rows: [
+      ["Product rate", "%", 86, 14, "Fixed rate saver · 12 m", "rates in rate tables and tiles"],
+      ["Disclaimer", "§", 74, 3, "Representative APR 23.9%", "shared legal copy"],
+      ["Branch", "B", 63, 0, "Leeds Briggate", "branch finder"],
+      ["FAQ", "?", 58, 6, "Can I switch my account?", "Q&A, reused across pages"],
+      ["Promo banner", "★", 41, 9, "Switch & get £200", "campaign tiles"],
+      ["Contact point", "☎", 34, 1, "Lost card · 24/7 line", "phone numbers, opening hours"],
+      ["Fee table", "£", 28, 2, "Premier account fees", "tariffs"],
+      ["Footnote", "¹", 19, 0, "Eligibility criteria apply", "numbered notes"],
+      ["Call to action", "→", 9, 1, "Book an appointment", "reusable buttons"],
+    ] },
+    assets: { label: "Assets by type", unit: "assets", rows: [
+      ["Image · JPEG/WebP", "I", 2412, 48, "hero-switch-200.webp", "8.1 GB"],
+      ["Image · PNG", "I", 708, 6, "card-premier-front.png", "1.6 GB"],
+      ["Icon · SVG", "S", 228, 4, "icon-padlock.svg", "6 MB"],
+      ["Document · PDF", "D", 512, 12, "key-facts-mortgage-2026-10.pdf", "1.9 GB"],
+      ["Video", "V", 46, 1, "app-onboarding-30s.mp4", "0.8 GB"],
+    ] },
+  };
+  let invTab = "pages";
+  function inventory() {
+    const tabs = $("#invTabs"); tabs.innerHTML = "";
+    for (const [k, v] of Object.entries(INV)) {
+      const total = v.rows.reduce((a, r) => a + r[2], 0);
+      const b = el("button", { type: "button", role: "tab", "aria-selected": String(k === invTab) }, `${v.label}<small class="num">${fmt(total)}</small>`);
+      b.addEventListener("click", () => { invTab = k; inventory(); }); tabs.append(b);
+    }
+    const v = INV[invTab]; const rows = v.rows.slice().sort((a, b) => b[2] - a[2]); const mx = rows[0][2];
+    const extra = invTab === "assets" ? "Size" : invTab === "entities" ? "Used for" : "Template";
+    $("#inv").innerHTML = `<thead><tr><th>Type</th><th style="width:30%">Count</th><th class="r">${period} d</th><th class="hide-s">Last changed</th></tr></thead><tbody>${rows.map((r) => `<tr><td><span class="typeicon">${esc(r[1])}</span><a class="name" href="#">${esc(r[0])}</a><span class="sub ${invTab === "pages" ? "mono" : ""}">${esc(r[5])}</span></td><td><div class="barcell"><b class="num" style="min-width:42px;text-align:right">${fmt(r[2])}</b><span><i style="width:${(r[2] / mx * 100).toFixed(1)}%"></i></span></div></td><td class="r num">${r[3] ? `+${Math.max(1, Math.round(r[3] * period / 30))}` : '<span style="color:var(--ink-4)">–</span>'}</td><td class="hide-s" style="font-size:12.5px;color:var(--ink-2)">${esc(r[4])}</td></tr>`).join("")}</tbody>`;
+  }
+
+  // ---------- status ----------
+  const STATUS = [["Published", 1012, "var(--good)"], ["Published, changes pending", 96, "var(--warn)"], ["In review", 14, "var(--review)"], ["Scheduled", 7, "var(--sched)"], ["Draft, never published", 151, "var(--neutral)"], ["Publish failed", 4, "var(--crit)"]];
+  function status() {
+    const total = STATUS.reduce((a, s) => a + s[1], 0);
+    $("#stTotal").textContent = fmt(total);
+    $("#stack").innerHTML = STATUS.map((s) => `<i style="flex:${s[1]};background:${s[2]};min-width:3px" title="${s[0]}: ${s[1]}"></i>`).join("");
+    $("#slist").innerHTML = STATUS.map((s) => `<li><i style="background:${s[2]}"></i><span>${s[0]}</span><b class="num">${fmt(s[1])}</b><small class="num">${Math.round(s[1] / total * 1000) / 10}%</small></li>`).join("");
+    const up = [[3, "Publish", "Winter savings rate change", "Savings › Fixed rate saver · scheduled by J. Patel", "scheduled"], [5, "Publish", "Black Friday card offer", "Campaign · 4 pages, 2 banners", "scheduled"], [8, "Expire", "Switch & get £200", "Campaign page and promo banner go offline", "modified"], [12, "Review due", "Mortgage key facts (Oct)", "Legal & terms · business review", "review"]];
+    $("#upcoming").innerHTML = up.map(([d, kind, t, sub, st]) => { const dd = new Date(TODAY); dd.setDate(dd.getDate() + d); return `<li><span class="date"><b>${dd.getDate()}</b><small>${dd.toLocaleDateString("en-GB", { month: "short" })}</small></span><span><b style="font-weight:500">${esc(t)}</b><small>${esc(sub)}</small></span><span class="pill pill-${st}">${kind}</span></li>`; }).join("");
+  }
+
+  // ---------- recent ----------
+  const PEOPLE = [["Joanna Patel", "#376798"], ["Tom Hughes", "#00847F"], ["Gwen Llewellyn", "#B25E00"], ["Sam Okafor", "#4D6474"], ["Priya Raman", "#8a3d7a"], ["Marek Nowak", "#5F6470"], ["Ellie Ward", "#2b567f"]];
+  const ini = (n) => n.split(" ").map((p) => p[0]).join("");
+  const RECENT = [
+    ["page", "Fixed rate saver", "/savings/fixed-rate-saver", "Rate table", "modified", 0, "Rate entity 4.10% → 4.25%, hero copy", 12, "en"],
+    ["entity", "Representative APR 23.9%", "Disclaimer", "Disclaimer", "published", 1, "Text edited · used on 41 pages", 34, "en"],
+    ["page", "Switch & get £200", "/campaign/switch", "Campaign page", "review", 2, "3 components, sent to business review", 58, "en"],
+    ["page", "Cyfrif cyfredol Premier", "/cy/current-accounts/premier", "Product page", "draft", 3, "Translated from en-GB · 18 fields", 75, "cy"],
+    ["asset", "key-facts-mortgage-2026-10.pdf", "/content/dam/uk/mortgages", "Document · PDF", "published", 0, "New version uploaded · 1.2 MB", 102, "en"],
+    ["page", "Lost or stolen card", "/help/lost-stolen-card", "Help topic", "published", 4, "Phone number via Contact point", 140, "en"],
+    ["page", "First-time buyers", "/mortgages/first-time-buyers", "Landing page", "scheduled", 0, "Publication scheduled for 5 Oct", 190, "en"],
+    ["entity", "Can I switch my account?", "FAQ", "FAQ", "modified", 5, "Answer rewritten", 260, "all"],
+    ["page", "Premier World Elite", "/credit-cards/premier-world-elite", "Product page", "failed", 1, "Publish failed: validator refused empty CTA", 330, "en"],
+    ["page", "Fraud: what to do", "/help/fraud", "Article", "published", 6, "Body text, 2 links", 420, "en"],
+  ];
+  let recentFilter = "all";
+  const ago = (m) => m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} d ago`;
+  function recent() {
+    const chips = $("#recentChips"); chips.innerHTML = "";
+    for (const [k, l] of [["all", "All"], ["page", "Pages"], ["entity", "Entities"], ["asset", "Assets"], ["mine", "Mine"]]) {
+      const c = el("button", { type: "button", class: "chip", "aria-pressed": String(k === recentFilter) }, l); c.addEventListener("click", () => { recentFilter = k; recent(); }); chips.append(c);
+    }
+    const loc = $("#locale").value;
+    const rows = RECENT.filter((r) => (recentFilter === "all" || r[0] === recentFilter || (recentFilter === "mine" && r[5] === 5)) && (loc === "all" || r[8] === loc || r[8] === "all"));
+    $("#recent").innerHTML = `<thead><tr><th>Title</th><th class="hide-s">Type</th><th>Status</th><th class="hide-s">What changed</th><th>By</th><th class="r">When</th></tr></thead><tbody>${rows.map((r) => { const [n, c] = PEOPLE[r[5]]; return `<tr><td><a href="#"><span class="t">${esc(r[1])}</span><span class="p">${esc(r[2])}</span></a></td><td class="hide-s" style="font-size:12.5px;color:var(--ink-2)">${esc(r[3])}</td><td><span class="pill pill-${r[4]}">${({ modified: "Changes pending", review: "In review", draft: "Draft", published: "Published", scheduled: "Scheduled", failed: "Publish failed" })[r[4]]}</span></td><td class="what hide-s">${esc(r[6])}</td><td><span class="who"><span class="av" style="background:${c}">${ini(n)}</span>${esc(n)}</span></td><td class="when r">${ago(r[7])}</td></tr>`; }).join("") || '<tr><td colspan="6" style="color:var(--ink-3)">Nothing matches.</td></tr>'}</tbody>`;
+  }
+
+  // ---------- ranks ----------
+  function ranks() {
+    const f = period / 30;
+    const hot = [["Fixed rate saver", "/savings/fixed-rate-saver", 64], ["Switch & get £200", "/campaign/switch", 51], ["Premier World Elite", "/credit-cards/premier-world-elite", 38], ["Representative APR 23.9%", "entity · Disclaimer", 29], ["Mortgage rates", "/mortgages/rates", 24], ["Home", "/", 19]];
+    const hmx = hot[0][2];
+    $("#hot").innerHTML = hot.map((h) => `<li><span class="n">${esc(h[0])}<small>${esc(h[1])}</small></span><span class="mini"><i style="width:${h[2] / hmx * 100}%"></i></span><b class="num">${Math.max(1, Math.round(h[2] * f))}</b></li>`).join("");
+    $("#hotHint").textContent = `last ${period} days`;
+    const ppl = [[0, 412], [1, 377], [2, 241], [3, 198], [4, 133], [5, 96]];
+    $("#people").innerHTML = ppl.map(([i, v]) => { const [n, c] = PEOPLE[i]; return `<li><span class="av" style="background:${c}">${ini(n)}</span><span class="n">${esc(n)}<small style="font-family:var(--sans)">${["Author · Savings", "Author · Cards", "Translator · cy-GB", "Author · Help", "Reviewer · Legal", "Admin"][i]}</small></span><span class="mini"><i style="width:${v / ppl[0][1] * 100}%"></i></span><b class="num">${fmt(Math.round(v * f))}</b></li>`; }).join("");
+    const pipe = [["Waiting for a reviewer", 5], ["In author's review", 6], ["In business review", 3], ["Approved, not yet published", 7]];
+    const pmx = Math.max(...pipe.map((p) => p[1]));
+    $("#pipeline").innerHTML = pipe.map((p) => `<li><span class="n">${p[0]}</span><span class="mini"><i style="width:${Math.max(3, p[1] / pmx * 100)}%"></i></span><b class="num">${p[1]}</b></li>`).join("");
+  }
+
+  // ---------- locales ----------
+  function locales() {
+    const L = [["en-GB", "English", 1284, 1284, 0, "Source locale"], ["cy-GB", "Welsh", 1284, 912, 41, "372 pages have no Welsh version; 41 Welsh pages are older than their English source"]];
+    $("#locales").innerHTML = L.map(([code, name, total, have, stale, note]) => { const ok = have - stale; return `<div class="row"><header><b class="mono">${code}</b>${name}<small class="num">${fmt(have)} / ${fmt(total)} · ${Math.round(have / total * 100)}%</small></header><div class="prog" role="img" aria-label="${code}: ${ok} current, ${stale} outdated, ${total - have} missing"><i style="flex:${ok};background:var(--good)"></i>${stale ? `<i style="flex:${stale};background:var(--warn)"></i>` : ""}${total - have ? `<i style="flex:${total - have};background:transparent"></i>` : ""}</div><span class="note">${note}</span></div>`; }).join("") +
+      `<div class="legend" style="margin:0"><span><i style="background:var(--good)"></i>Current</span><span><i style="background:var(--warn)"></i>Outdated vs source</span><span><i style="background:var(--surface-3);outline:1px solid var(--line-2)"></i>Missing</span></div>`;
+  }
+
+  // ---------- health ----------
+  function health() {
+    const H = [
+      ["crit", "!", 4, "Publish failed", "Validator refused or delivery returned an error"],
+      ["crit", "!", 6, "Broken internal links", "Link targets that were moved or deleted"],
+      ["warn", "◷", 214, "Not changed in 12 months", "Mostly Legal & terms and Help topics"],
+      ["warn", "◷", 9, "Drafts open for more than 30 days", "Oldest: Premier benefits refresh, 74 d"],
+      ["warn", "≡", 52, "Pages without a meta description", "Search snippets fall back to body text"],
+      ["info", "∅", 37, "Entities not used on any page", "Mostly expired Promo banners"],
+      ["info", "∅", 418, "Assets not referenced", "3.1 GB · candidates for archiving"],
+      ["ok", "✓", 0, "Images without alt text", "All 3,120 images have alt text"],
+    ];
+    $("#health").innerHTML = H.map(([lv, ic, n, t, sub]) => `<li><span class="ic ${lv}" aria-hidden="true">${ic}</span><span>${t}<small>${sub}</small></span><b class="num" style="color:${lv === "crit" ? "var(--crit)" : "var(--ink)"}">${fmt(n)}</b></li>`).join("");
+  }
+
+  // ---------- wiring ----------
+  function all() { kpis(); actChart(); inventory(); ranks(); }
+  document.querySelectorAll("[data-period]").forEach((b) => b.addEventListener("click", () => {
+    period = +b.dataset.period;
+    document.querySelectorAll("[data-period]").forEach((o) => o.setAttribute("aria-pressed", String(o === b)));
+    $("#asof").textContent = `Data as of 2 Oct 2026, 14:32 · compared with the previous ${period} days`;
+    all();
+  }));
+  $("#locale").addEventListener("change", recent);
+  $("#srcToggle").addEventListener("click", (e) => { const on = document.body.classList.toggle("show-src"); e.currentTarget.setAttribute("aria-pressed", String(on)); });
+  $("#tableToggle").addEventListener("click", (e) => { const on = $("#act").classList.toggle("as-table"); e.currentTarget.setAttribute("aria-pressed", String(on)); e.currentTarget.textContent = on ? "Chart" : "Table"; });
+
+  all(); heat(); status(); recent(); locales(); health();
+})();
+</script>
+</body>
+</html>

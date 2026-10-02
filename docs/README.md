@@ -17,3 +17,11 @@ node docs/tools/svg2drawio.mjs docs/cms-architecture.html docs/diagrams
 
 The script also writes a standalone `.svg` of each diagram beside the `.drawio` files. Those are for embedding as
 images and are not committed.
+
+# Concept mocks
+
+- `market-dashboard-concept.html`: a proposed per-market content dashboard (counts by status, template, entity and
+  asset type; changes over time; recently edited; most edited; contributors; locale coverage; content health; review
+  pipeline). Static HTML with deterministic demo data and this app's design tokens; not wired to any backend. The
+  **Data sources** button marks, per card, what ContentLIBRE answers today and what needs a new read-only
+  `content/v1/stats/*` endpoint. Open it in a browser.
