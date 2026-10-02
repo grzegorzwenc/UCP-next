@@ -197,7 +197,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
         <li>Content, status and history stay as they are.</li></ul>,
       items: moving.map((p) => ({ label: p.title, note: `${rel(p.path)} → ${rel(parent)}/${p.name}`, warn: live.includes(p) })) }))) return;
     setBusy(true); setErr(null);
-    try { let n = 0; for (const p of modal.pages) { if (parentOf(p.path) === parent) continue; const to = `${parent}/${p.name}`; await repoApi.movePage(p.path, to); n++; const from = moveRefs?.find((r) => r.path === p.path); if (relink && from?.linkedFrom.length) await ucpApi.relinkPages(marketId, p.path, to, from.linkedFrom.map((x) => x.path)).catch(() => {}); } setModal(null); setSel([]); say(n ? `Moved ${n} item${n === 1 ? "" : "s"} to ${rel(parent)}` : "Nothing to move"); router.refresh(); }
+    try { let n = 0; for (const p of modal.pages) { if (parentOf(p.path) === parent) continue; const to = `${parent}/${p.name}`; await repoApi.movePage(p.path, to); n++; const linkers = [...new Set((moveRefs ?? []).filter((r) => r.path === p.path || r.path.startsWith(p.path + "/")).flatMap((r) => r.linkedFrom.map((x) => x.path)))]; if (relink && linkers.length) await ucpApi.relinkPages(marketId, p.path, to, linkers).catch(() => {}); } setModal(null); setSel([]); say(n ? `Moved ${n} item${n === 1 ? "" : "s"} to ${rel(parent)}` : "Nothing to move"); router.refresh(); }
     catch (e) { setErr(errText(e)); } finally { setBusy(false); }
   }
   /** Copy to another folder (or the same one, as “… (copy)”). */
@@ -251,12 +251,15 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
     const info = pages.map((p) => { const kids = inside(p); const live = [...(p.isFolder ? [] : [p]), ...kids].filter((x) => x.status === "published").length; return { p, kids: kids.length, live }; });
     const live = info.reduce((n, x) => n + x.live, 0); const kids = info.reduce((n, x) => n + x.kids, 0);
     const one = pages.length === 1 ? pages[0] : null;
-    const refs = await ucpApi.pageReferences(marketId, pages.filter((p) => !p.isFolder).map((p) => p.path)).catch(() => []);
+    const refs = await ucpApi.pageReferences(marketId, pages.map((p) => p.path)).catch(() => []); // folders: every page inside is checked
     const linked = [...new Map(refs.flatMap((r) => r.linkedFrom).map((x) => [x.path, x])).values()];
     const lonely = [...new Map(refs.flatMap((r) => r.files.filter((f) => f.onlyHere && f.path)).map((f) => [f.id, f])).values()];
     let dropFiles: string[] = [];
     const ok = await ask({
-      also: linked.length ? { title: `${linked.length} page${linked.length === 1 ? " links" : "s link"} here`, hint: "Their links will stop working. Update them after deleting.", list: linked.map((x) => ({ label: x.title, note: rel(x.path) })) } : undefined,
+      also: [
+        { title: `${linked.length} page${linked.length === 1 ? " links" : "s link"} here`, hint: "Their links will stop working. Update them after deleting.", list: linked.map((x) => ({ label: x.title, note: rel(x.path) })) },
+        { title: "Linked content", hint: "Content entities shown on these pages. They are not deleted.", list: [...new Map(refs.flatMap((r) => r.entities).map((e) => [e.path, e])).values()].map((e) => ({ label: e.title, note: e.usedElsewhere ? `also on ${e.usedElsewhere} other page${e.usedElsewhere === 1 ? "" : "s"}` : "not used anywhere else" })) },
+      ],
       choices: lonely.length ? { title: "Files used only here", hint: "Tick the ones to delete too. Unticked files stay in Assets.", list: lonely.map((f) => ({ id: f.path!, label: f.name, note: f.status === "published" ? "published" : "not published" })) } : undefined,
       onChoose: (ids) => { dropFiles = ids; },
       title: one ? `Delete ${one.isFolder ? "folder" : "page"} “${one.title}”?` : `Delete ${pages.length} items?`, danger: true, confirmLabel: one ? `Delete ${one.isFolder ? "folder" : "page"}` : `Delete ${pages.length} items`,

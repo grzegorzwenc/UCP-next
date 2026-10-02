@@ -65,24 +65,31 @@ export async function filesForPublish(marketId: string, paths: string[]): Promis
  * What depends on these pages before a move or delete: other pages that link to them (their links would break or need
  * updating), and the files they use, marked when no other page uses them (those can go with a delete).
  */
-export async function pageReferences(marketId: string, paths: string[]): Promise<{ path: string; title: string; linkedFrom: { path: string; title: string }[]; files: FileRef[] }[]> {
+export type PageRefs = { path: string; title: string; linkedFrom: { path: string; title: string }[]; files: FileRef[]; entities: { path: string; title: string; usedElsewhere: number }[] };
+export async function pageReferences(marketId: string, paths: string[]): Promise<PageRefs[]> {
   const mk = marketOf(marketId); const all = (await allPages(mk.root)).filter((p) => !p.isFolder); const assets = await listAssets(marketId);
-  const full = new Map<string, { title: string; components: { props: Record<string, unknown> }[] }>(); for (const p of all) { const v = await repo().getPage(p.path).catch(() => undefined); if (v) full.set(p.path, { title: v.title, components: v.components ?? [] }); }
+  const full = new Map<string, { title: string; components: { props: Record<string, unknown> }[]; bindings: string[] }>();
+  for (const p of all) { const v = await repo().getPage(p.path).catch(() => undefined); if (v) full.set(p.path, { title: v.title, components: v.components ?? [], bindings: Object.values(bindingsOf(v.meta)) }); }
+  /* a folder stands for every page inside it */
+  const targets = [...new Set(paths.flatMap((p) => (full.has(p) ? [p] : [...full.keys()].filter((q) => q.startsWith(p + "/")))))];
+  const inScope = (q: string) => targets.includes(q);
   const routeOf = (p: string) => p.slice(mk.root.length) || "/";
   const links = (comps: { props: Record<string, unknown> }[], route: string) => comps.some((c) => Object.values(c.props).some((v) => typeof v === "string" && (v === route || v.startsWith(route + "#") || v.startsWith(route + "?") || v.endsWith(mk.domain + route))));
-  return paths.filter((p) => full.has(p)).map((p) => {
-    const route = routeOf(p); const mine = full.get(p)!; const inside = (q: string) => q === p || q.startsWith(p + "/");
-    const linkedFrom = [...full.entries()].filter(([q, v]) => !inside(q) && !paths.includes(q) && links(v.components, route)).map(([q, v]) => ({ path: q, title: v.title }));
+  const entTitle = new Map<string, string>(); for (const e of await listEntities(marketId).catch(() => [])) entTitle.set(e.path, e.title);
+  return targets.map((p) => {
+    const route = routeOf(p); const mine = full.get(p)!;
+    const linkedFrom = [...full.entries()].filter(([q, v]) => !inScope(q) && links(v.components, route)).map(([q, v]) => ({ path: q, title: v.title }));
     const files = filesIn(mine.components, assets).map((id) => assets.find((a) => a.id === id)).filter((a): a is Asset => !!a).map((a) => ({ id: a.id, path: a.path, name: a.name, type: a.type, status: a.status, publishedAt: a.publishedAt,
-      onlyHere: ![...full.entries()].some(([q, v]) => !paths.includes(q) && q !== p && filesIn(v.components, assets).includes(a.id)) }));
-    return { path: p, title: mine.title, linkedFrom, files };
+      onlyHere: ![...full.entries()].some(([q, v]) => !inScope(q) && filesIn(v.components, assets).includes(a.id)) }));
+    const entities = [...new Set(mine.bindings)].map((e) => ({ path: e, title: entTitle.get(e) ?? e.split("/").pop() ?? e, usedElsewhere: [...full.entries()].filter(([q, v]) => !inScope(q) && v.bindings.includes(e)).length }));
+    return { path: p, title: mine.title, linkedFrom, files, entities };
   });
 }
 /** After a move: point links on these pages from the old address to the new one. */
 export async function relinkPages(marketId: string, from: string, to: string, pages: string[]): Promise<number> {
   const mk = marketOf(marketId); const a = from.slice(mk.root.length) || "/", b = to.slice(mk.root.length) || "/"; let n = 0;
   for (const p of pages) { const v = await repo().getPage(p).catch(() => undefined); if (!v) continue;
-    const next = v.components.map((c) => ({ ...c, props: Object.fromEntries(Object.entries(c.props).map(([k, val]) => [k, typeof val === "string" && (val === a || val.startsWith(a + "#") || val.startsWith(a + "?")) ? b + val.slice(a.length) : typeof val === "string" && val.endsWith(mk.domain + a) ? val.slice(0, -a.length) + b : val])) }));
+    const next = v.components.map((c) => ({ ...c, props: Object.fromEntries(Object.entries(c.props).map(([k, val]) => [k, typeof val === "string" && (val === a || val.startsWith(a + "/") || val.startsWith(a + "#") || val.startsWith(a + "?")) ? b + val.slice(a.length) : typeof val === "string" && val.endsWith(mk.domain + a) ? val.slice(0, -a.length) + b : val])) }));
     if (JSON.stringify(next) !== JSON.stringify(v.components)) { await repo().saveComponents(p, next); n++; } }
   return n;
 }
