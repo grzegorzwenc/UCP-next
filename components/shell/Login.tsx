@@ -26,7 +26,7 @@ export function Login({ users, next, demo }: { users: User[]; next: string; demo
     <main className="min-h-dvh bg-[#0F1013] text-white flex flex-col items-center px-4 pt-10 pb-8" style={{ backgroundImage: "radial-gradient(1200px 600px at 50% -10%, rgba(219,0,17,.18), transparent 60%)" }}>
       <div className="w-[min(440px,100%)] flex flex-col items-center text-center my-auto">
         <img src="/hsbc-logo-white.svg" alt="HSBC" className="h-12 mb-8" />
-        <h1 className="text-[28px] font-semibold leading-tight">Unified Content Management</h1>
+        <h1 className="text-[28px] font-semibold leading-tight">Unified Content Platform</h1>
         <p className="text-[14px] text-white/60 mt-2">One place to author and publish for every HSBC market</p>
 
         {!picker ? <>
@@ -38,7 +38,7 @@ export function Login({ users, next, demo }: { users: User[]; next: string; demo
           /* SSO account picker (stand-in for the identity provider's own screen) */
           <div role="dialog" aria-label="Choose an account" className="mt-10 w-full bg-white text-ink rounded-xl shadow-2xl text-left overflow-hidden">
             <div className="px-5 pt-5 pb-3 border-b border-line flex items-start gap-3">
-              <div className="flex-1"><b className="block text-[15px]">Choose an account</b><small className="block text-ink-3 text-[12.5px] mt-0.5">to continue to Unified Content Management</small></div>
+              <div className="flex-1"><b className="block text-[15px]">Choose an account</b><small className="block text-ink-3 text-[12.5px] mt-0.5">to continue to Unified Content Platform</small></div>
               <button type="button" onClick={() => setPicker(false)} disabled={!!busy} className="w-7 h-7 rounded text-ink-3 hover:bg-surface-3" aria-label="Back">✕</button>
             </div>
             <ul className="py-1">{[author, sso].filter((u): u is User => !!u).map((u) => (

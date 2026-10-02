@@ -6,7 +6,7 @@ import { sessionUserId } from "@/lib/server/session";
 import { listAssets, listComments, me, resolveBindings, reviewByToken, STAGE_LABEL } from "@/lib/server/ucp";
 import { ReviewScreen } from "@/components/review/ReviewScreen";
 
-export const metadata: Metadata = { title: "Review · HSBC Unified Content Management", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Review · HSBC Unified Content Platform", robots: { index: false, follow: false } };
 export const dynamic = "force-dynamic";
 
 /**
