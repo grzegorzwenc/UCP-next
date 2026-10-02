@@ -1,5 +1,6 @@
 "use client";
 import { celebrate } from "@/lib/ui/celebrate";
+import { Steps } from "@/components/ui/Steps";
 import { useEffect, useMemo, useState } from "react";
 import { ModalShell, Err } from "@/components/models/ModalShell";
 import { Pill } from "@/components/ui/Pill";
@@ -59,8 +60,7 @@ export function PublishDialog({ marketId, envName, pages, mayPublish, onClose, o
   </ModalShell>;
 
   const title = single ? `Publish “${single.title}”` : `Publish ${pages.length} pages`;
-  const steps = hasFiles && <ol className="flex items-center gap-2 text-[12px] mb-3" aria-label="Steps">{[["1", "Images and files"], ["2", "When to publish"]].map(([n, l], i) => { const on = (i === 0) === onFiles; const done = i === 0 && !onFiles;
-    return <li key={n} className="flex items-center gap-2">{i > 0 && <span aria-hidden className="w-6 h-px bg-line-2" />}<span className={`w-5 h-5 rounded-full grid place-items-center text-[11px] font-bold ${done ? "bg-good text-white" : on ? "bg-accent text-white" : "bg-surface-3 text-ink-3"}`}>{done ? "✓" : n}</span><span className={on ? "font-semibold text-ink" : "text-ink-3"} aria-current={on ? "step" : undefined}>{l}</span></li>; })}</ol>;
+  const steps = hasFiles && <Steps labels={["Images and files", "When to publish"]} current={onFiles ? 0 : 1} onGo={() => setStep(1)} />;
   return <ModalShell title={title} subtitle={`Goes live on ${envName}.`} width={560} onClose={onClose}
     footer={onFiles ? <><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" onClick={() => setStep(2)}>Choose when to publish</button></> : <>{single?.status === "scheduled" && <button className="btn mr-auto text-crit" disabled={busy} onClick={() => run(true)}>Cancel schedule</button>}{hasFiles ? <button className="btn" onClick={() => setStep(1)}>Back</button> : <button className="btn" onClick={onClose}>Cancel</button>}
       <button className="btn btn-primary" disabled={busy || !ready.length || !!whenErr || files === null} onClick={() => run()}>{busy ? "Working…" : mode === "now" ? `Publish now${pages.length > 1 ? ` (${ready.length})` : ""}` : `Schedule${pages.length > 1 ? ` (${ready.length})` : ""}`}</button></>}>

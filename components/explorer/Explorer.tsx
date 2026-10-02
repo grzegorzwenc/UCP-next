@@ -5,6 +5,8 @@ import { CompareView } from "@/components/pages/CompareView";
 import { env } from "@/lib/markets";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ui/Confirm";
+import { Steps } from "@/components/ui/Steps";
+import { ModalShell as Dialog } from "@/components/models/ModalShell";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { PageSummary } from "@/lib/api/types";
 import { repoApi, ucpApi } from "@/lib/api";
@@ -75,42 +77,69 @@ function RowMenu({ page, canEdit, onAction }: { page: PageSummary; canEdit: bool
 }
 
 /* ---------------- translate modal (port of the prototype's translate flow) ---------------- */
-function TranslateModal({ pages, marketId, base, root, marketName, tree, rel, folderPath, onClose, onDone }: { pages: PageSummary[]; marketId: string; base: string; root: string; marketName: string; tree: Folder[]; rel: (p: string) => string; folderPath: string; onClose: () => void; onDone: () => void }) {
+/** The tick in the corner of a choice card (language, how, where). */
+const Check = ({ on }: { on: boolean }) => <span aria-hidden className={`absolute top-2 right-2 w-5 h-5 rounded-full grid place-items-center text-[11px] font-bold ${on ? "bg-accent text-white" : "border border-line-2 bg-surface"}`}>{on ? "✓" : ""}</span>;
+function TranslateModal({ pages, marketId, base, root, marketName, tree, rel, folderPath, existing, onClose, onDone }: { pages: PageSummary[]; marketId: string; base: string; root: string; marketName: string; tree: Folder[]; rel: (p: string) => string; folderPath: string; existing: string[]; onClose: () => void; onDone: () => void }) {
   const mk = marketOf(marketId);
-  const allLangs = useMemo(() => [...new Set([...mk.locales, ...MARKETS.flatMap((m) => m.locales)])].filter((l) => l !== mk.locales[0]), [mk]);
+  const own = mk.locales.slice(1); const others = [...new Set(MARKETS.flatMap((m) => m.locales))].filter((l) => !mk.locales.includes(l));
   const flagOf = (l: string) => MARKETS.find((m) => m.locales.includes(l))?.flag ?? "";
-  const [langs, setLangs] = useState<string[]>([mk.locales[1] ?? "cy-GB"]);
-  const [mode, setMode] = useState<"ai" | "vendor">("ai"); const review = true; // translations always go through review
+  const nameOf = (l: string) => { try { return new Intl.DisplayNames(["en"], { type: "language" }).of(l.split("-")[0]) ?? l; } catch { return l; } };
+  const whereOf = (l: string) => MARKETS.find((m) => m.locales.includes(l))?.name.replace(/^HSBC /, "") ?? "";
+  const [step, setStep] = useState(0); // 0 languages · 1 how · 2 where · 3 check
+  const [langs, setLangs] = useState<string[]>(own[0] ? [own[0]] : []);
+  const [mode, setMode] = useState<"ai" | "vendor">("ai");
   const [dest, setDest] = useState<"same" | "folder">("same"); const [destFolder, setDestFolder] = useState(folderPath);
   const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null); const [created, setCreated] = useState<string[] | null>(null);
-  const total = langs.length * pages.length;
+  /* what each choice creates (a page that already has that translation is skipped) */
+  const plan = langs.flatMap((l) => pages.map((p) => { const parent = dest === "folder" ? destFolder : p.path.replace(/\/[^/]+$/, ""); const path = `${parent}/${l.split("-")[0]}-${p.name}`; return { l, p, path, exists: existing.includes(path) }; }));
+  const doneFor = (l: string) => pages.filter((p) => existing.includes(`${p.path.replace(/\/[^/]+$/, "")}/${l.split("-")[0]}-${p.name}`)).length;
+  const toCreate = plan.filter((x) => !x.exists).length;
   async function go() {
     setBusy(true); setErr(null);
-    try { const r = await ucpApi.translate(marketId, { pages: pages.map((p) => p.path), langs, review, dest: dest === "folder" ? destFolder : undefined, mode }); setCreated(r.created); onDone(); }
+    try { const r = await ucpApi.translate(marketId, { pages: pages.map((p) => p.path), langs, review: true, dest: dest === "folder" ? destFolder : undefined, mode }); setCreated(r.created); onDone(); }
     catch (e) { setErr(errText(e)); } finally { setBusy(false); }
   }
-  const steps = [`Read ${pages.length} source page${pages.length === 1 ? "" : "s"}`, "Apply HSBC glossary and product names", `Translate copy to ${langs.join(", ")} ${mode === "ai" ? "(AI draft)" : "(sent to translation vendor)"}`, "Keep rates, links and regulatory text unchanged", `Create ${total} draft${total === 1 ? "" : "s"} in ${dest === "same" ? "the same folders" : "the chosen folder"}`, review ? "Send drafts for review" : "Leave as drafts"];
-  if (created) return <ModalShell title="✓ Translations created" width={560} onClose={onClose} footer={<><button className="btn" onClick={onClose}>Close</button>{created[0] && <Link className="btn btn-primary" href={`${base}/page${rel(created[0].replace(/ \(exists\)$/, ""))}`}>Open the first draft</Link>}</>}>
-    <ul className="text-[13px] text-ink-2 grid gap-1">{steps.map((s) => <li key={s} className="flex gap-2"><span className="text-good">✓</span>{s}</li>)}</ul>
-    <div className="mt-4 text-[12.5px] text-ink-3">Created {created.length} page{created.length === 1 ? "" : "s"}. Each draft links back to its source page.</div>
-    <ul className="mt-2 grid gap-1 max-h-[220px] overflow-auto">{created.map((c) => { const p = c.replace(/ \(exists\)$/, ""); return <li key={c} className="flex items-center gap-2 text-[13px]"><Link href={`${base}/page${rel(p)}`} className="font-mono text-[12px] text-info hover:underline">{rel(p)}</Link>{c.endsWith("(exists)") && <span className="text-[11px] text-ink-3">already existed · skipped</span>}</li>; })}</ul>
-  </ModalShell>;
-  return <ModalShell title={`🌐 Translate ${pages.length} page${pages.length === 1 ? "" : "s"}`} onClose={onClose} footer={<><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={!langs.length || busy} onClick={go}>{busy ? "Translating…" : `Translate ${pages.length} page${pages.length === 1 ? "" : "s"}`}</button></>}>
-    <div className="grid grid-cols-2 gap-x-5 gap-y-3">
-      <div className="grid gap-3">
-        <div className="text-xs text-ink-3">Pages<ul className="mt-1 border border-line rounded-md max-h-[150px] overflow-auto">{pages.map((p) => <li key={p.path} className="flex items-center justify-between gap-2 px-2.5 py-1.5 border-b border-line last:border-0 text-[13px] text-ink"><span className="truncate">{p.title}</span><span className="font-mono text-[11px] text-ink-3">{rel(p.path)}</span></li>)}</ul></div>
-        <div className="text-xs text-ink-3">Target languages <span className="text-ink-4">pick one or more</span><div className="mt-1 flex flex-wrap gap-1.5">{allLangs.map((l) => { const on = langs.includes(l); return <button type="button" key={l} className={`btn btn-sm ${on ? "on" : ""}`} onClick={() => setLangs(on ? langs.filter((x) => x !== l) : [...langs, l])}>{on ? "✓ " : ""}{flagOf(l)} {l}</button>; })}</div><div className="mt-1.5 text-[12px]">{langs.length} language{langs.length === 1 ? "" : "s"} × {pages.length} page{pages.length === 1 ? "" : "s"} = <b className="text-ink">{total}</b> translation{total === 1 ? "" : "s"}</div></div>
-        <div className="text-xs text-ink-3">How<div className="mt-1 flex gap-1.5"><button type="button" className={`btn btn-sm ${mode === "ai" ? "on" : ""}`} onClick={() => setMode("ai")}>✨ AI draft now</button><button type="button" className={`btn btn-sm ${mode === "vendor" ? "on" : ""}`} onClick={() => setMode("vendor")}>Send to translation vendor</button></div></div>
-      </div>
-      <div className="grid gap-3 content-start">
-        <div className="text-xs text-ink-3">Where should the translations live?<div className="mt-1 flex gap-1.5 mb-2"><button type="button" className={`btn btn-sm ${dest === "same" ? "on" : ""}`} onClick={() => setDest("same")}>Same folder as the source</button><button type="button" className={`btn btn-sm ${dest === "folder" ? "on" : ""}`} onClick={() => setDest("folder")}>Pick a folder</button></div>
-          {dest === "folder" ? <FolderSelect value={destFolder} onChange={setDestFolder} root={root} marketName={marketName} tree={tree} rel={rel} /> : <div className="text-[12px] leading-relaxed">Each translation is created next to its source page as a variant per language, e.g. <span className="font-mono">{rel(pages[0].path)}</span> → {langs.map((l) => <span key={l} className="font-mono">…/{l.split("-")[0]}-{pages[0].name} </span>)}</div>}</div>
-        <p className="flex items-start gap-2 text-[12.5px] text-ink-2 bg-surface-2 rounded-md px-3 py-2"><span aria-hidden>ⓘ</span><span>Translated pages go to the review Backlog. Like any page, they need the author&apos;s review and the business review before they can be published.</span></p>
-        <div className="text-[12px] text-ink-3">Rates, product names, links and regulatory wording are kept as-is and flagged for a native reviewer.</div>
-      </div>
-    </div>
+  const card = (on: boolean) => `relative text-left rounded-lg border px-3 py-2.5 transition-colors ${on ? "border-accent bg-accent-soft shadow-[0_0_0_1px_var(--accent)]" : "border-line bg-surface hover:border-ink-4 hover:bg-surface-2"}`;
+  const lang = (l: string) => { const on = langs.includes(l); const d = doneFor(l); const all = d === pages.length;
+    return <button type="button" key={l} disabled={all} aria-pressed={on} onClick={() => setLangs(on ? langs.filter((x) => x !== l) : [...langs, l])} className={`${card(on)} disabled:opacity-50 disabled:cursor-not-allowed`}>
+      <Check on={on} /><span className="flex items-center gap-2 pr-6"><span className="text-[18px] leading-none">{flagOf(l)}</span><b className="text-[13.5px]">{nameOf(l)}</b></span>
+      <span className="block text-[11.5px] text-ink-3 mt-0.5">{l}{whereOf(l) ? ` · ${whereOf(l)}` : ""}{all ? " · already translated" : d ? ` · ${d} of ${pages.length} done` : ""}</span></button>; };
+
+  if (created) { const made = created.filter((c) => !c.endsWith("(exists)")); return <Dialog title="Translations created" subtitle={`${made.length} new page${made.length === 1 ? "" : "s"} · waiting in the review Backlog`} width={560} onClose={onClose}
+    footer={<><button className="btn" onClick={onClose}>Close</button>{made[0] && <Link className="btn btn-primary" href={`${base}/page${rel(made[0])}`}>Open the first one</Link>}</>}>
+    <ul className="grid gap-1.5">{created.map((c) => { const p = c.replace(/ \(exists\)$/, ""); const skip = c.endsWith("(exists)"); return <li key={c} className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-[13px] ${skip ? "border-line bg-surface-2 text-ink-3" : "border-line"}`}>
+      <span className={`w-5 h-5 rounded-full grid place-items-center text-[11px] font-bold ${skip ? "bg-surface-3 text-ink-3" : "bg-good text-white"}`}>{skip ? "–" : "✓"}</span>
+      <Link href={`${base}/page${rel(p)}`} className="font-mono text-[12px] hover:underline truncate flex-1">{rel(p)}</Link>{skip ? <span className="text-[11.5px]">already existed</span> : <span className="text-[11.5px] text-ink-3">In the Backlog</span>}</li>; })}</ul>
+  </Dialog>; }
+
+  const labels = ["Languages", "How", "Where", "Check"];
+  const next = <button className="btn btn-primary" disabled={(step === 0 && !langs.length) || (step === 3 && (!toCreate || busy))} onClick={() => (step < 3 ? setStep(step + 1) : void go())}>
+    {step === 0 ? "Next: how to translate" : step === 1 ? "Next: where to put them" : step === 2 ? "Next: check" : busy ? "Creating…" : `Create ${toCreate} translation${toCreate === 1 ? "" : "s"}`}</button>;
+  return <Dialog title={pages.length === 1 ? `Translate “${pages[0].title}”` : `Translate ${pages.length} pages`} subtitle={`From ${nameOf(mk.locales[0])} (${mk.locales[0]}) · ${marketName}`} width={600} onClose={onClose}
+    footer={<>{step > 0 ? <button className="btn mr-auto" onClick={() => setStep(step - 1)}>Back</button> : null}<button className="btn" onClick={onClose}>Cancel</button>{next}</>}>
+    <Steps labels={labels} current={step} onGo={setStep} />
+    {step === 0 && <div>
+      {own.length > 0 && <><b className="block text-[11px] uppercase tracking-[.06em] text-ink-3 mb-1.5">Languages of {marketName}</b><div className="grid grid-cols-2 gap-2 mb-4">{own.map(lang)}</div></>}
+      <b className="block text-[11px] uppercase tracking-[.06em] text-ink-3 mb-1.5">Other markets</b><div className="grid grid-cols-2 sm:grid-cols-3 gap-2">{others.map(lang)}</div>
+      <p className="mt-3 text-[12.5px] text-ink-2">{langs.length ? <>{langs.length} language{langs.length === 1 ? "" : "s"} × {pages.length} page{pages.length === 1 ? "" : "s"} = <b>{langs.length * pages.length}</b> translation{langs.length * pages.length === 1 ? "" : "s"}</> : "Pick at least one language."}</p>
+    </div>}
+    {step === 1 && <div role="radiogroup" aria-label="How to translate" className="grid gap-2">
+      {([["ai", "AI draft now", "A first draft appears straight away. Rates, product names, links and regulatory wording stay as they are."], ["vendor", "Send to the translation vendor", "Professional translators work on it; the pages are created now and filled in when they deliver."]] as const).map(([k, t, d]) =>
+        <button key={k} type="button" role="radio" aria-checked={mode === k} onClick={() => setMode(k)} className={card(mode === k)}><Check on={mode === k} /><b className="block text-[13.5px] pr-6">{t}</b><span className="block text-[12.5px] text-ink-3 mt-0.5">{d}</span></button>)}
+    </div>}
+    {step === 2 && <div role="radiogroup" aria-label="Where to put them" className="grid gap-2">
+      <button type="button" role="radio" aria-checked={dest === "same"} onClick={() => setDest("same")} className={card(dest === "same")}><Check on={dest === "same"} /><b className="block text-[13.5px] pr-6">Next to each source page</b><span className="block text-[12.5px] text-ink-3 mt-0.5 font-mono">{rel(pages[0].path)} → …/{(langs[0] ?? "xx").split("-")[0]}-{pages[0].name}</span></button>
+      <div className={card(dest === "folder")}><button type="button" role="radio" aria-checked={dest === "folder"} onClick={() => setDest("folder")} className="text-left w-full"><Check on={dest === "folder"} /><b className="block text-[13.5px] pr-6">In one folder</b><span className="block text-[12.5px] text-ink-3 mt-0.5">All translations together, e.g. a language section.</span></button>
+        {dest === "folder" && <div className="mt-2"><FolderSelect value={destFolder} onChange={setDestFolder} root={root} marketName={marketName} tree={tree} rel={rel} /></div>}</div>
+    </div>}
+    {step === 3 && <div>
+      <ul className="grid gap-1.5 max-h-[260px] overflow-auto">{plan.map((x) => <li key={x.path} className={`flex items-center gap-2.5 rounded-lg border px-3 py-2 text-[13px] ${x.exists ? "border-line bg-surface-2 text-ink-3" : "border-line"}`}>
+        <span className="text-[16px] leading-none">{flagOf(x.l)}</span><span className="min-w-0 flex-1"><b className="block font-semibold truncate">{x.p.title}</b><span className="block font-mono text-[11.5px] text-ink-3 truncate">{rel(x.path)}</span></span>
+        {x.exists ? <span className="text-[11.5px]">already exists · skipped</span> : <span className="text-[11.5px] rounded-full bg-accent-soft text-accent font-semibold px-2 py-0.5">{nameOf(x.l)}</span>}</li>)}</ul>
+      <p className="mt-3 flex items-start gap-2 text-[12.5px] text-ink-2 bg-surface-2 rounded-md px-3 py-2"><span aria-hidden>ⓘ</span><span>{mode === "ai" ? "AI drafts" : "Pages for the vendor"} go to the review <b>Backlog</b>. Like any page, they need the author&apos;s review and the business review before they can be published.</span></p>
+    </div>}
     <Err err={err} />
-  </ModalShell>;
+  </Dialog>;
 }
 
 /* ---------------- explorer ---------------- */
@@ -318,7 +347,7 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
 
       {modal?.kind === "publish" && <PublishDialog marketId={marketId} envName={env(envId).name} pages={modal.pages.map((p) => ({ path: p.path, title: p.title, status: p.status, publishAt: typeof p.meta?.["ucp:publishAt"] === "string" ? String(p.meta["ucp:publishAt"]) : undefined }))} mayPublish={(path) => can("publish", path)} onClose={() => setModal(null)}
         onDone={(r, m) => { const n = r.filter((x) => x.ok).length; say(n ? `${m === "schedule" ? "Scheduled" : m === "cancel" ? "Unscheduled" : "Published"} ${n} page${n === 1 ? "" : "s"}${n < modal.pages.length ? ` · ${modal.pages.length - n} skipped` : ""}` : "Nothing was published"); if (r.length && r.every((x) => x.ok) && n === modal.pages.length) setModal(null); setSel([]); router.refresh(); }} />}
-      {modal?.kind === "translate" && <TranslateModal pages={modal.pages} marketId={marketId} base={base} root={root} marketName={marketName} tree={tree} rel={rel} folderPath={folder.path} onClose={() => setModal(null)} onDone={() => { setSel([]); router.refresh(); }} />}
+      {modal?.kind === "translate" && <TranslateModal pages={modal.pages} marketId={marketId} base={base} root={root} marketName={marketName} tree={tree} rel={rel} folderPath={folder.path} existing={allPages.map((p) => p.path)} onClose={() => setModal(null)} onDone={() => { setSel([]); router.refresh(); }} />}
       {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] z-50">{toast}</div>}
     </div>
   );
