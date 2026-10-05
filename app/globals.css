@@ -81,6 +81,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 /* design pattern grouping (Shift-click): blue outline + order number */
 .cblk.multi { border-color: #376798; border-style: dashed; box-shadow: 0 0 0 4px rgba(55,103,152,.14); background: rgba(55,103,152,.03); }
 .cblk.multi .tag { display: none; }
+.pattern-pick .cblk { cursor: copy; } .pattern-pick .cblk:not(.multi):hover { border-style: dashed; border-color: #376798; }
 .cblk .multi-n { position: absolute; top: -12px; right: -12px; z-index: 3; width: 24px; height: 24px; border-radius: 999px; background: #376798; color: #fff; font: 700 12px/24px system-ui, sans-serif; text-align: center; box-shadow: 0 2px 6px rgba(0,0,0,.2); }
 .preview .cblk { cursor: default; border-color: transparent !important; box-shadow: none !important; } .preview .cblk .tag { display: none; }
 .ie { border-radius: 2px; } .cblk.editmode .ie { box-shadow: 0 0 0 1px rgba(219,0,17,.35); cursor: text; background: rgba(219,0,17,.03); }

@@ -14,7 +14,7 @@ import { MARKETS } from "@/lib/markets";
 export type LeftTab = "components" | "patterns";
 type Props = { phone?: boolean; width?: number; onResizeStart?: (e: React.MouseEvent) => void; canEdit: boolean; onAdd: (type: string) => void; onClose: () => void; lockedReason?: string; onEdit?: () => void;
   /** without `patterns` (e.g. the template editor) only the component library shows */
-  patterns?: DesignPattern[] | null; tab?: LeftTab; onTab?: (t: LeftTab) => void; onAddPattern?: (p: DesignPattern) => void; onRemovePattern?: (p: DesignPattern) => void; onRestorePattern?: (p: DesignPattern) => void; onDeletePattern?: (p: DesignPattern) => void; onPatternMarkets?: (p: DesignPattern) => void; mayManage?: (p: DesignPattern) => boolean };
+  patterns?: DesignPattern[] | null; tab?: LeftTab; onTab?: (t: LeftTab) => void; onAddPattern?: (p: DesignPattern) => void; onRemovePattern?: (p: DesignPattern) => void; onRestorePattern?: (p: DesignPattern) => void; onDeletePattern?: (p: DesignPattern) => void; onPatternMarkets?: (p: DesignPattern) => void; mayManage?: (p: DesignPattern) => boolean; onStartPattern?: () => void; creating?: boolean };
 const noop = () => {};
 
 /** A pattern's thumbnail: its components stacked, scaled down like the component thumbnails. */
@@ -25,7 +25,7 @@ function PatternThumb({ p }: { p: DesignPattern }) {
   return <span ref={ref} className="relative block h-[150px] rounded-md border border-line bg-white overflow-hidden" aria-hidden><span className="absolute left-0 top-0 origin-top-left pointer-events-none select-none site desktop" style={{ transform: `scale(${w / 1200})`, width: 1200 }}>{blocks.map((b) => <RenderBlock key={b.id} b={b} />)}</span></span>;
 }
 
-export function LeftPanel({ phone, width = 320, onResizeStart, canEdit, onAdd, onClose, lockedReason, onEdit, tab: tabIn = "components", onTab = noop, patterns, onAddPattern = noop, onRemovePattern = noop, onRestorePattern = noop, onDeletePattern = noop, onPatternMarkets = noop, mayManage = () => false }: Props) {
+export function LeftPanel({ phone, width = 320, onResizeStart, canEdit, onAdd, onClose, lockedReason, onEdit, tab: tabIn = "components", onTab = noop, patterns, onAddPattern = noop, onRemovePattern = noop, onRestorePattern = noop, onDeletePattern = noop, onPatternMarkets = noop, mayManage = () => false, onStartPattern = noop, creating = false }: Props) {
   const withPatterns = patterns !== undefined; const tab = withPatterns ? tabIn : "components";
   const [showArchived, setShowArchived] = useState(false);
   const [q, setQ] = useState("");
@@ -33,7 +33,7 @@ export function LeftPanel({ phone, width = 320, onResizeStart, canEdit, onAdd, o
   const match = (p: DesignPattern) => !q || `${p.name} ${p.desc} ${partNames(p)}`.toLowerCase().includes(q.toLowerCase());
   const pats = (patterns ?? []).filter((p) => !p.archived && match(p)); const archived = (patterns ?? []).filter((p) => p.archived && match(p));
   const where = (p: DesignPattern) => (p.markets?.length ? p.markets.map((m) => MARKETS.find((k) => k.id === m)?.flag ?? m).join(" ") + " only" : "All markets");
-  const tabBtn = (t: LeftTab, l: string, n?: number) => <button type="button" role="tab" aria-selected={tab === t} onClick={() => onTab(t)} className={`flex-1 py-2 text-[12.5px] font-semibold border-b-2 ${tab === t ? "border-accent text-ink" : "border-transparent text-ink-3 hover:text-ink"}`}>{l}{n ? <span className="ml-1 text-ink-3 font-normal">{n}</span> : null}</button>;
+  void onTab; // the left rail switches between components and patterns
   // Stable ids: the same markup on the server and in the browser (random ids would trip hydration).
   const samples = useMemo(() => Object.fromEntries(BLOCKS.map((b) => [b.type, { ...makeBlock(b.type), id: `sample_${b.type}` }])) as Record<string, Block>, []);
   return (
@@ -44,10 +44,11 @@ export function LeftPanel({ phone, width = 320, onResizeStart, canEdit, onAdd, o
         <button type="button" className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={onClose} aria-label="Close panel">✕</button>
       </div>
       <LockedVeil on={!!lockedReason} reason={lockedReason ?? ""} onEdit={onEdit}>
-        {withPatterns && <div role="tablist" aria-label="Library" className="flex px-3 border-b border-line">{tabBtn("components", "Components")}{tabBtn("patterns", "Design patterns", patterns?.filter((p) => !p.archived).length)}</div>}
         <div className="p-3 border-b border-line"><input className="w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px]" placeholder={tab === "patterns" ? "Find a pattern…" : "Find a component…"} value={q} onChange={(e) => setQ(e.target.value)} aria-label={tab === "patterns" ? "Find a pattern" : "Find a component"} /></div>
         {tab === "patterns" ? <div className="flex-1 overflow-auto p-2">
-          {canEdit && <div className="m-1 mb-2 text-[12px] text-ink-2 bg-info-soft border border-line rounded-md px-2.5 py-2"><b className="text-ink">Make your own:</b> Shift-click two or more components on the page, then <b>Save as pattern</b>.</div>}
+          {canEdit && <button type="button" onClick={onStartPattern} disabled={creating} className="m-1 mb-3 w-[calc(100%-8px)] flex items-center gap-3 rounded-lg border-2 border-dashed border-line-2 px-3 py-3 text-left hover:border-accent hover:bg-accent-soft disabled:border-accent disabled:bg-accent-soft">
+            <span className="w-10 h-10 flex-none rounded-lg bg-accent text-white grid place-items-center" aria-hidden><svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none" strokeWidth={1.8} strokeLinejoin="round"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h16v7H4z" /></svg></span>
+            <span className="min-w-0"><b className="block text-[13.5px] text-ink">{creating ? "Creating a design pattern…" : "Create a design pattern"}</b><small className="block text-[12px] text-ink-3 leading-snug">{creating ? "Click components on the page, then Name it and save" : "Pick components on the page, then give it a name"}</small></span></button>}
           {!canEdit && <div className="m-1 mb-2 text-[12px] text-ink-3 bg-surface-3 border border-line rounded-md px-2.5 py-2">Read-only: you can look, but not add.</div>}
           {patterns === null && <div className="p-6 text-center text-ink-3 text-[13px]">Loading…</div>}
           {pats.map((p) => <div key={p.id} className="group relative rounded-lg p-2 hover:bg-surface-2">
