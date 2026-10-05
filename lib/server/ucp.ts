@@ -125,8 +125,9 @@ export async function modelUsage(marketId: string, all?: PageSummary[]): Promise
 }
 
 /* ---------------- templates (/conf/hsbc/settings/wcm/templates/<id>) ---------------- */
-const toTemplate = (n: RepoNode): Template => ({ id: n.name, path: n.path, name: str(n.properties["jcr:title"], n.name), desc: str(n.properties["jcr:description"]), blocks: str(n.properties["ucp:blocks"]).split(",").filter(Boolean), folder: str(n.properties["ucp:folder"], "Global (all markets)") });
-export async function listTemplates(): Promise<Template[]> { const t = await kids(PATHS.templates, 1); return t.filter((x) => x.name !== "folder").map(toTemplate); }
+const toTemplate = (n: RepoNode): Template => ({ id: n.name, path: n.path, name: str(n.properties["jcr:title"], n.name), desc: str(n.properties["jcr:description"]), blocks: str(n.properties["ucp:blocks"]).split(",").filter(Boolean), folder: str(n.properties["ucp:folder"], "Global (all markets)"), markets: json<string[]>(n.properties["ucp:markets"], []) });
+/** All templates, or (with a market) only the ones that market may use. */
+export async function listTemplates(marketId?: string): Promise<Template[]> { const t = (await kids(PATHS.templates, 1)).filter((x) => x.name !== "folder").map(toTemplate); return marketId ? t.filter((x) => !x.markets.length || x.markets.includes(marketId)) : t; }
 export async function listForms(): Promise<FormDef[]> { const f = await kids(PATHS.forms, 1); return f.map((n) => ({ id: n.name, name: str(n.properties["jcr:title"], n.name), version: num(n.properties["ucp:version"]) ?? 1 })); }
 
 /* ---------------- audit (/var/audit/ucp/<market>/<id>, append-only) ---------------- */

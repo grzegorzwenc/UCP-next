@@ -13,6 +13,8 @@ import { errorText as errText } from "@/lib/api/errors";
 import { useSession } from "@/components/shell/Session";
 import { TemplatePreview } from "./TemplatePreview";
 import { BLOCK_BY_TYPE } from "@/lib/blocks/registry";
+import { MARKETS } from "@/lib/markets";
+import { MarketPicker } from "@/components/ui/MarketPicker";
 
 type Props = { marketId: string; envId: string; marketName: string; flag: string; templates: Template[]; used: Record<string, number>; folder: string; view: "grid" | "list"; q: string };
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -32,18 +34,22 @@ export function TemplateLibrary({ marketId, envId, marketName, flag, templates, 
   const list = templates.filter((t) => (!folder || tplFolderOf(t) === folder) && (!q || (t.name + " " + t.desc).toLowerCase().includes(q.toLowerCase())));
   const href = (f: string, v = view) => `${base}/templates?folder=${encodeURIComponent(f)}&view=${v}`;
   const say = (s: string) => { setToast(s); setTimeout(() => setToast(null), 2500); };
+  /* local-market templates: every market sees the whole library, but only uses the ones meant for it */
+  const [newMarkets, setNewMarkets] = useState<string[]>([]);
+  const here = (t: Template) => !t.markets?.length || t.markets.includes(marketId);
+  const where = (t: Template) => (t.markets?.length ? `${t.markets.map((m) => MARKETS.find((k) => k.id === m)?.flag ?? m).join(" ")} only` : "All markets");
 
-  function openTemplateModal(f: string) { setName(""); setErr(null); setModal({ kind: "template", folder: f }); }
+  function openTemplateModal(f: string) { setName(""); setErr(null); setNewMarkets([]); setModal({ kind: "template", folder: f }); }
   async function createTemplate() {
     const m = modal; if (!m || m.kind !== "template") return; const id = slugify(name); if (!id) return;
     if (templates.some((t) => t.id === id)) { setErr("A template with that name already exists."); return; }
     setBusy(true); setErr(null);
-    try { await repoApi.createNode(`${PATHS.templates}/${id}`, "cq:Template", { "jcr:title": name.trim(), "jcr:description": "", "ucp:blocks": "", "ucp:folder": m.folder }, { text: `created template ${name.trim()}`, target: "templates" }); setModal(null); router.push(`${base}/templates/${id}`); router.refresh(); }
+    try { await repoApi.createNode(`${PATHS.templates}/${id}`, "cq:Template", { "jcr:title": name.trim(), "jcr:description": "", "ucp:blocks": "", "ucp:folder": m.folder, "ucp:markets": JSON.stringify(newMarkets) }, { text: `created template ${name.trim()}`, target: "templates" }); setModal(null); router.push(`${base}/templates/${id}`); router.refresh(); }
     catch (e) { setErr(errText(e)); } finally { setBusy(false); }
   }
   async function duplicate(t: Template) {
     let id = `${t.id}-copy`; let n = 2; while (templates.some((x) => x.id === id)) id = `${t.id}-copy-${n++}`;
-    try { await repoApi.createNode(`${PATHS.templates}/${id}`, "cq:Template", { "jcr:title": `${t.name} (copy)`, "jcr:description": t.desc, "ucp:blocks": t.blocks.join(","), "ucp:folder": tplFolderOf(t) }, { text: `duplicated template ${t.name}`, target: "templates" }); say(`Duplicated “${t.name}”`); router.refresh(); }
+    try { await repoApi.createNode(`${PATHS.templates}/${id}`, "cq:Template", { "jcr:title": `${t.name} (copy)`, "jcr:description": t.desc, "ucp:blocks": t.blocks.join(","), "ucp:folder": tplFolderOf(t), "ucp:markets": JSON.stringify(t.markets ?? []) }, { text: `duplicated template ${t.name}`, target: "templates" }); say(`Duplicated “${t.name}”`); router.refresh(); }
     catch (e) { say(errText(e)); }
   }
 
@@ -62,15 +68,15 @@ export function TemplateLibrary({ marketId, envId, marketName, flag, templates, 
           <ViewToggle value={view} hrefs={{ grid: href(folder, "grid"), list: href(folder, "list") }} className="ml-auto" /></div>
         {!list.length ? <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">No templates here.{canManage && <> <button className="underline" onClick={() => openTemplateModal(folder || "Global (all markets)")}>New template</button>.</>}</div>
           : view === "list" ? <div className="overflow-auto"><table className="w-full text-[13.5px] bg-surface border border-line [&_tr>*:nth-child(2)]:hidden md:[&_tr>*:nth-child(2)]:table-cell [&_tr>*:nth-child(3)]:hidden md:[&_tr>*:nth-child(3)]:table-cell [&_tr>*:nth-child(4)]:hidden sm:[&_tr>*:nth-child(4)]:table-cell"><thead><tr className="text-left text-[11.5px] uppercase tracking-[.06em] text-ink-3"><th className="p-3 border-b border-line-2">Template</th><th className="p-3 border-b border-line-2">Blocks</th><th className="p-3 border-b border-line-2">Folder</th><th className="p-3 border-b border-line-2">Used by</th><th className="border-b border-line-2" /></tr></thead>
-            <tbody>{list.map((t) => <tr key={t.id} className="hover:bg-surface-2"><td className="p-3 border-b border-line"><Link href={`${base}/templates/${t.id}`} className="font-medium">▫ {t.name}</Link><div className="text-xs text-ink-3">{t.desc}</div></td><td className="p-3 border-b border-line">{t.blocks.length}</td><td className="p-3 border-b border-line text-ink-3">{tplFolderOf(t)}</td><td className="p-3 border-b border-line text-ink-3">{used[t.id] ?? 0} pages</td><td className="p-3 border-b border-line whitespace-nowrap"><Link className="btn btn-sm btn-primary mr-1.5" href={`${base}/pages?new=1&template=${t.id}`}>Use</Link><Link className="btn btn-sm mr-1.5" href={`${base}/templates/${t.id}`}>{canManage ? "Edit" : "View"}</Link>{canManage && t.id !== "blank" && <button className="btn btn-sm btn-quiet" onClick={() => duplicate(t)}>Duplicate</button>}</td></tr>)}</tbody></table></div>
+            <tbody>{list.map((t) => <tr key={t.id} className="hover:bg-surface-2"><td className="p-3 border-b border-line"><Link href={`${base}/templates/${t.id}`} className="font-medium">▫ {t.name}</Link><div className="text-xs text-ink-3">{t.desc}</div></td><td className="p-3 border-b border-line">{t.blocks.length}</td><td className="p-3 border-b border-line text-ink-3">{tplFolderOf(t)}<div className={`text-[11.5px] ${t.markets?.length ? "font-semibold text-ink-2" : ""}`}>{where(t)}</div></td><td className="p-3 border-b border-line text-ink-3">{used[t.id] ?? 0} pages</td><td className="p-3 border-b border-line whitespace-nowrap">{here(t) ? <Link className="btn btn-sm btn-primary mr-1.5" href={`${base}/pages?new=1&template=${t.id}`}>Use</Link> : <span className="btn btn-sm mr-1.5 opacity-50 cursor-not-allowed" title={`Not available in ${marketName}`}>Use</span>}<Link className="btn btn-sm mr-1.5" href={`${base}/templates/${t.id}`}>{canManage ? "Edit" : "View"}</Link>{canManage && t.id !== "blank" && <button className="btn btn-sm btn-quiet" onClick={() => duplicate(t)}>Duplicate</button>}</td></tr>)}</tbody></table></div>
           : <div className="grid gap-4" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))" }}>{list.map((t) => { const u = used[t.id] ?? 0; const names = t.blocks.map((b) => BLOCK_BY_TYPE[b]?.name ?? b); const edit = `${base}/templates/${t.id}`;
-            return <div key={t.id} className="group bg-surface border border-line rounded-xl overflow-hidden flex flex-col hover:border-ink-4 hover:shadow-md transition-shadow">
+            return <div key={t.id} className={`group bg-surface border border-line rounded-xl overflow-hidden flex flex-col hover:border-ink-4 hover:shadow-md transition-shadow ${here(t) ? "" : "opacity-70"}`}>
             <Link href={edit} aria-label={`${canManage ? "Edit" : "View"} template ${t.name}`} className="block border-b border-line"><TemplatePreview blocks={t.blocks} height={170} /></Link>
             <div className="p-3.5 flex flex-col gap-2 flex-1 min-w-0">
               <div className="flex items-start gap-2 min-w-0"><Link href={edit} className="font-semibold text-[14.5px] leading-tight truncate hover:underline" title={t.name}>{t.name}</Link><span className="ml-auto flex-none text-[11px] text-ink-3 bg-surface-3 rounded-full px-2 py-0.5 tabular-nums">{t.blocks.length} block{t.blocks.length === 1 ? "" : "s"}</span></div>
               <p className="text-ink-3 text-[12.5px] leading-snug line-clamp-2" title={t.desc || names.join(" · ")}>{t.desc || names.join(" · ") || "No blocks yet"}</p>
-              <div className="flex items-center gap-1.5 text-[12px] text-ink-3 mt-auto pt-1 min-w-0"><span className="truncate">{tplFolderOf(t)}</span><span aria-hidden>·</span><span className="flex-none">{u ? `used by ${u} page${u === 1 ? "" : "s"}` : "not used yet"}</span></div>
-              <div className="flex items-center gap-1.5 pt-2 border-t border-line"><Link className="btn btn-sm btn-primary" href={`${base}/pages?new=1&template=${t.id}`}>Use template</Link><Link className="btn btn-sm" href={edit}>{canManage ? "Edit" : "View"}</Link>
+              <div className="flex items-center gap-1.5 text-[12px] text-ink-3 mt-auto pt-1 min-w-0"><span className="truncate">{tplFolderOf(t)}</span><span aria-hidden>·</span><span className={`flex-none ${t.markets?.length ? "font-semibold text-ink-2" : ""}`}>{where(t)}</span><span aria-hidden>·</span><span className="flex-none">{u ? `used by ${u} page${u === 1 ? "" : "s"}` : "not used yet"}</span></div>
+              <div className="flex items-center gap-1.5 pt-2 border-t border-line">{here(t) ? <Link className="btn btn-sm btn-primary" href={`${base}/pages?new=1&template=${t.id}`}>Use template</Link> : <span className="btn btn-sm opacity-60 cursor-not-allowed" title={`Only for ${where(t).replace(" only", "")} · change it in the template settings`}>Not for {marketName.replace("HSBC ", "")}</span>}<Link className="btn btn-sm" href={edit}>{canManage ? "Edit" : "View"}</Link>
                 {canManage && t.id !== "blank" && <button className="btn btn-sm btn-quiet" onClick={() => duplicate(t)}>Duplicate</button>}</div>
             </div>
           </div>; })}</div>}
@@ -80,7 +86,7 @@ export function TemplateLibrary({ marketId, envId, marketName, flag, templates, 
           <header className="px-6 pt-5 pb-3 flex items-center"><h2 id="tm" className="text-lg font-semibold">{modal.kind === "folder" ? "New folder" : "New template"}</h2><button className="ml-auto w-8 h-8 rounded text-ink-3 hover:bg-surface-3" onClick={() => setModal(null)} aria-label="Close">×</button></header>
           <div className="px-6 pb-2 grid gap-3">
             <label className="text-xs text-ink-3">{modal.kind === "folder" ? "Folder name" : "Template name"}<input autoFocus className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13.5px] text-ink" value={name} onChange={(e) => setName(e.target.value)} placeholder={modal.kind === "folder" ? "e.g. Insurance" : "e.g. Savings product"} onKeyDown={(e) => { if (e.key === "Enter" && name.trim()) (modal.kind === "folder" ? addFolder() : createTemplate()); }} /></label>
-            {modal.kind === "template" ? <div className="text-xs text-ink-3 font-mono">id: {slugify(name) || "…"} · in {modal.folder}</div> : <div className="text-xs text-ink-3">The folder appears in the library once it has a template in it.</div>}
+            {modal.kind === "template" ? <><div className="text-xs text-ink-3 font-mono">id: {slugify(name) || "…"} · in {modal.folder}</div><MarketPicker what="template" value={newMarkets} onChange={setNewMarkets} current={marketId} /></> : <div className="text-xs text-ink-3">The folder appears in the library once it has a template in it.</div>}
             {err && <div className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</div>}
           </div>
           <footer className="px-6 pb-5 pt-3 flex justify-end gap-2"><button className="btn" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={!name.trim() || busy} onClick={() => (modal.kind === "folder" ? addFolder() : createTemplate())}>{modal.kind === "folder" ? "Create folder" : busy ? "Creating…" : "Create and edit"}</button></footer>

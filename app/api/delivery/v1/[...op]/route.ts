@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ op: string[
   if (head === "models") { const m = (await listModels()).find((x) => x.id === rest[0]); return m ? json(modelSchema(m)) : notFound(`model ${rest[0]}`); }
   if (head === "assets") { const a = (await listAssets(mid)).find((x) => x.id === rest[0]); if (!a) return notFound(`asset ${rest[0]}`); return json({ id: a.id, name: a.name, type: a.type, rendition: rest[1] ?? "original", width: a.width, height: a.height, url: a.data ?? null, note: a.data ? "inline data for mock uploads" : "binary served by the DAM on the Sling backend" }); }
   if (head === "markets") return json({ items: MARKETS.map((m) => ({ id: m.id, name: m.name, locales: m.locales, domain: m.domain, status: m.status })) });
-  if (head === "templates") return json({ items: await listTemplates() });
+  if (head === "templates") return json({ items: await listTemplates(mid) });
   const preview = head === "preview"; const segs = preview ? rest.slice(1) : rest;
   if ((head === "pages" || (preview && rest[0] === "pages"))) {
     if (!segs.length) { const st = q.get("status"); const items = (await allPages(PATHS.content(mid))).filter((p) => !p.isFolder && (preview || p.status === "published") && (!st || p.status === st)); return json({ items: items.map((p) => ({ route: p.path.replace(PATHS.content(mid), "") || "/", title: p.title, status: p.status, template: p.template, updatedAt: p.lastModified, _links: { self: `/v1/pages${p.path.replace(PATHS.content(mid), "")}` } })), total: items.length }); }

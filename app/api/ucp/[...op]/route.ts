@@ -276,7 +276,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     if (o === "log" && req.method === "POST") { const b = await req.json(); await logEvent(mid, { ...b, requestId: rid }); return ok({ ok: true }, 201); }
     if (o === "search") {
       const s = (q.get("q") ?? "").toLowerCase().trim(); const root = PATHS.content(mid);
-      const [pages, assets, users, templates, models] = await Promise.all([allPages(root), listAssets(mid), listUsers(), listTemplates(), listModels()]);
+      const [pages, assets, users, templates, models] = await Promise.all([allPages(root), listAssets(mid), listUsers(), listTemplates(mid), listModels()]);
       const hit = (x: string) => !!s && x.toLowerCase().includes(s);
       return ok({ pages: pages.filter((p) => !p.isFolder && (hit(p.title) || hit(p.path.replace(root, "")))).slice(0, 8), assets: assets.filter((a) => hit(a.name)).slice(0, 5), users: users.filter((u) => hit(u.name) || hit(u.team)).slice(0, 4), templates: templates.filter((t) => hit(t.name)).slice(0, 3), models: models.filter((m) => hit(m.name)).slice(0, 3) });
     }

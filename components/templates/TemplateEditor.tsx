@@ -7,6 +7,8 @@ import { PATHS } from "@/lib/ucp/paths";
 import { BLOCK_BY_TYPE } from "@/lib/blocks/registry";
 import { RenderBlock, SiteChrome } from "@/lib/blocks/Render";
 import { repoApi } from "@/lib/api";
+import { MarketPicker } from "@/components/ui/MarketPicker";
+import { MARKETS } from "@/lib/markets";
 import { errorText as errText } from "@/lib/api/errors";
 import { useSession } from "@/components/shell/Session";
 import { LeftPanel } from "@/components/builder/LeftPanel";
@@ -31,7 +33,7 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
   const router = useRouter(); const { user, can, marketRoot } = useSession();
   const ro = !(user.role === "admin" || can("manage", marketRoot));
   const base = `/${marketId}/${envId}`;
-  const [name, setName] = useState(t.name); const [desc, setDesc] = useState(t.desc); const [blocks, setBlocks] = useState<string[]>(t.blocks); const [folder, setFolder] = useState(tplFolderOf(t));
+  const [name, setName] = useState(t.name); const [desc, setDesc] = useState(t.desc); const [blocks, setBlocks] = useState<string[]>(t.blocks); const [folder, setFolder] = useState(tplFolderOf(t)); const [markets, setMarkets] = useState<string[]>(t.markets ?? []);
   const [sel, setSel] = useState<number | null>(null); const [deskLeft, setDeskLeft] = useState(!ro); const [deskRight, setDeskRight] = useState(true);
   /* phones: no side rails, panels open full screen from the top bar and start closed */
   const { phone } = useShellMode(); const [phoneLeft, setPhoneLeft] = useState(false); const [phoneRight, setPhoneRight] = useState(false);
@@ -45,9 +47,9 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
   const folders = useMemo(() => tplFolders(templates, marketName, [folder]), [templates, marketName, folder]);
   const say = (s: string) => { setToast(s); setTimeout(() => setToast(null), 2200); };
 
-  async function persist(next: { name?: string; desc?: string; blocks?: string[]; folder?: string }) {
-    if (ro) return; const v = { name, desc, blocks, folder, ...next }; setSaving(true);
-    try { await repoApi.setProps(`${PATHS.templates}/${t.id}`, { "jcr:title": v.name.trim() || t.id, "jcr:description": v.desc, "ucp:blocks": v.blocks.join(","), "ucp:folder": v.folder }, { text: `updated template ${v.name.trim() || t.id}`, target: "templates" }); router.refresh(); }
+  async function persist(next: { name?: string; desc?: string; blocks?: string[]; folder?: string; markets?: string[] }) {
+    if (ro) return; const v = { name, desc, blocks, folder, markets, ...next }; setSaving(true);
+    try { await repoApi.setProps(`${PATHS.templates}/${t.id}`, { "jcr:title": v.name.trim() || t.id, "jcr:description": v.desc, "ucp:blocks": v.blocks.join(","), "ucp:folder": v.folder, "ucp:markets": JSON.stringify(v.markets) }, { text: next.markets ? `set where template ${v.name.trim() || t.id} can be used: ${v.markets.length ? v.markets.join(", ") : "all markets"}` : `updated template ${v.name.trim() || t.id}`, target: "templates" }); router.refresh(); }
     catch (e) { say(errText(e)); } finally { setSaving(false); }
   }
   const setBl = (b: string[]) => { setBlocks(b); void persist({ blocks: b }); };
@@ -75,7 +77,7 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
       {/* top bar */}
       <div className="flex items-center gap-3 px-4 bg-surface border-b border-line min-w-0">
         <Link href={`${base}/templates?folder=${encodeURIComponent(folder)}`} className="text-[13px] text-ink-2 hover:text-ink whitespace-nowrap">‹ Templates</Link>
-        <div className="min-w-0 flex-1"><b className="block text-[14.5px] truncate">{name || "Untitled template"}</b><span className="block text-[11.5px] text-ink-3 truncate">Template · {folder} · {blocks.length} block{blocks.length === 1 ? "" : "s"} · used by {used} page{used === 1 ? "" : "s"}</span></div>
+        <div className="min-w-0 flex-1"><b className="block text-[14.5px] truncate">{name || "Untitled template"}</b><span className="block text-[11.5px] text-ink-3 truncate">Template · {folder} · {markets.length ? `${markets.map((m) => MARKETS.find((k) => k.id === m)?.flag ?? m).join(" ")} only` : "all markets"} · {blocks.length} block{blocks.length === 1 ? "" : "s"} · used by {used} page{used === 1 ? "" : "s"}</span></div>
         <div className="hidden sm:inline-flex border border-line-2 rounded-lg overflow-hidden">{(["desktop", "tablet", "mobile"] as const).map((d) => <button key={d} type="button" onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink"}`} title={d} aria-label={`${d} view`} aria-pressed={device === d}><Ico d={d === "desktop" ? "M3 4.5h18v11.5H3zM8.5 20h7M12 16v4" : d === "tablet" ? "M5.5 3h13v18h-13zM11 18h2" : "M8 2.5h8v19H8zM11 18.5h2"} /></button>)}</div>
         <span className="hidden sm:inline text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1 whitespace-nowrap">{ro ? "🔒 Read-only" : saving ? "Saving…" : "✓ Saved"}</span>
         <div className="hidden md:flex gap-1 pl-2.5 border-l border-line">
@@ -125,6 +127,8 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
             <label className="text-xs text-ink-2 font-medium">Name<input aria-label="Template name" disabled={ro} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink" value={name} onChange={(e) => setName(e.target.value)} onBlur={() => name !== t.name && persist({ name })} /></label>
             <label className="text-xs text-ink-2 font-medium">Description<textarea aria-label="Template description" disabled={ro} rows={3} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink" value={desc} onChange={(e) => setDesc(e.target.value)} onBlur={() => desc !== t.desc && persist({ desc })} placeholder="What is this template for?" /></label>
             <label className="text-xs text-ink-2 font-medium">Folder<select disabled={ro} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink bg-surface" value={folder} onChange={(e) => { setFolder(e.target.value); void persist({ folder: e.target.value }); }}>{folders.map((f) => <option key={f}>{f}</option>)}</select></label>
+            <div className="border border-line rounded-lg p-3"><MarketPicker what="template" disabled={ro} value={markets} current={marketId} onChange={(m) => { setMarkets(m); void persist({ markets: m }); }} />
+              {markets.length > 0 && !markets.includes(marketId) && <p className="mt-2 text-[12px] text-ink bg-warn-soft rounded-md px-2.5 py-1.5">{marketName} can no longer create pages from it. Pages already made with it stay as they are.</p>}</div>
             <div className="border border-line rounded-lg p-3 bg-surface-2"><div className="text-xs text-ink-2 font-medium mb-1">Always on the page</div><p className="text-[12.5px] text-ink-3">HSBC menu, breadcrumb and footer. They come from the site and are the same on every page.</p></div>
             <div className="border border-line rounded-lg p-3"><div className="text-xs text-ink-2 font-medium mb-1">Blocks, top to bottom</div>
               {blocks.length ? <ol className="grid gap-0.5">{blocks.map((b, i) => <li key={`${b}-${i}`}><button type="button" onClick={() => setSel(i)} className={`w-full flex items-center gap-2 text-left rounded px-1.5 py-1 ${sel === i ? "bg-accent-soft text-accent-hover font-semibold" : "hover:bg-surface-2"}`}><span className="w-5 h-5 rounded-full grid place-items-center text-[10.5px] bg-surface-3 text-ink-2 flex-none">{i + 1}</span><span className="truncate">{BLOCK_BY_TYPE[b]?.name ?? b}</span></button></li>)}</ol> : <p className="text-[12.5px] text-ink-3">No blocks yet.</p>}</div>

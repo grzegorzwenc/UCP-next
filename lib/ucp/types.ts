@@ -25,7 +25,8 @@ export type Model = {
 export type ModelVersion = { id: string; version: number; time: string; who: string; note: string; published: boolean; fields: ModelField[] };
 export type ModelDiff = { added: ModelField[]; removed: ModelField[]; changed: { before: ModelField; after: ModelField; what: string[] }[]; breaking: string[] };
 
-export type Template = { id: string; path: string; name: string; desc: string; blocks: string[]; folder: string };
+/** `markets`: local markets that can use it (empty = every market). */
+export type Template = { id: string; path: string; name: string; desc: string; blocks: string[]; folder: string; markets: string[] };
 export type FormDef = { id: string; name: string; version: number };
 
 export type AuditType = "content" | "publishing" | "permissions" | "system";

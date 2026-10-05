@@ -73,7 +73,7 @@ export const SEED_MODELS: Omit<Model, "path" | "status">[] = [
 ];
 
 export const TEMPLATE_FOLDERS = ["Global (all markets)", "Campaigns", "Archived"];
-export const SEED_TEMPLATES: Omit<Template, "path">[] = TEMPLATES.map((t) => ({ ...t, folder: t.id === "campaign" ? "Campaigns" : "Global (all markets)" }));
+export const SEED_TEMPLATES: Omit<Template, "path">[] = TEMPLATES.map((t) => ({ ...t, folder: t.id === "campaign" ? "Campaigns" : "Global (all markets)", markets: [] }));
 
 /** Tiny Welsh glossary so the translation flow produces something recognisable without an MT service. */
 export const CY: Record<string, string> = { "Rewards credit cards": "Cardiau credyd gwobrwyon", "Credit cards": "Cardiau credyd", "Current accounts": "Cyfrifon cyfredol", "Savings": "Cynilion", "Cash ISA": "ISA Arian Parod", "Mortgages": "Morgeisi", "Home": "Hafan", "Contact us": "Cysylltwch â ni", "Apply now": "Gwnewch gais nawr", "Find out more": "Darganfod mwy", "Discover our range of rewards cards": "Darganfyddwch ein hystod o gardiau gwobrwyon" };
