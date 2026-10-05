@@ -21,7 +21,8 @@ import { FolderTree } from "@/components/explorer/FolderTree";
 import { FolderIcon, PageIcon } from "@/components/ui/Icons";
 
 type Folder = { path: string; title: string };
-type Props = { marketId: string; envId: string; root: string; marketName: string; flag: string; folder: Folder; items: PageSummary[]; tree: Folder[]; allPages: PageSummary[]; templates: Template[]; openNew?: boolean; newTemplate?: string };
+type Props = { marketId: string; envId: string; root: string; marketName: string; flag: string; folder: Folder; items: PageSummary[]; tree: Folder[]; allPages: PageSummary[]; templates: Template[]; openNew?: boolean; newTemplate?: string; archived?: Archived[] };
+type Archived = PageSummary & { archive: { by: string; name: string; at: string; from?: string } };
 /** Line icons for the selection bar (HSBC style: 1.8 stroke, round caps). */
 const BAR_ICONS: Record<string, string[]> = {
   translate: ["M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z", "M3 12h18", "M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"],
@@ -32,6 +33,7 @@ const BAR_ICONS: Record<string, string[]> = {
   compare: ["M4 5h7v14H4z", "M13 5h7v14h-7z", "M7 9h1M7 12h1M16 9h1M16 12h1"],
   restore: ["M4 12a8 8 0 1 0 2.4-5.7", "M4 4v4.5h4.5", "M12 8v4l2.5 2"],
   move: ["M3 6h6l2 2h10v11H3z", "M11 13.5h6", "M14.5 11l2.5 2.5-2.5 2.5"],
+  archive: ["M3.5 4.5h17v4h-17z", "M5 8.5V19.5h14V8.5", "M10 12.5h4"],
   delete: ["M5 7h14", "M10 11v6", "M14 11v6", "M6.5 7l1 13h9l1-13", "M9 7V4h6v3"],
 };
 const BarIcon = ({ n }: { n: keyof typeof BAR_ICONS }) => <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">{BAR_ICONS[n].map((d) => <path key={d} d={d} />)}</svg>;
@@ -68,12 +70,13 @@ function FolderSelect({ value, onChange, root, marketName, tree, rel, exclude = 
 }
 
 /* ---------------- row actions menu ---------------- */
-function RowMenu({ page, canEdit, onAction }: { page: PageSummary; canEdit: boolean; onAction: (a: "open" | "rename" | "move" | "duplicate" | "delete", p: PageSummary) => void }) {
+type RowAction = "open" | "rename" | "move" | "duplicate" | "archive" | "delete";
+function RowMenu({ page, canEdit, onAction }: { page: PageSummary; canEdit: boolean; onAction: (a: RowAction, p: PageSummary) => void }) {
   const [open, setOpen] = useState(false); const ref = useRef<HTMLDivElement>(null);
   useEffect(() => { if (!open) return; const h = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); }; document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h); }, [open]);
-  const item = (a: "open" | "rename" | "move" | "duplicate" | "delete", label: string, cls = "") => <button key={a} className={`block w-full text-left px-3 py-1.5 text-[13px] hover:bg-surface-2 ${cls}`} onClick={() => { setOpen(false); onAction(a, page); }}>{label}</button>;
+  const item = (a: RowAction, label: string, cls = "") => <button key={a} className={`block w-full text-left px-3 py-1.5 text-[13px] hover:bg-surface-2 ${cls}`} onClick={() => { setOpen(false); onAction(a, page); }}>{label}</button>;
   return <div ref={ref} className="relative inline-block"><button className="btn btn-sm btn-icon" aria-label={`Actions for ${page.title}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>⋯</button>
-    {open && <div role="menu" className="absolute right-0 top-full mt-1 bg-surface border border-line rounded-lg shadow-xl py-1 min-w-[160px] z-30">{item("open", page.isFolder ? "Open folder" : "Open in builder")}{canEdit ? <>{item("rename", "Rename")}{item("move", "Move to…")}{!page.isFolder && item("duplicate", "Duplicate")}<div className="border-t border-line my-1" />{item("delete", "Delete", "text-crit")}</> : <div className="px-3 py-1.5 text-[12px] text-ink-3">Read-only for you</div>}</div>}</div>;
+    {open && <div role="menu" className="absolute right-0 top-full mt-1 bg-surface border border-line rounded-lg shadow-xl py-1 min-w-[160px] z-30">{item("open", page.isFolder ? "Open folder" : "Open in builder")}{canEdit ? <>{item("rename", "Rename")}{item("move", "Move to…")}{!page.isFolder && item("duplicate", "Duplicate")}<div className="border-t border-line my-1" />{item("archive", "Archive")}{item("delete", "Delete", "text-crit")}</> : <div className="px-3 py-1.5 text-[12px] text-ink-3">Read-only for you</div>}</div>}</div>;
 }
 
 /* ---------------- translate modal (port of the prototype's translate flow) ---------------- */
@@ -143,8 +146,8 @@ function TranslateModal({ pages, marketId, base, root, marketName, tree, rel, fo
 }
 
 /* ---------------- explorer ---------------- */
-export function Explorer({ marketId, envId, root, marketName, flag, folder, items, tree, allPages, templates, openNew, newTemplate }: Props) {
-  const router = useRouter(); const ask = useConfirm();
+export function Explorer({ marketId, envId, root, marketName, flag, folder, items, tree, allPages, templates, openNew, newTemplate, archived = [] }: Props) {
+  const router = useRouter(); const ask = useConfirm(); const [showArchive, setShowArchive] = useState(false);
   const { can } = useSession();
   const base = `/${marketId}/${envId}`;
   const rel = (p: string) => p.replace(root, "") || "/";
@@ -245,7 +248,29 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
       await repoApi.createPage({ parentPath: parentOf(p.path), name, template: p.template ?? "blank", title: `${p.title} (copy)`, components: full?.components ?? [] }); say(`Duplicated “${p.title}”`); router.refresh(); }
     catch (e) { say(errText(e)); }
   }
-  async function remove(pages: PageSummary[]) {
+  /** Archive: out of every list and offline, but restorable from the Archive section (delete is for good). */
+  async function archive(pages: PageSummary[], confirmed = false) {
+    const live = pages.filter((p) => p.status === "published" || p.status === "scheduled").length; const one = pages.length === 1 ? pages[0] : null;
+    if (!confirmed && !(await ask({ title: one ? `Archive “${one.title}”?` : `Archive ${pages.length} items?`, confirmLabel: "Archive",
+      body: <ul className="list-disc pl-5 grid gap-1"><li>{one ? "It leaves" : "They leave"} the page list, tasks and search{pages.some((p) => p.isFolder) ? ", with everything inside the folders" : ""}.</li>{live > 0 && <li><b className="text-crit">{live} live page{live === 1 ? " goes" : "s go"} offline</b> for customers.</li>}<li>Nothing is lost: <b>Restore</b> from the Archive at the bottom of the list brings {one ? "it" : "them"} back as a draft.</li></ul>,
+      items: pages.map((p) => ({ label: p.title, note: p.isFolder ? "folder" : p.status === "published" ? "live" : rel(p.path), warn: p.status === "published" })) }))) return;
+    try { const r = await ucpApi.archivePages(marketId, pages.map((p) => p.path), true); setSel([]); say(`Archived ${r.count} item${r.count === 1 ? "" : "s"}${r.offline ? ` · ${r.offline} taken offline` : ""} · restore from Archive`); router.refresh(); }
+    catch (e) { say(errText(e)); }
+  }
+  async function unarchive(pages: PageSummary[]) {
+    try { await ucpApi.archivePages(marketId, pages.map((p) => p.path), false); say(`Restored ${pages.length === 1 ? `“${pages[0].title}”` : `${pages.length} items`} · back in the list as a draft`); router.refresh(); }
+    catch (e) { say(errText(e)); }
+  }
+  /** Delete always offers Archive first: an archived page can come back, a deleted one cannot. */
+  async function remove(pages: PageSummary[], fromArchive = false) {
+    if (!fromArchive) {
+      const one = pages.length === 1 ? pages[0] : null;
+      const r = await ask({ title: one ? `Archive “${one.title}” instead of deleting?` : `Archive ${pages.length} items instead of deleting?`, confirmLabel: "Archive",
+        body: <>Deleting cannot be undone. Archiving takes {one ? "it" : "them"} out of the list and offline too, but anyone with Edit can <b>restore</b> {one ? "it" : "them"} later.</>,
+        alt: { label: "No, delete permanently…", danger: true } });
+      if (r === true) { await archive(pages, true); return; }
+      if (r !== "alt") return;
+    }
     /* what goes with each item: pages inside folders, and which of them are live for customers */
     const inside = (p: PageSummary) => allPages.filter((x) => x.path.startsWith(`${p.path}/`) && !x.isFolder);
     const info = pages.map((p) => { const kids = inside(p); const live = [...(p.isFolder ? [] : [p]), ...kids].filter((x) => x.status === "published").length; return { p, kids: kids.length, live }; });
@@ -271,11 +296,12 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
     try { for (const p of pages) await repoApi.deletePage(p.path, true); for (const f of dropFiles) await repoApi.deleteNode(f, { text: `deleted ${f.split("/").pop()} (with the page)`, target: "assets" }).catch(() => {}); setSel([]); say(`Deleted ${pages.length} item${pages.length === 1 ? "" : "s"}${dropFiles.length ? ` and ${dropFiles.length} file${dropFiles.length === 1 ? "" : "s"}` : ""}`); router.refresh(); }
     catch (e) { say(errText(e)); }
   }
-  function onAction(a: "open" | "rename" | "move" | "duplicate" | "delete", p: PageSummary) {
+  function onAction(a: RowAction, p: PageSummary) {
     if (a === "open") router.push(p.isFolder ? `${base}/pages${rel(p.path)}` : `${base}/page${rel(p.path)}`);
     else if (a === "rename") { openModal({ kind: "rename", page: p }); setTitle(p.title); }
     else if (a === "move") { openModal({ kind: "move", pages: [p] }); setParent(parentOf(p.path)); }
     else if (a === "duplicate") duplicate(p);
+    else if (a === "archive") void archive([p]);
     else remove([p]);
   }
   const cell = "py-2.5 px-3 border-b border-line";
@@ -304,6 +330,14 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
           </tr>; })}</tbody></table></div>
           : <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">{q ? "No pages match." : canEditHere ? <>This folder is empty. <button className="underline" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}>New page</button>.</> : "This folder is empty."}</div>}
         {rows.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-[12.5px] text-ink-3">Showing {shown.length} of {rows.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show {Math.min(PAGE, rows.length - shown.length)} more</button></div>}
+        {(() => { const here = archived.filter((a) => a.path.startsWith(`${folder.path}/`) && !archived.some((b) => b !== a && a.path.startsWith(`${b.path}/`))); if (!here.length || q) return null;
+          return <details className="mt-6 border border-line rounded-lg bg-surface" open={showArchive} onToggle={(e) => setShowArchive((e.target as HTMLDetailsElement).open)}>
+            <summary className="flex items-center gap-2 px-4 py-2.5 cursor-pointer text-[13px] font-semibold text-ink-2 select-none"><BarIcon n="archive" />Archive · {here.length}<span className="ml-auto font-normal text-[12px] text-ink-3">Archived items can be restored</span></summary>
+            <ul className="border-t border-line divide-y divide-line">{here.map((a) => { const d = new Date(a.archive.at); return <li key={a.path} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-[13px]">
+              <span className="text-ink-3">{a.isFolder ? <FolderIcon /> : <PageIcon />}</span>
+              <span className="min-w-0 flex-1"><b className="block font-medium text-ink-2 truncate">{a.title}</b><span className="block text-[11.5px] text-ink-3"><span className="font-mono">{rel(a.path)}</span> · archived by {a.archive.name} · {d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}{a.archive.from === "published" ? " · was live" : ""}</span></span>
+              {can("edit", a.path) ? <><button className="btn btn-sm" onClick={() => void unarchive([a])}><BarIcon n="restore" />Restore</button><button className="btn btn-sm text-crit" onClick={() => void remove([a], true)}>Delete permanently</button></> : <span className="text-[12px] text-ink-3">Needs Edit to restore</span>}
+            </li>; })}</ul></details>; })()}
         {selected.length > 0 && <div className="sticky bottom-4 mt-4 flex flex-wrap items-center justify-center gap-2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] shadow-xl w-fit max-w-full mx-auto z-20"><b className="whitespace-nowrap">{selected.length} selected</b><span className="text-white/40">·</span>
           <button className={barBtn} style={barStyle} disabled={!selected.some((p) => !p.isFolder)} onClick={() => setModal({ kind: "translate", pages: selected.filter((p) => !p.isFolder) })}><BarIcon n="translate" />Translate</button>
           <button className={barBtn} style={barStyle} disabled={!selected.some((p) => !p.isFolder)} onClick={() => setModal({ kind: "publish", pages: selected.filter((p) => !p.isFolder) })}><BarIcon n="publish" />Publish</button>
@@ -314,7 +348,8 @@ export function Explorer({ marketId, envId, root, marketName, flag, folder, item
             return <button className={barBtn} style={barStyle} disabled={!live} onClick={() => one && setComparing(one.path)} title={!one ? "Pick one page to compare" : live ? "Compare an authoring version with the live page" : "Not published yet · nothing to compare"}><BarIcon n="compare" />Compare</button>; })()}
           <span className="w-px h-5 bg-white/20" aria-hidden />
           <button className={barBtn} style={barStyle} onClick={() => { openModal({ kind: "move", pages: selected }); setParent(folder.path === root ? root : parentOf(folder.path)); }}><BarIcon n="move" />Move</button>
-          <button className={barBtn} style={barStyle} onClick={() => remove(selected)}><BarIcon n="delete" />Delete</button></> : <span className="text-white/60 text-[12px]">Lock, copy, restore, move and delete need Edit on every selected item</span>}
+          <button className={barBtn} style={barStyle} onClick={() => void archive(selected)} title="Take them out of the list and offline · can be restored"><BarIcon n="archive" />Archive</button>
+          <button className={barBtn} style={barStyle} onClick={() => remove(selected)}><BarIcon n="delete" />Delete</button></> : <span className="text-white/60 text-[12px]">Lock, copy, restore, move, archive and delete need Edit on every selected item</span>}
           <button className={barBtn} style={{ ...barStyle, borderColor: "transparent", opacity: .75 }} onClick={() => setSel([])}>Clear</button></div>}
       </div>
 

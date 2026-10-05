@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { compareSides, filesForPublish, publishAssets, pageReferences, relinkPages, guestMayDecide, createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, setCommentResolved, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
+import { listPatterns, savePattern, deletePattern, archivePattern, setPatternMarkets, compareSides, filesForPublish, publishAssets, pageReferences, relinkPages, guestMayDecide, createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, setCommentResolved, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
 import { can } from "@/lib/ucp/perms";
 import { SESSION_COOKIE, sessionUserId } from "@/lib/server/session";
 import { PATHS } from "@/lib/ucp/paths";
@@ -28,6 +28,12 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
   const ok = (b: unknown, status = 200) => NextResponse.json(b, { status, headers: { "X-Request-Id": rid } });
   try {
     if (o === "tasks") return ok(await listTasks(mid));
+    /* ---- design patterns: groups of components saved together ---- */
+    if (o === "patterns" && req.method === "GET") return ok(await listPatterns(mid));
+    if (o === "patterns/archive" && req.method === "POST") { const u = await me(); const { id, archived } = await req.json() as { id: string; archived: boolean }; const p = await archivePattern(id, u, archived); await logEvent(mid, { type: "content", text: `${archived ? "archived" : "restored"} the design pattern ${p.name}`, requestId: rid }); return ok(p); }
+    if (o === "patterns/markets" && req.method === "POST") { const u = await me(); const { id, markets } = await req.json() as { id: string; markets: string[] }; const p = await setPatternMarkets(id, u, markets); await logEvent(mid, { type: "content", text: `set where the design pattern ${p.name} is available: ${p.markets?.length ? p.markets.join(", ") : "all markets"}`, requestId: rid }); return ok(p); }
+    if (o === "patterns" && req.method === "POST") { const u = await me(); const body = await req.json() as { name: string; desc?: string; parts: { type: string; props: Record<string, unknown> }[]; markets?: string[] }; const p = await savePattern(body, u); await logEvent(mid, { type: "content", text: `saved the design pattern ${p.name} (${p.parts.length} components)`, requestId: rid }); return ok(p, 201); }
+    if (o === "patterns" && req.method === "DELETE") { const u = await me(); const id = q.get("id") ?? ""; await deletePattern(id, u); await logEvent(mid, { type: "content", text: `permanently deleted the design pattern ${id}`, requestId: rid }); return ok({ ok: true }); }
     /* ---- content entities: reading is open; writing needs Edit on the market (authors create content, admins define models) ---- */
     if (o.startsWith("entities")) {
       const u = await me(); const mk = market(mid); const path = q.get("path") ?? "";
@@ -152,6 +158,24 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       return ok({ assignee: u.id, assigneeName: u.name });
     }
     /* ---- Pages → Lock / Unlock: nobody else can change, move or delete a locked page (site admins can) ---- */
+    /* ---- archive: pages leave every list and go offline, but can be restored (delete cannot) ---- */
+    if (o === "pages/archive" && req.method === "POST") {
+      const u = await me(); const admin = u.role === "admin" || !!u.perms.root?.manage; const { paths, archived } = await req.json() as { paths?: string[]; archived?: boolean };
+      let n = 0; let offline = 0;
+      for (const path of (paths ?? []).slice(0, 200)) {
+        const pg = await repo().getPage(path); if (!pg) continue;
+        if (!admin && !can(u, "edit", path, market(mid).root)) return problem(new RepoError(403, `You don't have Edit on ${pg.title}`));
+        const lock = typeof pg.meta?.["ucp:pageLock"] === "string" ? (JSON.parse(String(pg.meta["ucp:pageLock"])) as { by?: string; name?: string }) : null;
+        if (lock && lock.by !== u.id && !admin) return problem(new RepoError(423, `${pg.title} is locked by ${lock.name}`));
+        if (archived) {
+          const live = pg.status === "published" || pg.status === "scheduled"; if (live) offline++;
+          await repo().setProps(`${path}/jcr:content`, { "ucp:archived": JSON.stringify({ by: u.id, name: u.name, at: new Date().toISOString(), from: pg.status }), "ucp:publishAt": null });
+          if (pg.status && pg.status !== "draft") await repo().updateContent(path, { status: "draft" }); // archived pages are never live and leave the workflow
+        } else await repo().setProps(`${path}/jcr:content`, { "ucp:archived": null });
+        await logEvent(mid, { type: "content", text: `${archived ? "archived" : "restored from the archive"} ${pg.title}${archived && (pg.status === "published") ? " · taken offline" : ""}`, target: path, requestId: rid }); n++;
+      }
+      return ok({ count: n, offline });
+    }
     if (o === "pages/lock" && req.method === "POST") {
       const u = await me(); const admin = u.role === "admin" || !!u.perms.root?.manage; const { paths, locked } = await req.json() as { paths?: string[]; locked?: boolean };
       let n = 0;
@@ -279,4 +303,4 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
     return problem(new RepoError(404, "Unknown operation", o));
   } catch (e) { return problem(e); }
 }
-export { handle as GET, handle as POST };
+export { handle as GET, handle as POST, handle as DELETE };

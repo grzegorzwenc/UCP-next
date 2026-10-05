@@ -6,6 +6,8 @@ export const PATHS = {
   models: "/conf/hsbc/models",
   templates: "/conf/hsbc/settings/wcm/templates",
   forms: "/conf/hsbc/forms",
+  /** Design patterns people saved (groups of components); the built-in ones live in code. */
+  patterns: "/conf/hsbc/patterns",
   audit: (marketId: string) => `/var/audit/ucp/${marketId}`,
   /** Content entities: concrete content items built from a content model, per market. */
   entities: (marketId: string) => `/content/entities/${marketId}`,

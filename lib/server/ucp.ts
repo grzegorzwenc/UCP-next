@@ -11,6 +11,8 @@ import { ME, REVIEW_GROUPS, SEED_USERS } from "@/lib/ucp/seed";
 import { allPages } from "@/lib/server/pages";
 import { sessionUserId } from "@/lib/server/session";
 import { can } from "@/lib/ucp/perms";
+import { BUILT_IN_PATTERNS, type DesignPattern, type PatternPart } from "@/lib/blocks/patterns";
+import { BLOCK_BY_TYPE } from "@/lib/blocks/registry";
 import { market as marketOf, MARKETS } from "@/lib/markets";
 
 /**
@@ -547,4 +549,40 @@ export async function publishDue(marketId: string): Promise<number> {
     await logEvent(marketId, { type: "publishing", who: "system", text: `published ${p.title} (scheduled)`, target: p.path }); n++;
   }
   return n;
+}
+
+/* ---- design patterns: built-in ones from code, saved ones as nodes under /conf/hsbc/patterns ---- */
+const toPattern = (n: RepoNode): DesignPattern => { const a = json<DesignPattern["archived"] | null>(n.properties["ucp:archived"], null); return { id: n.name, name: str(n.properties["jcr:title"], n.name), desc: str(n.properties["jcr:description"]), parts: json<PatternPart[]>(n.properties["ucp:parts"], []), by: str(n.properties["ucp:by"]), byName: str(n.properties["ucp:byName"]), created: str(n.properties["jcr:created"]), markets: json<string[]>(n.properties["ucp:markets"], []), ...(a ? { archived: a } : {}) }; };
+const forMarket = (p: DesignPattern, marketId: string) => !p.markets?.length || p.markets.includes(marketId);
+/** Patterns this market sees (archived ones included, flagged, so they can be restored). */
+export async function listPatterns(marketId: string): Promise<DesignPattern[]> { const saved = (await kids(PATHS.patterns, 1)).map(toPattern).sort((a, b) => (b.created ?? "").localeCompare(a.created ?? "")); return [...saved, ...BUILT_IN_PATTERNS].filter((p) => forMarket(p, marketId)); }
+const cleanMarkets = (m: unknown) => (Array.isArray(m) ? m.filter((x): x is string => typeof x === "string" && MARKETS.some((k) => k.id === x)) : []);
+export async function savePattern(input: { name: string; desc?: string; parts: PatternPart[]; markets?: string[] }, u: User): Promise<DesignPattern> {
+  const name = String(input.name ?? "").trim().slice(0, 80); if (!name) throw new RepoError(400, "Give the pattern a name");
+  const parts = (input.parts ?? []).filter((x) => x && typeof x.type === "string" && BLOCK_BY_TYPE[x.type]).map((x) => ({ type: x.type, props: x.props && typeof x.props === "object" ? x.props : {} }));
+  if (parts.length < 2) throw new RepoError(400, "A pattern needs at least two components");
+  const all = [...(await kids(PATHS.patterns, 1)).map(toPattern), ...BUILT_IN_PATTERNS];
+  if (all.some((p) => p.name.toLowerCase() === name.toLowerCase())) throw new RepoError(409, "A pattern with this name already exists");
+  if (!(await repo().getNode(PATHS.patterns, 0).catch(() => undefined))) await repo().createNode(PATHS.patterns, "sling:Folder", { "jcr:title": "Design patterns" });
+  let id = slug(name) || "pattern"; let i = 2; while (all.some((p) => p.id === id)) id = `${slug(name) || "pattern"}-${i++}`;
+  const n = await repo().createNode(`${PATHS.patterns}/${id}`, "nt:unstructured", { "jcr:title": name, "jcr:description": String(input.desc ?? "").trim().slice(0, 200), "ucp:parts": JSON.stringify(parts), "ucp:markets": JSON.stringify(cleanMarkets(input.markets)), "ucp:by": u.id, "ucp:byName": u.name, "jcr:created": new Date().toISOString() });
+  return toPattern(n);
+}
+async function ownPattern(id: string, u: User): Promise<RepoNode> {
+  if (BUILT_IN_PATTERNS.some((p) => p.id === id)) throw new RepoError(403, "Design-system patterns cannot be changed here");
+  const n = await repo().getNode(`${PATHS.patterns}/${id}`, 0).catch(() => undefined); if (!n) throw new RepoError(404, "Pattern not found");
+  const admin = u.role === "admin" || !!u.perms.root?.manage; if (!admin && str(n.properties["ucp:by"]) !== u.id) throw new RepoError(403, "Only the person who saved it (or a site admin) can change it");
+  return n;
+}
+/** Archive keeps the pattern (restorable); delete removes it for good and is only allowed once it is archived. */
+export async function archivePattern(id: string, u: User, archived: boolean): Promise<DesignPattern> {
+  const n = await ownPattern(id, u); await repo().setProps(n.path, { "ucp:archived": archived ? JSON.stringify({ by: u.id, name: u.name, at: new Date().toISOString() }) : null });
+  return toPattern((await repo().getNode(n.path, 0))!);
+}
+export async function setPatternMarkets(id: string, u: User, markets: string[]): Promise<DesignPattern> {
+  const n = await ownPattern(id, u); await repo().setProps(n.path, { "ucp:markets": JSON.stringify(cleanMarkets(markets)) }); return toPattern((await repo().getNode(n.path, 0))!);
+}
+export async function deletePattern(id: string, u: User): Promise<void> {
+  const n = await ownPattern(id, u); if (!str(n.properties["ucp:archived"])) throw new RepoError(409, "Archive the pattern first; only archived patterns can be deleted");
+  await repo().deleteNode(n.path);
 }

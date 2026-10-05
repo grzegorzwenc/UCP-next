@@ -2,6 +2,7 @@ import type { PageView, PageSummary, CreatePageInput, PageContentPatch, Componen
 import type { Task, Notification, Asset, AuditEvent, User, Template, Model, ModelField, ModelVersion, Entity, EntityValues, Bindings, ReviewerOption, TaskKind } from "@/lib/ucp/types";
 import type { ResolvedEntities } from "@/lib/ucp/tokens";
 import { ApiError } from "./types";
+import type { DesignPattern, PatternPart } from "@/lib/blocks/patterns";
 export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string }; stage?: string; guest?: boolean; block?: { id: string; label: string; field?: string }; resolved?: { by: string; name: string; at: string } };
 export * from "./types";
 
@@ -88,6 +89,12 @@ export const ucpApi = {
   reviewers: (market: string, path: string) => U<ReviewerOption[]>("reviewers", { query: { market, path } }),
   sendForReview: (market: string, path: string, body: { note?: string }) => U<{ assignee: string; assigneeName: string }>("review/send", { method: "POST", query: { market, path }, body: JSON.stringify(body) }),
   /** Link (and optional e-mail invite) for the current review stage; an e-mail of a UCP reviewer also assigns them. */
+  archivePages: (market: string, paths: string[], archived: boolean) => U<{ count: number; offline: number }>("pages/archive", { method: "POST", query: { market }, body: JSON.stringify({ paths, archived }) }),
+  patterns: (market: string) => U<DesignPattern[]>("patterns", { query: { market } }),
+  archivePattern: (market: string, id: string, archived: boolean) => U<DesignPattern>("patterns/archive", { method: "POST", query: { market }, body: JSON.stringify({ id, archived }) }),
+  patternMarkets: (market: string, id: string, markets: string[]) => U<DesignPattern>("patterns/markets", { method: "POST", query: { market }, body: JSON.stringify({ id, markets }) }),
+  savePattern: (market: string, p: { name: string; desc?: string; parts: PatternPart[]; markets?: string[] }) => U<DesignPattern>("patterns", { method: "POST", query: { market }, body: JSON.stringify(p) }),
+  deletePattern: (market: string, id: string) => U<{ ok: boolean }>("patterns", { method: "DELETE", query: { market, id } }),
   reviewGroups: (market: string, path: string) => U<{ team: string; members: { id: string; name: string; email: string; canSignOff: boolean }[]; shared: boolean }[]>("review/groups", { query: { market, path } }),
   shareWithGroup: (market: string, path: string, team: string) => U<{ token: string; url: string; members: { id: string; name: string; email: string; canSignOff: boolean }[]; created: boolean }>("review/group", { method: "POST", query: { market, path }, body: JSON.stringify({ team }) }),
   reviewLink: (market: string, path: string, email?: string) => U<{ token: string; stage: "review" | "bizreview"; assigned?: string; url: string }>("review/link", { method: "POST", query: { market, path }, body: JSON.stringify({ email }) }),
