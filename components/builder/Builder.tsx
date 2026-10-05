@@ -326,7 +326,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const multiBlocks = blocks.filter((b) => multi.includes(b.id)); // in page order
   const toggleMulti = (id: string) => setMulti((m) => { const base = m.length || patternMode ? m : sel && sel !== id ? [sel] : []; return base.includes(id) ? base.filter((x) => x !== id) : [...base, id]; });
   const addPattern = (p: DesignPattern) => { const nb = fromPattern(p); if (!nb.length) return; mutate((b) => { const i = sel ? b.findIndex((x) => x.id === sel) + 1 : b.length; const c = b.slice(); c.splice(i, 0, ...nb); return c; }); select(nb[nb.length - 1].id); say(`${p.name} added · ${nb.length} components`); setTimeout(() => canvasRef.current?.querySelector(`.cblk[data-id="${nb[0].id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 50); };
-  const mayManagePattern = (p: DesignPattern) => !p.builtIn && (isAdmin || p.by === user.id);
+  const mayManagePattern = (p: DesignPattern) => isAdmin || (!p.builtIn && p.by === user.id); // design-system ones: site admins only
   async function savePattern(v: { name: string; desc: string; markets: string[] }): Promise<string | null> {
     try { const p = await ucpApi.savePattern(marketId, { ...v, parts: toParts(multiBlocks) }); setSavingPattern(false); stopPattern(); await loadPatterns(); setLeftTab("patterns"); setLeft(true); say(`Saved · ${p.name} is in Design patterns${v.markets.length && !v.markets.includes(marketId) ? " (not shown in this market)" : ""}`); return null; }
     catch (e) { return e instanceof ApiError ? e.problem.title : "Could not save the pattern"; }

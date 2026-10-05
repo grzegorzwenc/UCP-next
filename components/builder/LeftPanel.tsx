@@ -59,9 +59,9 @@ export function LeftPanel({ phone, width = 320, onResizeStart, canEdit, onAdd, o
               <small className="block text-[11px] text-ink-3 leading-snug">{p.parts.length} components · {partNames(p)}</small>
               <small className="block text-[11px] text-ink-3 leading-snug"><span className={p.markets?.length ? "font-semibold text-ink-2" : ""}>{where(p)}</span>{p.byName ? ` · by ${p.byName}` : ""}</small>
             </button>
-            {!p.builtIn && mayManage(p) && <span className="absolute right-3 top-3 flex gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100">
-              <button type="button" onClick={() => onPatternMarkets(p)} className="btn btn-sm bg-surface" title="Choose the markets that see this pattern">Markets</button>
-              <button type="button" onClick={() => onRemovePattern(p)} className="btn btn-sm bg-surface" title="Archive or delete this pattern">Remove</button></span>}
+            {mayManage(p) && <span className="absolute right-3 top-3 flex gap-1">
+              <button type="button" onClick={() => onPatternMarkets(p)} className="h-8 px-2 rounded-md border border-line bg-surface/95 shadow-sm text-[12px] font-medium text-ink-2 hover:text-ink hover:border-ink-4 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" title="Choose the markets that see this pattern">Markets</button>
+              <button type="button" onClick={() => onRemovePattern(p)} className="w-8 h-8 rounded-md border border-line bg-surface/95 shadow-sm grid place-items-center text-ink-3 hover:text-crit hover:border-crit" title={`Remove ${p.name}`} aria-label={`Remove ${p.name}`}><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M5 7h14M10 11v6M14 11v6M6.5 7l1 13h9l1-13M9 7V4h6v3" /></svg></button></span>}
           </div>)}
           {patterns !== null && !pats.length && <div className="p-6 text-center text-ink-3 text-[13px]">{q ? `Nothing matches “${q}”.` : "No patterns yet."}</div>}
           {archived.length > 0 && <div className="mt-3 border-t border-line pt-2">
