@@ -175,6 +175,7 @@ export async function listTasks(marketId: string, all?: PageSummary[]): Promise<
     else if (p.status === "draft" && (p.lastModifiedBy ?? ME) === meId) out.push(await mk(p, "Finish", "Finish draft and send for review", "You"));
   }
   for (const t of out) if (t.author) t.authorName = await userName(t.author);
+  for (const t of out) { const p = pages.find((x) => x.path === t.page.path); const co = pageAuthors(p?.meta).filter((x) => x.id !== t.author).map((x) => x.name); if (co.length) t.coAuthors = co; }
   for (const t of out) { // the three people of the review flow, for the My tasks columns
     const p = pages.find((x) => x.path === t.page.path)!; const st = p.status;
     const peer = st === "review" || st === "inreview" ? str(p.meta?.["ucp:assignee"]) : str(p.meta?.["ucp:authorReviewedBy"]);
@@ -606,3 +607,8 @@ export async function deletePattern(id: string, u: User): Promise<void> {
   if (builtIn) await repo().setProps(node.path, { "ucp:deleted": true }); // code-defined: remembered as deleted
   else await repo().deleteNode(node.path);
 }
+
+/** People assigned to build a page together (first stage); [{ id, name, at }] in jcr:content ucp:authors. */
+export type PageAuthor = { id: string; name: string; at: string };
+export const pageAuthors = (meta?: NodeProps): PageAuthor[] => json<PageAuthor[]>(meta?.["ucp:authors"], []).filter((a) => a && typeof a.id === "string");
+

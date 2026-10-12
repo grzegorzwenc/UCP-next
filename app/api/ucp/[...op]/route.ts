@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { listPatterns, savePattern, deletePattern, archivePattern, setPatternMarkets, compareSides, filesForPublish, publishAssets, pageReferences, relinkPages, guestMayDecide, createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, setCommentResolved, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
+import { pageAuthors, listPatterns, savePattern, deletePattern, archivePattern, setPatternMarkets, compareSides, filesForPublish, publishAssets, pageReferences, relinkPages, guestMayDecide, createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, setCommentResolved, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
 import { can } from "@/lib/ucp/perms";
 import { SESSION_COOKIE, sessionUserId } from "@/lib/server/session";
 import { PATHS } from "@/lib/ucp/paths";
@@ -158,6 +158,22 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       return ok({ assignee: u.id, assigneeName: u.name });
     }
     /* ---- Pages → Lock / Unlock: nobody else can change, move or delete a locked page (site admins can) ---- */
+    /* ---- authors: several people can be assigned to build a page together (first stage only) ---- */
+    if (o === "pages/authors" && req.method === "POST") {
+      const u = await me(); const admin = u.role === "admin" || !!u.perms.root?.manage; const path = q.get("path") ?? ""; const root = market(mid).root;
+      const { action, id } = await req.json() as { action: "join" | "leave" | "add" | "remove"; id?: string };
+      const pg = await repo().getPage(path); if (!pg) return problem(new RepoError(404, "Page not found"));
+      if (pg.status !== "draft" && pg.status !== "failed") return problem(new RepoError(409, "Authors can only change while the page is at Build the page"));
+      const who = action === "join" || action === "leave" ? u.id : String(id ?? "");
+      if ((action === "add" || action === "remove") && !admin && who !== u.id) return problem(new RepoError(403, "Only a site admin can assign other people"));
+      const target = who === u.id ? u : (await listUsers()).find((x) => x.id === who); if (!target) return problem(new RepoError(404, "No such person"));
+      if ((action === "join" || action === "add") && !can(target, "edit", path, root) && !(target.role === "admin" || target.perms.root?.manage)) return problem(new RepoError(403, `${target.name} doesn't have Edit on this page`));
+      const list = pageAuthors(pg.meta); const has = list.some((a) => a.id === who);
+      const next = action === "join" || action === "add" ? (has ? list : [...list, { id: who, name: target.name, at: new Date().toISOString() }]) : list.filter((a) => a.id !== who);
+      await repo().setProps(`${path}/jcr:content`, { "ucp:authors": JSON.stringify(next) });
+      if (next.length !== list.length) await logEvent(mid, { type: "content", text: action === "join" ? `joined ${pg.title} as an author` : action === "leave" ? `left ${pg.title} (no longer an author)` : action === "add" ? `assigned ${target.name} as an author of ${pg.title}` : `removed ${target.name} from the authors of ${pg.title}`, target: path, requestId: rid });
+      return ok({ authors: next });
+    }
     /* ---- archive: pages leave every list and go offline, but can be restored (delete cannot) ---- */
     if (o === "pages/archive" && req.method === "POST") {
       const u = await me(); const admin = u.role === "admin" || !!u.perms.root?.manage; const { paths, archived } = await req.json() as { paths?: string[]; archived?: boolean };

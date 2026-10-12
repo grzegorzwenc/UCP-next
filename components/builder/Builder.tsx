@@ -20,6 +20,7 @@ import { useSession } from "@/components/shell/Session";
 import { useShellMode } from "@/components/shell/SideNav";
 import { InsightsPanel, VersionHistory, TranslateModal, pageInsights } from "@/components/builder";
 import { LeftPanel, type LeftTab } from "./LeftPanel";
+import { AuthorsChip, type PageAuthor } from "./Authors";
 import { SavePatternDialog, PatternMarketsDialog } from "./PatternDialog";
 import { toParts, fromPattern, type DesignPattern } from "@/lib/blocks/patterns";
 import { LockedVeil } from "./LockedVeil";
@@ -317,6 +318,14 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const ask = useConfirm();
   /* ---- Design patterns: Shift-click components to group them, save the group, add it to any page in one click ---- */
   const [multi, setMulti] = useState<string[]>([]); const [savingPattern, setSavingPattern] = useState(false);
+  /* ---- Authors (Build the page): several people can be assigned to build the page together ---- */
+  const [authors, setAuthors] = useState<PageAuthor[]>(() => { try { const v = JSON.parse(String(page.meta?.["ucp:authors"] ?? "[]")) as PageAuthor[]; return Array.isArray(v) ? v : []; } catch { return []; } });
+  const firstStage = status === "draft" || status === "failed";
+  const otherAuthors = authors.filter((a) => a.id !== user.id);
+  async function authorAction(a: "join" | "leave" | "add" | "remove", id?: string) {
+    try { const r = await ucpApi.pageAuthors(marketId, page.path, a, id); setAuthors(r.authors); say(a === "join" ? `You are an author of this page${r.authors.length > 1 ? ` with ${r.authors.filter((x) => x.id !== user.id).map((x) => x.name.split(" ")[0]).join(", ")}` : ""}` : a === "leave" ? "You are no longer an author of this page" : a === "add" ? `${names[id ?? ""] ?? "They"} can now build this page too` : "Removed from the authors"); }
+    catch (e) { say(e instanceof ApiError ? e.problem.title : "Could not change the authors"); }
+  }
   const [patternMode, setPatternMode] = useState(false); // "Create a design pattern": a plain click picks components instead of editing them
   const startPattern = (first?: string) => { if (editing) commitInline(true); setSel(null); setMode("select"); setPop(null); setMulti(first ? [first] : []); setPatternMode(true); };
   const stopPattern = () => { setPatternMode(false); setMulti([]); };
@@ -511,7 +520,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const floatingOpen = focus && !phone && ((qcMode && qcOpen) || (reviewMode && floatOpen)); // full screen: keep the page clear of the floating panel
   const padL = focus ? 0 : !railsOn ? 24 : left && !narrow ? leftW + 76 : phone ? 12 : narrow ? 64 : 76, padR = focus ? (floatingOpen ? 412 : 0) : !railsOn ? 24 : right && !narrow ? panelW + 76 : phone ? 12 : narrow ? 64 : 76;
   const baseHint = lockedByOther ? `Locked by ${pageLock!.name} · ask them or a site admin to unlock it in Pages` : !canEdit ? "Read-only: you don't have Edit on this folder. Ask a site admin to grant it." : locked ? (inAuthor ? "In author's review · read-only" : status === "reviewed" ? "Reviewed · read-only" : status === "bizreview" ? "In business review · read-only" : status === "published" ? `Live on ${domain}${rel}` : "Ready to publish · read-only") : preview ? "What visitors will see" : mode === "edit" ? "Click a highlighted text to change it · Esc when done" : sel ? "Change the text on the page, or the details on the right" : "Click a block to change it";
-  const hint = reviewMode ? "Or click a text or an image here to comment on it" : baseHint;
+  const hint = reviewMode ? "Or click a text or an image here to comment on it" : firstStage && otherAuthors.length ? (authors.some((a) => a.id === user.id) ? `Building it together with ${otherAuthors.map((a) => a.name).join(", ")} · ${baseHint}` : `${otherAuthors.map((a) => a.name).join(", ")} ${otherAuthors.length === 1 ? "is" : "are"} building this page${canEdit ? " · Assign me to work on it with them" : ""}`) : baseHint;
 
   return (
     <div className={`h-full grid ${focus ? "grid-rows-[1fr]" : "grid-rows-[54px_48px_1fr]"} min-w-0 overflow-hidden`}>
@@ -530,6 +539,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               {saving === "Save failed" ? <button className="hidden sm:inline text-xs text-crit bg-crit-soft rounded-full px-2.5 py-1 hover:underline" onClick={() => save().then(() => say("Saved")).catch(() => {})} title="Your last changes were not saved">Not saved · Retry</button>
                 : canEdit && !locked && (status === "draft" || status === "failed") ? null /* the Save button says it */ : <span className="hidden sm:inline text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1" aria-live="polite" title="Changes are saved automatically">{saving === "Unsaved" ? "Saving…" : saving === "Saved just now" || saving === "Saved" ? "✓ Saved" : saving}</span>}
               {/* the current stage is shown on the stepper below, so no status pill here */}
+              {firstStage && <span className="hidden sm:contents"><AuthorsChip authors={authors} meId={user.id} admin={isAdmin} canEdit={canEdit} people={names} onAction={authorAction} /></span>}
               {inAuthor && assignee && <span className="hidden sm:contents"><AssigneeChip name={assigneeName} admin={isAdmin} marketId={marketId} pagePath={page.path} meId={user.id} onReassigned={(r) => { setAssignee(r.assignee); say(`Reassigned to ${r.assigneeName}`); router.refresh(); }} /></span>}
             </div>
             {inAuthor && !mayApproveSelf && <span className="hidden sm:inline text-[11px] text-ink-3 whitespace-nowrap pr-1">{status === "inreview" ? `${assigneeName ? assigneeName.split(" ")[0] : "The reviewer"} is reviewing it` : assigneeName ? `Waiting for ${assigneeName.split(" ")[0]} to start` : "Waiting for a reviewer"}{canEdit && <> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => setRemind(new Date().getTime())}>Remind</button></>}</span>}
