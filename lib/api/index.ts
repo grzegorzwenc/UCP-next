@@ -89,6 +89,7 @@ export const ucpApi = {
   reviewers: (market: string, path: string) => U<ReviewerOption[]>("reviewers", { query: { market, path } }),
   sendForReview: (market: string, path: string, body: { note?: string }) => U<{ assignee: string; assigneeName: string }>("review/send", { method: "POST", query: { market, path }, body: JSON.stringify(body) }),
   /** Link (and optional e-mail invite) for the current review stage; an e-mail of a UCP reviewer also assigns them. */
+  pageJira: (market: string, path: string, value: string) => U<{ jira: string }>("pages/jira", { method: "POST", query: { market, path }, body: JSON.stringify({ value }) }),
   pageAuthors: (market: string, path: string, action: "join" | "leave" | "add" | "remove", id?: string) => U<{ authors: { id: string; name: string; at: string }[] }>("pages/authors", { method: "POST", query: { market, path }, body: JSON.stringify({ action, id }) }),
   archivePages: (market: string, paths: string[], archived: boolean) => U<{ count: number; offline: number }>("pages/archive", { method: "POST", query: { market }, body: JSON.stringify({ paths, archived }) }),
   patterns: (market: string) => U<DesignPattern[]>("patterns", { query: { market } }),

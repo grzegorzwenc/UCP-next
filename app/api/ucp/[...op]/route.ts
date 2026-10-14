@@ -3,6 +3,7 @@ import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
 import { pageAuthors, listPatterns, savePattern, deletePattern, archivePattern, setPatternMarkets, compareSides, filesForPublish, publishAssets, pageReferences, relinkPages, guestMayDecide, createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, setCommentResolved, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
 import { can } from "@/lib/ucp/perms";
+import { jiraUrl, jiraLabel } from "@/lib/ucp/jira";
 import { SESSION_COOKIE, sessionUserId } from "@/lib/server/session";
 import { PATHS } from "@/lib/ucp/paths";
 import { CY } from "@/lib/ucp/seed";
@@ -158,6 +159,17 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       return ok({ assignee: u.id, assigneeName: u.name });
     }
     /* ---- Pages → Lock / Unlock: nobody else can change, move or delete a locked page (site admins can) ---- */
+    /* ---- Jira ticket linked to a page (ucp:jira): a link or a ticket key ---- */
+    if (o === "pages/jira" && req.method === "POST") {
+      const u = await me(); const admin = u.role === "admin" || !!u.perms.root?.manage; const path = q.get("path") ?? ""; const root = market(mid).root;
+      const pg = await repo().getPage(path); if (!pg) return problem(new RepoError(404, "Page not found"));
+      if (!admin && !can(u, "edit", path, root) && !can(u, "review", path, root)) return problem(new RepoError(403, "Only people working on this page can link a Jira ticket"));
+      const { value } = await req.json() as { value?: string }; const url = value?.trim() ? jiraUrl(value) : null;
+      if (value?.trim() && !url) return problem(new RepoError(400, "Paste a Jira link (https://…) or a ticket key like UCP-123"));
+      await repo().setProps(`${path}/jcr:content`, { "ucp:jira": url });
+      await logEvent(mid, { type: "content", text: url ? `linked ${pg.title} to Jira ${jiraLabel(url)}` : `removed the Jira link from ${pg.title}`, target: path, requestId: rid });
+      return ok({ jira: url ?? "" });
+    }
     /* ---- authors: several people can be assigned to build a page together (first stage only) ---- */
     if (o === "pages/authors" && req.method === "POST") {
       const u = await me(); const admin = u.role === "admin" || !!u.perms.root?.manage; const path = q.get("path") ?? ""; const root = market(mid).root;

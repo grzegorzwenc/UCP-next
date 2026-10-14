@@ -21,6 +21,7 @@ import { useShellMode } from "@/components/shell/SideNav";
 import { InsightsPanel, VersionHistory, TranslateModal, pageInsights } from "@/components/builder";
 import { LeftPanel, type LeftTab } from "./LeftPanel";
 import { AuthorsChip, type PageAuthor } from "./Authors";
+import { JiraChip } from "@/components/ui/JiraChip";
 import { SavePatternDialog, PatternMarketsDialog } from "./PatternDialog";
 import { toParts, fromPattern, type DesignPattern } from "@/lib/blocks/patterns";
 import { LockedVeil } from "./LockedVeil";
@@ -326,6 +327,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     try { const r = await ucpApi.pageAuthors(marketId, page.path, a, id); setAuthors(r.authors); say(a === "join" ? `You are an author of this page${r.authors.length > 1 ? ` with ${r.authors.filter((x) => x.id !== user.id).map((x) => x.name.split(" ")[0]).join(", ")}` : ""}` : a === "leave" ? "You are no longer an author of this page" : a === "add" ? `${names[id ?? ""] ?? "They"} can now build this page too` : "Removed from the authors"); }
     catch (e) { say(e instanceof ApiError ? e.problem.title : "Could not change the authors"); }
   }
+  /* Jira ticket for this page (Page settings), shown as a chip next to the title */
+  const [jira, setJira] = useState(() => (typeof page.meta?.["ucp:jira"] === "string" ? String(page.meta["ucp:jira"]) : "")); const [jiraDraft, setJiraDraft] = useState(jira); const [jiraErr, setJiraErr] = useState("");
+  async function saveJira(v: string) { setJiraErr(""); try { const r = await ucpApi.pageJira(marketId, page.path, v); setJira(r.jira); setJiraDraft(r.jira); say(r.jira ? "Jira ticket linked" : "Jira link removed"); } catch (e) { setJiraErr(e instanceof ApiError ? e.problem.title : "Could not save the link"); } }
   const [patternMode, setPatternMode] = useState(false); // "Create a design pattern": a plain click picks components instead of editing them
   const startPattern = (first?: string) => { if (editing) commitInline(true); setSel(null); setMode("select"); setPop(null); setMulti(first ? [first] : []); setPatternMode(true); };
   const stopPattern = () => { setPatternMode(false); setMulti([]); };
@@ -529,7 +533,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {/* left: back + page · centre: device width · right: status | panels + preview | next action */}
         <div className="flex items-center gap-3 min-w-0">
           {!focus && <Link href={`/${marketId}/${envId}/pages${rel.replace(/\/[^/]+$/, "")}`} className="btn btn-quiet btn-sm">‹ Pages</Link>}
-          <div className="min-w-0 flex-1"><b className="block text-[14.5px] truncate">{title}</b><span className="hidden sm:block text-[11.5px] text-ink-3 truncate font-mono">{flag} {locale} · {domain}{rel}</span></div>
+          <div className="min-w-0 flex-1"><span className="flex items-center gap-2 min-w-0"><b className="block text-[14.5px] truncate">{title}</b>{jira && <JiraChip url={jira} />}</span><span className="hidden sm:block text-[11.5px] text-ink-3 truncate font-mono">{flag} {locale} · {domain}{rel}</span></div>
         </div>
         <div className="hidden lg:inline-flex justify-self-center border border-line-2 rounded-lg overflow-hidden">{(["desktop", "tablet", "mobile"] as const).map((d) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink"}`} title={d} aria-label={`${d} view`} aria-pressed={device === d}><Ico d={d === "desktop" ? "M3 4.5h18v11.5H3zM8.5 20h7M12 16v4" : d === "tablet" ? "M5.5 3h13v18h-13zM11 18h2" : "M8 2.5h8v19H8zM11 18.5h2"} /></button>)}</div>
         <div className="flex items-center justify-end gap-2.5 min-w-0">
@@ -627,6 +631,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             {rightTab === "page" ? <div className="flex flex-col gap-3">
               <label className="text-xs text-ink-2 font-medium">Page title<input className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] font-normal text-ink" value={title} onChange={(e) => setPageField("title", e.target.value)} /></label>
               <label className="text-xs text-ink-2 font-medium">Meta description<textarea rows={3} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] font-normal text-ink" value={description} onChange={(e) => setPageField("description", e.target.value)} placeholder="One or two sentences shown in search results" /><small className={`font-normal ${description.length > 155 ? "text-crit" : "text-ink-3"}`}>{description.length}/155 characters</small></label>
+              <div className="text-xs text-ink-2 font-medium"><label htmlFor="pg-jira">Jira ticket</label>
+                <form className="mt-1 flex gap-1.5" onSubmit={(e) => { e.preventDefault(); void saveJira(jiraDraft); }}><input id="pg-jira" className="flex-1 min-w-0 border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] font-normal text-ink" value={jiraDraft} onChange={(e) => { setJiraDraft(e.target.value); setJiraErr(""); }} placeholder="UCP-123 or https://…/browse/UCP-123" />
+                  {jiraDraft.trim() !== jira && <button className="btn btn-sm btn-primary">Save</button>}</form>
+                {jiraErr ? <small className="block mt-1 text-crit font-normal">{jiraErr}</small> : jira ? <span className="mt-1.5 flex items-center gap-2 font-normal"><JiraChip url={jira} /><button type="button" className="text-[12px] text-ink-3 underline underline-offset-2 hover:text-ink" onClick={() => void saveJira("")}>Remove link</button></span> : <small className="block mt-1 text-ink-3 font-normal">The ticket this page is built for. Everyone can open it from the page.</small>}</div>
               <div className="text-xs text-ink-2 font-medium">URL<div className="mt-1 font-mono text-xs bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">{domain}{rel}</div></div>
               <div className="text-xs text-ink-2 font-medium">Template<div className="mt-1 bg-surface-2 border border-line rounded-md px-2.5 py-1.5 font-normal text-ink-2">{TEMPLATES.find((t) => t.id === page.template)?.name ?? page.template}</div><small className="text-ink-3 font-normal">Fixed after creation</small></div>
               <div className="text-xs text-ink-2 font-medium">Repository path (JCR)<div className="mt-1 font-mono text-[11.5px] bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">{page.path}/jcr:content</div><small className="text-ink-3 font-normal">Components are stored under jcr:content/root as nodes with sling:resourceType</small></div>
