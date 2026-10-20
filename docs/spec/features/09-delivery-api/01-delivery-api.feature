@@ -1,10 +1,11 @@
 @epic:delivery-api @status:done
 Feature: Content delivery API
-  As a front-end developer of an HSBC website or app
-  I want published content as JSON
-  So that any channel can show the same approved content
+  Published content as JSON for HSBC websites and apps, so any channel can show the same approved content.
 
-  Rule: Only published pages are public
+  Rule: US-09.01.1 · Get only approved content, and preview drafts separately
+    As a front-end developer
+    I want the public API to return only published pages, with a separate preview address for drafts
+    So that customers only ever see approved content while I can still test upcoming pages
 
     Scenario: List of published pages
       When I call "GET /api/delivery/v1/pages?market=uk"
@@ -18,7 +19,10 @@ Feature: Content delivery API
       When I call "GET /api/delivery/v1/preview/pages/banking/new-offer"
       Then I get the page JSON
 
-  Rule: The JSON is ready to render
+  Rule: US-09.01.2 · Render pages straight from the JSON
+    As a front-end developer
+    I want page JSON with resolved values, image renditions, form references and meta, plus a JSON Schema for each model
+    So that any channel can render the content without extra lookups or guesswork
 
     Scenario: Page JSON
       Then tokens are replaced with published entity values
@@ -30,7 +34,10 @@ Feature: Content delivery API
       When I call "GET /api/delivery/v1/models/rate"
       Then I get a JSON Schema with the required fields and localised fields marked
 
-  Rule: The API is easy to explore
+  Rule: US-09.01.3 · Explore and try the API in the CMS
+    As a front-end developer
+    I want a screen that shows each page's address and JSON, the model schemas and all endpoints, with "Copy URL" and "Try it"
+    So that I can integrate quickly without reading separate documentation
 
     Scenario: API & delivery screen
       When I open "API & delivery"

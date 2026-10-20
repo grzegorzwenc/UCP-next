@@ -1,10 +1,11 @@
 @epic:page-builder @status:done
 Feature: Working together on a page (authors, Jira, versions)
-  As a content team
-  We want to build a page together, link it to its ticket and go back to any earlier version
-  So that work is shared, traceable and reversible
+  A page can be built by several authors, linked to its ticket and taken back to any earlier version, so work is shared, traceable and reversible.
 
-  Rule: Several authors can build a page at the first stage
+  Rule: US-03.06.1 · Build a page together with other authors
+    As a content author
+    I want to join or leave the authors of a page while it is being built
+    So that we can share the work and everyone sees who is responsible
 
     Scenario: Joining as an author
       Given "Super Admin" created the page and is its only author
@@ -18,11 +19,6 @@ Feature: Working together on a page (authors, Jira, versions)
       When I click "Leave" in the Authors list
       Then I am no longer an author
 
-    Scenario: Only site admins assign other people
-      Given I am not a site admin
-      When I try to add "aisha.khan" as an author
-      Then I see "Only a site admin can assign other people"
-
     Scenario: Authors are fixed after the first stage
       Given the page was sent for review
       When anyone changes the authors
@@ -32,7 +28,31 @@ Feature: Working together on a page (authors, Jira, versions)
       Given the page has 2 authors
       Then My tasks shows the second one under the Content author as "+ Name"
 
-  Rule: A page can link to its Jira ticket
+  @admin
+  Rule: US-03.06.2 · Assign other people as authors
+    As a site admin
+    I want to add or remove other people as authors of a page
+    So that work is handed out deliberately and nobody is assigned behind their back
+
+    Scenario: A site admin adds an author
+      Given I am signed in as "super.admin"
+      When I choose "aisha.khan" in "Add a person…" in the Authors list and click "Add"
+      Then "aisha.khan" is an author of the page
+      And the audit log says "assigned Aisha Khan as an author of" the page
+
+    Scenario: The person must be able to edit
+      When I add someone without Edit on the page
+      Then I see that they don't have Edit on this page
+
+    Scenario: Only site admins assign other people
+      Given I am not a site admin
+      When I try to add "aisha.khan" as an author
+      Then I see "Only a site admin can assign other people"
+
+  Rule: US-03.06.3 · Link a page to its Jira ticket
+    As a content author
+    I want to link the page to its Jira ticket and open it in one click
+    So that the work is traceable to the request behind it
 
     Scenario Outline: Linking a ticket
       When I enter "<input>" into "Jira ticket" in Page settings and save
@@ -48,7 +68,10 @@ Feature: Working together on a page (authors, Jira, versions)
       When I click the Jira chip next to the page title or in My tasks
       Then the ticket opens in a new tab
 
-  Rule: Every save is a version that can be restored
+  Rule: US-03.06.4 · Go back to any earlier version
+    As a content author
+    I want every save kept as a version that I can restore or comment on
+    So that any change can be reversed and discussed
 
     Scenario: Restoring a version
       When I open Version history and click "Restore" on an earlier version

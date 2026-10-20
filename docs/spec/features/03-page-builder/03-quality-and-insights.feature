@@ -1,10 +1,11 @@
 @epic:page-builder @status:done
 Feature: Page insights and quality checklist
-  As a content author
-  I want the page checked for content, accessibility, compliance and search problems
-  So that reviewers spend their time on substance, not on mistakes a machine can find
+  The page is checked automatically for content, accessibility, compliance and search problems, so reviewers spend their time on substance.
 
-  Rule: Page insights group findings by how serious they are
+  Rule: US-03.03.1 · See and fix what blocks publishing
+    As a content author
+    I want findings grouped by how serious they are, with one-click fixes and a way to find them on the page
+    So that the page reaches review without mistakes a machine can find
 
     Scenario: Verdict
       Given the page has 2 critical findings
@@ -35,7 +36,10 @@ Feature: Page insights and quality checklist
       When I click "Show on page" on a finding
       Then the component is selected and scrolled into view
 
-  Rule: The quality checklist follows the pointer in the author's preview
+  Rule: US-03.03.2 · Check any element while previewing
+    As a content author
+    I want a quality checklist that follows my pointer in full-screen preview
+    So that I can check the whole page and each element as customers will see it
 
     Scenario: Whole page
       Given I am in full-screen Preview of my draft

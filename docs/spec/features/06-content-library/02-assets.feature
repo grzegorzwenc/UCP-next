@@ -1,10 +1,11 @@
 @epic:content-library @status:done
 Feature: Assets (images and documents)
-  As a content author
-  I want one library of images and documents with accessibility details and a publish status
-  So that pages only use approved, accessible files
+  One library of images and documents with accessibility details and a publish status, so pages only use approved, accessible files.
 
-  Rule: Files are found by folder, type and problems
+  Rule: US-06.02.1 · Find the right file
+    As a content author
+    I want to browse files by folder and type and see which ones are unused or missing accessibility details
+    So that I reuse approved files and can clean up problems quickly
 
     Scenario: Browsing
       When I open Assets
@@ -19,7 +20,10 @@ Feature: Assets (images and documents)
         | Not used on any page         | files no page uses                          |
         | Missing accessibility info   | images without alt text and untagged PDFs   |
 
-  Rule: Uploads never overwrite
+  Rule: US-06.02.2 · Upload and replace files safely
+    As a content author
+    I want to upload and replace files without ever overwriting another file or deleting one that pages still use
+    So that no live page breaks because of a change in the library
 
     Scenario: Uploading
       When I drop "hero.jpg" into "Campaigns"
@@ -31,17 +35,14 @@ Feature: Assets (images and documents)
       Then pages that use it show the new file
       And its alt text is kept
 
-  Rule: Files have a publish status
+    Scenario: Deleting a used file
+      Given "hero.jpg" is used on 2 pages
+      Then I cannot delete it and I am told "Remove it from pages first"
 
-    Scenario: Publishing a file
-      Given I have Publish
-      When I click "Publish" on a draft file
-      Then it shows "Published" with who and when
-
-    Scenario: A page cannot go live with a draft file
-      Then publishing a page that uses a draft file is refused until the file is published
-
-  Rule: Images must be accessible
+  Rule: US-06.02.3 · Make files accessible
+    As a content author
+    I want to record alt text per language for images and the accessibility details of documents
+    So that every file on our pages can be used by customers with assistive technology
 
     Scenario: Alt text per language
       When I open the accessibility panel of an image
@@ -52,8 +53,15 @@ Feature: Assets (images and documents)
     Scenario: Documents
       Then a PDF needs a title, a language and "Tagged PDF, checked"
 
-  Rule: Files in use cannot be deleted
+  Rule: US-06.02.4 · Approve files for live use
+    As a publisher
+    I want to publish draft files and have pages refused while they still use a draft file
+    So that customers only ever see approved files
 
-    Scenario: Deleting a used file
-      Given "hero.jpg" is used on 2 pages
-      Then I cannot delete it and I am told "Remove it from pages first"
+    Scenario: Publishing a file
+      Given I have Publish
+      When I click "Publish" on a draft file
+      Then it shows "Published" with who and when
+
+    Scenario: A page cannot go live with a draft file
+      Then publishing a page that uses a draft file is refused until the file is published

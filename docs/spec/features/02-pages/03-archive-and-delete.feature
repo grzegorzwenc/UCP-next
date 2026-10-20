@@ -1,13 +1,14 @@
 @epic:pages @status:done
 Feature: Archive and delete pages
-  As a content author
-  I want to archive pages I no longer need and delete only what is truly gone
-  So that nothing is lost by mistake and broken links are visible before they happen
+  Archive is the safe default for pages that are no longer needed; deleting is permanent and shows everything it affects first.
 
   Background:
     Given I am signed in with Edit on the folder
 
-  Rule: Archive is the safe default; delete cannot be undone
+  Rule: US-02.03.1 · Archive pages instead of deleting them
+    As a content author
+    I want to archive pages I no longer need and restore them later
+    So that nothing is lost by mistake
 
     Scenario: Delete always offers Archive first
       When I choose "Delete" for "Old offer"
@@ -24,7 +25,15 @@ Feature: Archive and delete pages
       When I click "Restore" on "Old offer" in the archive
       Then it is back in the list as a draft
 
-  Rule: Before deleting I see everything that is affected
+    Scenario: Locked pages cannot be archived by others
+      Given another person locked "Old offer"
+      When I archive it
+      Then I see that it is locked by them
+
+  Rule: US-02.03.2 · See everything affected before deleting permanently
+    As a content author
+    I want to see links, linked content, files and pages inside before I delete for good
+    So that broken links are visible before they happen
 
     Scenario: References are checked
       Given 3 pages link to "Old offer"
@@ -39,8 +48,3 @@ Feature: Archive and delete pages
       When I delete the folder "Campaigns 2025" with 4 pages, 1 of them live
       Then I see "Everything inside is deleted too: 4 pages" and "1 live page goes offline"
       And I must type "delete" to confirm
-
-    Scenario: Locked pages cannot be archived by others
-      Given another person locked "Old offer"
-      When I archive it
-      Then I see that it is locked by them

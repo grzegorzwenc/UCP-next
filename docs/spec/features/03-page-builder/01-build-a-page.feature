@@ -1,14 +1,15 @@
 @epic:page-builder @status:done
 Feature: Build a page from components
-  As a content author
-  I want to add HSBC components and edit their text in place
-  So that I can build an on-brand page without knowing code
+  Authors build on-brand pages from HSBC components and edit their text in place, without knowing code.
 
   Background:
     Given I am signed in with Edit on the page "Cash ISA"
     And the page is at "Build the page"
 
-  Rule: The component library is the only source of page components
+  Rule: US-03.01.1 · Add on-brand components from the library
+    As a content author
+    I want to find components in the library and add them where I need them
+    So that every page is built only from approved HSBC components
 
     Scenario: Adding a component
       Given the "Key facts" component is selected
@@ -24,7 +25,10 @@ Feature: Build a page from components
       Given the page has no components
       Then I see "How do you want to start this page?" with 3 layouts
 
-  Rule: Text is edited where it is shown
+  Rule: US-03.01.2 · Edit text where it is shown
+    As a content author
+    I want to type and format text directly on the page
+    So that I see the result as customers will while I write
 
     Scenario: Editing a heading in place
       When I click the masthead heading
@@ -45,7 +49,10 @@ Feature: Build a page from components
       Then I can make text bold, italic, underlined, a link, a bullet list or a numbered list
       And links must start with https, mailto, tel, / or #
 
-  Rule: Every component has the same toolbar
+  Rule: US-03.01.3 · Arrange and configure every component the same way
+    As a content author
+    I want the same toolbar on every component and a Configure panel with all its properties
+    So that I can move, protect and fine-tune any component without learning each one
 
     Scenario: Component toolbar
       When I select a component
@@ -57,15 +64,16 @@ Feature: Build a page from components
       When I click its text
       Then I see "This block is locked. Unlock it from ⋯ More."
 
-  Rule: Configure shows every property of the selected component
-
     Scenario: Configure panel
       When I click a component
       Then Configure opens with Content, Layout, Behaviour and Metadata
       And required fields are marked "required"
       And Cancel puts back the values from when Configure opened
 
-  Rule: Work is never lost
+  Rule: US-03.01.4 · Never lose my work
+    As a content author
+    I want the page to save itself, to save on demand and to tell me when saving fails
+    So that no edit is ever lost
 
     Scenario: Autosave
       When I stop typing for about a second
@@ -79,7 +87,10 @@ Feature: Build a page from components
       Given the server cannot be reached
       Then I see "Not saved · Retry"
 
-  Rule: The page is checked on every device width
+  Rule: US-03.01.5 · Check the page on every device width
+    As a content author
+    I want to preview the page at desktop, tablet and mobile width and full screen
+    So that it works for every customer before I send it for review
 
     Scenario Outline: Device preview
       When I choose "<device>"

@@ -1,13 +1,14 @@
 @epic:pages @status:done
 Feature: Browse and create pages
-  As a content author
-  I want to find pages in the site tree and create new ones from a template
-  So that the site structure stays tidy and every page starts on-brand
+  The site tree mirrors the folders of a market; new pages always start from a template so they are on-brand from the first click.
 
   Background:
     Given I am signed in to the "HSBC UK" market in "Production"
 
-  Rule: The site tree mirrors the folders of the market
+  Rule: US-02.01.1 · Find any page in the market
+    As a content author
+    I want to browse the folder tree and search the whole market
+    So that I quickly find the page I need to work on
 
     Scenario: Browsing folders
       When I open Pages
@@ -23,14 +24,10 @@ Feature: Browse and create pages
       Given a folder has 120 pages
       Then 50 are shown with "Show 50 more"
 
-  Rule: Only people with Edit change a folder
-
-    Scenario: Read-only folder
-      Given I don't have Edit on "Borrowing"
-      Then the folder shows "Read-only in this folder"
-      And there is no "New page" or "New folder"
-
-  Rule: New pages start from a template
+  Rule: US-02.01.2 · Create pages and folders from on-brand templates
+    As a content author
+    I want to create folders and new pages from a template allowed in my market, where I have Edit
+    So that the site structure stays tidy and every page starts on-brand
 
     Scenario: Creating a page
       When I click "New page"
@@ -53,3 +50,8 @@ Feature: Browse and create pages
     Scenario: Creating a folder
       When I click "New folder" and enter "Insurance"
       Then the folder "Insurance" appears in the tree
+
+    Scenario: Read-only folder
+      Given I don't have Edit on "Borrowing"
+      Then the folder shows "Read-only in this folder"
+      And there is no "New page" or "New folder"

@@ -5,6 +5,74 @@ then what is a stand-in, then what has to happen to make it production-ready.
 
 Legend: ✅ built · 🟡 built as a stand-in (mock) · ⬜ not built
 
+## How I would build it — the flow
+
+Each box is a release that can be demoed on its own. Arrows are hard dependencies:
+nothing on the right is worth building before the box on its left works.
+
+```mermaid
+flowchart LR
+  subgraph P0["Phase 0 · Foundation ✅"]
+    A1[Repository port<br/>JCR/Sling mapping] --> A2[Markets, roles,<br/>folder permissions]
+    A2 --> A3[HSBC shell<br/>nav · search · ⌘K]
+  end
+  subgraph P1["Phase 1 · Authoring ✅"]
+    B1[Component library<br/>13 HSBC blocks] --> B2[Page builder<br/>inline edit · autosave]
+    B2 --> B3[Pages tree<br/>create · move · lock]
+    B1 --> B4[Templates<br/>per market]
+    B2 --> B5[Assets · models<br/>entities · tokens]
+    B2 --> B6[Insights · quality<br/>checklist · AI 🟡]
+    B2 --> B7[Design patterns<br/>co-authors · Jira]
+  end
+  subgraph P2["Phase 2 · Four-eyes workflow ✅"]
+    C1[Send for review<br/>Backlog] --> C2[Peer review<br/>claim · decide]
+    C2 --> C3[Business review<br/>groups · links]
+    C3 --> C4[Comments<br/>resolve · full screen]
+    C1 --> C5[My tasks ·<br/>notifications]
+  end
+  subgraph P3["Phase 3 · Go live ✅"]
+    D1[Publish now /<br/>schedule + files] --> D2[Compare with live]
+    D1 --> D3[Archive · delete<br/>with references]
+    D1 --> D4[Translations<br/>through review]
+    D1 --> D5[Audit · dashboard<br/>delivery API]
+  end
+  subgraph P4["Phase 4 · Production ⬜"]
+    E1[Real SSO +<br/>API sessions] --> E2[Server-side checks<br/>& workflow order]
+    E2 --> E3[Sling/AEM backend<br/>as system of record]
+    E3 --> E4[Publish job ·<br/>e-mail service]
+  end
+  subgraph P5["Phase 5 · Scale ⬜"]
+    F1[Real environments<br/>+ promotion] --> F2[AI service ·<br/>MT vendor]
+    F1 --> F3[API keys ·<br/>webhooks · metrics]
+    F1 --> F4[Jira sync ·<br/>live presence]
+  end
+  A3 --> B1
+  B2 --> C1
+  C3 --> D1
+  D5 --> E1
+  E4 --> F1
+```
+
+**Why this order**
+
+1. **Foundation first** — every later screen reads permissions and the repository; changing them later means rewriting everything.
+2. **Authoring before workflow** — a review needs something to review; the builder is also where the most UX risk sits, so it gets feedback earliest.
+3. **Workflow before publishing** — the bank's main rule is four eyes; publishing without it would be a demo nobody can approve.
+4. **Production readiness as one block** — SSO, server checks and the real backend are invisible to users but are the gate for any pilot with real content.
+5. **Scale last** — environments, AI and integrations multiply value only once one market runs on the platform.
+
+## Each phase as a sprint flow
+
+```mermaid
+flowchart TD
+  S[Story from the spec<br/>US-xx.yy.n] --> D[Design: screen + copy<br/>Krug review]
+  D --> I[Build: UI + API rule<br/>server enforces, UI hides]
+  I --> T[Acceptance: the story's<br/>Gherkin scenarios as tests]
+  T --> R[Demo on the hosted preview]
+  R -->|feedback| D
+  R -->|accepted| M[Merge · deploy · update @status]
+```
+
 ## Phase 0 — Foundation ✅
 
 | Item | Status |

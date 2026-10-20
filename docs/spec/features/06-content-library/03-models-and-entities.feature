@@ -1,14 +1,12 @@
 @epic:content-library @status:done
 Feature: Content models and content entities
-  As a site admin and as a content author
-  We want structured content types and reusable content items
-  So that facts like rates and product names are written once and shown everywhere
+  Structured content types (models) and reusable content items (entities), so facts like rates and product names are written once and shown everywhere.
 
-  Rule: Only site admins change content models
-
-    Scenario: Read-only for others
-      Given I am not a site admin
-      Then content models show "Read-only · documentation view"
+  @admin
+  Rule: US-06.03.1 · Define and evolve content models
+    As a site admin
+    I want to create content models with validated fields, publish them, and change them safely over time
+    So that authors get well-structured content types and live content is not broken by a careless change
 
     Scenario: Creating a model
       Given I am a site admin
@@ -36,7 +34,14 @@ Feature: Content models and content entities
     Scenario: Versions
       Then every change is kept as a version I can compare and restore into the draft
 
-  Rule: Entities are content items made from a published model
+  Rule: US-06.03.2 · Create reusable content items from a model
+    As a content author
+    I want to fill in entities from published models, see the model as documentation, and be stopped from deleting entities in use
+    So that facts like rates are written once, correctly, and no page loses its content
+
+    Scenario: Read-only for others
+      Given I am not a site admin
+      Then content models show "Read-only · documentation view"
 
     Scenario: Creating an entity
       Given I have Edit on the market
@@ -50,12 +55,17 @@ Feature: Content models and content entities
       When I save with 2 invalid fields
       Then I see "Fix 2 fields before saving"
 
-    Scenario: Publishing an entity updates the pages that use it
-      When I publish "ISA rates 2026"
-      Then the audit log says it updates the pages that show it
-      And the delivery API shows the new values on those pages
-
     Scenario: Entities in use cannot be deleted
       Given "ISA rates 2026" is used on 3 pages
       When I delete it
       Then I see "Used on 3 pages · Remove it from those pages first"
+
+  Rule: US-06.03.3 · Update a fact everywhere at once
+    As a content author
+    I want publishing an entity to update every page that shows it
+    So that a changed rate is correct on all pages and channels at the same moment
+
+    Scenario: Publishing an entity updates the pages that use it
+      When I publish "ISA rates 2026"
+      Then the audit log says it updates the pages that show it
+      And the delivery API shows the new values on those pages

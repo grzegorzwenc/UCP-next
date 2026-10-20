@@ -1,13 +1,14 @@
 @epic:page-builder @status:done @mock
 Feature: AI assistant
-  As a content author
-  I want AI to propose changes that I can check before they are applied
-  So that I work faster without losing control over what is published
+  AI proposes changes that the author checks before they are applied, so work goes faster without losing control over what is published.
 
   Note: the prototype uses a deterministic offline planner (lib/ai/planner.ts, lib/ai/mock.ts).
   Free-form prompts and translation need the real AI service (UCP_AI_URL).
 
-  Rule: Component AI changes only the selected component
+  Rule: US-03.04.1 · Improve one component with AI
+    As a content author
+    I want AI to suggest changes to the selected component only, shown before and after
+    So that I can accept or reject each suggestion knowing exactly what changes
 
     Scenario: Before and after
       Given the "Masthead" component is selected
@@ -20,7 +21,10 @@ Feature: AI assistant
       When I ask "Make the CTA more compelling"
       Then I see "This block has no button."
 
-  Rule: Page AI plans first and changes nothing until I run the plan
+  Rule: US-03.04.2 · Let AI plan page-wide changes that I approve
+    As a content author
+    I want the page AI to show its plan first and change nothing until I run the changes I ticked
+    So that I work faster on whole pages and can undo anything
 
     Scenario: Plan, run, review
       When I ask the page AI "Make this page work better on mobile"
@@ -48,7 +52,10 @@ Feature: AI assistant
       When I ask "Polish it" on a page with nothing to improve
       Then I see "Page already follows HSBC content patterns — nothing to change"
 
-  Rule: Read-only users cannot run AI
+  Rule: US-03.04.3 · AI respects page permissions
+    As a business owner
+    I want AI to refuse to plan changes for people who may only read a page
+    So that AI never becomes a way around permissions
 
     Scenario: Viewer
       Given I have only Read on the page

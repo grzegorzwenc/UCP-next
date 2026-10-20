@@ -1,13 +1,14 @@
 @epic:page-builder @status:done
 Feature: Design patterns
-  As a content author
-  I want to save several components as one design pattern and reuse it
-  So that common sections look the same on every page and take one click to add
+  A design pattern is a group of components saved together, so common sections look the same on every page and take one click to add.
 
   Background:
     Given I am signed in with Edit on the page
 
-  Rule: Design patterns have their own tile next to the components
+  Rule: US-03.02.1 · Reuse a section in one click
+    As a content author
+    I want to pick a design pattern from its own library and add all its components at once
+    So that common sections look the same on every page
 
     Scenario: Opening the pattern library
       When I click the "Design patterns" tile in the left rail
@@ -19,7 +20,10 @@ Feature: Design patterns
       Then Masthead, Content master and Icon tiles are added below the selected component
       And I see "Product introduction added · 3 components"
 
-  Rule: A pattern is made from components already on the page
+  Rule: US-03.02.2 · Save my own design pattern
+    As a content author
+    I want to save components already on the page as a named pattern, for all or only some markets
+    So that I and my colleagues can reuse a section that works
 
     Scenario: Creating a pattern
       When I click "Create a design pattern"
@@ -41,8 +45,6 @@ Feature: Design patterns
       When I save a pattern called "Product introduction"
       Then I see "A pattern with this name already exists"
 
-  Rule: Patterns can be limited to some local markets
-
     Scenario: UK-only pattern
       When I save a pattern for "Only some local markets" with only "UK" ticked
       Then UK pages see it
@@ -52,7 +54,10 @@ Feature: Design patterns
       When I click "Markets" on my pattern and untick the current market
       Then I am warned "This market will no longer see it. Pages that already use it keep their components."
 
-  Rule: Removing a pattern archives it first
+  Rule: US-03.02.3 · Remove my patterns safely
+    As a content author
+    I want to archive my own patterns first and delete them for good only on purpose
+    So that a pattern is never lost by mistake and pages that use it are not affected
 
     Scenario: Archive and restore
       When I click the bin on my pattern and choose "Archive"
@@ -74,4 +79,18 @@ Feature: Design patterns
         | saved by me           | me             | it is archived                                            |
         | saved by someone else | me             | there is no bin on it                                     |
         | Product introduction  | content.author | there is no bin on it                                     |
+
+  @admin
+  Rule: US-03.02.4 · Manage design-system patterns
+    As a site admin
+    I want to remove built-in design-system patterns that ordinary authors cannot touch
+    So that the shared pattern library stays current
+
+    Scenario Outline: A site admin removes a design-system pattern
+      Given the pattern "<pattern>"
+      When "<who>" removes it
+      Then <outcome>
+
+      Examples:
+        | pattern               | who            | outcome                                                   |
         | Product introduction  | super.admin    | it is archived                                            |

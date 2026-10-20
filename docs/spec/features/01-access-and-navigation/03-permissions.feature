@@ -1,14 +1,15 @@
 @epic:access @status:done
 Feature: Roles and permissions
-  As a site admin
-  I want to grant people the right permissions on the right folders
-  So that everyone can do their job and nobody can do more than they should
+  Permissions are granted per person on the whole site or on top-level folders, so everyone can do their job and nobody can do more than they should.
 
   Background:
     Given the permissions are Read, Edit, Review & approve, Publish and Manage
     And they are granted on the whole site or on a top-level folder
 
-  Rule: Roles give sensible defaults
+  Rule: US-01.03.1 · Roles and workflow steps carry the right permissions
+    As a business owner
+    I want each role to come with sensible defaults and each workflow step to need its permission
+    So that only qualified people edit, approve and publish content
 
     Scenario Outline: Role defaults
       Given a person with the role "<role>" and no individual grants
@@ -22,8 +23,6 @@ Feature: Roles and permissions
         | Site admin | do everything                            |
         | Viewer     | read                                     |
 
-  Rule: Each workflow step needs its permission
-
     Scenario Outline: Status changes
       When someone moves a page to "<status>"
       Then they need <permission>
@@ -36,7 +35,11 @@ Feature: Roles and permissions
         | Ready to publish          | Review & approve   |
         | Scheduled / Published     | Publish            |
 
-  Rule: Only site admins manage people
+  @admin
+  Rule: US-01.03.2 · Manage people and their permissions
+    As a site admin
+    I want to invite people and grant them permissions on the right folders
+    So that everyone has exactly the access their job needs
 
     Scenario: Granting a permission
       Given I am a site admin on "Users & roles"
@@ -52,6 +55,11 @@ Feature: Roles and permissions
       When I invite "Sam Taylor" as an Author
       Then the sign-in id is "sam.taylor"
       And they get the Author permissions on the whole site
+
+  Rule: US-01.03.3 · Nobody else can change access
+    As a business owner
+    I want only site admins to change users and permissions, enforced on screen and on the server
+    So that nobody can grant themselves more than they should have
 
     Scenario: Non-admins see only themselves
       Given I am signed in as "content.author"

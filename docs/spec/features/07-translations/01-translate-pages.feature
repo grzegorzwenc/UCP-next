@@ -1,35 +1,43 @@
 @epic:translations @status:done
 Feature: Translate pages
-  As a content author in a multilingual market
-  I want to create translated copies of pages in a few clear steps
-  So that every language version still goes through the same review before going live
+  Creates translated copies of pages in a multilingual market in a few clear steps.
 
   Background:
     Given I selected "Cash ISA" and "Fixed rate bonds" in the UK market
 
-  Scenario: Four steps
-    When I click "Translate"
-    Then I go through "Languages", "How", "Where" and "Check"
+  Rule: US-07.01.1 · Create translated copies of pages in a few steps
+    As a content author
+    I want to choose the languages, how the text is translated and where the copies go, then check and create them in one flow
+    So that I can offer pages in every language of my market without copying them by hand
 
-  Scenario: Languages
-    Then the market's own languages are shown first, then other markets' languages
-    And I see "1 language × 2 pages = 2 translations" when I pick Welsh
-    And a language every selected page already has is disabled with "already translated"
+    Scenario: Four steps
+      When I click "Translate"
+      Then I go through "Languages", "How", "Where" and "Check"
 
-  Scenario: How
-    Then I can choose "AI draft now" or "Send to the translation vendor"
+    Scenario: Languages
+      Then the market's own languages are shown first, then other markets' languages
+      And I see "1 language × 2 pages = 2 translations" when I pick Welsh
+      And a language every selected page already has is disabled with "already translated"
 
-  Scenario: Where
-    Then I can put each translation next to its source page as "cy-cash-isa"
-    And I can instead put all of them into one folder
+    Scenario: How
+      Then I can choose "AI draft now" or "Send to the translation vendor"
 
-  Scenario: Check and create
-    Given "cy-cash-isa" already exists
-    Then the check step marks it "already exists · skipped"
-    When I click "Create 1 translation"
-    Then the new page waits in the review Backlog
-    And it shows "Source: /banking/savings/fixed-rate-bonds" in the page list
+    Scenario: Where
+      Then I can put each translation next to its source page as "cy-cash-isa"
+      And I can instead put all of them into one folder
 
-  Scenario: Translations always go through the workflow
-    Then every translated page is created at "Waiting for author's review assignment"
-    And it needs the author's review and the business review before it can be published
+    Scenario: Check and create
+      Given "cy-cash-isa" already exists
+      Then the check step marks it "already exists · skipped"
+      When I click "Create 1 translation"
+      Then the new page waits in the review Backlog
+      And it shows "Source: /banking/savings/fixed-rate-bonds" in the page list
+
+  Rule: US-07.01.2 · Every language version is reviewed before going live
+    As a business owner
+    I want every translated page to go through the same author's review and business review as the original
+    So that no unchecked translation reaches customers
+
+    Scenario: Translations always go through the workflow
+      Then every translated page is created at "Waiting for author's review assignment"
+      And it needs the author's review and the business review before it can be published

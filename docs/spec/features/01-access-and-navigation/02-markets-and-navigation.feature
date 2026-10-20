@@ -1,10 +1,11 @@
 @epic:access @status:done
 Feature: Markets, environments and navigation
-  As someone who works across several HSBC markets
-  I want to switch market and environment and reach any screen quickly
-  So that one platform serves every country without confusion
+  One platform serves every HSBC market; this feature covers switching market and environment and reaching any screen quickly.
 
-  Rule: Markets are grouped by instance
+  Rule: US-01.02.1 · Switch between markets
+    As a content author
+    I want to pick an instance and market and switch market without losing my place
+    So that I can work across several countries on one platform without confusion
 
     Scenario Outline: Instances
       When I choose the instance "<instance>"
@@ -21,7 +22,10 @@ Feature: Markets, environments and navigation
       When I switch to "HSBC France"
       Then I am on Pages in France
 
-  Rule: The environment is always visible
+  Rule: US-01.02.2 · Always know which environment I am in
+    As a publisher
+    I want the environment and its consequences always visible
+    So that I never publish to customers by mistake
 
     Scenario Outline: Environment note
       When I choose "<environment>"
@@ -32,7 +36,10 @@ Feature: Markets, environments and navigation
         | Production  | Publishing here goes live for customers.          |
         | Staging     | Nothing in this environment reaches customers.    |
 
-  Rule: Everything is reachable in two keystrokes
+  Rule: US-01.02.3 · Reach any screen quickly on any device
+    As a content author
+    I want a command palette, a global search and a menu that fits my screen
+    So that every page and section is a couple of keystrokes away
 
     Scenario: Command palette
       When I press ⌘ K
@@ -44,8 +51,6 @@ Feature: Markets, environments and navigation
       When I type "isa" into the top search
       Then I see up to 8 pages, 5 assets, 4 people, 3 templates and 3 models
       And Enter opens the first result
-
-  Rule: The menu adapts to the screen
 
     Scenario Outline: Side menu
       Given my screen is <width>
