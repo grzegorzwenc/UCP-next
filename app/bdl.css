@@ -26,12 +26,18 @@
 @import './bdl/tabs.css';
 @import './bdl/modals.css';
 @import './bdl/icons.css';
+/* animations.css: BDL's easing tokens (--ease-out / --ease-in-out, stronger than Tailwind's
+   defaults), the stagger and pulse utilities, and a reduced-motion block. Its only `.btn`
+   rules are inside that block — `:active { transform: none !important }` — which guards the
+   press feedback rather than restyling anything, so it is additive after all. */
+@import './bdl/animations.css';
 
 /* Staged — these cannot go in additively (Tier 3 in docs/ux-parity/ui-consistency-audit.md):
 
-   buttons.css redefines .btn, .btn-primary, .btn-danger, .btn-icon and .btn-sm, all of which
-   app/globals.css already defines and 170+ call sites use, so enabling it silently restyles
-   every button. animations.css touches the same three classes in its reduced-motion block.
+   buttons.css redefines .btn, .btn-primary, .btn-danger, .btn-icon and .btn-sm. This app uses
+   bare `.btn` 553 times as a complete outlined button, where BDL's `.btn` is a base that needs
+   a variant and carries ~2x the padding — so enabling it would un-style and balloon every one.
+   Its values were adopted into app/globals.css instead; see the button block there.
 
    base.css sets body font-size to 16px (this app renders at 14px), underlines every <a>, and
    restyles h1–h4 and the scrollbars. It also carries the global
@@ -42,6 +48,5 @@
 
 @import './bdl/base.css';
 @import './bdl/buttons.css';
-@import './bdl/animations.css';
 @import './bdl/utilities.css';
 */

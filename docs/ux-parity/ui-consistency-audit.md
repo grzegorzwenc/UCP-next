@@ -202,6 +202,45 @@ This is why 25 of 194 commits are re-wordings of copy set in an earlier commit.
 suppress an effect (`shellSeen`, `lockedSeen`, `reviewSeen`, `previewed`, `previewCheck`). It was
 touched in 88 of the repository's 194 commits — 45% of all work lands in one file.
 
+## 8a. How the CSS is actually layered
+
+Worth knowing before touching any more of it, because it decides which rule wins.
+
+One stylesheet reaches the browser: `app/globals.css`, imported once by `app/layout.tsx`. Its
+import order is:
+
+1. `@import "tailwindcss"` — declares the layers and fills `theme`, `base`, `utilities`
+2. `@import "./bdl.css"` — tokens, theme, then the BDL component layers, all in `@layer components`
+3. `@import "tw-animate-css"` and `@import "shadcn/tailwind.css"` — keyframes and animation utilities
+4. this file's own rules
+
+But **import order is not precedence**. The compiled bundle emits real cascade layers, and the
+winner is decided by layer, not position:
+
+| Where | What lives there | Precedence |
+|---|---|---|
+| `@layer theme` | token definitions | lowest |
+| `@layer base` | Tailwind preflight, and the ported base layer (`svg.lucide`, `* { border-color }`) | |
+| `@layer components` | **every BDL layer** — `.alert`, `.bdl-chip`, `.bdl-tab`, `icon--ph--*` | |
+| `@layer utilities` | **all Tailwind utility classes** | |
+| *unlayered* | **this app's `.btn`, `.pill`, `.site`, `.cblk`, `.hs-*`, `.s-*`** | **highest** |
+
+Verified in the bundle: the last `@layer` block closes at byte ~137,600 of ~231,600, and `.btn`,
+`.pill` and `.site` are all emitted after it.
+
+Two consequences:
+
+- **BDL component CSS can never override this app's own classes.** Anything in `@layer components`
+  loses to an unlayered rule of the same specificity. That is why `buttons.css` had to be adopted
+  by value rather than imported.
+- **Tailwind utilities lose to `.btn` too.** `className="btn text-crit"` does not turn the label
+  red — `.btn`'s `color` is unlayered and outranks `@layer utilities`. Six call sites currently
+  attempt exactly that and are silently ineffective.
+
+The fix for both is to move this app's remaining bespoke classes into `@layer components`, which
+would put them on equal footing with BDL and below Tailwind utilities. That is a Tier 3 change in
+its own right, and it is what would make the six broken overrides start working.
+
 ## 9. Reproducing the measurements
 
 Run from the repository root; re-run after each phase to check progress. The same commands run
@@ -543,11 +582,33 @@ catches it.
 
 #### Tier 3 — Will break (behavioural; per-screen testing required)
 
-- [ ] **`bdl/buttons.css`** — collides head-on: it defines `.btn`, `.btn-primary`, `.btn-danger`,
-      `.btn-icon`, `.btn-sm`, all of which `app/globals.css` already defines and 170+ call sites
-      use. Enabling it silently restyles every button in the app. Either migrate buttons to the
-      shadcn `Button` first, or diff the two definitions and merge deliberately.
-      `bdl/animations.css` touches the same three classes in its reduced-motion block.
+- [x] **Buttons — done, by adopting BDL's values rather than importing `buttons.css`.**
+      That file could not go in as-is: its `.btn` is a base that requires a variant and carries
+      ~2x this app's padding, while this app uses **bare `.btn` 553 times** as a complete
+      outlined button (`className="btn"` 50, `"btn btn-sm"` 47, `"btn btn-primary"` 43 …).
+      The literal alternative was rewriting ~700 class strings.
+      **Correction to an earlier claim in this document:** importing it would *not* have
+      "silently restyled every button". BDL's component layers sit in `@layer components`, while
+      this app's `.btn`, `.pill` and `.site` rules are **unlayered** — and unlayered styles
+      outrank every cascade layer regardless of source order. `buttons.css` would therefore have
+      lost to the existing `.btn` and shipped as dead weight. Same conclusion, different reason.
+      The button block in `app/globals.css` now carries BDL's values instead: square corners,
+      BDL greys and reds (`red` → `red-dark` on hover → `red-error` on press), BDL's
+      `160ms var(--ease-out)` transition, its `scale(0.97)` press feedback and its disabled
+      treatment. `.btn` here is therefore equivalent to BDL's `.btn btn-sm btn-secondary`, which
+      is the pairing the source project actually uses (`btn-sm` 130, `btn-secondary` 76,
+      `btn-primary` 53). The three variants BDL has no equivalent for — `.btn-next` (the step
+      arrow), `.btn-quiet` (BDL's ghost) and `.btn.on` (toggled view switches, applied through
+      template strings) — are kept and expressed in the same vocabulary.
+- [x] **`bdl/animations.css` enabled.** Its only `.btn` rules sit inside a
+      `prefers-reduced-motion` block (`:active { transform: none !important }`), which guards the
+      new press feedback rather than restyling anything — so it was additive after all. It also
+      supplies BDL's easing tokens: `--ease-out: cubic-bezier(.23, 1, .32, 1)` and
+      `--ease-in-out: cubic-bezier(.77, 0, .175, 1)`, replacing Tailwind's weaker defaults
+      everywhere `ease-out` is used.
+- Side effect worth recording: **§7's "0 `:active` press states" is now closed** — the app had
+      press feedback on nothing at all; every `.btn` now scales to 0.97 on press, and 0.9 for
+      icon buttons.
 - [ ] **`bdl/base.css`** — body font-size 16px vs the current 14px, underlines every `<a>`,
       restyles `h1`–`h4` and scrollbars. Changes every screen at once. It also carries the global
       `button, [role=button], select, summary { cursor: pointer }` rule that closes most of §7, so

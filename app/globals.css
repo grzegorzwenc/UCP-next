@@ -140,20 +140,54 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 .pill-scheduled { background: var(--sched-soft); color: var(--sched); }
 .pill-failed { background: var(--crit-soft); color: var(--crit); }
 
-.btn { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); padding: 7px 13px; border-radius: 8px; font-weight: 500; font-size: 0.875rem; line-height: 1.2; white-space: nowrap; min-height: 36px; cursor: pointer; }
-.btn:hover { background: var(--surface-2); border-color: var(--ink-4); }
-.btn-primary { background: var(--brand); border-color: var(--brand); color: #fff; }
-/* the official next-step action (stepper, My tasks): HSBC red with an arrow; secondary actions stay the plain outlined .btn */
-.btn-next { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 500; }
-.btn-next::after { content: "→"; margin-left: 1px; transition: transform .15s; }
-.btn-next:hover { background: var(--brand-hover); border-color: var(--brand-hover); color: #fff; } .btn-next:hover::after { transform: translateX(2px); }
-.btn-danger { background: var(--crit); border-color: var(--crit); color: #fff; } .btn-danger:hover { filter: brightness(.92); background: var(--crit); border-color: var(--crit); } .btn-danger:disabled { opacity: .45; cursor: not-allowed; filter: none; }
-.btn-primary:hover { background: var(--brand-hover); }
-.btn-quiet { border-color: transparent; background: none; color: var(--ink-2); }
-.btn-sm { padding: 5px 10px; font-size: 0.75rem; min-height: 32px; }
-.btn-icon { width: 34px; padding: 0; justify-content: center; }
-.btn.on { background: var(--ink); color: #fff; border-color: var(--ink); box-shadow: inset 0 -3px 0 var(--brand); }
-.btn:disabled { opacity: .45; cursor: not-allowed; }
+/* ---- Buttons, retuned onto BDL ---------------------------------------------------------
+   bdl/buttons.css is deliberately NOT imported. Its `.btn` is a base that requires a variant
+   and carries ~2x this app's padding, while this app uses bare `.btn` 553 times as a complete
+   outlined button — enabling it would un-style and balloon every one. The values below are
+   BDL's instead: square corners, BDL greys and reds, BDL's 160ms --ease-out transition, and
+   its scale(0.97) press feedback, which this app had on nothing at all. Call sites are
+   untouched, so `.btn` here equals BDL's `.btn btn-sm btn-secondary`.
+   Variants this app adds and BDL has no equivalent for — .btn-next, .btn-quiet, .btn.on —
+   are kept and expressed in the same vocabulary. */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 0.25rem;
+  font-family: var(--font-sans); font-size: 0.75rem; line-height: 1rem; font-weight: 500;
+  padding: 0.375rem 0.75rem; min-height: 32px;
+  border: 1px solid var(--color-bdl-grey); border-radius: 0;
+  background: var(--color-bdl-white); color: var(--color-bdl-charcoal);
+  white-space: nowrap; cursor: pointer; text-decoration: none; appearance: none;
+  transition: background-color 160ms var(--ease-out), border-color 160ms var(--ease-out),
+              color 160ms var(--ease-out), transform 160ms var(--ease-out);
+}
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:hover { background: var(--color-bdl-grey-hover); }
+.btn:disabled {
+  background: var(--color-bdl-grey-disabled); border-color: var(--color-bdl-grey-disabled);
+  color: var(--color-bdl-grey); opacity: .6; cursor: not-allowed;
+}
+/* Primary — BDL red, darkening through hover and press */
+.btn-primary { background: var(--color-bdl-red); border-color: var(--color-bdl-red); color: var(--color-bdl-white); }
+.btn-primary:hover { background: var(--color-bdl-red-dark); border-color: var(--color-bdl-red-dark); }
+.btn-primary:active:not(:disabled) { background: var(--color-bdl-red-error); }
+/* Next — primary plus the step arrow; no BDL equivalent, so primary's palette carries it */
+.btn-next { background: var(--color-bdl-red); border-color: var(--color-bdl-red); color: var(--color-bdl-white); font-weight: 500; }
+.btn-next::after { content: "→"; margin-left: 1px; transition: transform 160ms var(--ease-out); }
+.btn-next:hover { background: var(--color-bdl-red-dark); border-color: var(--color-bdl-red-dark); }
+.btn-next:hover::after { transform: translateX(2px); }
+/* Danger — BDL's outlined treatment, filling on hover */
+.btn-danger { background: transparent; border-color: var(--color-bdl-red); color: var(--color-bdl-red); }
+.btn-danger:hover { background: var(--color-bdl-red); border-color: var(--color-bdl-red); color: var(--color-bdl-white); }
+.btn-danger:disabled { opacity: .5; cursor: not-allowed; }
+/* Quiet — BDL calls this ghost */
+.btn-quiet { border-color: transparent; background: none; color: var(--color-bdl-grey); }
+.btn-quiet:hover { background: var(--color-bdl-grey-hover-light); color: var(--color-bdl-charcoal); }
+/* Compact — this app's second size; BDL has one app size, so the two converge */
+.btn-sm { padding: 0.375rem 0.75rem; font-size: 0.75rem; min-height: 32px; }
+/* Icon-only */
+.btn-icon { width: 32px; padding: 0; justify-content: center; }
+.btn-icon:active:not(:disabled) { transform: scale(0.9); }
+/* Toggled state (view switches, filter tabs) — no BDL equivalent */
+.btn.on { background: var(--color-bdl-charcoal); color: var(--color-bdl-white); border-color: var(--color-bdl-charcoal); box-shadow: inset 0 -3px 0 var(--color-bdl-red); }
 
 /* Site rendering (canvas), HSBC look */
 .site { background: #fff; color: #1b1c1f; margin: 0 auto; width: 1200px; max-width: 1200px; box-shadow: 0 1px 2px rgba(20,22,30,.05), 0 6px 20px rgba(20,22,30,.07); }

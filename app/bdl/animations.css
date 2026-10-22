@@ -1,0 +1,118 @@
+/* BDL Animations — easing tokens, stagger utilities, reduced-motion support
+   Based on Emil Kowalski's design engineering principles.
+
+   Usage:
+     <div class="bdl-stagger">  ← children fade in with 50ms stagger
+       <div>Card 1</div>
+       <div>Card 2</div>
+       <div>Card 3</div>
+     </div>
+*/
+
+@theme {
+  /* Strong ease-out for UI interactions (starts fast, feels responsive) */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* Strong ease-in-out for on-screen movement */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* Stagger children entrance — cards, list items, grid children */
+@layer components {
+  .bdl-stagger > * {
+    opacity: 0;
+    transform: translateY(8px);
+    animation: bdl-fade-in 300ms var(--ease-out) forwards;
+  }
+
+  .bdl-stagger > *:nth-child(1) { animation-delay: 0ms; }
+  .bdl-stagger > *:nth-child(2) { animation-delay: 50ms; }
+  .bdl-stagger > *:nth-child(3) { animation-delay: 100ms; }
+  .bdl-stagger > *:nth-child(4) { animation-delay: 150ms; }
+  .bdl-stagger > *:nth-child(5) { animation-delay: 200ms; }
+  .bdl-stagger > *:nth-child(6) { animation-delay: 250ms; }
+  .bdl-stagger > *:nth-child(7) { animation-delay: 300ms; }
+  .bdl-stagger > *:nth-child(8) { animation-delay: 350ms; }
+  .bdl-stagger > *:nth-child(9) { animation-delay: 400ms; }
+  .bdl-stagger > *:nth-child(10) { animation-delay: 450ms; }
+  .bdl-stagger > *:nth-child(11) { animation-delay: 500ms; }
+  .bdl-stagger > *:nth-child(12) { animation-delay: 550ms; }
+
+  @keyframes bdl-fade-in {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Pulsating red glow — the single source of truth for "this failed, look here".
+     Alert beacon, not a breath: a sharp onset, a quick decay, then a long quiet
+     rest for the remainder of the cycle. Per pulse it punches; at rest the page
+     is calm, so a whole table of failing badges still reads as disciplined.
+     Reused by SQI Fail badges and the reports-hub warning triangle. */
+  @keyframes bdl-pulse-glow {
+    /* Brief dark gap (.) then a sustained, gently-breathing glow (- - -): . - - - .
+       Glow colour comes from --bdl-pulse-color (defaults to RAG red) so a warning-grade
+       beacon can pulse amber by setting the var inline. */
+    0%   { box-shadow: 0 0 0 0    color-mix(in srgb, var(--bdl-pulse-color, var(--color-bdl-rag-red)) 0%, transparent); }
+    12%  { box-shadow: 0 0 10px 2px color-mix(in srgb, var(--bdl-pulse-color, var(--color-bdl-rag-red)) 60%, transparent); }
+    50%  { box-shadow: 0 0 8px 2px color-mix(in srgb, var(--bdl-pulse-color, var(--color-bdl-rag-red)) 42%, transparent); }
+    88%  { box-shadow: 0 0 10px 2px color-mix(in srgb, var(--bdl-pulse-color, var(--color-bdl-rag-red)) 60%, transparent); }
+    100% { box-shadow: 0 0 0 0    color-mix(in srgb, var(--bdl-pulse-color, var(--color-bdl-rag-red)) 0%, transparent); }
+  }
+
+  .bdl-pulse-glow {
+    animation: bdl-pulse-glow 4s ease-in-out infinite;
+  }
+}
+
+/* View Transitions — only animate main content, disable root crossfade.
+   The main-content name lives on <main> but is managed DYNAMICALLY (+layout.svelte):
+   naming an element snapshots its full paint bounds, so a very tall page (the
+   virtualized /domains table makes <main> ~240k px) would morph + overflow the GPU
+   texture limit and render the fade as a hard flash. The layout drops the name on
+   such pages, degrading them to a one-sided fade of the other page's main. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-old(main-content),
+::view-transition-new(main-content) {
+  animation-duration: 150ms;
+}
+
+/* Navigation loading bar */
+@keyframes bdl-nav-loading {
+  0% { transform: translateX(-100%); }
+  50% { transform: translateX(200%); }
+  100% { transform: translateX(-100%); }
+}
+
+/* Reduced motion — keep opacity fades, remove transforms */
+@media (prefers-reduced-motion: reduce) {
+  .bdl-stagger > * {
+    transform: none;
+    animation: bdl-fade-in-reduced 200ms ease forwards;
+  }
+
+  /* Stop the pulse for reduced-motion users; the red colour still carries the meaning. */
+  .bdl-pulse-glow {
+    animation: none;
+  }
+
+  @keyframes bdl-fade-in-reduced {
+    to {
+      opacity: 1;
+    }
+  }
+
+  .btn:active,
+  .btn-ghost:active,
+  .btn-danger:active,
+  .btn-icon:active,
+  .bdl-chip:active,
+  .bdl-tab:active {
+    transform: none !important;
+  }
+}
