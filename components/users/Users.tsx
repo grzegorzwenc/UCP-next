@@ -91,7 +91,7 @@ export function Users({ users: initialUsers, folders, log, pageTitles, base, roo
       <div className="bg-surface border border-line rounded-lg p-2.5">
         <label className="flex items-center gap-2 border border-line-2 rounded-md px-2.5 py-1.5 mx-1 mb-2 text-[13px]"><SearchIcon /><input aria-label="Find a person" className="flex-1 outline-none bg-transparent" placeholder="Find a person" value={q} onChange={(e) => setQ(e.target.value)} /></label>
         {list.length === 0 && <div className="p-4 text-center text-ink-3 text-[13px]">No one matches “{q}”.</div>}
-        {list.map((x) => <button key={x.id} onClick={() => select(x.id)} aria-current={u?.id === x.id ? "true" : undefined} className={`w-full flex items-center gap-2.5 text-left rounded-md px-2.5 py-2 border-l-[3px] ${u?.id === x.id ? "bg-accent-soft border-accent" : "border-transparent hover:bg-surface-3"}`}>
+        {list.map((x) => <button key={x.id} onClick={() => select(x.id)} aria-current={u?.id === x.id ? "true" : undefined} className={`w-full flex items-center gap-2.5 text-left rounded-md px-2.5 py-2 border-l-[3px] ${u?.id === x.id ? "bg-brand-soft border-brand" : "border-transparent hover:bg-surface-3"}`}>
           <Avatar name={x.name} size={32} /><span className="flex-1 min-w-0"><span className="block text-[13.5px] font-medium text-ink truncate">{x.name}</span><small className="block text-ink-3 text-[11.5px] truncate">{ROLES[x.role]?.name ?? x.role} · {x.team}</small></span></button>)}
       </div>
       {u ? <div className="min-w-0">

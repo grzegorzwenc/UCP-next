@@ -35,7 +35,7 @@ export function ContentPicker({ marketId, marketName, flag, locale, models, curr
   const fields = chosen ? fieldsOf(model, chosen) : []; const f = fields.find((x) => x.k === field);
   const count = (m: string, folder: string | null) => (all ?? []).filter((e) => e.model === m && (folder === null || (e.folder ?? "") === folder)).length;
   const col = "min-h-0 overflow-auto border border-line rounded-lg bg-surface";
-  const rowCls = (on: boolean) => `w-full flex items-center gap-2 text-left px-2.5 py-1.5 rounded text-[13px] ${on ? "bg-accent-soft text-accent-hover font-semibold" : "hover:bg-surface-3 text-ink-2"}`;
+  const rowCls = (on: boolean) => `w-full flex items-center gap-2 text-left px-2.5 py-1.5 rounded text-[13px] ${on ? "bg-brand-soft text-brand-hover font-semibold" : "hover:bg-surface-3 text-ink-2"}`;
 
   return <ModalShell title="Choose content" subtitle={<>Pick a folder, an entity and the field to show{current ? <> in <b>{current}</b></> : null}. The text then inherits it and updates when the entity changes.</>} width={880} onClose={onClose}
     footer={<>{chosen && f && <span className="mr-auto text-[12.5px] text-ink-3 min-w-0 truncate">Shows: <b className="text-ink">{cut(valueOf(chosen, f.k), 70) || "(empty)"}</b></span>}<button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={!chosen || !f} onClick={() => chosen && f && onPick({ entity: chosen, field: f })}>Use this content</button></>}>
@@ -60,7 +60,7 @@ export function ContentPicker({ marketId, marketName, flag, locale, models, curr
       </div></div>
       <div className={col} aria-label="Fields"><div className="px-2.5 pt-2 pb-1 text-[10.5px] uppercase tracking-[.08em] text-ink-3 font-semibold">3 · Field to show</div><div className="p-1">
         {chosen ? fields.map((x) => { const v = valueOf(chosen, x.k); return <button key={x.k} type="button" className={`${rowCls(field === x.k)} items-start`} onClick={() => setField(x.k)}>
-          <input type="radio" readOnly checked={field === x.k} className="mt-1 accent-[var(--accent)]" tabIndex={-1} aria-hidden /><span className="flex-1 min-w-0"><span className="block">{x.l}</span><span className={`block text-[11.5px] font-normal ${v ? "text-ink-3" : "text-ink-4 italic"}`}>{v ? cut(v) : "empty"}</span></span></button>; })
+          <input type="radio" readOnly checked={field === x.k} className="mt-1 accent-[var(--brand)]" tabIndex={-1} aria-hidden /><span className="flex-1 min-w-0"><span className="block">{x.l}</span><span className={`block text-[11.5px] font-normal ${v ? "text-ink-3" : "text-ink-4 italic"}`}>{v ? cut(v) : "empty"}</span></span></button>; })
           : <p className="text-[12px] text-ink-3 p-2">Choose an entity to see its fields.</p>}
       </div></div>
     </div>

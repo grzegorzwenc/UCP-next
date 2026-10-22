@@ -30,7 +30,7 @@ export function Login({ users, next, demo }: { users: User[]; next: string; demo
         <p className="text-[14px] text-white/60 mt-2">One place to author and publish for every HSBC market</p>
 
         {!picker ? <>
-          <button type="button" onClick={() => { setErr(null); setPicker(true); }} className="mt-10 w-full h-12 rounded-lg bg-accent hover:bg-accent-hover text-white font-semibold text-[15px] inline-flex items-center justify-center gap-2.5 transition-colors">
+          <button type="button" onClick={() => { setErr(null); setPicker(true); }} className="mt-10 w-full h-12 rounded-lg bg-brand hover:bg-brand-hover text-white font-semibold text-[15px] inline-flex items-center justify-center gap-2.5 transition-colors">
             <svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l8 3v6c0 4.5-3.5 7.5-8 9-4.5-1.5-8-4.5-8-9V6zM9 12l2 2 4-4" /></svg>
             Sign in with company SSO
           </button>

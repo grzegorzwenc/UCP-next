@@ -71,7 +71,7 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
   const siteW = phone || device === "mobile" ? 390 : device === "tablet" ? 768 : 1200; const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / siteW)) : 1;
   const rendered = useMemo(() => templateBlocks(blocks), [blocks]);
 
-  const railBtn = (on: boolean) => `relative w-11 h-11 rounded-lg grid place-items-center ${on ? "bg-accent text-white" : "text-ink-2 hover:bg-surface-3"}`;
+  const railBtn = (on: boolean) => `relative w-11 h-11 rounded-lg grid place-items-center ${on ? "bg-brand text-white" : "text-ink-2 hover:bg-surface-3"}`;
   return (
     <div className="h-full grid grid-rows-[54px_1fr] min-h-0 bg-bg">
       {/* top bar */}
@@ -131,7 +131,7 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
               {markets.length > 0 && !markets.includes(marketId) && <p className="mt-2 text-[12px] text-ink bg-warn-soft rounded-md px-2.5 py-1.5">{marketName} can no longer create pages from it. Pages already made with it stay as they are.</p>}</div>
             <div className="border border-line rounded-lg p-3 bg-surface-2"><div className="text-xs text-ink-2 font-medium mb-1">Always on the page</div><p className="text-[12.5px] text-ink-3">HSBC menu, breadcrumb and footer. They come from the site and are the same on every page.</p></div>
             <div className="border border-line rounded-lg p-3"><div className="text-xs text-ink-2 font-medium mb-1">Blocks, top to bottom</div>
-              {blocks.length ? <ol className="grid gap-0.5">{blocks.map((b, i) => <li key={`${b}-${i}`}><button type="button" onClick={() => setSel(i)} className={`w-full flex items-center gap-2 text-left rounded px-1.5 py-1 ${sel === i ? "bg-accent-soft text-accent-hover font-semibold" : "hover:bg-surface-2"}`}><span className="w-5 h-5 rounded-full grid place-items-center text-[10.5px] bg-surface-3 text-ink-2 flex-none">{i + 1}</span><span className="truncate">{BLOCK_BY_TYPE[b]?.name ?? b}</span></button></li>)}</ol> : <p className="text-[12.5px] text-ink-3">No blocks yet.</p>}</div>
+              {blocks.length ? <ol className="grid gap-0.5">{blocks.map((b, i) => <li key={`${b}-${i}`}><button type="button" onClick={() => setSel(i)} className={`w-full flex items-center gap-2 text-left rounded px-1.5 py-1 ${sel === i ? "bg-brand-soft text-brand-hover font-semibold" : "hover:bg-surface-2"}`}><span className="w-5 h-5 rounded-full grid place-items-center text-[10.5px] bg-surface-3 text-ink-2 flex-none">{i + 1}</span><span className="truncate">{BLOCK_BY_TYPE[b]?.name ?? b}</span></button></li>)}</ol> : <p className="text-[12.5px] text-ink-3">No blocks yet.</p>}</div>
             <p className="text-[12px] text-ink-3">Used by {used} page{used === 1 ? "" : "s"}. Changing the template does not change pages already created with it.</p>
             {!ro && t.id !== "blank" && <button className="btn btn-sm text-crit justify-center" onClick={del}>Delete template</button>}
           </div>

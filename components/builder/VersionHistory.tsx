@@ -76,7 +76,7 @@ export function VersionHistory({ marketId, path, currentBlocks, onRestored, revi
     <header className="grid gap-2">
       <h3 className="text-[13px] font-semibold">Versions</h3>
       <p className="text-[12px] text-ink-3 leading-relaxed -mt-1">Every save and status change creates a version. Restoring keeps a copy of the current page first.</p>
-      {!!list?.length && <label className="inline-flex items-center gap-2 text-[12.5px] text-ink-2 cursor-pointer justify-self-start"><input type="checkbox" className="accent-[var(--accent)]" checked={compare} onChange={() => setCompare(!compare)} />Compare block count with the current page</label>}
+      {!!list?.length && <label className="inline-flex items-center gap-2 text-[12.5px] text-ink-2 cursor-pointer justify-self-start"><input type="checkbox" className="accent-[var(--brand)]" checked={compare} onChange={() => setCompare(!compare)} />Compare block count with the current page</label>}
     </header>
     {compare && <div className="text-[12px] text-ink-3 bg-surface-2 rounded-md px-3 py-2">The page now has <b className="text-ink">{currentBlocks} block{currentBlocks === 1 ? "" : "s"}</b>. Each version shows how its block count differs.</div>}
     {err && <div className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</div>}

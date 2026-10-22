@@ -39,7 +39,7 @@ export function AssetPicker({ marketId, value, onChange, invalid }: { marketId: 
         {err && <div className="mx-6 mb-3 text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</div>}
         <div className="px-6 pb-5 overflow-auto min-h-[200px]">
           {assets === null && !err ? <div className="p-10 text-center text-ink-3">Loading library…</div>
-            : list.length ? <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3">{list.map((a) => <button key={a.id} onClick={() => { onChange(a.id); setOpen(false); }} className={`text-left bg-surface border rounded-lg p-2 hover:border-ink-4 ${a.id === value ? "border-accent ring-2 ring-accent-soft" : "border-line"}`}><Thumb a={a} className="w-full h-[84px]" /><b className="block text-[12px] mt-1.5 truncate" title={a.name}>{a.name}</b><small className="text-ink-3 text-[11px]">{a.size} · {a.folder}</small></button>)}</div>
+            : list.length ? <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3">{list.map((a) => <button key={a.id} onClick={() => { onChange(a.id); setOpen(false); }} className={`text-left bg-surface border rounded-lg p-2 hover:border-ink-4 ${a.id === value ? "border-brand ring-2 ring-brand-soft" : "border-line"}`}><Thumb a={a} className="w-full h-[84px]" /><b className="block text-[12px] mt-1.5 truncate" title={a.name}>{a.name}</b><small className="text-ink-3 text-[11px]">{a.size} · {a.folder}</small></button>)}</div>
             : <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">No images match. <button className="underline" onClick={() => uplRef.current?.click()}>Upload one</button>.</div>}
         </div>
       </div></div>}

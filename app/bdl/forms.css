@@ -1,0 +1,312 @@
+/* BDL Form Elements — inputs, selects, textareas, checkboxes, radios, toggles */
+
+@layer base {
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='tel'],
+  input[type='number'],
+  textarea {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    padding: 0.75rem;
+    border: 1px solid var(--color-bdl-grey);
+    border-radius: 0;
+    background-color: var(--color-bdl-white);
+    color: var(--color-bdl-charcoal);
+    width: 100%;
+  }
+
+  input[type='text']:focus,
+  input[type='email']:focus,
+  input[type='password']:focus,
+  input[type='tel']:focus,
+  input[type='number']:focus,
+  textarea:focus {
+    outline: 2px solid var(--color-bdl-focus-blue);
+    border-color: var(--color-bdl-blue);
+  }
+
+  input[type='text']:disabled,
+  input[type='email']:disabled,
+  input[type='password']:disabled,
+  input[type='tel']:disabled,
+  input[type='number']:disabled,
+  textarea:disabled {
+    background-color: var(--color-bdl-grey-disabled);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  select {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    padding: 0.75rem;
+    padding-right: 2.5rem;
+    border: 1px solid var(--color-bdl-grey);
+    border-radius: 0;
+    background-color: var(--color-bdl-white);
+    color: var(--color-bdl-charcoal);
+    width: 100%;
+    appearance: none;
+    cursor: pointer;
+  }
+
+  select:focus {
+    outline: 2px solid var(--color-bdl-focus-blue);
+    border-color: var(--color-bdl-blue);
+  }
+
+  select:disabled {
+    background-color: var(--color-bdl-grey-disabled);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+}
+
+@layer components {
+  /* Error State */
+  input.error,
+  select.error,
+  textarea.error {
+    border-color: var(--color-bdl-red-error);
+    background-color: var(--color-bdl-error-bg);
+  }
+
+  /* Custom Checkboxes & Radio Buttons */
+  .control {
+    display: block;
+    position: relative;
+    padding-left: 30px;
+    margin-bottom: 5px;
+    padding-top: 6px;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+
+  .control input {
+    position: absolute;
+    z-index: -1;
+    opacity: 0;
+  }
+
+  .control-indicator {
+    position: absolute;
+    top: 4px;
+    left: 0;
+    height: 22px;
+    width: 22px;
+    background: var(--color-bdl-white);
+    border: 1px solid var(--color-bdl-grey-lighter);
+    box-sizing: border-box;
+  }
+
+  .control-radio .control-indicator {
+    border-radius: 50%;
+  }
+
+  .control:hover input ~ .control-indicator,
+  .control input:focus ~ .control-indicator {
+    background: var(--color-bdl-white);
+    border-color: var(--color-bdl-blue);
+  }
+
+  .control input.error ~ .control-indicator {
+    border-color: var(--color-bdl-red-error);
+    background-color: var(--color-bdl-error-bg);
+  }
+
+  .control input:checked ~ .control-indicator {
+    background: var(--color-bdl-white);
+  }
+
+  .control input:disabled ~ .control-indicator {
+    background: var(--color-bdl-grey-disabled);
+    opacity: 0.6;
+    pointer-events: none;
+  }
+
+  .control-indicator:after {
+    box-sizing: unset;
+    content: '';
+    position: absolute;
+    display: none;
+  }
+
+  .control input:checked ~ .control-indicator:after {
+    display: block;
+  }
+
+  .control-radio .control-indicator:after {
+    left: 5px;
+    top: 5px;
+    height: 10px;
+    width: 10px;
+    border-radius: 50%;
+    background: var(--color-bdl-blue);
+  }
+
+  .control-radio input:disabled ~ .control-indicator:after {
+    background: var(--color-bdl-grey);
+  }
+
+  /* Checkbox checkmark — rotated L (matches GDL group-checkbox) */
+  .control-checkbox .control-indicator:after {
+    left: 50%;
+    top: 45%;
+    width: 5px;
+    height: 10px;
+    border: solid var(--color-bdl-charcoal);
+    border-width: 0 2px 2px 0;
+    transform: translate(-50%, -55%) rotate(45deg);
+  }
+
+  .control-checkbox input:disabled ~ .control-indicator:after {
+    border-color: var(--color-bdl-grey);
+  }
+
+  /* Standalone checkbox — use directly on <input type="checkbox">
+     Usage: <input type="checkbox" class="bdl-checkbox" />
+     Mirrors GDL group-checkbox: white bg, dark border, dark tick, square */
+  .bdl-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.5rem;
+    height: 1.5rem;
+    border: 1px solid var(--color-bdl-grey-lighter);
+    border-radius: 0;
+    background: var(--color-bdl-white);
+    cursor: pointer;
+    position: relative;
+    vertical-align: middle;
+    flex-shrink: 0;
+    transition: border-color 160ms var(--ease-out);
+  }
+
+  .bdl-checkbox::after {
+    content: '';
+    position: absolute;
+    display: none;
+    left: 50%;
+    top: 45%;
+    width: 7px;
+    height: 13px;
+    border: solid var(--color-bdl-charcoal);
+    border-width: 0 2px 2px 0;
+    transform: translate(-50%, -55%) rotate(45deg);
+  }
+
+  .bdl-checkbox:checked {
+    border-color: var(--color-bdl-charcoal);
+  }
+
+  .bdl-checkbox:checked::after {
+    display: block;
+  }
+
+  /* Indeterminate "some selected" — a centred dash instead of the tick. The dash reuses the
+     ::after box, so the sized variants' width overrides scale it automatically. */
+  .bdl-checkbox:indeterminate {
+    border-color: var(--color-bdl-charcoal);
+  }
+
+  .bdl-checkbox:indeterminate::after {
+    display: block;
+    height: 0;
+    border-width: 0 0 2px 0;
+    transform: translate(-50%, -50%);
+    top: 50%;
+  }
+
+  .bdl-checkbox:hover {
+    border-color: var(--color-bdl-charcoal);
+  }
+
+  .bdl-checkbox:focus-visible {
+    outline: 2px solid var(--color-bdl-black);
+    outline-offset: 2px;
+  }
+
+  .bdl-checkbox:disabled {
+    background: var(--color-bdl-grey-disabled);
+    border-color: var(--color-bdl-grey-border);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .bdl-checkbox:disabled::after {
+    border-color: var(--color-bdl-grey);
+  }
+
+  /* Toggle Switch */
+  input[type='checkbox'].toggle {
+    opacity: 0;
+    position: absolute;
+    height: 24px;
+    width: 50px;
+  }
+
+  input[type='checkbox'].toggle + label {
+    height: 24px;
+    line-height: 24px;
+    background-color: var(--color-bdl-grey-border);
+    padding: 0px 16px;
+    border-radius: var(--radius-toggle);
+    display: inline-block;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.25s ease-in;
+    box-shadow: var(--bdl-shadow-inset);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-height: 24px;
+    margin-bottom: 1em;
+  }
+
+  input[type='checkbox'].toggle + label:before {
+    content: ' ';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 26px;
+    height: 20px;
+    background: var(--color-bdl-white);
+    z-index: 2;
+    transition: all 0.25s ease-in;
+    border-radius: 14px;
+  }
+
+  input[type='checkbox'].toggle + label .off,
+  input[type='checkbox'].toggle + label .on {
+    color: var(--color-bdl-white);
+  }
+
+  input[type='checkbox'].toggle + label .off {
+    margin-left: 20px;
+    display: inline-block;
+  }
+
+  input[type='checkbox'].toggle + label .on {
+    display: none;
+  }
+
+  input[type='checkbox'].toggle:checked + label .off {
+    display: none;
+  }
+
+  input[type='checkbox'].toggle:checked + label .on {
+    margin-right: 20px;
+    display: inline-block;
+  }
+
+  input[type='checkbox'].toggle:checked + label {
+    background-color: var(--color-bdl-blue);
+  }
+
+  input[type='checkbox'].toggle:checked + label:before {
+    background-position: 0 0;
+    top: 2px;
+    left: 100%;
+    margin-left: -28px;
+  }
+}

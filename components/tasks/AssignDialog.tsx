@@ -27,7 +27,7 @@ export function AssignDialog({ marketId, task, pageHref, onClose, onDone }: { ma
     <p className="text-[12px] text-ink-3 mt-2 mb-1.5">People with {perm} on this page</p>
     {!people && !err ? <p className="text-[13px] text-ink-3 py-4">Loading…</p> : list.length ? <ul className="grid gap-1 max-h-[46vh] overflow-auto" role="listbox" aria-label="People">
       {list.map((p) => { const cur = p.id === task.assignee; return <li key={p.id}><button type="button" role="option" aria-selected={cur} disabled={busy || cur} onClick={() => pick(p.id)}
-        className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-left ${cur ? "border-accent bg-accent-soft" : "border-line hover:bg-surface-2"}`}>
+        className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-left ${cur ? "border-brand bg-brand-soft" : "border-line hover:bg-surface-2"}`}>
         <Avatar name={p.name} size={28} /><span className="min-w-0 flex-1"><b className="block text-[13.5px] font-semibold truncate">{p.name}</b><small className="block text-[12px] text-ink-3 truncate">{p.team}</small></span>
         <span className="text-[11.5px] text-ink-3 whitespace-nowrap">{cur ? "Assigned now" : p.activeReviews ? `${p.activeReviews} open` : "Free"}</span></button></li>; })}
     </ul> : <p className="text-[13px] text-ink-3 py-4">{q ? "Nobody matches that name." : `Nobody has ${perm} on this page yet. Grant it in Users & roles.`}</p>}

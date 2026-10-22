@@ -26,21 +26,21 @@ test.describe("keyboard and shell", () => {
     await expect(opener).toBeFocused();
   });
 
-  test("side nav toggle exposes aria-expanded and collapses on tablet widths", async ({ page }) => {
+  test("sidebar collapses from the trigger and from the keyboard shortcut", async ({ page }) => {
     await page.goto(`${BASE}/dashboard`);
-    const nav = page.getByRole("navigation", { name: "Main" });
-    const toggle = nav.getByRole("button", { name: /Collapse menu|Expand menu/ });
-    await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    const sidebar = page.locator('[data-slot="sidebar"]');
+    // The trigger and the drag rail both expose "Toggle Sidebar" as their accessible name, so
+    // click the trigger by its slot and assert the pair separately.
+    await expect(page.getByRole("button", { name: "Toggle Sidebar" })).toHaveCount(2);
+    const toggle = page.locator('[data-slot="sidebar-trigger"]');
+    await expect(sidebar).toHaveAttribute("data-state", "expanded");
     await toggle.click();
-    await expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await expect(nav).toHaveClass(/w-\[60px\]/);
+    await expect(sidebar).toHaveAttribute("data-state", "collapsed");
     await toggle.click();
-    await expect(nav).toHaveClass(/w-\[264px\]/);
-    await page.setViewportSize({ width: 1000, height: 800 });
-    await expect(nav).toHaveClass(/w-\[60px\]/);
-    await expect(toggle).toHaveCount(0);
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await expect(nav).toHaveClass(/w-\[264px\]/);
+    await expect(sidebar).toHaveAttribute("data-state", "expanded");
+    // the shadcn Sidebar owns Cmd/Ctrl+B
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+b" : "Control+b");
+    await expect(sidebar).toHaveAttribute("data-state", "collapsed");
   });
 
   test("action menu is a keyboard-operable ARIA menu", async ({ page }) => {

@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { login, BASE } from "./helpers";
 
 const SECTIONS: [string, RegExp][] = [
-  ["dashboard", /HSBC UK/],
+  ["dashboard", /^Welcome/], // the market box was removed; the h1 is the welcome
   ["pages", /HSBC UK/],
   ["assets", /assets/i],
   ["models", /Content models/],

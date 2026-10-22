@@ -1,43 +1,47 @@
 /* ============================================
    BDL (Brand Design Language) — HSBC
    ============================================
-   Cloned from hsbc-ucpmock (src/bdl.css + src/bdl/*). The files under ./bdl/ are
-   byte-identical to that source so the two prototypes stay diffable — change them
-   there first, then re-clone, rather than editing in place.
+   Cloned from hsbc-ucpmock (src/bdl.css + src/bdl/*). The files under ./bdl/ are kept as close
+   to that source as possible so the two prototypes stay diffable — change them there and
+   re-clone rather than editing in place. Divergences are noted in the file that carries them.
 
-   Staged on purpose. Only the two layers below are additive: they define tokens and
-   register @font-face, and nothing in this app references them yet, so importing this
-   file changes nothing visually. The remaining layers restyle base elements and own
-   component class names (.btn, .card, …) that this app already defines in globals.css,
-   so each one goes in with the screens that adopt it.
-
-   Order matters: fonts and tokens must precede any layer that uses them.
+   What is active below is additive: tokens, the theme, and the component layers whose class
+   names are namespaced (`bdl-*`, `icon--ph--*`, `.alert*`) and were checked against every class
+   this app already uses. Order matters: tokens and theme precede anything that reads them.
 */
 
-/* fonts.css is intentionally NOT imported: next/font/local in app/layout.tsx owns the
-   @font-face declarations so it can preload and metric-match the fallback. Importing both
-   would fetch the same four files under a second family name. */
+/* fonts.css is intentionally NOT imported: next/font/local in app/layout.tsx owns the @font-face
+   declarations so it can preload the files and metric-match the fallback. Importing both would
+   fetch the same four files under a second family name. */
 @import './bdl/tokens.css';
 /* Light + dark theme for the shadcn components (semantic tokens + the `dark` variant). */
 @import './bdl/theme.css';
-/* First BDL component layer in use: .alert / .alert-close for the dismissible notice. */
+
+/* Component layers — collision-free, verified against app/ and components/. */
 @import './bdl/alerts.css';
-
-/* Staged — uncomment one at a time, with the screens that adopt it.
-   base.css is the disruptive one: it sets body background/size, h1–h4, underlines
-   every <a>, and restyles scrollbars. It also carries the global
-   `button, [role=button], select, summary { cursor: pointer }` rule that closes the
-   biggest interaction gap in docs/ux-parity/ui-consistency-audit.md §7.
-
-@import './bdl/base.css';
-@import './bdl/buttons.css';
-@import './bdl/badges.css';
-@import './bdl/tabs.css';
 @import './bdl/cards.css';
 @import './bdl/forms.css';
 @import './bdl/tables.css';
+@import './bdl/badges.css';
+@import './bdl/tabs.css';
 @import './bdl/modals.css';
-@import './bdl/animations.css';
 @import './bdl/icons.css';
+
+/* Staged — these cannot go in additively (Tier 3 in docs/ux-parity/ui-consistency-audit.md):
+
+   buttons.css redefines .btn, .btn-primary, .btn-danger, .btn-icon and .btn-sm, all of which
+   app/globals.css already defines and 170+ call sites use, so enabling it silently restyles
+   every button. animations.css touches the same three classes in its reduced-motion block.
+
+   base.css sets body font-size to 16px (this app renders at 14px), underlines every <a>, and
+   restyles h1–h4 and the scrollbars. It also carries the global
+   `button, [role=button], select, summary { cursor: pointer }` rule that closes most of §7, so it
+   is worth adopting — but screen by screen, not in one flip.
+
+   utilities.css redefines .sr-only, which Tailwind also provides; check which wins first.
+
+@import './bdl/base.css';
+@import './bdl/buttons.css';
+@import './bdl/animations.css';
 @import './bdl/utilities.css';
 */

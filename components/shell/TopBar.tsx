@@ -39,7 +39,7 @@ function Bell({ marketId, base, root }: { marketId: string; base: string; root: 
     <div ref={ref} className="relative">
       <button aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`} aria-expanded={open} onClick={() => setOpen(!open)} className="relative w-8 h-8 rounded-md grid place-items-center hover:bg-muted cursor-pointer">
         <BellIcon className="size-4" />
-        {unread > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-accent text-white text-[10px] font-semibold grid place-items-center">{unread}</span>}
+        {unread > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-brand text-white text-[10px] font-semibold grid place-items-center">{unread}</span>}
       </button>
       {open && <div role="dialog" aria-label="Notifications" className="absolute right-0 top-[40px] w-[380px] bg-surface text-ink border border-line rounded-xl shadow-2xl z-50 overflow-hidden">
         <div className="flex items-center px-4 py-3 border-b border-line"><b className="text-[14px]">Notifications</b><button className="btn btn-quiet btn-sm ml-auto" onClick={markAll}>Mark all as read</button></div>

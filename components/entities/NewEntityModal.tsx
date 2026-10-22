@@ -13,7 +13,7 @@ const authorFields = (m: Model) => (m.publishedFields ?? m.fields).filter((f) =>
 function ModelCard({ m, onPick }: { m: Model; onPick: () => void }) {
   const draft = m.status === "draft"; const n = authorFields(m);
   return <button type="button" disabled={draft} onClick={onPick} title={draft ? "Publish the model first" : undefined}
-    className={`text-left flex items-start gap-3 border rounded-lg p-3 ${draft ? "border-line bg-surface-2 opacity-60 cursor-not-allowed" : "border-line-2 bg-surface hover:border-accent hover:bg-accent-soft/30"}`}>
+    className={`text-left flex items-start gap-3 border rounded-lg p-3 ${draft ? "border-line bg-surface-2 opacity-60 cursor-not-allowed" : "border-line-2 bg-surface hover:border-brand hover:bg-brand-soft/30"}`}>
     <ModelIcon m={m} big />
     <span className="min-w-0 flex-1">
       <span className="flex items-center gap-2"><b className="text-[14px] truncate">{m.name}</b>{draft && <StatusPill status="draft" />}</span>

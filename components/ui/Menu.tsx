@@ -55,7 +55,7 @@ export function Menu({ label, ariaLabel, items, align = "right", className = "",
           {items.map((it, i) => (
             <button key={it.id} type="button" role="menuitem" data-i={i} tabIndex={i === active ? 0 : -1} disabled={it.disabled} aria-disabled={it.disabled || undefined}
               onMouseEnter={() => !it.disabled && setActive(i)} onClick={(e) => { e.stopPropagation(); run(it); }}
-              className={`w-full text-left px-3 py-1.5 hover:bg-surface-3 focus:bg-surface-3 outline-none disabled:opacity-40 ${it.danger ? "text-accent border-t border-line mt-1" : ""}`}>{it.label}</button>
+              className={`w-full text-left px-3 py-1.5 hover:bg-surface-3 focus:bg-surface-3 outline-none disabled:opacity-40 ${it.danger ? "text-brand border-t border-line mt-1" : ""}`}>{it.label}</button>
           ))}
         </div>
       )}

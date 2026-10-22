@@ -8,21 +8,23 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* HSBC-inspired design tokens (same as the prototype) */
+/* HSBC-inspired design tokens. Two are aliases rather than duplicates: --surface and --crit held
+   the same values as the cloned theme's --background and --destructive. --brand is HSBC red,
+   renamed off `accent` so that name can carry shadcn's meaning (see app/bdl/theme.css). */
 :root {
-  --accent: #DB0011; --accent-hover: #AF000D; --accent-soft: #FDECEE;
+  --brand: #DB0011; --brand-hover: #AF000D; --brand-soft: #FDECEE;
   --ink: #17181C; --ink-2: #40434C; --ink-3: #5F6470; --ink-4: #9DA1AC;
-  --bg: #F5F5F7; --surface: #FFFFFF; --surface-2: #FAFAFB; --surface-3: #EFEFF2;
+  --bg: #F5F5F7; --surface: var(--background); --surface-2: #FAFAFB; --surface-3: #EFEFF2;
   --line: #E4E5EA; --line-2: #CFD1D8;
   --good: #00847F; --good-soft: #E0F1F0; --warn: #B25E00; --warn-soft: #FFF1DD;
-  --crit: #DB0011; --crit-soft: #FBE6E8; --info: #4D6474; --info-soft: #E8ECEF;
+  --crit: var(--destructive); --crit-soft: #FBE6E8; --info: #4D6474; --info-soft: #E8ECEF;
   --review: #376798; --review-soft: #E6EDF5; --neutral: #767676; --neutral-soft: #EDEDED;
   --sched: #1B1C1F; --sched-soft: #E7E7E6;
 }
 
 
 @theme inline {
-  --color-accent: var(--accent); --color-accent-hover: var(--accent-hover); --color-accent-soft: var(--accent-soft);
+  --color-brand: var(--brand); --color-brand-hover: var(--brand-hover); --color-brand-soft: var(--brand-soft);
   --color-ink: var(--ink); --color-ink-2: var(--ink-2); --color-ink-3: var(--ink-3); --color-ink-4: var(--ink-4);
   --color-bg: var(--bg); --color-surface: var(--surface); --color-surface-2: var(--surface-2); --color-surface-3: var(--surface-3);
   --color-line: var(--line); --color-line-2: var(--line-2);
@@ -41,10 +43,6 @@
 
 }
 
-/* shadcn's dropdown is the only installed component that uses `bg-accent` /
-   `text-accent-foreground` for hover. Give it shadcn's meaning of --accent inside its own
-   subtree (custom properties inherit, so portalled content and its items are covered),
-   leaving HSBC red as --accent everywhere else. */
 /* ---- base layer ported from hsbc-ucpmock's layout.css --------------------------------
    The shadcn components assume these. Without them `border-r` (and every other colourless
    border utility) falls back to currentColor — which is what drew a black stroke down the
@@ -100,14 +98,6 @@
   box-shadow: none; background-color: var(--sidebar-active-hover);
 }
 
-[data-slot^="dropdown-menu"] {
-  /* Override --accent itself, not --color-accent: `@theme inline` substitutes values
-     directly, so `bg-accent` compiles to var(--accent) and never reads --color-accent.
-     --muted comes from the cloned theme and is not redefined by this file, so this
-     follows light and dark on its own. */
-  --accent: var(--muted);
-  --accent-foreground: var(--foreground);
-}
 
 html, body { height: 100%; }
 body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
@@ -129,17 +119,17 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 
 .btn { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); padding: 7px 13px; border-radius: 8px; font-weight: 500; font-size: 13.5px; line-height: 1.2; white-space: nowrap; min-height: 36px; cursor: pointer; }
 .btn:hover { background: var(--surface-2); border-color: var(--ink-4); }
-.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary { background: var(--brand); border-color: var(--brand); color: #fff; }
 /* the official next-step action (stepper, My tasks): HSBC red with an arrow; secondary actions stay the plain outlined .btn */
-.btn-next { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.btn-next { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 600; }
 .btn-next::after { content: "→"; margin-left: 1px; transition: transform .15s; }
-.btn-next:hover { background: var(--accent-hover); border-color: var(--accent-hover); color: #fff; } .btn-next:hover::after { transform: translateX(2px); }
+.btn-next:hover { background: var(--brand-hover); border-color: var(--brand-hover); color: #fff; } .btn-next:hover::after { transform: translateX(2px); }
 .btn-danger { background: var(--crit); border-color: var(--crit); color: #fff; } .btn-danger:hover { filter: brightness(.92); background: var(--crit); border-color: var(--crit); } .btn-danger:disabled { opacity: .45; cursor: not-allowed; filter: none; }
-.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:hover { background: var(--brand-hover); }
 .btn-quiet { border-color: transparent; background: none; color: var(--ink-2); }
 .btn-sm { padding: 5px 10px; font-size: 12.5px; min-height: 32px; }
 .btn-icon { width: 34px; padding: 0; justify-content: center; }
-.btn.on { background: var(--ink); color: #fff; border-color: var(--ink); box-shadow: inset 0 -3px 0 var(--accent); }
+.btn.on { background: var(--ink); color: #fff; border-color: var(--ink); box-shadow: inset 0 -3px 0 var(--brand); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 
 /* Site rendering (canvas), HSBC look */

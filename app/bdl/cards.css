@@ -1,0 +1,38 @@
+/* BDL Cards — bordered sections with optional red headers
+
+   Usage:
+     <section class="bdl-card">
+       <h3 class="bdl-card-header">Section Title</h3>
+       <div class="bdl-card-body">Content here</div>
+     </section>
+
+   Without header:
+     <div class="bdl-card">
+       <div class="bdl-card-body">Content</div>
+     </div>
+*/
+
+@layer components {
+  .bdl-card {
+    border: 1px solid var(--color-bdl-grey-border);
+    background-color: var(--color-bdl-white);
+    overflow: hidden;
+  }
+
+  .bdl-card-header {
+    background-color: var(--color-bdl-red);
+    color: var(--color-bdl-white);
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 0.625rem 1rem;
+    margin: 0;
+    line-height: normal;
+  }
+
+  .bdl-card-body {
+    padding: 0;
+  }
+}

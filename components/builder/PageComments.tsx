@@ -30,20 +30,20 @@ const KindIcon = ({ k, size = 14 }: { k: keyof typeof KIND_ICON; size?: number }
 export function TargetCard({ target, onShow, onClear, compact = false }: { target: Ref; onShow?: (r: Ref) => void; onClear?: () => void; compact?: boolean }) {
   const d = describe(target);
   const body = <>
-    <span className={`flex-none grid place-items-center rounded-md bg-accent-soft text-accent ${compact ? "w-6 h-6" : "w-8 h-8"}`}><KindIcon k={d.kind} size={compact ? 12 : 15} /></span>
+    <span className={`flex-none grid place-items-center rounded-md bg-brand-soft text-brand ${compact ? "w-6 h-6" : "w-8 h-8"}`}><KindIcon k={d.kind} size={compact ? 12 : 15} /></span>
     <span className="min-w-0 flex-1 text-left">
       <span className="flex items-center gap-1.5 min-w-0 text-[10.5px] font-semibold uppercase tracking-[.06em] text-ink-3"><span className="truncate">{d.comp}</span><span aria-hidden className="text-ink-4">·</span><span className="flex-none">{d.what}</span></span>
       {d.quote ? <span className={`block text-ink leading-snug ${compact ? "text-[12px] truncate" : "text-[13px] line-clamp-2"}`}>“{d.quote}”</span>
         : <span className={`block text-ink-2 ${compact ? "text-[12px]" : "text-[12.5px]"}`}>{d.kind === "image" ? "The picture in this component" : "Everything in this component"}</span>}
     </span>
   </>;
-  if (compact) return onShow ? <button type="button" onClick={() => onShow(target)} title="Show it on the page" className="group mt-1 flex items-center gap-2 w-full min-w-0 rounded-md border-l-2 border-accent bg-surface-2 hover:bg-accent-soft/60 px-2 py-1.5">{body}<span aria-hidden className="flex-none text-[11px] text-ink-3 group-hover:text-accent">Show</span></button>
-    : <div className="mt-1 flex items-center gap-2 min-w-0 rounded-md border-l-2 border-accent bg-surface-2 px-2 py-1.5">{body}</div>;
-  return <div key={`${target.id}|${target.field ?? ""}`} className="cmt-card-in flex items-center gap-2.5 min-w-0 rounded-lg border border-accent/30 border-l-[3px] border-l-accent bg-accent-soft/35 px-2.5 py-2">
+  if (compact) return onShow ? <button type="button" onClick={() => onShow(target)} title="Show it on the page" className="group mt-1 flex items-center gap-2 w-full min-w-0 rounded-md border-l-2 border-brand bg-surface-2 hover:bg-brand-soft/60 px-2 py-1.5">{body}<span aria-hidden className="flex-none text-[11px] text-ink-3 group-hover:text-brand">Show</span></button>
+    : <div className="mt-1 flex items-center gap-2 min-w-0 rounded-md border-l-2 border-brand bg-surface-2 px-2 py-1.5">{body}</div>;
+  return <div key={`${target.id}|${target.field ?? ""}`} className="cmt-card-in flex items-center gap-2.5 min-w-0 rounded-lg border border-brand/30 border-l-[3px] border-l-accent bg-brand-soft/35 px-2.5 py-2">
     {body}
     <span className="flex flex-none flex-col items-end gap-1">
       {onClear && <button type="button" onClick={onClear} className="w-6 h-6 rounded grid place-items-center text-ink-3 hover:bg-surface-3 hover:text-ink" aria-label="Not about this · write a general comment" title="Remove · write a general comment">✕</button>}
-      {onShow && <button type="button" onClick={() => onShow(target)} className="text-[11px] text-ink-3 hover:text-accent underline underline-offset-2">Show</button>}
+      {onShow && <button type="button" onClick={() => onShow(target)} className="text-[11px] text-ink-3 hover:text-brand underline underline-offset-2">Show</button>}
     </span>
   </div>;
 }

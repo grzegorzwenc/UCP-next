@@ -120,11 +120,11 @@ export function ModelMap({ models, selected, onOpen, canConnect, onConnect, canL
   return <div>
     <div className="flex flex-wrap items-center gap-2 mb-2">
       {Object.keys(stored).length > 0 && <button type="button" className="btn btn-sm btn-quiet" onClick={() => persist({})}>Reset positions</button>}
-      <span className="text-[12.5px] text-ink-3 ml-1">{onConnect ? <>Drag <b className="text-accent">＋</b> from one model onto another to connect them. Only models that share a field (same key and type) can be connected. Click a line to remove it.</> : "Click a model to open it."}</span>
+      <span className="text-[12.5px] text-ink-3 ml-1">{onConnect ? <>Drag <b className="text-brand">＋</b> from one model onto another to connect them. Only models that share a field (same key and type) can be connected. Click a line to remove it.</> : "Click a model to open it."}</span>
     </div>
     {pick && <div role="status" className="flex items-center gap-2 text-[13px] bg-info-soft border border-line rounded-md px-3 py-2 mb-2">Click the model to connect <b>{byId.get(pick)?.name}</b> to.<button type="button" className="btn btn-sm ml-auto" onClick={() => setPick(null)}>Cancel</button></div>}
     <div className="border border-line rounded-lg bg-surface-2 overflow-auto" style={{ backgroundImage: "radial-gradient(#D7D8DC 1px, transparent 1px)", backgroundSize: "18px 18px" }}>
-      <svg ref={svg} width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Content model map" className="block select-none touch-none [&_g:focus]:outline-none [&_g:focus-visible]:outline-2 [&_g:focus-visible]:outline-accent" style={{ fontFamily: "var(--font-sans)", cursor: busy ? "crosshair" : undefined }} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => { drag.current = null; setLink(null); setMoving(null); }}>
+      <svg ref={svg} width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Content model map" className="block select-none touch-none [&_g:focus]:outline-none [&_g:focus-visible]:outline-2 [&_g:focus-visible]:outline-brand" style={{ fontFamily: "var(--font-sans)", cursor: busy ? "crosshair" : undefined }} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => { drag.current = null; setLink(null); setMoving(null); }}>
         <defs>
           <marker id="mm-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6B6F7A" /></marker>
           <marker id="mm-arrow-on" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#DB0011" /></marker>

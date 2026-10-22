@@ -13,8 +13,8 @@ export function ReviewedChoice({ title, onBehalf, onSend, onReauthor, onClose }:
   return <ModalShell title="Author's review done · what next?" subtitle={<><b className="text-ink-2">{title}</b>{onBehalf ? <> · on behalf of {onBehalf}</> : null}</>} width={500} onClose={() => { if (!busy) onClose(); }}
     footer={<button className="btn" onClick={onClose} disabled={busy}>Cancel</button>}>
     <div className="grid gap-2.5">
-      <button type="button" disabled={busy} onClick={() => void go(onSend)} className={`${opt} border-accent/50 bg-accent-soft/40 hover:bg-accent-soft`}>
-        <span aria-hidden className="mt-0.5 grid place-items-center w-7 h-7 rounded-full bg-accent text-white flex-none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
+      <button type="button" disabled={busy} onClick={() => void go(onSend)} className={`${opt} border-brand/50 bg-brand-soft/40 hover:bg-brand-soft`}>
+        <span aria-hidden className="mt-0.5 grid place-items-center w-7 h-7 rounded-full bg-brand text-white flex-none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
         <span><b className="block text-[14px]">Send to business review</b><span className="block text-[12.5px] text-ink-3 mt-0.5">The page is fine. It waits for a business reviewer to take it (Waiting for business review assignment).</span></span>
       </button>
       <button type="button" disabled={busy} onClick={() => void go(onReauthor)} className={`${opt} border-line hover:bg-surface-2`}>

@@ -38,7 +38,7 @@ export function LeftPanel({ phone, width = 320, onResizeStart, canEdit, onAdd, o
   const samples = useMemo(() => Object.fromEntries(BLOCKS.map((b) => [b.type, { ...makeBlock(b.type), id: `sample_${b.type}` }])) as Record<string, Block>, []);
   return (
     <aside data-ui style={phone ? undefined : { width }} className={phone ? "absolute inset-x-0 top-0 bottom-12 bg-surface flex flex-col z-[5]" : "absolute left-[52px] top-0 bottom-0 max-w-[calc(100%-52px)] bg-surface border-r border-line flex flex-col z-[5] shadow-xl md:shadow-none"}>
-      {!phone && onResizeStart && <div role="separator" aria-orientation="vertical" aria-label="Resize panel" title="Drag to resize" onMouseDown={onResizeStart} className="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize hover:bg-accent/30 active:bg-accent/40 z-10" />}
+      {!phone && onResizeStart && <div role="separator" aria-orientation="vertical" aria-label="Resize panel" title="Drag to resize" onMouseDown={onResizeStart} className="absolute -right-1 top-0 bottom-0 w-2 cursor-col-resize hover:bg-brand/30 active:bg-brand/40 z-10" />}
       <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line">
         <b className="text-[13.5px]">{tab === "patterns" ? "Add a design pattern" : "Add a component"}</b>
         <button type="button" className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={onClose} aria-label="Close panel">✕</button>
@@ -46,15 +46,15 @@ export function LeftPanel({ phone, width = 320, onResizeStart, canEdit, onAdd, o
       <LockedVeil on={!!lockedReason} reason={lockedReason ?? ""} onEdit={onEdit}>
         <div className="p-3 border-b border-line"><input className="w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px]" placeholder={tab === "patterns" ? "Find a pattern…" : "Find a component…"} value={q} onChange={(e) => setQ(e.target.value)} aria-label={tab === "patterns" ? "Find a pattern" : "Find a component"} /></div>
         {tab === "patterns" ? <div className="flex-1 overflow-auto p-2">
-          {canEdit && <button type="button" onClick={onStartPattern} disabled={creating} className="m-1 mb-3 w-[calc(100%-8px)] flex items-center gap-3 rounded-lg border-2 border-dashed border-line-2 px-3 py-3 text-left hover:border-accent hover:bg-accent-soft disabled:border-accent disabled:bg-accent-soft">
-            <span className="w-10 h-10 flex-none rounded-lg bg-accent text-white grid place-items-center" aria-hidden><svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none" strokeWidth={1.8} strokeLinejoin="round"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h16v7H4z" /></svg></span>
+          {canEdit && <button type="button" onClick={onStartPattern} disabled={creating} className="m-1 mb-3 w-[calc(100%-8px)] flex items-center gap-3 rounded-lg border-2 border-dashed border-line-2 px-3 py-3 text-left hover:border-brand hover:bg-brand-soft disabled:border-brand disabled:bg-brand-soft">
+            <span className="w-10 h-10 flex-none rounded-lg bg-brand text-white grid place-items-center" aria-hidden><svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none" strokeWidth={1.8} strokeLinejoin="round"><path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h16v7H4z" /></svg></span>
             <span className="min-w-0"><b className="block text-[13.5px] text-ink">{creating ? "Creating a design pattern…" : "Create a design pattern"}</b><small className="block text-[12px] text-ink-3 leading-snug">{creating ? "Click components on the page, then Name it and save" : "Pick components on the page, then give it a name"}</small></span></button>}
           {!canEdit && <div className="m-1 mb-2 text-[12px] text-ink-3 bg-surface-3 border border-line rounded-md px-2.5 py-2">Read-only: you can look, but not add.</div>}
           {patterns === null && <div className="p-6 text-center text-ink-3 text-[13px]">Loading…</div>}
           {pats.map((p) => <div key={p.id} className="group relative rounded-lg p-2 hover:bg-surface-2">
             <button type="button" disabled={!canEdit} onClick={() => onAddPattern(p)} title={`Add ${p.name} below the selected block`} className="w-full text-left disabled:opacity-60">
               <PatternThumb p={p} />
-              <span className="flex items-center gap-2 mt-1.5"><b className="text-[13px] text-ink truncate">{p.name}</b><span className={`flex-none text-[10.5px] font-semibold rounded px-1.5 py-px ${p.builtIn ? "bg-surface-3 text-ink-2" : "bg-info-soft text-info"}`}>{p.builtIn ? "Design system" : "Saved"}</span><span className="ml-auto text-[12px] font-semibold text-accent opacity-0 group-hover:opacity-100">Add</span></span>
+              <span className="flex items-center gap-2 mt-1.5"><b className="text-[13px] text-ink truncate">{p.name}</b><span className={`flex-none text-[10.5px] font-semibold rounded px-1.5 py-px ${p.builtIn ? "bg-surface-3 text-ink-2" : "bg-info-soft text-info"}`}>{p.builtIn ? "Design system" : "Saved"}</span><span className="ml-auto text-[12px] font-semibold text-brand opacity-0 group-hover:opacity-100">Add</span></span>
               {p.desc && <small className="block text-[11.5px] text-ink-2 leading-snug">{p.desc}</small>}
               <small className="block text-[11px] text-ink-3 leading-snug">{p.parts.length} components · {partNames(p)}</small>
               <small className="block text-[11px] text-ink-3 leading-snug"><span className={p.markets?.length ? "font-semibold text-ink-2" : ""}>{where(p)}</span>{p.byName ? ` · by ${p.byName}` : ""}</small>
@@ -68,7 +68,7 @@ export function LeftPanel({ phone, width = 320, onResizeStart, canEdit, onAdd, o
             <button type="button" className="w-full flex items-center gap-2 px-2 py-1.5 text-[12px] font-semibold text-ink-2 hover:text-ink" aria-expanded={showArchived} onClick={() => setShowArchived(!showArchived)}><span aria-hidden>{showArchived ? "▾" : "▸"}</span>Archived · {archived.length}<span className="ml-auto font-normal text-ink-3">can be restored</span></button>
             {showArchived && <ul className="grid gap-1 mt-1">{archived.map((p) => <li key={p.id} className="flex items-center gap-2 rounded-md border border-line px-2.5 py-2 text-[12.5px]">
               <span className="min-w-0 flex-1"><b className="block truncate text-ink-2">{p.name}</b><small className="block text-[11px] text-ink-3">Archived by {p.archived!.name} · {new Date(p.archived!.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</small></span>
-              {mayManage(p) && <><button type="button" className="btn btn-sm" onClick={() => onRestorePattern(p)}>Restore</button><button type="button" className="btn btn-sm text-accent" onClick={() => onDeletePattern(p)}>Delete</button></>}</li>)}</ul>}
+              {mayManage(p) && <><button type="button" className="btn btn-sm" onClick={() => onRestorePattern(p)}>Restore</button><button type="button" className="btn btn-sm text-brand" onClick={() => onDeletePattern(p)}>Delete</button></>}</li>)}</ul>}
           </div>}
         </div> : <div className="flex-1 overflow-auto p-2">
           {!canEdit && <div className="m-1 mb-2 text-[12px] text-ink-3 bg-surface-3 border border-line rounded-md px-2.5 py-2">Read-only: you can look, but not add.</div>}
@@ -77,7 +77,7 @@ export function LeftPanel({ phone, width = 320, onResizeStart, canEdit, onAdd, o
             {items.map((b) => <button key={b.type} type="button" disabled={!canEdit} onClick={() => onAdd(b.type)} title={`Add ${b.name} below the selected block`} className="group w-full grid grid-cols-[92px_1fr_auto] items-center gap-3 rounded-lg p-2 text-left hover:bg-surface-2 disabled:opacity-60 focus-visible:bg-surface-2">
               <span className="relative h-[60px] rounded-md border border-line bg-white overflow-hidden" aria-hidden><span className="absolute left-0 top-0 origin-top-left pointer-events-none select-none site desktop" style={{ transform: "scale(0.075)", width: 1200 }}><RenderBlock b={samples[b.type]} /></span></span>
               <span className="min-w-0"><b className="block text-[13px] text-ink truncate">{b.name}</b><small className="block text-[11.5px] text-ink-3 leading-snug line-clamp-2">{b.desc}</small></span>
-              <span className="text-[12px] font-semibold text-accent opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 pr-1">Add</span>
+              <span className="text-[12px] font-semibold text-brand opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 pr-1">Add</span>
             </button>)}
           </div>; })}
           {!filtered.length && <div className="p-6 text-center text-ink-3 text-[13px]">Nothing matches “{q}”.</div>}

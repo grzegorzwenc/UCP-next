@@ -8,8 +8,8 @@ import { Card, CardContent, CardDescription, CardTitle } from "@/components/shad
  * than inline so section landings can reuse it.
  *
  * `primary` fills the card with HSBC red for the one action a screen wants to lead with.
- * Everything else hovers to a neutral tint — note `bg-muted`, not `bg-accent`: in this app
- * --accent is HSBC red, where in the source project it is a grey.
+ * Everything else hovers to a neutral tint — note `bg-muted`, not `bg-brand`: in this app
+ * --brand is HSBC red, where in the source project it is a grey.
  */
 export type ActionCardProps = {
   title: string;
@@ -27,7 +27,7 @@ export function ActionCard({ title, description, href, icon: Icon, primary = fal
       <Card
         size="sm"
         className={`h-full py-5 transition-[background-color,box-shadow] duration-160 ease-out group-hover:shadow-sm ${
-          primary ? "bg-accent border-accent text-white" : "group-hover:bg-muted/40"
+          primary ? "bg-brand border-brand text-white" : "group-hover:bg-muted/40"
         }`}
       >
         <CardContent className="flex h-full flex-col gap-4">

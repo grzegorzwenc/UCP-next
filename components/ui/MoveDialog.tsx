@@ -16,11 +16,11 @@ export function MoveDialog({ title, what, current, targets, allowNew, note, onCl
   return <ModalShell title={title} subtitle={<>Choose where <b>{what}</b> should appear in the tree.</>} width={460} onClose={onClose}
     footer={<><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={busy || !target || target === current} onClick={submit}>{busy ? "Moving…" : "Move here"}</button></>}>
     <div role="radiogroup" aria-label="Destination folder" className="grid gap-1">
-      {targets.map((t) => <label key={t.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-md border cursor-pointer text-[13.5px] ${pick === t.id ? "border-accent bg-accent-soft" : "border-line hover:bg-surface-2"}`}>
-        <input type="radio" name="move-target" className="accent-[var(--accent)]" checked={pick === t.id} onChange={() => setPick(t.id)} /><FolderIcon /><span className="flex-1 min-w-0 truncate">{t.label}</span>
+      {targets.map((t) => <label key={t.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-md border cursor-pointer text-[13.5px] ${pick === t.id ? "border-brand bg-brand-soft" : "border-line hover:bg-surface-2"}`}>
+        <input type="radio" name="move-target" className="accent-[var(--brand)]" checked={pick === t.id} onChange={() => setPick(t.id)} /><FolderIcon /><span className="flex-1 min-w-0 truncate">{t.label}</span>
         {t.id === current ? <small className="text-ink-4">current</small> : t.hint && <small className="text-ink-4">{t.hint}</small>}</label>)}
-      {allowNew && <label className={`flex items-center gap-2.5 px-3 py-2 rounded-md border cursor-pointer text-[13.5px] ${pick === "__new" ? "border-accent bg-accent-soft" : "border-line hover:bg-surface-2"}`}>
-        <input type="radio" name="move-target" className="accent-[var(--accent)]" checked={pick === "__new"} onChange={() => setPick("__new")} /><span className="text-ink-3">＋</span>
+      {allowNew && <label className={`flex items-center gap-2.5 px-3 py-2 rounded-md border cursor-pointer text-[13.5px] ${pick === "__new" ? "border-brand bg-brand-soft" : "border-line hover:bg-surface-2"}`}>
+        <input type="radio" name="move-target" className="accent-[var(--brand)]" checked={pick === "__new"} onChange={() => setPick("__new")} /><span className="text-ink-3">＋</span>
         <input className={`${inputCls} mt-0`} placeholder="New category name" value={fresh} onFocus={() => setPick("__new")} onChange={(e) => setFresh(e.target.value)} aria-label="New category name" /></label>}
     </div>
     {target && target !== current && note?.(target)}

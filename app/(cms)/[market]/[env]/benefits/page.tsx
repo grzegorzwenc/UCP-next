@@ -17,7 +17,7 @@ export default async function Page({ params, searchParams }: PageProps<"/[market
   const tab = (on: boolean) => `px-3 py-1.5 rounded-full text-[13px] font-medium border ${on ? "bg-ink text-white border-ink" : "border-line-2 text-ink-2 hover:border-ink-4 hover:text-ink"}`;
   return <div className="p-4 md:p-8 overflow-auto h-full">
     <div className="max-w-[1280px] mx-auto">
-      <p className="text-[12px] font-semibold uppercase tracking-[.1em] text-accent">HSBC Unified Content Platform</p>
+      <p className="text-[12px] font-semibold uppercase tracking-[.1em] text-brand">HSBC Unified Content Platform</p>
       <h1 className="text-[28px] md:text-[34px] font-semibold leading-tight mt-1">Why UCP</h1>
       <p className="text-[15px] text-ink-2 mt-2 max-w-[720px]">One platform where every HSBC market builds, reviews, approves and publishes web content with the same components, the same four-eyes workflow and a full audit trail. Here is what that means for each group of people.</p>
       <nav aria-label="Audience" className="flex flex-wrap gap-2 mt-5">
@@ -27,7 +27,7 @@ export default async function Page({ params, searchParams }: PageProps<"/[market
       <div className={`grid gap-5 mt-6 ${only ? "" : "lg:grid-cols-3"}`}>
         {list.map((a) => <section key={a.id} aria-labelledby={`b-${a.id}`} className="bg-surface border border-line rounded-xl overflow-hidden flex flex-col">
           <header className="px-5 py-4 border-b border-line bg-surface-2 flex items-center gap-3">
-            <span className="w-10 h-10 rounded-lg bg-accent text-white grid place-items-center flex-none" aria-hidden><svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d={ICON[a.id]} /></svg></span>
+            <span className="w-10 h-10 rounded-lg bg-brand text-white grid place-items-center flex-none" aria-hidden><svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d={ICON[a.id]} /></svg></span>
             <span className="min-w-0"><h2 id={`b-${a.id}`} className="text-[17px] font-semibold leading-tight">For {a.name.toLowerCase()}</h2><span className="block text-[12.5px] text-ink-3">{a.tagline}</span></span>
           </header>
           <ol className={`divide-y divide-line ${only ? "md:grid md:grid-cols-2 md:divide-y-0 md:gap-x-8 md:px-5" : ""}`}>

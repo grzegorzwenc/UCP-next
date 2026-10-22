@@ -9,9 +9,9 @@ export function DecisionOverlay({ decision, title, by, at, action }: { decision:
   const when = new Date(at).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
   return <div role="alertdialog" aria-modal="true" aria-labelledby="dec-h" className="fixed inset-0 z-[90] grid place-items-center p-4 bg-[#0F1013]/55 backdrop-blur-[3px] cmt-card-in">
     <div className="w-[min(520px,100%)] bg-surface rounded-2xl shadow-[0_30px_80px_rgba(0,0,0,.35)] overflow-hidden text-center">
-      <div className={`h-1.5 ${ok ? "bg-good" : "bg-accent"}`} />
+      <div className={`h-1.5 ${ok ? "bg-good" : "bg-brand"}`} />
       <div className="px-8 pt-8 pb-7">
-        <span className={`mx-auto grid place-items-center w-16 h-16 rounded-full ${ok ? "bg-good-soft text-good" : "bg-accent-soft text-accent"}`}>
+        <span className={`mx-auto grid place-items-center w-16 h-16 rounded-full ${ok ? "bg-good-soft text-good" : "bg-brand-soft text-brand"}`}>
           {ok ? <svg aria-hidden width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
             : <svg aria-hidden width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14L4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" /></svg>}
         </span>

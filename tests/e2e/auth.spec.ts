@@ -12,6 +12,8 @@ test.describe("session gate", () => {
     await login(page, "jordan.mensah");
     await page.goto(`${BASE}/dashboard`);
     await expect(page).toHaveURL(new RegExp(`${BASE}/dashboard$`));
-    await expect(page.getByRole("heading", { level: 1, name: "HSBC UK" })).toBeVisible();
+    // the market moved to the sidebar switcher; the dashboard's h1 is the welcome
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Welcome/);
+    await expect(page.locator('[data-slot="sidebar"]').getByText("HSBC UK")).toBeVisible();
   });
 });

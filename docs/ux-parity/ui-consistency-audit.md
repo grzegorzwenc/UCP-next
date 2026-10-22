@@ -494,6 +494,66 @@ Left out deliberately rather than implemented fragilely; ⌘B still works.
       one `initials`; one `fmt`
 - [ ] Review the 31 swallowed errors; keep the deliberate ones with a comment, surface the rest
 
+### Unification, staged by risk
+
+Staged by **what can break**, not by subject. Each tier ends green (build + `tsc` + 19 Playwright
+tests) and is its own commit, so any tier can be reverted without unpicking the others.
+
+House rule for all of it: **no arbitrary size classes** — sizes come from the Tailwind scale or a
+BDL token. Current debt: 904 `text-[Npx]` (22 distinct), 136 `w-/h-[Npx]` (65 distinct), 37
+`max-w/h-[Npx]`, 20 `z-[N]` (8 distinct).
+
+#### Tier 1 — Won't break (mechanical, machine-verified, no visual change)
+
+Nothing here alters a rendered value; it renames and adds.
+
+- [ ] **`--accent` → `--brand`** across 156 call sites. Value stays HSBC red, so zero visual
+      delta — but it frees `accent` for shadcn's meaning, which is what stops every copied class
+      from your project needing hand-translation. **This is the unlock; do it first.**
+- [ ] Alias the pairs that already share a value: `--surface`→`--background` (both `#fff`),
+      `--crit`→`--destructive` (both `#db0011`).
+- [ ] Enable the BDL layers that collide with **nothing**: `cards`, `forms`, `tables`, `badges`,
+      `tabs`, `modals`, `icons` — all namespaced `bdl-*` / `icon--ph--*`. Verified: 0 collisions.
+- [ ] `shadcn add` the remaining primitives without wiring them in yet.
+- Verified by: `next build`, `tsc --noEmit`, `grep` for leftover old names, tests stay green.
+
+#### Tier 2 — Might break (visual change, no functional risk; needs eyes)
+
+The values genuinely differ, so screens will shift. That is the point, but nothing automated
+catches it.
+
+- [ ] `--ink` #17181c → `--foreground` #333 · `--line` #e4e5ea → `--border` #ccc ·
+      `--surface-3` #efeff2 → `--muted` #e6e6e6 — ~1,700 sites, three different colours
+- [ ] The 904 `text-[Npx]` → 6 scale steps; 65 distinct `w-/h-[Npx]` → scale or token
+- [ ] 186 `font-semibold` → `font-medium` / `font-bold` (Univers has no 600, so they render 700)
+- [ ] Reconcile `--radius: 0` against `.btn`'s hard-coded `8px`
+- [ ] 20 `z-[N]` → 5 named layers
+- Verified by: tests for structure, then a screen-by-screen look. Budget a pass per screen group.
+
+#### Tier 3 — Will break (behavioural; per-screen testing required)
+
+- [ ] **`bdl/buttons.css`** — collides head-on: it defines `.btn`, `.btn-primary`, `.btn-danger`,
+      `.btn-icon`, `.btn-sm`, all of which `app/globals.css` already defines and 170+ call sites
+      use. Enabling it silently restyles every button in the app. Either migrate buttons to the
+      shadcn `Button` first, or diff the two definitions and merge deliberately.
+      `bdl/animations.css` touches the same three classes in its reduced-motion block.
+- [ ] **`bdl/base.css`** — body font-size 16px vs the current 14px, underlines every `<a>`,
+      restyles `h1`–`h4` and scrollbars. Changes every screen at once. It also carries the global
+      `button, [role=button], select, summary { cursor: pointer }` rule that closes most of §7, so
+      it is worth doing — just not in one flip.
+- [ ] **13 hand-rolled overlays → `Dialog` / `Sheet`** — focus traps, escape, scroll lock and
+      nested state. The suite covers roughly 4 of the 13 flows; the other 9 need manual checks.
+- [ ] Retire the duplicate `components/ui/*` (`Menu`, `Confirm`, `MoveDialog`, `NameDialog`,
+      `Pill`, `Steps`) as shadcn equivalents land — each is used across several screens.
+- [ ] `bdl/utilities.css` redefines `.sr-only`, which Tailwind also provides. Low stakes, but
+      check which wins before enabling.
+
+#### Before starting any tier
+
+`npx playwright install chromium` is required — the browser binary was missing, so the suite could
+not run at all until it was installed. Three tests also had to be rewritten against the new shell
+(the sidebar's `data-state` contract, the welcome `h1`, the market living in the sidebar).
+
 ### Not in this plan
 
 - **The BDL style-guide page.** `hsbc-ucpmock` has a `/bdl` route rendering every token, size, radius

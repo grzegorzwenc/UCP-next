@@ -36,12 +36,12 @@ export function ModelDetail({ p, md, isAdmin, go }: { p: Props; md: Model; isAdm
       <Stat label="Fields" value={md.fields.length} hint={md.fields.some((f) => f.hidden) ? `${md.fields.filter((f) => f.hidden).length} hidden from authors` : undefined} />
       <Stat label="Used on" value={used.length} hint={`page${used.length === 1 ? "" : "s"} in ${p.marketName}`} />
     </div>
-    {!block && <p className="text-[13px] text-ink-3 mb-6">{nEnt} entit{nEnt === 1 ? "y uses" : "ies use"} this model · <Link {...nav(entitiesLink(p.base, md.id))} className="text-ink underline hover:text-accent-hover">Open in Content entities →</Link></p>}
+    {!block && <p className="text-[13px] text-ink-3 mb-6">{nEnt} entit{nEnt === 1 ? "y uses" : "ies use"} this model · <Link {...nav(entitiesLink(p.base, md.id))} className="text-ink underline hover:text-brand-hover">Open in Content entities →</Link></p>}
 
     <section aria-labelledby="fields-h" className="mb-6">
       <div className="flex items-end gap-3 mb-2"><h2 id="fields-h" className="text-[15px] font-semibold">Fields</h2>{md.status === "modified" && <span className="text-[12.5px] text-ink-3">Showing the draft. Authors fill in the published schema (v{md.publishedVersion}) until it is published.</span>}</div>
       <div className="bg-surface border border-line rounded-xl overflow-hidden">{md.fields.length ? <ul>{md.fields.map((f) => <li key={f.k} className={`flex items-center gap-3 px-4 py-2 border-t border-line first:border-t-0 text-[13.5px] ${f.hidden ? "text-ink-3" : ""}`}>
-        <span className="min-w-0 flex-1"><b className="font-semibold">{f.l}</b>{f.req && <span className="text-accent ml-0.5" title="Required">*</span>}<span className="font-mono text-[11.5px] text-ink-3 ml-2">{f.k}</span>{f.hidden && <span className="ml-2 text-[10.5px] uppercase tracking-[.06em] text-ink-4">hidden</span>}{f.desc && <span className="block text-[12px] text-ink-3 truncate">{f.desc}</span>}</span>
+        <span className="min-w-0 flex-1"><b className="font-semibold">{f.l}</b>{f.req && <span className="text-brand ml-0.5" title="Required">*</span>}<span className="font-mono text-[11.5px] text-ink-3 ml-2">{f.k}</span>{f.hidden && <span className="ml-2 text-[10.5px] uppercase tracking-[.06em] text-ink-4">hidden</span>}{f.desc && <span className="block text-[12px] text-ink-3 truncate">{f.desc}</span>}</span>
         {f.loc && <Pill status="approved" label="Localised" />}<TypeChip t={f.t} /></li>)}</ul>
         : <div className="p-6 text-center text-ink-3 text-[13px]">This model has no fields yet.{isAdmin && !block && <> <button className="underline text-ink" onClick={() => go(editLink(p.base, md.id))}>Add fields</button></>}</div>}</div>
     </section>

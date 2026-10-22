@@ -3,9 +3,9 @@
    part of shadcn's set (--sidebar-footer, --sidebar-active, --sidebar-active-bar).
    Kept close to source so the two prototypes stay diffable — change it there and re-clone.
 
-   Note for this repo: --accent here is shadcn's meaning (a subtle grey hover surface). UCP
-   uses --accent for HSBC red in app/globals.css, which is imported after this file and so wins
-   globally; shadcn's meaning is re-applied inside its own subtree at the end of globals.css. */
+   Note for this repo: --accent is shadcn's (a subtle grey hover surface) and nothing overrides
+   it — UCP's HSBC red lives on --brand in app/globals.css, renamed off this name precisely so
+   class strings copied from the source project behave the same way here. */
 
 @custom-variant dark (&:is(.dark *));
 

@@ -194,7 +194,7 @@ function Editor({ p, md, isAdmin, go, say, setDirty, saveRef, onDuplicate, onDel
       </div></div>
     {block && <div className="bg-info-soft text-info px-3 py-2 rounded-md text-[12.5px] mb-3">This block type is translated from the Sling component dialog. Fields are read-only here; change the source dialog to update them.</div>}
     {!isAdmin && !block && <div className="bg-info-soft text-info px-3 py-2 rounded-md text-[12.5px] mb-3">Only site admins can change content models. This is the documentation view of the current draft.</div>}
-    <div className="flex gap-1 border-b border-line mb-4" role="tablist">{TABS_UI.map(([t, l]) => <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`px-3 py-2 text-[13.5px] -mb-px border-b-2 ${tab === t ? "border-accent text-ink font-semibold" : "border-transparent text-ink-3 hover:text-ink"}`}>{l}</button>)}</div>
+    <div className="flex gap-1 border-b border-line mb-4" role="tablist">{TABS_UI.map(([t, l]) => <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`px-3 py-2 text-[13.5px] -mb-px border-b-2 ${tab === t ? "border-brand text-ink font-semibold" : "border-transparent text-ink-3 hover:text-ink"}`}>{l}</button>)}</div>
 
     {tab === "fields" && <div className="grid gap-4">
       <details open className="bg-surface border border-line rounded-lg"><summary className="cursor-pointer px-4 py-3 text-[13px] font-semibold select-none">Model information</summary>
@@ -235,5 +235,5 @@ function VersionsTab({ p, md, current, isAdmin, say }: { p: Props; md: Model; cu
   </div>;
 }
 function FragmentRow({ on, diff, children }: { on: boolean; diff: ReturnType<typeof diffFields> | null; children: React.ReactNode }) {
-  return <><tr className={`border-t border-line ${on ? "bg-accent-soft/30" : "hover:bg-surface-2"}`}>{children}</tr>{on && diff && <tr className="bg-surface-2"><td colSpan={6} className="px-4 py-3"><div className="mb-2"><DiffView diff={diff} compact /> <span className="text-[12px] text-ink-4">(this version → current draft)</span></div><DiffView diff={diff} /></td></tr>}</>;
+  return <><tr className={`border-t border-line ${on ? "bg-brand-soft/30" : "hover:bg-surface-2"}`}>{children}</tr>{on && diff && <tr className="bg-surface-2"><td colSpan={6} className="px-4 py-3"><div className="mb-2"><DiffView diff={diff} compact /> <span className="text-[12px] text-ink-4">(this version → current draft)</span></div><DiffView diff={diff} /></td></tr>}</>;
 }
