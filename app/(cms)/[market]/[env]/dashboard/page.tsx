@@ -1,9 +1,15 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { FilePlus2, PenLine, ClipboardCheck, ImageUp, ArrowRight } from "lucide-react";
 import { market, env } from "@/lib/markets";
 import { allPages } from "@/lib/server/pages";
-import { readLogFor, listTasks, userName } from "@/lib/server/ucp";
+import { readLogFor, listTasks, userName, me } from "@/lib/server/ucp";
 import { Pill } from "@/components/ui/Pill";
 import { Avatar } from "@/components/ui/Avatar";
+/* aliased: this file has its own local `Card` section helper */
+import { Card as SCard, CardContent as SCardContent, CardDescription as SCardDescription, CardTitle as SCardTitle } from "@/components/shadcn/card";
+import { DismissibleNotice } from "@/components/ui/DismissibleNotice";
+import { noticeCookie } from "@/lib/notices";
 
 /** Content activity for the last 30 days. Deterministic demo series until the delivery metrics service exists. */
 function series() { const out: number[][] = [[], [], []]; let a = 52, b = 38, c = 22; for (let i = 0; i < 30; i++) { a = Math.max(20, Math.min(95, a + (((i * 7) % 5) - 2) * 2.6)); b = Math.max(15, Math.min(80, b + (((i * 5) % 5) - 2) * 2.1)); c = Math.max(10, Math.min(60, c + (((i * 3) % 5) - 2) * 1.8)); out[0].push(Math.round(a)); out[1].push(Math.round(b)); out[2].push(Math.round(c)); } return out; }
@@ -55,15 +61,58 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
   ];
   const recent = all.slice().sort((a, b) => (b.lastModified ?? "").localeCompare(a.lastModified ?? "")).slice(0, 6);
   const bySection = folders.map((f) => ({ f, n: all.filter((p) => p.path.startsWith(f.path + "/")).length })).sort((a, b) => b.n - a.n); const secMax = bySection[0]?.n || 1;
+  const who = await me();
+  /* read server-side: a dismissed notice should not paint and then disappear */
+  const introDismissed = (await cookies()).get(noticeCookie("ucp-intro"))?.value === "1";
+  /* "Priya Kaur" → "Priya"; a dotted id ("super.admin") takes its first part. */
+  const firstName = (who.name || "").split(/[\s.]/)[0];
+  const QUICK = [
+    { title: "Create a page", desc: "Pick a folder and a template. Takes under a minute.", href: `${base}/pages?new=1`, icon: FilePlus2, primary: true },
+    { title: "Edit a page", desc: `Browse ${mk.name} or search by title or URL.`, href: `${base}/pages`, icon: PenLine, primary: false },
+    { title: "Review and approve", desc: `${c("review")} waiting for review, ${c("approved")} ready to publish.`, href: `${base}/tasks`, icon: ClipboardCheck, primary: false },
+    { title: "Upload images or files", desc: "Drag and drop, then use them on any page.", href: `${base}/assets`, icon: ImageUp, primary: false },
+  ];
   const rel = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); const diff = Math.round((now() - d.getTime()) / 60000); return diff < 60 ? `${Math.max(diff, 0)} min ago` : diff < 1440 ? `${Math.round(diff / 60)} h ago` : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
   return (
-    <div className="p-4 md:p-7 pb-14">
-      <h2 className="text-[15px] font-semibold text-ink-2 mb-2.5">What do you want to do?</h2>
-      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3.5 mb-5">
-        {[["Create a page", "Pick a folder and a template. Takes under a minute.", `${base}/pages?new=1`, true, "＋"], ["Edit a page", `Browse ${mk.name} or search by title or URL.`, `${base}/pages`, false, "▤"], ["Review and approve", `${c("review")} waiting for review, ${c("approved")} ready to publish.`, `${base}/tasks`, false, "✓"], ["Upload images or files", "Drag and drop, then use them on any page.", `${base}/assets`, false, "↑"]].map(([t, d, href, primary, ic]) => (
-          <Link key={String(t)} href={String(href)} className={`grid grid-cols-[44px_1fr] gap-x-3.5 items-center p-5 min-h-[104px] border ${primary ? "bg-accent border-accent text-white" : "bg-surface border-line text-ink hover:border-ink-3 hover:shadow-md"}`}>
-            <span className={`row-span-2 w-11 h-11 grid place-items-center text-xl ${primary ? "bg-white/20" : "bg-surface-3"}`}>{ic}</span><b className="text-base font-semibold">{t}</b><span className={`text-[12.5px] ${primary ? "text-white/85" : "text-ink-3"}`}>{d}</span>
-          </Link>))}
+    <div className="p-4 pt-0 pb-14">
+      {/* Welcome: plain text, no block — the shared header treatment from hsbc-ucpmock. */}
+      <header className="mb-3">
+        <h1 className="text-3xl font-light tracking-tight">Welcome{firstName ? `, ${firstName}` : ""}</h1>
+      </header>
+      {!introDismissed && (
+        <DismissibleNotice id="ucp-intro">
+            Unified Content Platform (UCP) is designed for creating, managing, and publishing digital
+            experiences with ease. From web pages to mobile experiences and reusable content, UCP provides
+            the tools your teams need to deliver faster and smarter.
+        </DismissibleNotice>
+      )}
+
+      {/* Quick actions, ordered by how often authors use them. Card treatment ported from
+          hsbc-ucpmock's home: an icon tile that wiggles on hover, and an "Explore →" that fades
+          and slides in beside the title. "Create a page" keeps the filled HSBC red. */}
+      <h2 className="text-sm font-medium text-muted-foreground mb-3">What do you want to do?</h2>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 mb-6">
+        {QUICK.map((a) => (
+          <Link key={a.title} href={a.href} className="group block no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            <SCard size="sm" className={`h-full py-5 transition-[background-color,box-shadow] duration-160 ease-out group-hover:shadow-sm ${a.primary ? "bg-accent border-accent text-white" : "group-hover:bg-muted/40"}`}>
+              <SCardContent className="flex h-full flex-col gap-4">
+                <div className={`flex size-10 items-center justify-center rounded-md ${a.primary ? "bg-white/20 text-white" : "bg-(--sidebar-active) text-bdl-red dark:text-(--sidebar-active-bar)"}`}>
+                  <a.icon className="size-5 group-hover:animate-(--animate-wiggle) motion-reduce:animate-none" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <SCardTitle className="text-base font-medium">{a.title}</SCardTitle>
+                    <span aria-hidden className={`flex shrink-0 items-center gap-1 text-sm font-medium opacity-0 translate-x-1 transition-[opacity,transform] duration-200 ease-out group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100 motion-reduce:translate-x-0 motion-reduce:transition-opacity ${a.primary ? "text-white" : "text-bdl-red dark:text-(--sidebar-active-bar)"}`}>
+                      Explore
+                      <ArrowRight className="size-4 -translate-x-1 transition-transform duration-200 ease-out delay-75 group-hover:translate-x-0 motion-reduce:translate-x-0" />
+                    </span>
+                  </div>
+                  <SCardDescription className={`mt-1 min-h-10 leading-5 ${a.primary ? "text-white/85" : ""}`}>{a.desc}</SCardDescription>
+                </div>
+              </SCardContent>
+            </SCard>
+          </Link>
+        ))}
       </div>
       <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3.5 mb-5">
         {tiles.map((t) => <Link key={t.l} href={t.href} className="bg-surface border border-line p-6 min-h-[150px] flex flex-col gap-1.5 hover:border-ink-3 hover:shadow-md" style={{ borderTop: `4px solid ${t.color}` }}><span className="text-[13px] text-ink-2">{t.l}</span><span className="text-[44px] font-light leading-none tabular-nums" style={{ color: t.color === "var(--crit)" ? t.color : undefined }}>{t.v}</span><span className="text-[13px] text-ink-3">{t.sub}</span><span className="text-[13px] font-medium mt-auto">{t.go} <span className="text-accent font-bold">›</span></span></Link>)}

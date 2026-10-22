@@ -100,7 +100,7 @@ function SidebarUser({ marketId, envId }: { marketId: string; envId: string }) {
           <DropdownMenuTrigger
             render={
               <SidebarMenuButton size="lg" className="cursor-pointer data-[state=open]:bg-sidebar-accent">
-                <span aria-hidden className="size-8 shrink-0 rounded-full bg-primary text-primary-foreground grid place-items-center text-[11px] font-medium">{initials}</span>
+                <span aria-hidden className="size-8 shrink-0 rounded-full bg-(--sidebar-active-bar) text-white grid place-items-center text-[11px] font-medium">{initials}</span>
                 <div className="grid flex-1 text-left leading-tight">
                   <span className="truncate font-medium">{me.name}</span>
                   {/* The environment reads as the second line, with its colour dot, so it is

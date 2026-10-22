@@ -18,6 +18,8 @@
 @import './bdl/tokens.css';
 /* Light + dark theme for the shadcn components (semantic tokens + the `dark` variant). */
 @import './bdl/theme.css';
+/* First BDL component layer in use: .alert / .alert-close for the dismissible notice. */
+@import './bdl/alerts.css';
 
 /* Staged — uncomment one at a time, with the screens that adopt it.
    base.css is the disruptive one: it sets body background/size, h1–h4, underlines
@@ -32,7 +34,6 @@
 @import './bdl/cards.css';
 @import './bdl/forms.css';
 @import './bdl/tables.css';
-@import './bdl/alerts.css';
 @import './bdl/modals.css';
 @import './bdl/animations.css';
 @import './bdl/icons.css';

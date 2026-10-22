@@ -37,7 +37,7 @@ function Bell({ marketId, base, root }: { marketId: string; base: string; root: 
   const go = (n: Notification) => { setOpen(false); router.push(n.target && n.target.startsWith(root + "/") ? `${base}/page${n.target.replace(root, "")}` : `${base}/tasks`); };
   return (
     <div ref={ref} className="relative">
-      <button aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`} aria-expanded={open} onClick={() => setOpen(!open)} className="relative w-8 h-8 rounded-md grid place-items-center hover:bg-accent cursor-pointer">
+      <button aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`} aria-expanded={open} onClick={() => setOpen(!open)} className="relative w-8 h-8 rounded-md grid place-items-center hover:bg-muted cursor-pointer">
         <BellIcon className="size-4" />
         {unread > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-accent text-white text-[10px] font-semibold grid place-items-center">{unread}</span>}
       </button>
@@ -93,7 +93,7 @@ export function TopBar({ marketId, envId }: { marketId: string; envId: string })
       </div>
       <button
         type="button"
-        className="ms-auto me-2 inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-muted/40 px-3 text-sm text-muted-foreground transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-72"
+        className="ms-auto me-2 inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-muted/40 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-72"
         onClick={openPalette}
         aria-label="Search"
       >

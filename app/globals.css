@@ -62,6 +62,22 @@
   .dark a:hover { color: #ffffff; }
 }
 
+/* Icon hover: a short wiggle (one shot, settles) rather than a scale. Apply
+   `group-hover:animate-(--animate-wiggle)` to an icon inside a `group`.
+   Ported from hsbc-ucpmock's layout.css. */
+@keyframes ucp-wiggle {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-8deg); }
+  50% { transform: rotate(8deg); }
+  75% { transform: rotate(-4deg); }
+  100% { transform: rotate(0deg); }
+}
+@theme inline { --animate-wiggle: ucp-wiggle 400ms ease-in-out 1; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-\(--animate-wiggle\),
+  .group:hover .group-hover\:animate-\(--animate-wiggle\) { animation: none; }
+}
+
 /* Sidebar selected row, ported from hsbc-ucpmock's layout.css: a 2px red bar on the left,
    a faint red tint and medium weight — the BDL active-tab idiom turned sideways. Hovering a
    selected row deepens the tint rather than the grey, so the two states never collide.
