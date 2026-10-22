@@ -57,7 +57,7 @@ export function Login({ users, next, demo }: { users: User[]; next: string; demo
         {err && <div role="alert" className="mt-4 w-full text-xs bg-crit/20 border border-crit/40 text-white px-3 py-2 rounded">{err}</div>}
       </div>
       <footer role="note" className="mt-10 w-[min(560px,100%)] border-t border-white/10 pt-5 text-center">
-        <div className="inline-flex items-center gap-2 text-xs font-medium tracking-[.14em] uppercase text-[#F5B544]"><span className="w-1.5 h-1.5 rounded-full bg-[#F5B544]" aria-hidden />Test · Clickable mockup</div>
+        <div className="inline-flex items-center gap-2 text-xs font-medium tracking-[.14em] uppercase text-warn"><span className="w-1.5 h-1.5 rounded-full bg-warn" aria-hidden />Test · Clickable mockup</div>
         <p className="text-xs text-white/45 mt-2 leading-relaxed">A prototype to try the authoring flow. Data is sample content and may reset at any time.<br />Nothing here reaches customers until you publish.</p>
       </footer>
     </main>

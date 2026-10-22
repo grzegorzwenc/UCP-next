@@ -83,7 +83,7 @@
   [data-slot="sidebar"] a, [data-slot="breadcrumb"] a, [data-slot^="dropdown-menu"] a { color: inherit; text-decoration: none; }
   [data-slot="sidebar"] a:hover, [data-slot="breadcrumb"] a:hover { text-decoration: none; }
   .dark a { color: var(--foreground); }
-  .dark a:hover { color: #ffffff; }
+  .dark a:hover { color: var(--color-bdl-white); }
 }
 
 /* Icon hover: a short wiggle (one shot, settles) rather than a scale. Apply
@@ -126,7 +126,7 @@ html, body { height: 100%; }
 body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
 :focus-visible { outline: 2px solid var(--review); outline-offset: 2px; }
 /* the builder's inline editor keeps its own red outline while a text is being edited */
-.ie.editing:focus-visible { outline: 2px solid #DB0011; outline-offset: 2px; }
+.ie.editing:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
 
 .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 500; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
 .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }

@@ -202,6 +202,42 @@ This is why 25 of 194 commits are re-wordings of copy set in an earlier commit.
 suppress an effect (`shellSeen`, `lockedSeen`, `reviewSeen`, `previewed`, `previewCheck`). It was
 touched in 88 of the repository's 194 commits — 45% of all work lands in one file.
 
+## 7a. Hard-coded colour: current state
+
+Re-audited after the token work. **108 hex uses in our code → 22**, and the CSS side is clean:
+
+| Where | Hex | Verdict |
+|---|---|---|
+| `globals.css` `:root` / `.dark` | 26 | correct — this is where definitions belong |
+| `globals.css` chrome **rules** | **0** | was 2, both tokenised |
+| `globals.css` site layer (line 158+) | 107 | correct — replicates hsbc.co.uk, out of scope |
+| `app/bdl/theme.css`, `tokens.css` | 118 | correct — these *are* the definitions |
+| `app/bdl/*` other 10 layers | 0 | pure `var()` |
+| `components/shadcn/*` | 0 | pure tokens |
+| hard-coded **font faces** anywhere | 0 | `next/font` is the single source |
+
+What was fixed: the dark surface (`#0F1013`, 23 uses across 16 files) became `bg-foreground` /
+`text-background` — the inversion idiom the source project uses, which also fixed a latent bug
+where a literal dark toast would have stayed dark in dark mode. Then ~50 swaps onto tokens that
+already existed, the `ModelMap` relationship diagram (21 literals), and the stragglers in
+`Icons`, `Avatar`, `AssetLibrary`, `PublishDialog`, `TemplatePreview`, `QualityChecklist`,
+`bits`, `PageComments`, `Builder` and `Login`.
+
+`Icons.tsx` is worth a note: the plan said "convert to `currentColor`", and that was wrong.
+These are illustrative two-tone icons — an amber folder, a white page with a grey outline and
+red rule lines — so `currentColor` would have flattened them to one colour. They were tokenised
+instead, which keeps the design and still follows the theme.
+
+### The 22 that remain, deliberately
+
+| File | Hex | Why it stays |
+|---|---|---|
+| `lib/ui/celebrate.ts` | 11 | Confetti is painted to a **canvas**, and `ctx.fillStyle` cannot read `var()`. The half of that file injected as CSS *was* tokenised. |
+| `components/ui/JiraChip.tsx` | 4 | `#0052CC` is **Jira's** brand blue. A third-party brand colour is not a BDL token and should not become one. |
+| `lib/markets.ts` | 4 | The environment identity colours (dev / test / stage / prod) are **data**, consumed as `style={{ background: env.color }}`. Candidates for BDL RAG colours, but that is a product decision, not a cleanup. |
+| `lib/blocks/Render.tsx` | 2 | Part of the hsbc.co.uk render layer — brand colours of the **published page**, same exemption as `globals.css` line 158+. |
+| `components/shell/Login.tsx` | 1 | One gradient stop on the sign-in art. |
+
 ## 8a. How the CSS is actually layered
 
 Worth knowing before touching any more of it, because it decides which rule wins.

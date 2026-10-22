@@ -4,7 +4,7 @@ import { isBlockModel, relTime } from "./fieldMeta";
 
 /** Small presentational pieces shared by the models list, model detail, model editor and entity editor. */
 type Status = Model["status"];
-const DOT: Record<Status, { c: string; t: string }> = { draft: { c: "var(--neutral)", t: "Draft · never published" }, published: { c: "var(--good)", t: "Published · matches what visitors see" }, modified: { c: "#E9A23B", t: "Modified · has changes that are not published yet" } };
+const DOT: Record<Status, { c: string; t: string }> = { draft: { c: "var(--neutral)", t: "Draft · never published" }, published: { c: "var(--good)", t: "Published · matches what visitors see" }, modified: { c: "var(--warn)", t: "Modified · has changes that are not published yet" } };
 export const Dot = ({ status }: { status: Status }) => <span className="w-2 h-2 rounded-full flex-none" style={{ background: DOT[status]?.c ?? DOT.draft.c }} title={DOT[status]?.t} aria-label={DOT[status]?.t} role="img" />;
 export const ModelIcon = ({ m, big }: { m: Pick<Model, "icon" | "group" | "id">; big?: boolean }) => { const block = isBlockModel(m); return <span className={`grid place-items-center rounded-md flex-none ${big ? "w-10 h-10 text-xl" : "w-6 h-6 text-xs"} ${block ? "bg-info-soft text-info" : "bg-brand-soft text-brand"}`} aria-hidden>{m.icon || (block ? "▤" : "▦")}</span>; };
 /** Relative time with the full timestamp on hover; suppressHydrationWarning because the server renders it in UTC and "x min ago" drifts. */

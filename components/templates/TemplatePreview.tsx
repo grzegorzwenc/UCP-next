@@ -17,7 +17,7 @@ export function TemplatePreview({ blocks, scale, height }: { blocks: string[]; s
   useEffect(() => { if (scale !== undefined) return; const el = box.current; if (!el) return; const ro = new ResizeObserver(() => setFit(el.clientWidth / 1200)); ro.observe(el); return () => ro.disconnect(); }, [scale]);
   const s = scale ?? fit;
   return (
-    <div ref={box} className="relative overflow-hidden bg-[#e9e9ec]" style={{ height }} aria-hidden>
+    <div ref={box} className="relative overflow-hidden bg-surface-3" style={{ height }} aria-hidden>
       {bl.length ? <div className="site desktop absolute left-0 top-0 !max-w-none !shadow-none" style={{ transform: `scale(${s})`, transformOrigin: "top left", width: 1200, margin: 0 }}>
         {bl.map((b) => <RenderBlock key={b.id} b={b} />)}
       </div>
