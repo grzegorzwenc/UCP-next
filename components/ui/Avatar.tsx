@@ -4,5 +4,5 @@ export const initials = (name: string) => name.split(" ").filter(Boolean).map((w
 
 /** Initials in a coloured circle; colour is a stable hash of the name (same as the prototype's avatar()). */
 export function Avatar({ name, size = 28 }: { name: string; size?: number }) {
-  return <span aria-hidden="true" className="inline-grid place-items-center rounded-full text-white font-semibold flex-none select-none" style={{ width: size, height: size, background: avatarColor(name), fontSize: Math.round(size * 0.38) }}>{initials(name)}</span>;
+  return <span aria-hidden="true" className="inline-grid place-items-center rounded-full text-white font-medium flex-none select-none" style={{ width: size, height: size, background: avatarColor(name), fontSize: Math.round(size * 0.38) }}>{initials(name)}</span>;
 }

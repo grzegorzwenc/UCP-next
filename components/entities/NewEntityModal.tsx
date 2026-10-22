@@ -16,9 +16,9 @@ function ModelCard({ m, onPick }: { m: Model; onPick: () => void }) {
     className={`text-left flex items-start gap-3 border rounded-lg p-3 ${draft ? "border-line bg-surface-2 opacity-60 cursor-not-allowed" : "border-line-2 bg-surface hover:border-brand hover:bg-brand-soft/30"}`}>
     <ModelIcon m={m} big />
     <span className="min-w-0 flex-1">
-      <span className="flex items-center gap-2"><b className="text-[14px] truncate">{m.name}</b>{draft && <StatusPill status="draft" />}</span>
-      <span className="block text-[12.5px] text-ink-3 line-clamp-2">{m.description || "No description"}</span>
-      <span className="block text-[12px] text-ink-4 mt-1">{draft ? "Publish the model first" : `${n} field${n === 1 ? "" : "s"}`}</span>
+      <span className="flex items-center gap-2"><b className="text-sm truncate">{m.name}</b>{draft && <StatusPill status="draft" />}</span>
+      <span className="block text-xs text-ink-3 line-clamp-2">{m.description || "No description"}</span>
+      <span className="block text-xs text-ink-4 mt-1">{draft ? "Publish the model first" : `${n} field${n === 1 ? "" : "s"}`}</span>
     </span>
   </button>;
 }
@@ -41,13 +41,13 @@ export function NewEntityModal({ marketId, models, initial, folder = "", onClose
   if (!model) return <ModalShell title="New entity" subtitle="Step 1 of 2 · Select content model" width={720} onClose={onClose}
     footer={<button type="button" className="btn" onClick={onClose}>Cancel</button>}>
     {sorted.length ? <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5" role="list" aria-label="Content models">{sorted.map((m) => <div role="listitem" key={m.id} className="grid"><ModelCard m={m} onPick={() => { setModel(m); setErr(null); }} /></div>)}</div>
-      : <p className="text-[13px] text-ink-3 py-6 text-center">There are no content models yet. Ask a site admin to create and publish one.</p>}
+      : <p className="text-sm text-ink-3 py-6 text-center">There are no content models yet. Ask a site admin to create and publish one.</p>}
   </ModalShell>;
 
   return <ModalShell title={`New ${model.name} entity`} subtitle="Step 2 of 2 · Title. You fill in the content on the next screen; it starts as a draft." width={520} onClose={onClose}
     footer={<><button type="button" className="btn" onClick={onClose} disabled={busy}>Cancel</button><button type="button" className="btn btn-primary" onClick={submit} disabled={busy || !title.trim()}>{busy ? "Creating…" : "Create and fill in"}</button></>}>
-    <div className="flex items-center gap-2.5 bg-surface-2 border border-line rounded-lg px-3 py-2 mb-3 text-[13px]"><ModelIcon m={model} /><span className="min-w-0 flex-1 truncate">Content model: <b>{model.name}</b></span><button type="button" className="underline text-ink-2 hover:text-ink" onClick={() => { setModel(undefined); setErr(null); }} disabled={busy}>Change model</button></div>
-    <form onSubmit={(e) => { e.preventDefault(); submit(); }}><label className="block text-[13px] font-semibold">Title<input autoFocus className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. HSBC Savings Account" /></label>
-      <p className="text-[12px] text-ink-3 mt-1.5">Only people in your team see this name; pages show the field values.</p><Err err={err} /></form>
+    <div className="flex items-center gap-2.5 bg-surface-2 border border-line rounded-lg px-3 py-2 mb-3 text-sm"><ModelIcon m={model} /><span className="min-w-0 flex-1 truncate">Content model: <b>{model.name}</b></span><button type="button" className="underline text-ink-2 hover:text-ink" onClick={() => { setModel(undefined); setErr(null); }} disabled={busy}>Change model</button></div>
+    <form onSubmit={(e) => { e.preventDefault(); submit(); }}><label className="block text-sm font-medium">Title<input autoFocus className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. HSBC Savings Account" /></label>
+      <p className="text-xs text-ink-3 mt-1.5">Only people in your team see this name; pages show the field values.</p><Err err={err} /></form>
   </ModalShell>;
 }

@@ -120,9 +120,9 @@ export function ModelMap({ models, selected, onOpen, canConnect, onConnect, canL
   return <div>
     <div className="flex flex-wrap items-center gap-2 mb-2">
       {Object.keys(stored).length > 0 && <button type="button" className="btn btn-sm btn-quiet" onClick={() => persist({})}>Reset positions</button>}
-      <span className="text-[12.5px] text-ink-3 ml-1">{onConnect ? <>Drag <b className="text-brand">＋</b> from one model onto another to connect them. Only models that share a field (same key and type) can be connected. Click a line to remove it.</> : "Click a model to open it."}</span>
+      <span className="text-xs text-ink-3 ml-1">{onConnect ? <>Drag <b className="text-brand">＋</b> from one model onto another to connect them. Only models that share a field (same key and type) can be connected. Click a line to remove it.</> : "Click a model to open it."}</span>
     </div>
-    {pick && <div role="status" className="flex items-center gap-2 text-[13px] bg-info-soft border border-line rounded-md px-3 py-2 mb-2">Click the model to connect <b>{byId.get(pick)?.name}</b> to.<button type="button" className="btn btn-sm ml-auto" onClick={() => setPick(null)}>Cancel</button></div>}
+    {pick && <div role="status" className="flex items-center gap-2 text-sm bg-info-soft border border-line rounded-md px-3 py-2 mb-2">Click the model to connect <b>{byId.get(pick)?.name}</b> to.<button type="button" className="btn btn-sm ml-auto" onClick={() => setPick(null)}>Cancel</button></div>}
     <div className="border border-line rounded-lg bg-surface-2 overflow-auto" style={{ backgroundImage: "radial-gradient(#D7D8DC 1px, transparent 1px)", backgroundSize: "18px 18px" }}>
       <svg ref={svg} width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Content model map" className="block select-none touch-none [&_g:focus]:outline-none [&_g:focus-visible]:outline-2 [&_g:focus-visible]:outline-brand" style={{ fontFamily: "var(--font-sans)", cursor: busy ? "crosshair" : undefined }} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => { drag.current = null; setLink(null); setMoving(null); }}>
         <defs>
@@ -160,7 +160,7 @@ export function ModelMap({ models, selected, onOpen, canConnect, onConnect, canL
         })}
       </svg>
     </div>
-    {sel ? <div className="flex flex-wrap items-center gap-2 mt-2 bg-surface border border-line rounded-lg px-3 py-2 text-[13px]">
+    {sel ? <div className="flex flex-wrap items-center gap-2 mt-2 bg-surface border border-line rounded-lg px-3 py-2 text-sm">
       <span><b>{byId.get(sel.from)?.name}</b> → <b>{byId.get(sel.to)?.name}</b>{canLink && !canLink(sel.from, sel.to) && <span className="ml-2 text-warn">⚠ These models have no fields in common. Remove this connection.</span>}</span>
       <span className="ml-auto flex gap-2"><button type="button" className="btn btn-sm" onClick={() => setEdge(null)}>Close</button>{onRemove && connectable(sel.from) && <button type="button" className="btn btn-sm text-crit" onClick={() => { setEdge(null); onRemove(sel); }}>Remove connection</button>}</span></div> : null}
   </div>;

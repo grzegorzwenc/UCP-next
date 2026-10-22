@@ -15,10 +15,10 @@ export function DecisionOverlay({ decision, title, by, at, action }: { decision:
           {ok ? <svg aria-hidden width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
             : <svg aria-hidden width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 14L4 9l5-5" /><path d="M4 9h11a5 5 0 0 1 0 10h-3" /></svg>}
         </span>
-        <h2 id="dec-h" className="mt-4 text-[22px] font-semibold">{ok ? "Signed off" : "Sent back to the author"}</h2>
-        <p className="mt-1 text-[14px] text-ink-2"><b className="text-ink">{title}</b></p>
-        <p className="mt-3 text-[13.5px] text-ink-2 leading-relaxed">{ok ? "The business review is done. The page is ready to publish and the author has it in My tasks." : "The page is back at Build the page. The author makes the changes from the comments and sends it for review again."}</p>
-        <p className="mt-3 text-[12px] text-ink-3" suppressHydrationWarning>{ok ? "Signed off" : "Sent back"} by {by} · {when}</p>
+        <h2 id="dec-h" className="mt-4 text-2xl font-medium">{ok ? "Signed off" : "Sent back to the author"}</h2>
+        <p className="mt-1 text-sm text-ink-2"><b className="text-ink">{title}</b></p>
+        <p className="mt-3 text-sm text-ink-2 leading-relaxed">{ok ? "The business review is done. The page is ready to publish and the author has it in My tasks." : "The page is back at Build the page. The author makes the changes from the comments and sends it for review again."}</p>
+        <p className="mt-3 text-xs text-ink-3" suppressHydrationWarning>{ok ? "Signed off" : "Sent back"} by {by} · {when}</p>
         {action && <div className="mt-5 flex justify-center gap-2">{action}</div>}
       </div>
     </div>

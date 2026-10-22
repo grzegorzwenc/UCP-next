@@ -45,25 +45,25 @@ export function ShareReviewDialog({ marketId, path, title, stage, onClose, onApp
   };
   return <ModalShell title={`Share for ${STAGE[stage]}`} subtitle={<b className="text-ink-2">{title}</b>} width={540} onClose={onClose}
     footer={<>{onApprove && <button className="btn mr-auto" disabled={busy} onClick={async () => { onClose(); await onApprove(); /* the next stage opens its own share dialog */ }} title="Site admin: approve on behalf of the reviewer">{stage === "review" ? "Mark reviewed now" : "Sign off now"}</button>}<button className="btn btn-primary" onClick={onClose}>Done</button></>}>
-    <label className="block text-[12.5px] font-semibold text-ink-2">Review link</label>
-    <div className="mt-1 flex gap-2"><input readOnly value={url ?? "Creating the link…"} onFocus={(e) => e.currentTarget.select()} className="flex-1 min-w-0 border border-line-2 rounded-md px-2.5 py-1.5 text-[12.5px] font-mono bg-surface-2" aria-label="Review link" />
+    <label className="block text-xs font-medium text-ink-2">Review link</label>
+    <div className="mt-1 flex gap-2"><input readOnly value={url ?? "Creating the link…"} onFocus={(e) => e.currentTarget.select()} className="flex-1 min-w-0 border border-line-2 rounded-md px-2.5 py-1.5 text-xs font-mono bg-surface-2" aria-label="Review link" />
       <button className="btn btn-sm" disabled={!url} onClick={copy}>{copied ? "✓ Copied" : "Copy"}</button></div>
-    <p className="text-[11.5px] text-ink-3 mt-1">Anyone with the link can comment until the {STAGE[stage]} ends.{stage === "bizreview" ? " Only people you e-mail or a group can sign off." : ""}</p>
-    <label className="block text-[12.5px] font-semibold text-ink-2 mt-4" htmlFor="rv-mail">Send by e-mail</label>
-    <div className="mt-1 flex gap-2"><input id="rv-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void invite(); }} placeholder="name@hsbc.com" className="flex-1 min-w-0 border border-line-2 rounded-md px-2.5 py-1.5 text-[13px]" />
+    <p className="text-xs text-ink-3 mt-1">Anyone with the link can comment until the {STAGE[stage]} ends.{stage === "bizreview" ? " Only people you e-mail or a group can sign off." : ""}</p>
+    <label className="block text-xs font-medium text-ink-2 mt-4" htmlFor="rv-mail">Send by e-mail</label>
+    <div className="mt-1 flex gap-2"><input id="rv-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") void invite(); }} placeholder="name@hsbc.com" className="flex-1 min-w-0 border border-line-2 rounded-md px-2.5 py-1.5 text-sm" />
       <button className="btn btn-sm" disabled={!email.trim() || busy} onClick={invite}>Send e-mail</button></div>
-    <p className="text-[11.5px] text-ink-3 mt-1">Opens your mail app. A UCP reviewer is also assigned.</p>
+    <p className="text-xs text-ink-3 mt-1">Opens your mail app. A UCP reviewer is also assigned.</p>
     {stage === "bizreview" && <>
-      <label className="block text-[12.5px] font-semibold text-ink-2 mt-4" htmlFor="rv-group">Share with a group</label>
-      <div className="mt-1 flex gap-2"><select id="rv-group" value={team} onChange={(e) => setTeam(e.target.value)} disabled={!groups} className="flex-1 min-w-0 border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface">
+      <label className="block text-xs font-medium text-ink-2 mt-4" htmlFor="rv-group">Share with a group</label>
+      <div className="mt-1 flex gap-2"><select id="rv-group" value={team} onChange={(e) => setTeam(e.target.value)} disabled={!groups} className="flex-1 min-w-0 border border-line-2 rounded-md px-2.5 py-1.5 text-sm bg-surface">
           <option value="">{groups ? "Choose a group…" : "Loading groups…"}</option>
           {(groups ?? []).map((g) => <option key={g.team} value={g.team} disabled={g.shared}>{g.team} · {g.members.length} {g.members.length === 1 ? "person" : "people"}{g.shared ? " · has access" : ""}</option>)}
         </select>
         <button className="btn btn-sm" disabled={!team || busy} onClick={shareGroup}>Give access</button></div>
-      <p className="text-[11.5px] text-ink-3 mt-1">The whole group sees it in My tasks.</p>
-      {withAccess.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Groups with access">{withAccess.map((g) => <span key={g.team} className="inline-flex items-center gap-1 text-[12px] bg-info-soft text-info rounded-full px-2.5 py-0.5" title={g.members.map((m) => m.name).join(", ")}><svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3.2" /><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" /><path d="M16 5.2a3 3 0 0 1 0 5.6M18 13.8c1.8.6 3 2.4 3 5.2" /></svg>{g.team} · {g.members.length}</span>)}</div>}
+      <p className="text-xs text-ink-3 mt-1">The whole group sees it in My tasks.</p>
+      {withAccess.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Groups with access">{withAccess.map((g) => <span key={g.team} className="inline-flex items-center gap-1 text-xs bg-info-soft text-info rounded-full px-2.5 py-0.5" title={g.members.map((m) => m.name).join(", ")}><svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3.2" /><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" /><path d="M16 5.2a3 3 0 0 1 0 5.6M18 13.8c1.8.6 3 2.4 3 5.2" /></svg>{g.team} · {g.members.length}</span>)}</div>}
     </>}
-    {sent && <p role="status" className="text-[12.5px] bg-good-soft text-good rounded-md px-3 py-2 mt-3">✓ {sent}</p>}
+    {sent && <p role="status" className="text-xs bg-good-soft text-good rounded-md px-3 py-2 mt-3">✓ {sent}</p>}
     <Err err={err} />
   </ModalShell>;
 }

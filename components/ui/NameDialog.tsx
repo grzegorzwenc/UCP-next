@@ -11,7 +11,7 @@ export function NameDialog({ title, subtitle, label = "Name", initial = "", acti
   return <ModalShell title={title} subtitle={subtitle} width={440} onClose={onClose}
     footer={<><button className="btn" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={!ok || busy} onClick={submit}>{busy ? "Saving…" : action}</button></>}>
     {children}
-    <label className="block text-[13px] font-semibold">{label}<input className={inputCls} value={name} autoFocus maxLength={60} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} /></label>
+    <label className="block text-sm font-medium">{label}<input className={inputCls} value={name} autoFocus maxLength={60} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") submit(); }} /></label>
     <Err err={err} />
   </ModalShell>;
 }

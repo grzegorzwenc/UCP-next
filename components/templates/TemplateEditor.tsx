@@ -76,8 +76,8 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
     <div className="h-full grid grid-rows-[54px_1fr] min-h-0 bg-bg">
       {/* top bar */}
       <div className="flex items-center gap-3 px-4 bg-surface border-b border-line min-w-0">
-        <Link href={`${base}/templates?folder=${encodeURIComponent(folder)}`} className="text-[13px] text-ink-2 hover:text-ink whitespace-nowrap">‹ Templates</Link>
-        <div className="min-w-0 flex-1"><b className="block text-[14.5px] truncate">{name || "Untitled template"}</b><span className="block text-[11.5px] text-ink-3 truncate">Template · {folder} · {markets.length ? `${markets.map((m) => MARKETS.find((k) => k.id === m)?.flag ?? m).join(" ")} only` : "all markets"} · {blocks.length} block{blocks.length === 1 ? "" : "s"} · used by {used} page{used === 1 ? "" : "s"}</span></div>
+        <Link href={`${base}/templates?folder=${encodeURIComponent(folder)}`} className="text-sm text-ink-2 hover:text-ink whitespace-nowrap">‹ Templates</Link>
+        <div className="min-w-0 flex-1"><b className="block text-sm truncate">{name || "Untitled template"}</b><span className="block text-xs text-ink-3 truncate">Template · {folder} · {markets.length ? `${markets.map((m) => MARKETS.find((k) => k.id === m)?.flag ?? m).join(" ")} only` : "all markets"} · {blocks.length} block{blocks.length === 1 ? "" : "s"} · used by {used} page{used === 1 ? "" : "s"}</span></div>
         <div className="hidden sm:inline-flex border border-line-2 rounded-lg overflow-hidden">{(["desktop", "tablet", "mobile"] as const).map((d) => <button key={d} type="button" onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink"}`} title={d} aria-label={`${d} view`} aria-pressed={device === d}><Ico d={d === "desktop" ? "M3 4.5h18v11.5H3zM8.5 20h7M12 16v4" : d === "tablet" ? "M5.5 3h13v18h-13zM11 18h2" : "M8 2.5h8v19H8zM11 18.5h2"} /></button>)}</div>
         <span className="hidden sm:inline text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1 whitespace-nowrap">{ro ? "🔒 Read-only" : saving ? "Saving…" : "✓ Saved"}</span>
         <div className="hidden md:flex gap-1 pl-2.5 border-l border-line">
@@ -99,20 +99,20 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
 
         {/* canvas: HSBC menu and footer are part of every template */}
         <div ref={canvas} className={`absolute inset-0 overflow-auto p-6 pb-24 ${preview ? "preview" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={(e) => { if (e.target === e.currentTarget) setSel(null); }}>
-          <p className={`text-[12px] text-ink-3 mb-2 truncate ${preview ? "invisible" : ""}`} style={{ width: fit < 1 ? siteW * fit : siteW, maxWidth: "100%", margin: "0 auto 8px" }} title="Menu and footer are part of every HSBC page and cannot be removed.">HSBC menu and footer are always part of the template.</p>
+          <p className={`text-xs text-ink-3 mb-2 truncate ${preview ? "invisible" : ""}`} style={{ width: fit < 1 ? siteW * fit : siteW, maxWidth: "100%", margin: "0 auto 8px" }} title="Menu and footer are part of every HSBC page and cannot be removed.">HSBC menu and footer are always part of the template.</p>
           <div style={fit < 1 ? { width: siteW * fit, height: siteH ? siteH * fit : undefined, margin: "0 auto" } : { width: siteW, maxWidth: "100%", margin: "0 auto" }}><div ref={siteRef} style={fit < 1 ? { transform: `scale(${fit})`, transformOrigin: "top left", width: siteW } : undefined}>
             <SiteChrome marketName={marketName} crumbs={[name || "Template"]} device={phone ? "mobile" : device}>
               {rendered.length ? rendered.map((b, i) => { const on = sel === i; const def = BLOCK_BY_TYPE[b.type];
                 return <div key={b.id} className={`cblk relative ${on && !preview ? "sel" : ""}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!preview) setSel(on ? null : i); }}>
                   {!preview && <span className="tag">{def?.name ?? b.type}</span>}
-                  {on && !ro && <div role="toolbar" aria-label={`${def?.name} actions`} className="absolute -top-4 left-4 z-10 flex gap-1 bg-[#0F1013] text-white rounded-lg p-1 shadow-xl text-[11px]" style={{ transform: `scale(${1 / fit})`, transformOrigin: "top left" }} onClick={(e) => e.stopPropagation()}>
+                  {on && !ro && <div role="toolbar" aria-label={`${def?.name} actions`} className="absolute -top-4 left-4 z-10 flex gap-1 bg-[#0F1013] text-white rounded-lg p-1 shadow-xl text-xs" style={{ transform: `scale(${1 / fit})`, transformOrigin: "top left" }} onClick={(e) => e.stopPropagation()}>
                     <button type="button" className="px-2.5 py-1 rounded hover:bg-white/15 disabled:opacity-40" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up">↑</button>
                     <button type="button" className="px-2.5 py-1 rounded hover:bg-white/15 disabled:opacity-40" disabled={i === rendered.length - 1} onClick={() => move(i, 1)} aria-label="Move down">↓</button>
                     <button type="button" className="px-2.5 py-1 rounded hover:bg-white/15" onClick={() => remove(i)} aria-label="Remove">Remove</button>
                   </div>}
                   <div className="pointer-events-none"><RenderBlock b={b} /></div>
                 </div>; })
-                : <div className="m-8 p-16 text-center border-2 border-dashed border-line-2 rounded-xl text-ink-3 text-[20px]">Empty template. {ro ? "" : "Add components from the left."}</div>}
+                : <div className="m-8 p-16 text-center border-2 border-dashed border-line-2 rounded-xl text-ink-3 text-xl">Empty template. {ro ? "" : "Add components from the left."}</div>}
             </SiteChrome>
           </div></div>
         </div>
@@ -122,22 +122,22 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
           <button type="button" title="Template settings" aria-label="Template settings" aria-pressed={right} onClick={() => setRight(!right)} className={railBtn(right)}><svg viewBox="0 0 24 24" className="w-6 h-6 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" aria-hidden><path d={SET_ICON} /></svg></button>
         </nav>}
         {right && <aside className={phone ? "absolute inset-0 bg-surface z-[7] flex flex-col" : "absolute right-[52px] top-0 bottom-0 w-[320px] bg-surface border-l border-line z-[5] flex flex-col"}>
-          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">Template settings</b><button type="button" className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => setRight(false)} aria-label="Close panel">✕</button></div>
-          <div className="flex-1 overflow-auto p-3.5 grid gap-3 content-start text-[13px]">
-            <label className="text-xs text-ink-2 font-medium">Name<input aria-label="Template name" disabled={ro} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink" value={name} onChange={(e) => setName(e.target.value)} onBlur={() => name !== t.name && persist({ name })} /></label>
-            <label className="text-xs text-ink-2 font-medium">Description<textarea aria-label="Template description" disabled={ro} rows={3} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink" value={desc} onChange={(e) => setDesc(e.target.value)} onBlur={() => desc !== t.desc && persist({ desc })} placeholder="What is this template for?" /></label>
-            <label className="text-xs text-ink-2 font-medium">Folder<select disabled={ro} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] text-ink bg-surface" value={folder} onChange={(e) => { setFolder(e.target.value); void persist({ folder: e.target.value }); }}>{folders.map((f) => <option key={f}>{f}</option>)}</select></label>
+          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-sm">Template settings</b><button type="button" className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => setRight(false)} aria-label="Close panel">✕</button></div>
+          <div className="flex-1 overflow-auto p-3.5 grid gap-3 content-start text-sm">
+            <label className="text-xs text-ink-2 font-medium">Name<input aria-label="Template name" disabled={ro} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink" value={name} onChange={(e) => setName(e.target.value)} onBlur={() => name !== t.name && persist({ name })} /></label>
+            <label className="text-xs text-ink-2 font-medium">Description<textarea aria-label="Template description" disabled={ro} rows={3} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink" value={desc} onChange={(e) => setDesc(e.target.value)} onBlur={() => desc !== t.desc && persist({ desc })} placeholder="What is this template for?" /></label>
+            <label className="text-xs text-ink-2 font-medium">Folder<select disabled={ro} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink bg-surface" value={folder} onChange={(e) => { setFolder(e.target.value); void persist({ folder: e.target.value }); }}>{folders.map((f) => <option key={f}>{f}</option>)}</select></label>
             <div className="border border-line rounded-lg p-3"><MarketPicker what="template" disabled={ro} value={markets} current={marketId} onChange={(m) => { setMarkets(m); void persist({ markets: m }); }} />
-              {markets.length > 0 && !markets.includes(marketId) && <p className="mt-2 text-[12px] text-ink bg-warn-soft rounded-md px-2.5 py-1.5">{marketName} can no longer create pages from it. Pages already made with it stay as they are.</p>}</div>
-            <div className="border border-line rounded-lg p-3 bg-surface-2"><div className="text-xs text-ink-2 font-medium mb-1">Always on the page</div><p className="text-[12.5px] text-ink-3">HSBC menu, breadcrumb and footer. They come from the site and are the same on every page.</p></div>
+              {markets.length > 0 && !markets.includes(marketId) && <p className="mt-2 text-xs text-ink bg-warn-soft rounded-md px-2.5 py-1.5">{marketName} can no longer create pages from it. Pages already made with it stay as they are.</p>}</div>
+            <div className="border border-line rounded-lg p-3 bg-surface-2"><div className="text-xs text-ink-2 font-medium mb-1">Always on the page</div><p className="text-xs text-ink-3">HSBC menu, breadcrumb and footer. They come from the site and are the same on every page.</p></div>
             <div className="border border-line rounded-lg p-3"><div className="text-xs text-ink-2 font-medium mb-1">Blocks, top to bottom</div>
-              {blocks.length ? <ol className="grid gap-0.5">{blocks.map((b, i) => <li key={`${b}-${i}`}><button type="button" onClick={() => setSel(i)} className={`w-full flex items-center gap-2 text-left rounded px-1.5 py-1 ${sel === i ? "bg-brand-soft text-brand-hover font-semibold" : "hover:bg-surface-2"}`}><span className="w-5 h-5 rounded-full grid place-items-center text-[10.5px] bg-surface-3 text-ink-2 flex-none">{i + 1}</span><span className="truncate">{BLOCK_BY_TYPE[b]?.name ?? b}</span></button></li>)}</ol> : <p className="text-[12.5px] text-ink-3">No blocks yet.</p>}</div>
-            <p className="text-[12px] text-ink-3">Used by {used} page{used === 1 ? "" : "s"}. Changing the template does not change pages already created with it.</p>
+              {blocks.length ? <ol className="grid gap-0.5">{blocks.map((b, i) => <li key={`${b}-${i}`}><button type="button" onClick={() => setSel(i)} className={`w-full flex items-center gap-2 text-left rounded px-1.5 py-1 ${sel === i ? "bg-brand-soft text-brand-hover font-medium" : "hover:bg-surface-2"}`}><span className="w-5 h-5 rounded-full grid place-items-center text-xs bg-surface-3 text-ink-2 flex-none">{i + 1}</span><span className="truncate">{BLOCK_BY_TYPE[b]?.name ?? b}</span></button></li>)}</ol> : <p className="text-xs text-ink-3">No blocks yet.</p>}</div>
+            <p className="text-xs text-ink-3">Used by {used} page{used === 1 ? "" : "s"}. Changing the template does not change pages already created with it.</p>
             {!ro && t.id !== "blank" && <button className="btn btn-sm text-crit justify-center" onClick={del}>Delete template</button>}
           </div>
         </aside>}
       </div>
-      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] z-50">{toast}</div>}
+      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-sm z-50">{toast}</div>}
     </div>
   );
 }

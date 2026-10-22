@@ -30,18 +30,18 @@ function Row({ v, isLatest, comparing, currentBlocks, onRestore, onComment, busy
   return <li className="py-3 border-b border-line last:border-0 min-w-0">
     <div className="flex items-center gap-2 min-w-0">
       <Avatar name={whoName(v.who)} size={24} />
-      <span className="font-medium text-[13px] truncate">{whoName(v.who)}</span>
-      <time className="ml-auto flex-none text-[11.5px] text-ink-3" dateTime={v.time} title={fullTime(v.time)} suppressHydrationWarning>{relativeTime(v.time)}</time>
+      <span className="font-medium text-sm truncate">{whoName(v.who)}</span>
+      <time className="ml-auto flex-none text-xs text-ink-3" dateTime={v.time} title={fullTime(v.time)} suppressHydrationWarning>{relativeTime(v.time)}</time>
     </div>
     <div className="pl-8 mt-1 min-w-0">
-      <p className="text-[12.5px] text-ink-2 leading-snug break-words">{versionNote(v.note)}</p>
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-[12px] text-ink-3 min-w-0">
+      <p className="text-xs text-ink-2 leading-snug break-words">{versionNote(v.note)}</p>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-xs text-ink-3 min-w-0">
         <span className="max-w-full"><Pill status={v.status} /></span>
         <span className="whitespace-nowrap">{v.blocks} block{v.blocks === 1 ? "" : "s"}</span>
         {comparing && <span className={`font-mono whitespace-nowrap ${delta === 0 ? "text-ink-4" : delta > 0 ? "text-info" : "text-warn"}`}>{delta === 0 ? "same as now" : `${delta > 0 ? "+" : ""}${delta} vs now`}</span>}
       </div>
       <div className="flex items-center gap-2 mt-2">
-        {isLatest ? <span className="text-[11px] font-semibold text-ink-3 bg-surface-2 rounded-full px-2 py-0.5">Latest</span> : <button type="button" className="btn btn-sm" disabled={busy} onClick={() => onRestore(v)}><svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5" /></svg>Restore</button>}
+        {isLatest ? <span className="text-xs font-medium text-ink-3 bg-surface-2 rounded-full px-2 py-0.5">Latest</span> : <button type="button" className="btn btn-sm" disabled={busy} onClick={() => onRestore(v)}><svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5" /></svg>Restore</button>}
         <button type="button" className="btn btn-sm btn-quiet" onClick={() => onComment(v)} aria-label={`Comment on the version from ${fullTime(v.time)}`}><svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 5h16v11H9l-5 4z" /></svg>Comment</button>
       </div>
     </div>
@@ -74,26 +74,26 @@ export function VersionHistory({ marketId, path, currentBlocks, onRestored, revi
     <div className="border-t border-line" /></>}
     {/* the panel header already says "Version history" */}
     <header className="grid gap-2">
-      <h3 className="text-[13px] font-semibold">Versions</h3>
-      <p className="text-[12px] text-ink-3 leading-relaxed -mt-1">Every save and status change creates a version. Restoring keeps a copy of the current page first.</p>
-      {!!list?.length && <label className="inline-flex items-center gap-2 text-[12.5px] text-ink-2 cursor-pointer justify-self-start"><input type="checkbox" className="accent-[var(--brand)]" checked={compare} onChange={() => setCompare(!compare)} />Compare block count with the current page</label>}
+      <h3 className="text-sm font-medium">Versions</h3>
+      <p className="text-xs text-ink-3 leading-relaxed -mt-1">Every save and status change creates a version. Restoring keeps a copy of the current page first.</p>
+      {!!list?.length && <label className="inline-flex items-center gap-2 text-xs text-ink-2 cursor-pointer justify-self-start"><input type="checkbox" className="accent-[var(--brand)]" checked={compare} onChange={() => setCompare(!compare)} />Compare block count with the current page</label>}
     </header>
-    {compare && <div className="text-[12px] text-ink-3 bg-surface-2 rounded-md px-3 py-2">The page now has <b className="text-ink">{currentBlocks} block{currentBlocks === 1 ? "" : "s"}</b>. Each version shows how its block count differs.</div>}
-    {err && <div className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</div>}
-    {list === null && <div className="text-[13px] text-ink-3 p-4">Loading versions…</div>}
-    {list !== null && !list.length && <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg text-[13px]">No versions yet — every save and status change creates one.</div>}
+    {compare && <div className="text-xs text-ink-3 bg-surface-2 rounded-md px-3 py-2">The page now has <b className="text-ink">{currentBlocks} block{currentBlocks === 1 ? "" : "s"}</b>. Each version shows how its block count differs.</div>}
+    {err && <div className="text-crit text-xs bg-crit-soft px-3 py-2 rounded">{err}</div>}
+    {list === null && <div className="text-sm text-ink-3 p-4">Loading versions…</div>}
+    {list !== null && !list.length && <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg text-sm">No versions yet — every save and status change creates one.</div>}
     {!!list?.length && <ul className="border border-line rounded-lg bg-surface px-3 min-w-0">{list.map((v, i) => <Row key={v.id} v={v} isLatest={i === 0} comparing={compare} currentBlocks={currentBlocks} onRestore={setConfirm} onComment={(x) => { const a = { id: x.id, label: `${fullTime(x.time)} · ${whoName(x.who)}` }; if (onCommentVersion) { onCommentVersion(a); return; } setAbout(a); setFocusKey((k) => k + 1); }} busy={busy} />)}</ul>}
 
     {confirm && <div className="fixed inset-0 bg-black/45 grid place-items-center z-50" onClick={(e) => { if (e.target === e.currentTarget && !busy) setConfirm(null); }}>
       <div role="dialog" aria-label="Restore this version?" className="bg-surface rounded-xl w-[min(480px,94vw)] shadow-2xl">
-        <header className="px-6 pt-5 pb-3"><h2 className="text-lg font-semibold">Restore this version?</h2></header>
-        <div className="px-6 pb-2 text-[13.5px] text-ink-2 leading-relaxed">
+        <header className="px-6 pt-5 pb-3"><h2 className="text-lg font-medium">Restore this version?</h2></header>
+        <div className="px-6 pb-2 text-sm text-ink-2 leading-relaxed">
           <p>The page will go back to how it was on <b className="text-ink">{fullTime(confirm.time)}</b> ({whoName(confirm.who)}, {versionNote(confirm.note).toLowerCase()}, {confirm.blocks} block{confirm.blocks === 1 ? "" : "s"}).</p>
-          <p className="mt-2 text-ink-3 text-[12.5px]">Unsaved edits in the builder are replaced. A copy of the current page is kept as a new version, so you can come back.</p>
-          {err && <div className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded mt-3">{err}</div>}
+          <p className="mt-2 text-ink-3 text-xs">Unsaved edits in the builder are replaced. A copy of the current page is kept as a new version, so you can come back.</p>
+          {err && <div className="text-crit text-xs bg-crit-soft px-3 py-2 rounded mt-3">{err}</div>}
         </div>
         <footer className="px-6 pb-5 pt-3 flex justify-end gap-2"><button type="button" className="btn" disabled={busy} onClick={() => setConfirm(null)}>Cancel</button><button type="button" className="btn btn-primary" disabled={busy} onClick={() => restore(confirm)}>{busy ? "Restoring…" : "Restore"}</button></footer>
       </div></div>}
-    {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] shadow-xl z-50">{toast}</div>}
+    {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-sm shadow-xl z-50">{toast}</div>}
   </div>;
 }

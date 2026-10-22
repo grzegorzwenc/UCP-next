@@ -16,7 +16,7 @@ const Mark = ({ ok }: { ok: Check["ok"] }) => ok === true
 
 function Rows({ checks }: { checks: Check[] }) {
   return <ul className="divide-y divide-line">{checks.map((c, i) => <li key={i} className="flex items-start gap-2.5 py-2.5">
-    <span className="min-w-0 flex-1"><span className="block text-[13px] font-medium text-ink">{c.label}</span>{c.value && <span className="block text-[12px] text-ink-2 mt-0.5 break-words">{c.value}</span>}</span>
+    <span className="min-w-0 flex-1"><span className="block text-sm font-medium text-ink">{c.label}</span>{c.value && <span className="block text-xs text-ink-2 mt-0.5 break-words">{c.value}</span>}</span>
     <span className="flex-none mt-0.5"><Mark ok={c.ok} /></span></li>)}</ul>;
 }
 
@@ -54,8 +54,8 @@ export function QualityChecklist({ blocks, meta, url, templateName, target }: { 
     const def = BLOCK_BY_TYPE[b.type]; const k = fieldOf(target.field); const fl = def.fields.find((f) => f.k === k)?.l;
     const what = target.kind === "image" ? "Picture" : target.kind === "text" ? fl ?? "Text" : "Whole component";
     return <div>
-      <div className="rounded-lg bg-surface-2 border border-line px-3 py-2"><span className="block text-[10.5px] font-semibold uppercase tracking-[.06em] text-ink-3">{def.name} · {what}</span>
-        {target.text && <span className="block text-[13px] text-ink mt-0.5 line-clamp-3">“{target.text}”</span>}</div>
+      <div className="rounded-lg bg-surface-2 border border-line px-3 py-2"><span className="block text-xs font-medium uppercase tracking-[.06em] text-ink-3">{def.name} · {what}</span>
+        {target.text && <span className="block text-sm text-ink mt-0.5 line-clamp-3">“{target.text}”</span>}</div>
       <Rows checks={elementChecks(b, target, meta.assets, found)} />
     </div>;
   }
@@ -71,9 +71,9 @@ export function QualityChecklist({ blocks, meta, url, templateName, target }: { 
     { ok: must.length === 0 ? (should.length ? "warn" : true) : false, label: "Page insights", value: must.length ? `${must.length} to fix · ${should.length} to check` : should.length ? `${should.length} to check` : "All checks pass" },
   ];
   return <div>
-    <p className="text-[12px] text-ink-3 mb-1">Point at a text, a picture or a component to check it.</p>
+    <p className="text-xs text-ink-3 mb-1">Point at a text, a picture or a component to check it.</p>
     <Rows checks={page} />
-    {[...must, ...should].length > 0 && <div className="mt-2 border-t border-line pt-2"><b className="block text-[11px] uppercase tracking-[.06em] text-ink-3 mb-1">To look at</b>
-      <ul className="grid gap-1">{[...must, ...should].slice(0, 8).map((i) => <li key={i.id + (i.blockId ?? "")} className="flex gap-2 text-[12.5px]"><span aria-hidden className={`mt-1.5 w-2 h-2 rounded-full flex-none ${i.level === "crit" ? "bg-crit" : "bg-warn"}`} /><span>{i.title}</span></li>)}</ul></div>}
+    {[...must, ...should].length > 0 && <div className="mt-2 border-t border-line pt-2"><b className="block text-xs uppercase tracking-[.06em] text-ink-3 mb-1">To look at</b>
+      <ul className="grid gap-1">{[...must, ...should].slice(0, 8).map((i) => <li key={i.id + (i.blockId ?? "")} className="flex gap-2 text-xs"><span aria-hidden className={`mt-1.5 w-2 h-2 rounded-full flex-none ${i.level === "crit" ? "bg-crit" : "bg-warn"}`} /><span>{i.title}</span></li>)}</ul></div>}
   </div>;
 }

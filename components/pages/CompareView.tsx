@@ -78,15 +78,15 @@ export function CompareView({ marketId, marketName, path, onClose }: { marketId:
 
   return <div role="dialog" aria-modal="true" aria-label="Compare with live" className="fixed inset-0 z-[80] bg-bg flex flex-col">
     <header className="flex flex-wrap items-center gap-3 px-4 py-2.5 bg-surface border-b border-line">
-      <b className="text-[15px]">Compare with live</b><span className="text-ink-3 text-[13px] truncate">{data?.authoring.title ?? ""}</span>
+      <b className="text-base">Compare with live</b><span className="text-ink-3 text-sm truncate">{data?.authoring.title ?? ""}</span>
       <button type="button" className="btn btn-sm ml-auto" onClick={onClose}>Close</button>
     </header>
     {err ? <p className="m-6 text-crit">{err}</p> : !data ? <p className="m-6 text-ink-3">Loading…</p> : !data.live ? <p className="m-6 text-ink-2">This page has never been published, so there is nothing to compare with.</p> :
     <div className="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_320px]">
       <section className="min-h-0 grid grid-rows-[auto_1fr] border-r border-line" aria-label="Authoring">
-        <div className="flex items-center gap-2 px-3 py-2 bg-surface border-b border-line text-[12.5px]">
-          <span className="font-semibold text-[11px] uppercase tracking-[.06em] text-ink-3">Authoring</span>
-          <select className="ml-1 min-w-0 flex-1 border border-line-2 rounded-md px-2 py-1 bg-surface text-[12.5px]" value={version} onChange={(e) => setVersion(e.target.value)} aria-label="Authoring version">
+        <div className="flex items-center gap-2 px-3 py-2 bg-surface border-b border-line text-xs">
+          <span className="font-medium text-xs uppercase tracking-[.06em] text-ink-3">Authoring</span>
+          <select className="ml-1 min-w-0 flex-1 border border-line-2 rounded-md px-2 py-1 bg-surface text-xs" value={version} onChange={(e) => setVersion(e.target.value)} aria-label="Authoring version">
             <option value="current">Current draft</option>
             {data.versions.map((v) => <option key={v.id} value={v.id}>{when(v.time)} · {v.who.replace(/\./g, " ")}{v.note ? ` · ${v.note}` : ""}</option>)}
           </select>
@@ -94,19 +94,19 @@ export function CompareView({ marketId, marketName, path, onClose }: { marketId:
         <Pane paneRef={left} onScroll={() => sync(true)}>{page(draftBlocks, "draft", data.authoring.title)}</Pane>
       </section>
       <section className="min-h-0 grid grid-rows-[auto_1fr] border-r border-line" aria-label="Live">
-        <div className="flex items-center gap-2 px-3 py-2 bg-surface border-b border-line text-[12.5px]"><span className="inline-flex items-center gap-1.5 font-semibold text-[11px] uppercase tracking-[.06em] text-good"><i className="w-2 h-2 rounded-full bg-good" />Live</span><span className="text-ink-3 truncate">Published {when(data.live.time)}{data.live.who ? ` by ${data.live.who}` : ""}</span></div>
+        <div className="flex items-center gap-2 px-3 py-2 bg-surface border-b border-line text-xs"><span className="inline-flex items-center gap-1.5 font-medium text-xs uppercase tracking-[.06em] text-good"><i className="w-2 h-2 rounded-full bg-good" />Live</span><span className="text-ink-3 truncate">Published {when(data.live.time)}{data.live.who ? ` by ${data.live.who}` : ""}</span></div>
         <Pane paneRef={right} onScroll={() => sync(false)}>{page(liveBlocks, "live", data.live.title)}</Pane>
       </section>
-      <aside className="min-h-0 overflow-auto bg-surface p-3.5 text-[13px]" aria-label="Differences">
-        <b className="block text-[13.5px]">Differences</b>
-        <p className="text-[12px] text-ink-3 mt-0.5">{diffs.length + (titleChanged ? 1 : 0) ? `${diffs.length + (titleChanged ? 1 : 0)} between ${version === "current" ? "the draft" : "this version"} and live` : "No differences · it matches the live page"}</p>
-        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-[11.5px] text-ink-3">{(Object.keys(TONE) as Diff["kind"][]).map((k) => <span key={k} className="inline-flex items-center gap-1"><i className={`w-2 h-2 rounded-full ${TONE[k].dot}`} />{TONE[k].word}</span>)}</div>
+      <aside className="min-h-0 overflow-auto bg-surface p-3.5 text-sm" aria-label="Differences">
+        <b className="block text-sm">Differences</b>
+        <p className="text-xs text-ink-3 mt-0.5">{diffs.length + (titleChanged ? 1 : 0) ? `${diffs.length + (titleChanged ? 1 : 0)} between ${version === "current" ? "the draft" : "this version"} and live` : "No differences · it matches the live page"}</p>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2 text-xs text-ink-3">{(Object.keys(TONE) as Diff["kind"][]).map((k) => <span key={k} className="inline-flex items-center gap-1"><i className={`w-2 h-2 rounded-full ${TONE[k].dot}`} />{TONE[k].word}</span>)}</div>
         <ul className="mt-3 grid gap-2">
-          {titleChanged && <li className="rounded-lg border border-line p-2.5"><span className="text-[11px] font-semibold uppercase tracking-[.06em] text-warn">Changed</span><b className="block">Page title</b><span className="block text-[12px] text-ink-3 line-through">{data.live.title}</span><span className="block text-[12px]">{data.authoring.title}</span></li>}
+          {titleChanged && <li className="rounded-lg border border-line p-2.5"><span className="text-xs font-medium uppercase tracking-[.06em] text-warn">Changed</span><b className="block">Page title</b><span className="block text-xs text-ink-3 line-through">{data.live.title}</span><span className="block text-xs">{data.authoring.title}</span></li>}
           {diffs.map((d) => <li key={d.id}><button type="button" onClick={() => show(d.id)} className={`w-full text-left rounded-lg border p-2.5 hover:bg-surface-2 ${focusId === d.id ? "border-ink-3" : "border-line"}`}>
-            <span className={`text-[11px] font-semibold uppercase tracking-[.06em] ${TONE[d.kind].cls}`}>{TONE[d.kind].word}</span><b className="block">{d.name}</b>
-            {d.fields?.slice(0, 4).map((f, i) => <span key={i} className="block mt-1 text-[12px]"><span className="text-ink-3">{f.label}: </span>{f.before && <span className="text-ink-3 line-through">{f.before}</span>}{f.before && f.after ? " → " : ""}{f.after && <span>{f.after}</span>}</span>)}
-            {d.fields && d.fields.length > 4 && <span className="block mt-1 text-[11.5px] text-ink-3">+{d.fields.length - 4} more fields</span>}
+            <span className={`text-xs font-medium uppercase tracking-[.06em] ${TONE[d.kind].cls}`}>{TONE[d.kind].word}</span><b className="block">{d.name}</b>
+            {d.fields?.slice(0, 4).map((f, i) => <span key={i} className="block mt-1 text-xs"><span className="text-ink-3">{f.label}: </span>{f.before && <span className="text-ink-3 line-through">{f.before}</span>}{f.before && f.after ? " → " : ""}{f.after && <span>{f.after}</span>}</span>)}
+            {d.fields && d.fields.length > 4 && <span className="block mt-1 text-xs text-ink-3">+{d.fields.length - 4} more fields</span>}
           </button></li>)}
         </ul>
       </aside>

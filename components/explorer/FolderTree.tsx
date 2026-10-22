@@ -30,9 +30,9 @@ function Row({ n, depth, ctx }: { n: Node; depth: number; ctx: Ctx }) {
   const isOpen = open.has(n.path) || n.path === root; const on = current === n.path; const has = n.children.length > 0;
   return (
     <li>
-      <div className={`flex items-center rounded text-[13.5px] ${on ? "bg-brand-soft text-brand-hover font-semibold" : "text-ink-2 hover:bg-surface-3"}`} style={{ paddingLeft: 4 + depth * 14 }}>
-        <button type="button" aria-label={isOpen ? `Collapse ${n.title}` : `Expand ${n.title}`} aria-expanded={isOpen} onClick={() => toggle(n.path)} className={`w-5 h-7 grid place-items-center text-[10px] text-ink-3 ${has ? "" : "invisible"}`}>{isOpen ? "▾" : "▸"}</button>
-        <Link href={`${base}/pages${n.path === root ? "" : rel(n.path)}`} className="flex-1 min-w-0 flex items-center gap-1.5 py-1 pr-2 truncate">{n.path === root ? <SiteIcon /> : <FolderIcon />}<span className="truncate">{n.path === root ? `${flag} ${n.title}` : n.title}</span>{has && !isOpen && <small className="ml-auto text-[10.5px] text-ink-4 font-mono">{n.children.length}</small>}</Link>
+      <div className={`flex items-center rounded text-sm ${on ? "bg-brand-soft text-brand-hover font-medium" : "text-ink-2 hover:bg-surface-3"}`} style={{ paddingLeft: 4 + depth * 14 }}>
+        <button type="button" aria-label={isOpen ? `Collapse ${n.title}` : `Expand ${n.title}`} aria-expanded={isOpen} onClick={() => toggle(n.path)} className={`w-5 h-7 grid place-items-center text-xs text-ink-3 ${has ? "" : "invisible"}`}>{isOpen ? "▾" : "▸"}</button>
+        <Link href={`${base}/pages${n.path === root ? "" : rel(n.path)}`} className="flex-1 min-w-0 flex items-center gap-1.5 py-1 pr-2 truncate">{n.path === root ? <SiteIcon /> : <FolderIcon />}<span className="truncate">{n.path === root ? `${flag} ${n.title}` : n.title}</span>{has && !isOpen && <small className="ml-auto text-xs text-ink-4 font-mono">{n.children.length}</small>}</Link>
       </div>
       {has && isOpen && <ul>{n.children.map((c) => <Row key={c.path} n={c} depth={depth + 1} ctx={ctx} />)}</ul>}
     </li>

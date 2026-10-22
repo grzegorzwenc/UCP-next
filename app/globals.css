@@ -128,7 +128,7 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 /* the builder's inline editor keeps its own red outline while a text is being edited */
 .ie.editing:focus-visible { outline: 2px solid #DB0011; outline-offset: 2px; }
 
-.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-size: 0.75rem; font-weight: 500; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
 .pill::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
 .pill-draft { background: var(--neutral-soft); color: var(--neutral); }
 .pill-review { background: var(--review-soft); color: var(--review); }
@@ -140,17 +140,17 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 .pill-scheduled { background: var(--sched-soft); color: var(--sched); }
 .pill-failed { background: var(--crit-soft); color: var(--crit); }
 
-.btn { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); padding: 7px 13px; border-radius: 8px; font-weight: 500; font-size: 13.5px; line-height: 1.2; white-space: nowrap; min-height: 36px; cursor: pointer; }
+.btn { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); padding: 7px 13px; border-radius: 8px; font-weight: 500; font-size: 0.875rem; line-height: 1.2; white-space: nowrap; min-height: 36px; cursor: pointer; }
 .btn:hover { background: var(--surface-2); border-color: var(--ink-4); }
 .btn-primary { background: var(--brand); border-color: var(--brand); color: #fff; }
 /* the official next-step action (stepper, My tasks): HSBC red with an arrow; secondary actions stay the plain outlined .btn */
-.btn-next { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 600; }
+.btn-next { background: var(--brand); border-color: var(--brand); color: #fff; font-weight: 500; }
 .btn-next::after { content: "→"; margin-left: 1px; transition: transform .15s; }
 .btn-next:hover { background: var(--brand-hover); border-color: var(--brand-hover); color: #fff; } .btn-next:hover::after { transform: translateX(2px); }
 .btn-danger { background: var(--crit); border-color: var(--crit); color: #fff; } .btn-danger:hover { filter: brightness(.92); background: var(--crit); border-color: var(--crit); } .btn-danger:disabled { opacity: .45; cursor: not-allowed; filter: none; }
 .btn-primary:hover { background: var(--brand-hover); }
 .btn-quiet { border-color: transparent; background: none; color: var(--ink-2); }
-.btn-sm { padding: 5px 10px; font-size: 12.5px; min-height: 32px; }
+.btn-sm { padding: 5px 10px; font-size: 0.75rem; min-height: 32px; }
 .btn-icon { width: 34px; padding: 0; justify-content: center; }
 .btn.on { background: var(--ink); color: #fff; border-color: var(--ink); box-shadow: inset 0 -3px 0 var(--brand); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }

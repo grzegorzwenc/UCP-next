@@ -8,7 +8,7 @@ const errText = (e: unknown) => (e instanceof ApiError ? `${e.problem.title} · 
 function Thumb({ a, className = "" }: { a?: Asset; className?: string }) {
   return a?.data
     ? <div className={`bg-surface-3 bg-cover bg-center rounded-md ${className}`} style={{ backgroundImage: `url(${a.data})` }} role="img" aria-label={a.name} />
-    : <div className={`bg-surface-3 rounded-md grid place-items-center text-ink-4 text-[10.5px] font-semibold tracking-[.1em] ${className}`}>{a ? a.type.toUpperCase() : "NONE"}</div>;
+    : <div className={`bg-surface-3 rounded-md grid place-items-center text-ink-4 text-xs font-medium tracking-[.1em] ${className}`}>{a ? a.type.toUpperCase() : "NONE"}</div>;
 }
 
 /** Field editor for `asset` props: shows the current picture and opens the library to pick or upload another. */
@@ -27,19 +27,19 @@ export function AssetPicker({ marketId, value, onChange, invalid }: { marketId: 
   return <div>
     <div className={`flex items-center gap-2.5 border rounded-md p-2 ${invalid ? "border-crit" : "border-line-2"}`}>
       <Thumb a={current} className="w-14 h-10 shrink-0" />
-      <div className="min-w-0 flex-1"><div className="text-[12.5px] truncate">{current ? current.name : value ? <span className="font-mono text-ink-3">{value}</span> : <span className="text-ink-3">No image chosen</span>}</div>{current && <div className="text-[11px] text-ink-3">{current.size} · {current.folder}</div>}</div>
+      <div className="min-w-0 flex-1"><div className="text-xs truncate">{current ? current.name : value ? <span className="font-mono text-ink-3">{value}</span> : <span className="text-ink-3">No image chosen</span>}</div>{current && <div className="text-xs text-ink-3">{current.size} · {current.folder}</div>}</div>
       <button className="btn btn-sm" onClick={() => setOpen(true)}>{value ? "Change" : "Choose image"}</button>
       {value && <button className="btn btn-quiet btn-sm" onClick={() => onChange("")} aria-label="Remove image">✕</button>}
     </div>
     {open && <div className="fixed inset-0 bg-black/45 grid place-items-center z-50" onMouseDown={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) setOpen(false); }} onClick={(e) => e.stopPropagation()}>
       <div role="dialog" aria-labelledby="ap" className="bg-surface rounded-xl w-[min(720px,94vw)] shadow-2xl flex flex-col max-h-[85vh]">
         <input ref={uplRef} type="file" multiple accept="image/*,.svg" className="hidden" onChange={(e) => { upload(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
-        <header className="px-6 pt-5 pb-3 flex items-center gap-2"><h2 id="ap" className="text-lg font-semibold">Choose an image</h2><button className="btn btn-sm ml-auto" disabled={busy} onClick={() => uplRef.current?.click()}>{busy ? "Uploading…" : "↑ Upload new"}</button><button className="w-8 h-8 rounded text-ink-3 hover:bg-surface-3" onClick={() => setOpen(false)} aria-label="Close">×</button></header>
-        <div className="px-6 pb-3 flex gap-2"><input className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] flex-1" placeholder="Find a file by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a file by name" /><select className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface" value={folder} onChange={(e) => setFolder(e.target.value)} aria-label="Folder"><option value="">All folders</option>{folders.map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
-        {err && <div className="mx-6 mb-3 text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</div>}
+        <header className="px-6 pt-5 pb-3 flex items-center gap-2"><h2 id="ap" className="text-lg font-medium">Choose an image</h2><button className="btn btn-sm ml-auto" disabled={busy} onClick={() => uplRef.current?.click()}>{busy ? "Uploading…" : "↑ Upload new"}</button><button className="w-8 h-8 rounded text-ink-3 hover:bg-surface-3" onClick={() => setOpen(false)} aria-label="Close">×</button></header>
+        <div className="px-6 pb-3 flex gap-2"><input className="border border-line-2 rounded-md px-2.5 py-1.5 text-sm flex-1" placeholder="Find a file by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a file by name" /><select className="border border-line-2 rounded-md px-2.5 py-1.5 text-sm bg-surface" value={folder} onChange={(e) => setFolder(e.target.value)} aria-label="Folder"><option value="">All folders</option>{folders.map((f) => <option key={f} value={f}>{f}</option>)}</select></div>
+        {err && <div className="mx-6 mb-3 text-crit text-xs bg-crit-soft px-3 py-2 rounded">{err}</div>}
         <div className="px-6 pb-5 overflow-auto min-h-[200px]">
           {assets === null && !err ? <div className="p-10 text-center text-ink-3">Loading library…</div>
-            : list.length ? <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3">{list.map((a) => <button key={a.id} onClick={() => { onChange(a.id); setOpen(false); }} className={`text-left bg-surface border rounded-lg p-2 hover:border-ink-4 ${a.id === value ? "border-brand ring-2 ring-brand-soft" : "border-line"}`}><Thumb a={a} className="w-full h-[84px]" /><b className="block text-[12px] mt-1.5 truncate" title={a.name}>{a.name}</b><small className="text-ink-3 text-[11px]">{a.size} · {a.folder}</small></button>)}</div>
+            : list.length ? <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3">{list.map((a) => <button key={a.id} onClick={() => { onChange(a.id); setOpen(false); }} className={`text-left bg-surface border rounded-lg p-2 hover:border-ink-4 ${a.id === value ? "border-brand ring-2 ring-brand-soft" : "border-line"}`}><Thumb a={a} className="w-full h-[84px]" /><b className="block text-xs mt-1.5 truncate" title={a.name}>{a.name}</b><small className="text-ink-3 text-xs">{a.size} · {a.folder}</small></button>)}</div>
             : <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">No images match. <button className="underline" onClick={() => uplRef.current?.click()}>Upload one</button>.</div>}
         </div>
       </div></div>}

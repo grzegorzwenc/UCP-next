@@ -8,7 +8,7 @@ export function ViewToggle({ value, onChange, hrefs, className = "" }: { value: 
     ["list", "List", <svg key="l" viewBox="0 0 24 24" className="w-4 h-4 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M4 6h16M4 12h16M4 18h16" /></svg>],
   ];
   return <div role="group" aria-label="View" className={`inline-flex border border-line-2 rounded-lg overflow-hidden bg-surface ${className}`}>
-    {items.map(([v, l, ic]) => { const on = value === v; const cls = `inline-flex items-center gap-1.5 px-3 h-8 text-[13px] font-medium ${on ? "bg-ink text-white" : "text-ink-2 hover:bg-surface-2"}`;
+    {items.map(([v, l, ic]) => { const on = value === v; const cls = `inline-flex items-center gap-1.5 px-3 h-8 text-sm font-medium ${on ? "bg-ink text-white" : "text-ink-2 hover:bg-surface-2"}`;
       return hrefs ? <Link key={v} href={hrefs[v]} aria-current={on ? "true" : undefined} className={cls}>{ic}{l}</Link> : <button key={v} type="button" aria-pressed={on} onClick={() => onChange?.(v)} className={cls}>{ic}{l}</button>; })}
   </div>;
 }

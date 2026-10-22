@@ -57,7 +57,7 @@ function MarketSwitcher({ marketId, envId }: { marketId: string; envId: string }
               <Fragment key={inst.id}>
                 {i > 0 && <DropdownMenuSeparator />}
                 <DropdownMenuGroup>
-                  <DropdownMenuLabel className="text-[11px] uppercase tracking-[.08em] text-muted-foreground" title={inst.full}>{inst.name}</DropdownMenuLabel>
+                  <DropdownMenuLabel className="text-xs uppercase tracking-[.08em] text-muted-foreground" title={inst.full}>{inst.name}</DropdownMenuLabel>
                   {marketsIn(inst.id).map((x) => (
                     <DropdownMenuItem key={x.id} className="cursor-pointer gap-2"
                       onClick={() => router.push(`/${x.id}/${envId}/${rest}`)}>
@@ -100,7 +100,7 @@ function SidebarUser({ marketId, envId }: { marketId: string; envId: string }) {
           <DropdownMenuTrigger
             render={
               <SidebarMenuButton size="lg" className="cursor-pointer data-[state=open]:bg-sidebar-accent">
-                <span aria-hidden className="size-8 shrink-0 rounded-full bg-(--sidebar-active-bar) text-white grid place-items-center text-[11px] font-medium">{initials}</span>
+                <span aria-hidden className="size-8 shrink-0 rounded-full bg-(--sidebar-active-bar) text-white grid place-items-center text-xs font-medium">{initials}</span>
                 <div className="grid flex-1 text-left leading-tight">
                   <span className="truncate font-medium">{me.name}</span>
                   {/* The environment reads as the second line, with its colour dot, so it is
@@ -127,12 +127,12 @@ function SidebarUser({ marketId, envId }: { marketId: string; envId: string }) {
               <DropdownMenuLabel className="font-normal">
                 <span className="block font-medium">{me.name}</span>
                 <span className="block text-xs text-muted-foreground">{me.email || `${me.id}@hsbc.com`}</span>
-                <span className="mt-1 inline-block text-[11px] text-muted-foreground">{ROLES[me.role]?.name ?? me.role}</span>
+                <span className="mt-1 inline-block text-xs text-muted-foreground">{ROLES[me.role]?.name ?? me.role}</span>
               </DropdownMenuLabel>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuLabel className="text-[11px] uppercase tracking-[.08em] text-muted-foreground">Environment</DropdownMenuLabel>
+              <DropdownMenuLabel className="text-xs uppercase tracking-[.08em] text-muted-foreground">Environment</DropdownMenuLabel>
               {ENVS.map((x) => (
                 <DropdownMenuItem key={x.id} className="cursor-pointer gap-2"
                   onClick={() => router.push(`/${marketId}/${x.id}/${rest}`)}>

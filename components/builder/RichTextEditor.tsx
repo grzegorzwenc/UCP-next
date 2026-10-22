@@ -57,9 +57,9 @@ export function useFormatState(getRoot: () => HTMLElement | null, on = true): Fo
 }
 
 const ICON: Record<Cmd | "link" | "clear", React.ReactNode> = {
-  bold: <b className="text-[13px] font-bold">B</b>,
-  italic: <i className="text-[13px] font-serif font-semibold">I</i>,
-  underline: <u className="text-[13px] font-semibold">U</u>,
+  bold: <b className="text-sm font-bold">B</b>,
+  italic: <i className="text-sm font-serif font-medium">I</i>,
+  underline: <u className="text-sm font-medium">U</u>,
   insertUnorderedList: <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M9 6h11M9 12h11M9 18h11" /><circle cx="4.5" cy="6" r="1" /><circle cx="4.5" cy="12" r="1" /><circle cx="4.5" cy="18" r="1" /></svg>,
   insertOrderedList: <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M10 6h10M10 12h10M10 18h10M4 5l1.5-1v4M3.5 11.5c.5-1 2.5-1 2.5.3 0 1-2.5 1.7-2.5 3h2.6M3.5 17h2.3l-1.2 1.3c1 0 1.5.5 1.5 1.1 0 1.2-2 1.3-2.6.4" /></svg>,
   link: <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></svg>,
@@ -88,9 +88,9 @@ export function FormatBar({ getRoot, state, dark = false, lists = true, onChange
   const sep = <span aria-hidden className={`w-px h-5 mx-0.5 ${dark ? "bg-white/20" : "bg-line"}`} />;
   if (linking !== null) return <div role="toolbar" aria-label="Add a link" className="flex items-center gap-1" onMouseDown={(e) => { if ((e.target as HTMLElement).tagName !== "INPUT") e.preventDefault(); }}>
     <input autoFocus value={linking} onChange={(e) => setLinking(e.target.value)} onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter") { e.preventDefault(); applyLink(); } if (e.key === "Escape") { e.preventDefault(); setLinking(null); getRoot()?.focus(); } }}
-      placeholder="https://www.hsbc.co.uk/…" aria-label="Link address" className={`h-7 w-[220px] rounded px-2 text-[12.5px] outline-none ${dark ? "bg-white/10 text-white placeholder:text-white/50" : "border border-line-2 bg-surface"}`} />
-    <button type="button" className={`${btn(false)} w-auto px-2 text-[12px] font-semibold`} onClick={applyLink}>Add</button>
-    <button type="button" className={`${btn(false)} w-auto px-2 text-[12px]`} onClick={() => { setLinking(null); getRoot()?.focus(); }}>Cancel</button>
+      placeholder="https://www.hsbc.co.uk/…" aria-label="Link address" className={`h-7 w-[220px] rounded px-2 text-xs outline-none ${dark ? "bg-white/10 text-white placeholder:text-white/50" : "border border-line-2 bg-surface"}`} />
+    <button type="button" className={`${btn(false)} w-auto px-2 text-xs font-medium`} onClick={applyLink}>Add</button>
+    <button type="button" className={`${btn(false)} w-auto px-2 text-xs`} onClick={() => { setLinking(null); getRoot()?.focus(); }}>Cancel</button>
   </div>;
   return <div role="toolbar" aria-label="Text formatting" className="flex items-center gap-0.5" onMouseDown={(e) => e.preventDefault()}>
     {(["bold", "italic", "underline"] as const).map((c) => <button key={c} type="button" className={btn(state[c])} aria-pressed={state[c]} title={LABEL[c]} aria-label={LABEL[c]} onClick={() => run(c)}>{ICON[c]}</button>)}
@@ -115,7 +115,7 @@ export function RichField({ value, onChange, onFocus, invalid, disabled, label, 
   return <div className={`rounded-md border bg-surface ${invalid ? "border-crit" : focused ? "border-ink-3" : "border-line-2"}`}>
     {showBar && <div className="flex items-center px-1 py-0.5 border-b border-line bg-surface-2 rounded-t-md"><FormatBar getRoot={getRoot} state={state} lists={!inline} onChange={emit} /></div>}
     <div ref={ref} role="textbox" aria-multiline="true" aria-label={label} contentEditable={!disabled} suppressContentEditableWarning
-      className={`${inline ? "rti rte-line" : "rt rte"} ${inline ? "min-h-[32px] px-2.5 py-1.5" : compact ? "min-h-[56px] max-h-[220px] px-2 py-1.5" : "min-h-[96px] max-h-[320px] px-2.5 py-2"} overflow-auto text-[13px] text-ink outline-none`}
+      className={`${inline ? "rti rte-line" : "rt rte"} ${inline ? "min-h-[32px] px-2.5 py-1.5" : compact ? "min-h-[56px] max-h-[220px] px-2 py-1.5" : "min-h-[96px] max-h-[320px] px-2.5 py-2"} overflow-auto text-sm text-ink outline-none`}
       onFocus={() => { onFocus?.(); prepareEditable(); setFocused(true); }} onBlur={() => { setFocused(false); emit(); }} onInput={emit}
       onKeyDown={(e) => { if (inline && e.key === "Enter") e.preventDefault(); }}
       onPaste={(e) => { e.preventDefault(); const html = e.clipboardData.getData("text/html"); const text = e.clipboardData.getData("text/plain"); exec("insertHTML", inline ? (html ? sanitizeInline(html) : toInlineHtml(text.replace(/\s*\n\s*/g, " "))) : html ? sanitizeRich(html) : toRichHtml(text)); emit(); }} />

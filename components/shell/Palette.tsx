@@ -82,16 +82,16 @@ export function Palette({ marketId, envId }: { marketId: string; envId: string }
   return (
     <div className="fixed inset-0 bg-black/45 z-[60] flex justify-center items-start pt-[12vh]" onMouseDown={(e) => { if (e.target === e.currentTarget) close(); }}>
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Command palette" onKeyDown={trap} className="bg-surface text-ink rounded-xl w-[min(640px,94vw)] shadow-2xl overflow-hidden">
-        <div className="flex items-center gap-2.5 px-4 py-3 border-b border-line text-[15px]"><span aria-hidden>{inBuilder ? "✨" : "⌕"}</span>
-          <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKey} autoComplete="off" aria-label="Command" role="combobox" aria-expanded="true" aria-controls={listId} aria-autocomplete="list" aria-activedescendant={items.length ? optId(cur) : undefined} className="flex-1 outline-none text-[15px] bg-transparent" placeholder={inBuilder ? "What would you like to do? Search pages, components or ask AI…" : "Search pages or go to…"} />
-          <kbd className="font-mono text-[10.5px] border border-line-2 rounded px-1.5 py-0.5 text-ink-3">esc</kbd></div>
+        <div className="flex items-center gap-2.5 px-4 py-3 border-b border-line text-base"><span aria-hidden>{inBuilder ? "✨" : "⌕"}</span>
+          <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKey} autoComplete="off" aria-label="Command" role="combobox" aria-expanded="true" aria-controls={listId} aria-autocomplete="list" aria-activedescendant={items.length ? optId(cur) : undefined} className="flex-1 outline-none text-base bg-transparent" placeholder={inBuilder ? "What would you like to do? Search pages, components or ask AI…" : "Search pages or go to…"} />
+          <kbd className="font-mono text-xs border border-line-2 rounded px-1.5 py-0.5 text-ink-3">esc</kbd></div>
         <div ref={listRef} id={listId} role="listbox" aria-label="Results" className="max-h-[60vh] overflow-auto py-1">
           {items.length ? items.map((it, i) => { const head = it.section !== last; last = it.section; return (
-            <div key={it.id}>{head && <h6 className="px-4 pt-2.5 pb-1 text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold">{it.section}</h6>}
-              <button id={optId(i)} data-i={i} role="option" aria-selected={i === cur} tabIndex={-1} onMouseEnter={() => setSel(i)} onClick={it.run} className={`w-full flex items-center gap-3 px-4 py-2 text-[13.5px] text-left ${i === cur ? "bg-brand-soft text-brand-hover" : "hover:bg-surface-2"}`}><span className="flex-1 min-w-0">{it.label}</span>{it.hint && <small className={`text-[11.5px] truncate max-w-[45%] ${i === cur ? "text-brand-hover/80" : "text-ink-3"}`}>{it.hint}</small>}</button></div>); })
-            : <div className="p-6 text-center text-ink-3 text-[13px]">Nothing matches “{q}”.</div>}
+            <div key={it.id}>{head && <h6 className="px-4 pt-2.5 pb-1 text-xs tracking-[.1em] uppercase text-ink-3 font-medium">{it.section}</h6>}
+              <button id={optId(i)} data-i={i} role="option" aria-selected={i === cur} tabIndex={-1} onMouseEnter={() => setSel(i)} onClick={it.run} className={`w-full flex items-center gap-3 px-4 py-2 text-sm text-left ${i === cur ? "bg-brand-soft text-brand-hover" : "hover:bg-surface-2"}`}><span className="flex-1 min-w-0">{it.label}</span>{it.hint && <small className={`text-xs truncate max-w-[45%] ${i === cur ? "text-brand-hover/80" : "text-ink-3"}`}>{it.hint}</small>}</button></div>); })
+            : <div className="p-6 text-center text-ink-3 text-sm">Nothing matches “{q}”.</div>}
         </div>
-        <div className="px-4 py-2 border-t border-line text-[11.5px] text-ink-3 flex gap-3"><span>↑↓ move</span><span>↵ run</span><span>esc close</span><span className="ml-auto">⌘K toggles</span></div>
+        <div className="px-4 py-2 border-t border-line text-xs text-ink-3 flex gap-3"><span>↑↓ move</span><span>↵ run</span><span>esc close</span><span className="ml-auto">⌘K toggles</span></div>
       </div>
     </div>
   );

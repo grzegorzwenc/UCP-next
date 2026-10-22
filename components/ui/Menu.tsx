@@ -51,7 +51,7 @@ export function Menu({ label, ariaLabel, items, align = "right", className = "",
         onClick={(e) => { e.stopPropagation(); if (open) close(); else show("first"); }} onKeyDown={onButtonKey}>{label}</button>
       {open && (
         <div ref={listRef} id={`${id}-menu`} role="menu" aria-labelledby={`${id}-btn`} onKeyDown={onListKey}
-          className={`absolute top-full mt-1 min-w-[176px] bg-surface border border-line rounded-lg shadow-2xl py-1 text-[13px] text-ink z-30 ${align === "right" ? "right-0" : "left-0"}`}>
+          className={`absolute top-full mt-1 min-w-[176px] bg-surface border border-line rounded-lg shadow-2xl py-1 text-sm text-ink z-30 ${align === "right" ? "right-0" : "left-0"}`}>
           {items.map((it, i) => (
             <button key={it.id} type="button" role="menuitem" data-i={i} tabIndex={i === active ? 0 : -1} disabled={it.disabled} aria-disabled={it.disabled || undefined}
               onMouseEnter={() => !it.disabled && setActive(i)} onClick={(e) => { e.stopPropagation(); run(it); }}

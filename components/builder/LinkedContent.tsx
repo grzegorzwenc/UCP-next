@@ -46,30 +46,30 @@ export function EntitiesPanel({ marketId, base, pagePath, bindings, entities, mo
   const remove = (alias: string, title?: string) => { const next = { ...bindings }; delete next[alias]; void save(next, `Removed ${title ?? alias} from this page`); };
 
   return <div className="flex flex-col gap-3">
-    <p className="text-[12px] text-ink-3">Content entities used on this page. Change them in Content entities and every page that uses them updates.</p>
-    {!rows.length && !adding && <div className="border border-dashed border-line-2 rounded-lg p-4 text-center text-ink-3 text-[12.5px]"><b className="block text-ink text-[13px] mb-0.5">No entities on this page</b>{canEdit ? "Add one to reuse its text here." : "Nothing on this page comes from content entities."}</div>}
+    <p className="text-xs text-ink-3">Content entities used on this page. Change them in Content entities and every page that uses them updates.</p>
+    {!rows.length && !adding && <div className="border border-dashed border-line-2 rounded-lg p-4 text-center text-ink-3 text-xs"><b className="block text-ink text-sm mb-0.5">No entities on this page</b>{canEdit ? "Add one to reuse its text here." : "Nothing on this page comes from content entities."}</div>}
     {rows.length > 0 && <ul className="border border-line rounded-lg divide-y divide-line">{rows.map((r) => <li key={r.alias} className="px-3 py-2.5">
-      <div className="flex items-start gap-2"><b className="flex-1 min-w-0 text-[13px] leading-snug break-words">{r.title ?? "Missing entity"}</b>
+      <div className="flex items-start gap-2"><b className="flex-1 min-w-0 text-sm leading-snug break-words">{r.title ?? "Missing entity"}</b>
         {canEdit && !r.uses && <button className="flex-none w-6 h-6 -mt-0.5 rounded text-ink-3 hover:bg-surface-3" title="Remove from this page" aria-label={`Remove ${r.title ?? r.alias} from this page`} disabled={busy} onClick={() => remove(r.alias, r.title)}>✕</button>}</div>
-      <div className="text-[11.5px] text-ink-3 mt-0.5">{modelName(r.mid)} · {r.uses ? `used ${r.uses}× in the text` : "not used in the text yet"}</div>
+      <div className="text-xs text-ink-3 mt-0.5">{modelName(r.mid)} · {r.uses ? `used ${r.uses}× in the text` : "not used in the text yet"}</div>
       <div className="flex items-center gap-2 mt-2">{r.e && (r.e.status === "modified" ? <Pill status="review" label="Modified" /> : <Pill status={r.e.status} label={r.e.status === "published" ? "Published" : "Draft"} />)}
         {r.e && <Link className="btn btn-sm ml-auto" href={`${base}/entities?model=${encodeURIComponent(r.mid)}&entity=${encodeURIComponent(r.e.id)}`}>Open</Link>}</div>
     </li>)}</ul>}
     {typed.length > 0 && <div className="border border-warn/40 bg-warn-soft rounded-lg p-2.5 flex flex-col gap-2">
-      <b className="text-[12.5px]">Not linked yet</b>
+      <b className="text-xs">Not linked yet</b>
       {typed.map(([alias, n]) => <div key={alias} className="flex flex-col gap-1.5">
-        <div className="text-[12px]"><span className="font-mono">{`{{${alias}.…}}`}</span> is used {n}× but no entity is linked as “{alias}”, so visitors would see the code.</div>
-        {canEdit && <div className="flex gap-1.5"><select className="flex-1 min-w-0 border border-line-2 rounded-md px-2 py-1 text-[12.5px] bg-surface" value={linkPick[alias] ?? ""} onChange={(e) => setLinkPick((x) => ({ ...x, [alias]: e.target.value }))} aria-label={`Entity for ${alias}`}><option value="">Choose an entity…</option>{(all ?? []).map((e) => <option key={e.path} value={e.path}>{e.title} · {modelName(e.model)}</option>)}</select>
+        <div className="text-xs"><span className="font-mono">{`{{${alias}.…}}`}</span> is used {n}× but no entity is linked as “{alias}”, so visitors would see the code.</div>
+        {canEdit && <div className="flex gap-1.5"><select className="flex-1 min-w-0 border border-line-2 rounded-md px-2 py-1 text-xs bg-surface" value={linkPick[alias] ?? ""} onChange={(e) => setLinkPick((x) => ({ ...x, [alias]: e.target.value }))} aria-label={`Entity for ${alias}`}><option value="">Choose an entity…</option>{(all ?? []).map((e) => <option key={e.path} value={e.path}>{e.title} · {modelName(e.model)}</option>)}</select>
           <button className="btn btn-sm btn-primary" disabled={!linkPick[alias] || busy} onClick={() => void save({ ...bindings, [alias]: linkPick[alias] }, `Linked “${alias}” to ${byPath[linkPick[alias]]?.title ?? "the entity"}`)}>Link</button></div>}
       </div>)}
     </div>}
     {canEdit && (adding ? <div className="border border-line rounded-lg p-2.5 flex flex-col gap-2 bg-surface-2">
-      <label className="text-xs text-ink-2 font-medium">Entity<select className="mt-1 w-full border border-line-2 rounded-md px-2 py-1.5 text-[13px] font-normal text-ink bg-surface" value={pick} onChange={(e) => setPick(e.target.value)} autoFocus>
+      <label className="text-xs text-ink-2 font-medium">Entity<select className="mt-1 w-full border border-line-2 rounded-md px-2 py-1.5 text-sm font-normal text-ink bg-surface" value={pick} onChange={(e) => setPick(e.target.value)} autoFocus>
         <option value="">{all === null ? "Loading…" : "Choose an entity…"}</option>
         {Object.keys(byModel).sort().map((m) => <optgroup key={m} label={modelName(m)}>{byModel[m].map((x) => <option key={x.path} value={x.path}>{x.title}{x.status === "draft" ? " (draft)" : ""}</option>)}</optgroup>)}</select></label>
       <div className="flex justify-end gap-2"><button className="btn btn-sm" onClick={() => { setAdding(false); setPick(""); }}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!pick || busy} onClick={() => void add()}>{busy ? "Adding…" : "Add"}</button></div>
     </div> : <button className="btn btn-sm justify-center" onClick={() => setAdding(true)}>＋ Add entity</button>)}
-    {err && <div role="alert" className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded">{err}</div>}
+    {err && <div role="alert" className="text-crit text-xs bg-crit-soft px-3 py-2 rounded">{err}</div>}
   </div>;
 }
 

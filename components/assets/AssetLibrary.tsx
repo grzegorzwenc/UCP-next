@@ -37,8 +37,8 @@ function Thumb({ a, className = "", badge = true }: { a: Asset; className?: stri
         {a.type === "image" ? <svg viewBox="0 0 24 24" className="w-[38%] h-[38%] max-w-8 max-h-8 fill-none stroke-white" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="M21 16l-5-5-8 8" /></svg>
         : a.type === "pdf" ? <svg viewBox="0 0 24 24" className="w-[38%] h-[38%] max-w-8 max-h-8 fill-none stroke-brand" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5M8 13h8M8 17h5" /></svg>
         : <svg viewBox="0 0 24 24" className="w-[38%] h-[38%] max-w-8 max-h-8 fill-none stroke-ink-3" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5" /></svg>}
-        {a.status === "draft" && <span className="absolute top-1 left-1 text-[9.5px] font-bold uppercase tracking-[.04em] bg-warn text-white px-1.5 py-px rounded" title="Not published · pages that use it cannot go live until it is">Draft</span>}
-        {badge && <span className="absolute bottom-1 right-1 text-[9.5px] font-semibold tracking-[.08em] px-1 rounded bg-black/55 text-white">{TYPE_LABEL[a.type] ?? "FILE"}</span>}
+        {a.status === "draft" && <span className="absolute top-1 left-1 text-xs font-bold uppercase tracking-[.04em] bg-warn text-white px-1.5 py-px rounded" title="Not published · pages that use it cannot go live until it is">Draft</span>}
+        {badge && <span className="absolute bottom-1 right-1 text-xs font-medium tracking-[.08em] px-1 rounded bg-black/55 text-white">{TYPE_LABEL[a.type] ?? "FILE"}</span>}
       </div>;
 }
 
@@ -47,16 +47,16 @@ const FIRST = 5;
 /** "Used on N pages": folded to one line with a status summary; opens to the first few pages, then all. */
 function UsedOnPages({ used, hrefOf }: { used: { path: string; title: string; status: string }[]; hrefOf: (path: string) => string }) {
   const [open, setOpen] = useState(false); const [all, setAll] = useState(false);
-  if (!used.length) return <p className="text-[13px] text-ink-3 mt-4 pt-3 border-t border-line"><b className="text-ink font-semibold">Used on</b> · not used on any page yet</p>;
+  if (!used.length) return <p className="text-sm text-ink-3 mt-4 pt-3 border-t border-line"><b className="text-ink font-medium">Used on</b> · not used on any page yet</p>;
   const counts = Object.entries(used.reduce<Record<string, number>>((m, p) => ((m[p.status] = (m[p.status] ?? 0) + 1), m), {})).sort((x, y) => y[1] - x[1]);
   const shown = all ? used : used.slice(0, FIRST);
   return <section className="mt-4 border-t border-line pt-1">
     <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="w-full flex items-center gap-2 py-2 text-left rounded hover:bg-surface-2 -mx-1 px-1">
-      <span className="min-w-0 flex-1"><b className="block text-[13px] font-semibold">Used on {used.length} page{used.length === 1 ? "" : "s"}</b>
-        <small className="block text-[12px] text-ink-3 truncate">{counts.map(([st, n]) => `${n} ${STATUS_WORD[st] ?? st}`).join(" · ")}</small></span>
-      <span className="text-[12px] font-semibold text-ink-2 whitespace-nowrap">{open ? "Hide" : "Show"}</span><span aria-hidden className={`text-ink-3 text-[11px] transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
+      <span className="min-w-0 flex-1"><b className="block text-sm font-medium">Used on {used.length} page{used.length === 1 ? "" : "s"}</b>
+        <small className="block text-xs text-ink-3 truncate">{counts.map(([st, n]) => `${n} ${STATUS_WORD[st] ?? st}`).join(" · ")}</small></span>
+      <span className="text-xs font-medium text-ink-2 whitespace-nowrap">{open ? "Hide" : "Show"}</span><span aria-hidden className={`text-ink-3 text-xs transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
     </button>
-    {open && <><ul className="text-[13px] mt-1">{shown.map((p) => <li key={p.path}><Link href={hrefOf(p.path)} className="flex items-center gap-2 py-1.5 border-b border-line last:border-0 hover:bg-surface-2"><Pill status={p.status} /><span className="truncate">{p.title}</span><span className="ml-auto text-ink-3">›</span></Link></li>)}</ul>
+    {open && <><ul className="text-sm mt-1">{shown.map((p) => <li key={p.path}><Link href={hrefOf(p.path)} className="flex items-center gap-2 py-1.5 border-b border-line last:border-0 hover:bg-surface-2"><Pill status={p.status} /><span className="truncate">{p.title}</span><span className="ml-auto text-ink-3">›</span></Link></li>)}</ul>
       {used.length > FIRST && <button type="button" className="btn btn-sm btn-quiet mt-1.5" onClick={() => setAll(!all)}>{all ? "Show fewer" : `Show all ${used.length}`}</button>}</>}
   </section>;
 }
@@ -101,54 +101,54 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
   return (
     <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] grid-rows-[auto_1fr] md:grid-rows-1 h-full min-h-0">
       <SideTree label="Folders" current={title}>
-        <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mb-2">Asset library</h6>
+        <h6 className="text-xs tracking-[.1em] uppercase text-ink-3 font-medium px-2 mb-2">Asset library</h6>
         <FolderList root={{ label: `${flag} All assets`, count: assets.length, active: !folder && !view, onClick: () => go("") }} items={folders.map((f) => ({ key: f, label: f, count: assets.filter((x) => x.folder === f).length, active: folder === f, onClick: () => go(`?folder=${encodeURIComponent(f)}`) }))} />
         {canEdit && <button className="btn btn-quiet btn-sm mt-2.5 ml-1" onClick={() => setNewFolder(true)}>＋ New folder</button>}
-        <h6 className="text-[10.5px] tracking-[.1em] uppercase text-ink-3 font-semibold px-2 mt-5 mb-2">Smart views</h6>
+        <h6 className="text-xs tracking-[.1em] uppercase text-ink-3 font-medium px-2 mt-5 mb-2">Smart views</h6>
         <FolderList root={{ label: "Needs attention", count: unusedCount + noAlt.length }} items={[{ key: "unused", label: "Not used on any page", count: unusedCount, active: view === "unused", onClick: () => go("?view=unused"), icon: "page" }, { key: "noalt", label: "Missing accessibility info", count: noAlt.length, active: view === "noalt", onClick: () => go("?view=noalt"), icon: "page" }]} />
       </SideTree>
 
       <div className={`p-4 md:p-7 overflow-auto min-h-0 relative ${drag ? "outline outline-2 outline-dashed outline-brand -outline-offset-8" : ""}`} onDragOver={(e) => { if (canEdit && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDrag(true); } }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false); }} onDrop={onDrop}>
         <input ref={uplRef} type="file" multiple accept="image/*,.pdf,.svg" className="hidden" onChange={(e) => { upload(Array.from(e.target.files ?? []), folder || "Uploads"); e.target.value = ""; }} />
         <input ref={replRef} type="file" accept="image/*,.pdf,.svg" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) replace(f); e.target.value = ""; }} />
-        <div className="text-[12.5px] text-ink-3 mb-2 flex items-center gap-1.5"><button className="hover:underline" onClick={() => go("")}>Asset library</button>{(folder || view) && <><span>/</span><b className="text-ink">{title}</b></>}</div>
-        <div className="flex flex-wrap items-end gap-x-4 gap-y-3 mb-5"><div><h1 className="text-2xl font-semibold">{title}</h1><p className="text-ink-3 text-[13px] mt-1">{list.length} file{list.length === 1 ? "" : "s"}{folder ? " in this folder" : view ? " in this view" : ` in the ${marketName} library`}</p></div>
-          <div className="ml-auto flex gap-2 items-center">{canEdit ? <><button className="btn" onClick={() => setNewFolder(true)}>＋ New folder</button><button className="btn btn-primary" disabled={busy === "upload"} onClick={() => uplRef.current?.click()}>{busy === "upload" ? "Uploading…" : "↑ Upload files"}</button></> : <span className="inline-flex items-center gap-1.5 text-[12.5px] text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="You don't have Edit on this site. Ask a site admin."><span aria-hidden="true">🔒</span>Read-only library</span>}</div></div>
+        <div className="text-xs text-ink-3 mb-2 flex items-center gap-1.5"><button className="hover:underline" onClick={() => go("")}>Asset library</button>{(folder || view) && <><span>/</span><b className="text-ink">{title}</b></>}</div>
+        <div className="flex flex-wrap items-end gap-x-4 gap-y-3 mb-5"><div><h1 className="text-2xl font-medium">{title}</h1><p className="text-ink-3 text-sm mt-1">{list.length} file{list.length === 1 ? "" : "s"}{folder ? " in this folder" : view ? " in this view" : ` in the ${marketName} library`}</p></div>
+          <div className="ml-auto flex gap-2 items-center">{canEdit ? <><button className="btn" onClick={() => setNewFolder(true)}>＋ New folder</button><button className="btn btn-primary" disabled={busy === "upload"} onClick={() => uplRef.current?.click()}>{busy === "upload" ? "Uploading…" : "↑ Upload files"}</button></> : <span className="inline-flex items-center gap-1.5 text-xs text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="You don't have Edit on this site. Ask a site admin."><span aria-hidden="true">🔒</span>Read-only library</span>}</div></div>
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          <input className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] flex-1 sm:flex-none sm:w-[280px] min-w-[150px]" placeholder="Find a file by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a file by name" />
-          <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-[13px] bg-surface" value={type} onChange={(e) => setType(e.target.value)} aria-label="File type"><option value="">Any type</option><option value="image">Images</option><option value="pdf">Documents</option><option value="svg">Icons</option></select>
+          <input className="border border-line-2 rounded-md px-2.5 py-1.5 text-sm flex-1 sm:flex-none sm:w-[280px] min-w-[150px]" placeholder="Find a file by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a file by name" />
+          <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-sm bg-surface" value={type} onChange={(e) => setType(e.target.value)} aria-label="File type"><option value="">Any type</option><option value="image">Images</option><option value="pdf">Documents</option><option value="svg">Icons</option></select>
           <ViewToggle value={mode} onChange={setView} className="ml-auto" />
         </div>
-        {err && <div className="text-crit text-[12.5px] bg-crit-soft px-3 py-2 rounded mb-4 flex items-center">{err}<button className="ml-auto underline" onClick={() => setErr(null)}>Dismiss</button></div>}
+        {err && <div className="text-crit text-xs bg-crit-soft px-3 py-2 rounded mb-4 flex items-center">{err}<button className="ml-auto underline" onClick={() => setErr(null)}>Dismiss</button></div>}
 
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
           {mode === "list"
-            ? <div className="min-w-0"><div className="bg-surface border border-line rounded-xl overflow-hidden"><table className="w-full text-[13.5px] [&_tr>*:nth-child(2)]:hidden 2xl:[&_tr>*:nth-child(2)]:table-cell [&_tr>*:nth-child(3)]:hidden 2xl:[&_tr>*:nth-child(3)]:table-cell">
-              <thead className="bg-surface-2"><tr className="text-left text-[11px] uppercase tracking-[.08em] text-ink-3"><th className="px-4 py-2.5 border-b border-line font-semibold">Name</th><th className="px-4 py-2.5 border-b border-line font-semibold w-[1%] whitespace-nowrap">Used on</th><th className="px-4 py-2.5 border-b border-line font-semibold w-[1%] whitespace-nowrap">Accessibility</th></tr></thead>
+            ? <div className="min-w-0"><div className="bg-surface border border-line rounded-xl overflow-hidden"><table className="w-full text-sm [&_tr>*:nth-child(2)]:hidden 2xl:[&_tr>*:nth-child(2)]:table-cell [&_tr>*:nth-child(3)]:hidden 2xl:[&_tr>*:nth-child(3)]:table-cell">
+              <thead className="bg-surface-2"><tr className="text-left text-xs uppercase tracking-[.08em] text-ink-3"><th className="px-4 py-2.5 border-b border-line font-medium">Name</th><th className="px-4 py-2.5 border-b border-line font-medium w-[1%] whitespace-nowrap">Used on</th><th className="px-4 py-2.5 border-b border-line font-medium w-[1%] whitespace-nowrap">Accessibility</th></tr></thead>
               <tbody>{list.length ? shown.map((x) => { const on = x.id === a?.id; const n = usedOn(x.id).length; const gaps = noAlt.includes(x.id) ? a11yGaps(x, locales[0]) : [];
-                const a11y = gaps.length ? <span className="inline-flex items-center gap-1.5 rounded-full bg-warn-soft text-warn px-2 py-0.5 text-[11.5px] font-semibold whitespace-nowrap" title={`Missing: ${gaps.join(", ")}`}><i aria-hidden className="w-1.5 h-1.5 rounded-full bg-warn" />{gaps.length > 1 ? `${gaps.length} things missing` : `No ${gaps[0].toLowerCase()}`}</span> : <span className="inline-flex items-center gap-1 rounded-full bg-good-soft text-good px-2 py-0.5 text-[11.5px] font-semibold whitespace-nowrap">✓ Complete</span>;
+                const a11y = gaps.length ? <span className="inline-flex items-center gap-1.5 rounded-full bg-warn-soft text-warn px-2 py-0.5 text-xs font-medium whitespace-nowrap" title={`Missing: ${gaps.join(", ")}`}><i aria-hidden className="w-1.5 h-1.5 rounded-full bg-warn" />{gaps.length > 1 ? `${gaps.length} things missing` : `No ${gaps[0].toLowerCase()}`}</span> : <span className="inline-flex items-center gap-1 rounded-full bg-good-soft text-good px-2 py-0.5 text-xs font-medium whitespace-nowrap">✓ Complete</span>;
                 return <tr key={x.id} onClick={() => setSel(x.id)} aria-selected={on} className={`cursor-pointer border-b border-line last:border-0 ${on ? "bg-brand-soft shadow-[inset_3px_0_0_var(--brand)]" : "hover:bg-surface-2"}`}>
                   <td className="px-4 py-2.5 max-w-0 w-full"><div className="flex items-center gap-3 min-w-0"><Thumb a={x} badge={false} className="w-12 h-9 shrink-0" />
                     <div className="min-w-0"><b className="block truncate font-medium" title={x.name}>{x.name}</b>
-                      <div className="text-[12px] text-ink-3 truncate">{TYPE_NAME[x.type] ?? "File"} · <span className="tabular-nums">{x.size}</span>{!folder && <> · {x.folder}</>}<span className="2xl:hidden"> · {n ? `${n} page${n === 1 ? "" : "s"}` : "not used"}</span></div>
+                      <div className="text-xs text-ink-3 truncate">{TYPE_NAME[x.type] ?? "File"} · <span className="tabular-nums">{x.size}</span>{!folder && <> · {x.folder}</>}<span className="2xl:hidden"> · {n ? `${n} page${n === 1 ? "" : "s"}` : "not used"}</span></div>
                       <div className="2xl:hidden mt-1">{a11y}</div></div></div></td>
                   <td className="px-4 py-2.5 whitespace-nowrap">{n ? <span className="text-ink-2">{n} page{n === 1 ? "" : "s"}</span> : <span className="text-ink-4">Not used</span>}</td>
                   <td className="px-4 py-2.5">{a11y}</td>
                 </tr>; })
                 : <tr><td colSpan={3} className="p-10 text-center text-ink-3">No files here yet.{canEdit && " Upload some or drag them in."}</td></tr>}</tbody></table></div>
-            {list.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-[12.5px] text-ink-3">Showing {shown.length} of {list.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show more</button></div>}</div>
-            : <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">{list.length ? shown.map((x) => <button key={x.id} onClick={() => setSel(x.id)} className={`text-left bg-surface border rounded-lg p-2 hover:border-ink-4 ${a && x.id === a.id ? "border-brand ring-2 ring-brand-soft" : "border-line"}`}><Thumb a={x} className="w-full h-[96px]" /><b className="block text-[12.5px] mt-2 truncate" title={x.name}>{x.name}</b><small className="text-ink-3 text-[11.5px] flex items-center gap-1.5">{x.size}{noAlt.includes(x.id) && <span className="ml-auto text-[10.5px] font-semibold px-1.5 rounded bg-warn-soft text-warn" title={`Missing: ${a11yGaps(x, locales[0]).join(", ")}`}>{(() => { const g = a11yGaps(x, locales[0]); return g.length > 1 ? "Needs alt text +" : `No ${g[0]?.toLowerCase() ?? "alt text"}`; })()}</span>}</small></button>)
+            {list.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-xs text-ink-3">Showing {shown.length} of {list.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show more</button></div>}</div>
+            : <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">{list.length ? shown.map((x) => <button key={x.id} onClick={() => setSel(x.id)} className={`text-left bg-surface border rounded-lg p-2 hover:border-ink-4 ${a && x.id === a.id ? "border-brand ring-2 ring-brand-soft" : "border-line"}`}><Thumb a={x} className="w-full h-[96px]" /><b className="block text-xs mt-2 truncate" title={x.name}>{x.name}</b><small className="text-ink-3 text-xs flex items-center gap-1.5">{x.size}{noAlt.includes(x.id) && <span className="ml-auto text-xs font-medium px-1.5 rounded bg-warn-soft text-warn" title={`Missing: ${a11yGaps(x, locales[0]).join(", ")}`}>{(() => { const g = a11yGaps(x, locales[0]); return g.length > 1 ? "Needs alt text +" : `No ${g[0]?.toLowerCase() ?? "alt text"}`; })()}</span>}</small></button>)
               : <div className="col-span-full p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">No files here yet.{canEdit && " Upload some or drag them in."}</div>}
-              {list.length > shown.length && <div className="col-span-full flex items-center justify-center gap-3 py-4 text-[12.5px] text-ink-3">Showing {shown.length} of {list.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show more</button></div>}</div>}
+              {list.length > shown.length && <div className="col-span-full flex items-center justify-center gap-3 py-4 text-xs text-ink-3">Showing {shown.length} of {list.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show more</button></div>}</div>}
 
           {a && <div className="bg-surface border border-line rounded-lg p-4 lg:sticky lg:top-0">
             <Thumb a={a} className="w-full h-[180px]" />
-            <b className="block mt-3 mb-0.5 break-all text-[14px]">{a.name}</b>
-            <div className="font-mono text-[12px] text-ink-3">{a.width && a.height ? `${a.width}×${a.height} · ` : ""}{a.size} · {a.folder}</div>
-            {(a.uploadedBy || a.uploaded) && <div className="text-[12px] text-ink-3 mt-0.5">Uploaded{a.uploadedBy ? ` by ${who(a.uploadedBy)}` : ""}{a.uploaded ? ` ${when(a.uploaded)}` : ""}</div>}
-            <div className="mt-2 flex items-center gap-2 text-[12.5px]">{a.status === "published"
-              ? <span className="inline-flex items-center gap-1.5 text-good font-semibold"><i className="w-2 h-2 rounded-full bg-good" />Published{a.publishedAt ? <span className="font-normal text-ink-3"> {when(a.publishedAt)}{a.publishedBy ? ` by ${who(a.publishedBy)}` : ""}</span> : null}</span>
-              : <><span className="inline-flex items-center gap-1.5 text-warn font-semibold"><i className="w-2 h-2 rounded-full bg-warn" />Not published</span>{canPublish && <button className="btn btn-sm btn-primary ml-auto" disabled={!!busy} onClick={() => { const x = a; run("publish", async () => { await ucpApi.publishAssets(marketId, [x.id]); say(`Published ${x.name}`); }); }}>{busy === "publish" ? "Publishing…" : "Publish"}</button>}</>}</div>
+            <b className="block mt-3 mb-0.5 break-all text-sm">{a.name}</b>
+            <div className="font-mono text-xs text-ink-3">{a.width && a.height ? `${a.width}×${a.height} · ` : ""}{a.size} · {a.folder}</div>
+            {(a.uploadedBy || a.uploaded) && <div className="text-xs text-ink-3 mt-0.5">Uploaded{a.uploadedBy ? ` by ${who(a.uploadedBy)}` : ""}{a.uploaded ? ` ${when(a.uploaded)}` : ""}</div>}
+            <div className="mt-2 flex items-center gap-2 text-xs">{a.status === "published"
+              ? <span className="inline-flex items-center gap-1.5 text-good font-medium"><i className="w-2 h-2 rounded-full bg-good" />Published{a.publishedAt ? <span className="font-normal text-ink-3"> {when(a.publishedAt)}{a.publishedBy ? ` by ${who(a.publishedBy)}` : ""}</span> : null}</span>
+              : <><span className="inline-flex items-center gap-1.5 text-warn font-medium"><i className="w-2 h-2 rounded-full bg-warn" />Not published</span>{canPublish && <button className="btn btn-sm btn-primary ml-auto" disabled={!!busy} onClick={() => { const x = a; run("publish", async () => { await ucpApi.publishAssets(marketId, [x.id]); say(`Published ${x.name}`); }); }}>{busy === "publish" ? "Publishing…" : "Publish"}</button>}</>}</div>
             <A11yPanel key={`${a.id}:${JSON.stringify(a.a11y ?? {})}`} asset={a} locales={locales} canEdit={canEdit} busy={busy === "a11y"} onSave={saveA11y} />
             <UsedOnPages key={a.id} used={used} hrefOf={(p) => `${base}/page${p.replace(root, "")}`} />
             <div className="flex flex-wrap gap-1.5 mt-4">
@@ -163,11 +163,11 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
 
       {newFolder && canEdit && <div className="fixed inset-0 bg-black/45 grid place-items-center z-50" onClick={(e) => { if (e.target === e.currentTarget) setNewFolder(false); }}>
         <div role="dialog" aria-labelledby="nf" className="bg-surface rounded-xl w-[min(480px,94vw)] shadow-2xl">
-          <header className="px-6 pt-5 pb-3 flex items-center"><h2 id="nf" className="text-lg font-semibold">New folder</h2><button className="ml-auto w-8 h-8 rounded text-ink-3 hover:bg-surface-3" onClick={() => setNewFolder(false)} aria-label="Close">×</button></header>
-          <div className="px-6 pb-2"><label className="text-xs text-ink-3">Folder name<input autoFocus className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-[13.5px] text-ink" value={folderName} onChange={(e) => setFolderName(e.target.value.replace(/[\/\\]/g, ""))} onKeyDown={(e) => { if (e.key === "Enter") createFolder(); }} placeholder="e.g. Spring campaign" /></label><div className="mt-1 font-mono text-[11px] text-ink-3">/content/dam/{marketId}/{folderName.trim() || "…"}</div></div>
+          <header className="px-6 pt-5 pb-3 flex items-center"><h2 id="nf" className="text-lg font-medium">New folder</h2><button className="ml-auto w-8 h-8 rounded text-ink-3 hover:bg-surface-3" onClick={() => setNewFolder(false)} aria-label="Close">×</button></header>
+          <div className="px-6 pb-2"><label className="text-xs text-ink-3">Folder name<input autoFocus className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink" value={folderName} onChange={(e) => setFolderName(e.target.value.replace(/[\/\\]/g, ""))} onKeyDown={(e) => { if (e.key === "Enter") createFolder(); }} placeholder="e.g. Spring campaign" /></label><div className="mt-1 font-mono text-xs text-ink-3">/content/dam/{marketId}/{folderName.trim() || "…"}</div></div>
           <footer className="px-6 pb-5 pt-3 flex justify-end gap-2"><button className="btn" onClick={() => setNewFolder(false)}>Cancel</button><button className="btn btn-primary" disabled={!folderName.trim() || busy === "folder"} onClick={createFolder}>{busy === "folder" ? "Creating…" : "Create folder"}</button></footer>
         </div></div>}
-      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-[13px] z-50">{toast}</div>}
+      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-sm z-50">{toast}</div>}
     </div>
   );
 }

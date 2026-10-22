@@ -21,7 +21,7 @@ export function TemplatePreview({ blocks, scale, height }: { blocks: string[]; s
       {bl.length ? <div className="site desktop absolute left-0 top-0 !max-w-none !shadow-none" style={{ transform: `scale(${s})`, transformOrigin: "top left", width: 1200, margin: 0 }}>
         {bl.map((b) => <RenderBlock key={b.id} b={b} />)}
       </div>
-        : <div className="absolute inset-4 border-2 border-dashed border-line-2 rounded-lg grid place-items-center text-center bg-white/60"><div><span className="block text-[28px] leading-none text-ink-4">＋</span><span className="block text-[12.5px] text-ink-3 mt-1.5">Empty page</span></div></div>}
+        : <div className="absolute inset-4 border-2 border-dashed border-line-2 rounded-lg grid place-items-center text-center bg-white/60"><div><span className="block text-3xl leading-none text-ink-4">＋</span><span className="block text-xs text-ink-3 mt-1.5">Empty page</span></div></div>}
       {bl.length > 0 && <div className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-t from-black/10 to-transparent pointer-events-none" />}
     </div>
   );

@@ -23,14 +23,14 @@ export function AssignDialog({ marketId, task, pageHref, onClose, onDone }: { ma
     subtitle={<>{task.what} · <b className="text-ink-2">{task.page.title}</b></>}
     footer={<><Link href={pageHref} className="btn mr-auto">Open page</Link>{task.assigneeName && <button className="btn text-crit" disabled={busy} onClick={() => pick(null)}>Remove {task.assigneeName.split(" ")[0]}</button>}<button className="btn" onClick={onClose}>Cancel</button></>}>
     <label className="flex items-center gap-2 border border-line-2 rounded-md px-2.5 py-2 bg-surface"><span className="text-ink-3" aria-hidden>⌕</span>
-      <input autoFocus className="flex-1 outline-none text-[14px] bg-transparent" placeholder="Type a name or team" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a person" /></label>
-    <p className="text-[12px] text-ink-3 mt-2 mb-1.5">People with {perm} on this page</p>
-    {!people && !err ? <p className="text-[13px] text-ink-3 py-4">Loading…</p> : list.length ? <ul className="grid gap-1 max-h-[46vh] overflow-auto" role="listbox" aria-label="People">
+      <input autoFocus className="flex-1 outline-none text-sm bg-transparent" placeholder="Type a name or team" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a person" /></label>
+    <p className="text-xs text-ink-3 mt-2 mb-1.5">People with {perm} on this page</p>
+    {!people && !err ? <p className="text-sm text-ink-3 py-4">Loading…</p> : list.length ? <ul className="grid gap-1 max-h-[46vh] overflow-auto" role="listbox" aria-label="People">
       {list.map((p) => { const cur = p.id === task.assignee; return <li key={p.id}><button type="button" role="option" aria-selected={cur} disabled={busy || cur} onClick={() => pick(p.id)}
         className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border text-left ${cur ? "border-brand bg-brand-soft" : "border-line hover:bg-surface-2"}`}>
-        <Avatar name={p.name} size={28} /><span className="min-w-0 flex-1"><b className="block text-[13.5px] font-semibold truncate">{p.name}</b><small className="block text-[12px] text-ink-3 truncate">{p.team}</small></span>
-        <span className="text-[11.5px] text-ink-3 whitespace-nowrap">{cur ? "Assigned now" : p.activeReviews ? `${p.activeReviews} open` : "Free"}</span></button></li>; })}
-    </ul> : <p className="text-[13px] text-ink-3 py-4">{q ? "Nobody matches that name." : `Nobody has ${perm} on this page yet. Grant it in Users & roles.`}</p>}
+        <Avatar name={p.name} size={28} /><span className="min-w-0 flex-1"><b className="block text-sm font-medium truncate">{p.name}</b><small className="block text-xs text-ink-3 truncate">{p.team}</small></span>
+        <span className="text-xs text-ink-3 whitespace-nowrap">{cur ? "Assigned now" : p.activeReviews ? `${p.activeReviews} open` : "Free"}</span></button></li>; })}
+    </ul> : <p className="text-sm text-ink-3 py-4">{q ? "Nobody matches that name." : `Nobody has ${perm} on this page yet. Grant it in Users & roles.`}</p>}
     <Err err={err} />
   </ModalShell>;
 }
