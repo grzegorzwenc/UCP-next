@@ -11,9 +11,15 @@ export const metadata: Metadata = {
   description: "UCP authoring on the ContentLIBRE Management API",
 };
 
+/* Apply the saved theme before first paint so dark mode never flashes light. Blocking on
+   purpose: it is a two-line class toggle. The switcher lives in the sidebar's user menu and
+   writes the same localStorage key. */
+const THEME_SCRIPT = `try{if(localStorage.getItem('theme')==='dark')document.documentElement.classList.add('dark')}catch(e){}`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${plexMono.variable} h-full antialiased`}>
+    <html lang="en" className={`${plexMono.variable} h-full antialiased`} suppressHydrationWarning>
+      <head><script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} /></head>
       <body className="min-h-full">{children}</body>
     </html>
   );

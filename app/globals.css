@@ -3,6 +3,10 @@
    Imported before the tokens below so this file's @theme inline still wins on any
    variable the two both define (today: --font-sans, see the note on it). */
 @import "./bdl.css";
+/* shadcn/ui (Base UI) support: animate-in / animate-out utilities and the components'
+   keyframes. `shadcn/tailwind.css` is @theme keyframes only — it styles no base element. */
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
 /* HSBC-inspired design tokens (same as the prototype) */
 :root {
@@ -15,6 +19,7 @@
   --review: #376798; --review-soft: #E6EDF5; --neutral: #767676; --neutral-soft: #EDEDED;
   --sched: #1B1C1F; --sched-soft: #E7E7E6;
 }
+
 
 @theme inline {
   --color-accent: var(--accent); --color-accent-hover: var(--accent-hover); --color-accent-soft: var(--accent-soft);
@@ -30,6 +35,59 @@
      The face ships 300/400/500/700 and no 600, so `font-semibold` falls through to the 700
      face — heavier than intended in ~199 places until those are swept to font-medium. */
   --font-mono: var(--font-plex-mono), ui-monospace, Menlo, monospace;
+
+}
+
+/* shadcn's dropdown is the only installed component that uses `bg-accent` /
+   `text-accent-foreground` for hover. Give it shadcn's meaning of --accent inside its own
+   subtree (custom properties inherit, so portalled content and its items are covered),
+   leaving HSBC red as --accent everywhere else. */
+/* ---- base layer ported from hsbc-ucpmock's layout.css --------------------------------
+   The shadcn components assume these. Without them `border-r` (and every other colourless
+   border utility) falls back to currentColor — which is what drew a black stroke down the
+   sidebar's right edge — and Lucide renders at its own heavier default weight. */
+@layer base {
+  * { border-color: var(--border); outline-color: color-mix(in oklab, var(--ring) 50%, transparent); }
+  /* Lucide ships at stroke-width 2; BDL's line weight is lighter. */
+  svg.lucide { stroke-width: 1.5; }
+  /* shadcn builds navigation out of lists and anchors; BDL's base styles would give those
+     discs, bottom margins and underlines, so neutralise both inside shadcn slots only. */
+  [data-slot="sidebar-menu"], [data-slot="sidebar-menu-sub"], [data-slot="breadcrumb-list"],
+  [data-slot="sidebar-menu"] > li, [data-slot="sidebar-menu-sub"] > li, [data-slot="breadcrumb-list"] > li {
+    list-style: none; margin: 0; padding-left: 0;
+  }
+  [data-slot="sidebar"] a, [data-slot="breadcrumb"] a, [data-slot^="dropdown-menu"] a { color: inherit; text-decoration: none; }
+  [data-slot="sidebar"] a:hover, [data-slot="breadcrumb"] a:hover { text-decoration: none; }
+  .dark a { color: var(--foreground); }
+  .dark a:hover { color: #ffffff; }
+}
+
+/* Sidebar selected row, ported from hsbc-ucpmock's layout.css: a 2px red bar on the left,
+   a faint red tint and medium weight — the BDL active-tab idiom turned sideways. Hovering a
+   selected row deepens the tint rather than the grey, so the two states never collide.
+   One adaptation: Base UI marks boolean state by attribute presence (data-active=""), where
+   the Svelte build used data-active="true". The data-sidebar hooks are identical. */
+[data-sidebar="menu-button"][data-active],
+[data-sidebar="menu-sub-button"][data-active] {
+  background-color: var(--sidebar-active);
+  color: var(--sidebar-foreground);
+  font-weight: 500;
+  box-shadow: inset 2px 0 0 var(--sidebar-active-bar);
+}
+[data-sidebar="menu-button"][data-active]:hover,
+[data-sidebar="menu-sub-button"][data-active]:hover { background-color: var(--sidebar-active-hover); }
+/* Collapsed to icons: the bar would sit on the icon's edge, so keep only the tint. */
+[data-slot="sidebar"][data-state="collapsed"] [data-sidebar="menu-button"][data-active] {
+  box-shadow: none; background-color: var(--sidebar-active-hover);
+}
+
+[data-slot^="dropdown-menu"] {
+  /* Override --accent itself, not --color-accent: `@theme inline` substitutes values
+     directly, so `bg-accent` compiles to var(--accent) and never reads --color-accent.
+     --muted comes from the cloned theme and is not redefined by this file, so this
+     follows light and dark on its own. */
+  --accent: var(--muted);
+  --accent-foreground: var(--foreground);
 }
 
 html, body { height: 100%; }
@@ -137,10 +195,14 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 .s-disc { font-size: 11.5px; color: #7c808b; }
 
 /* Focus mode (builder ⌘⇧F): body.focus hides the top bar and side nav so the canvas fills the window. Toggled in components/builder/Builder.tsx. */
-body.focus .cms-shell { grid-template-rows: 1fr; }
-body.focus .cms-shell > header, body.focus .cms-shell nav[aria-label="Main"] { display: none; }
-/* with the nav gone, main must own the whole row (otherwise it lands in the collapsed `auto` column) */
-body.focus .cms-shell > div { grid-template-columns: 1fr; }
+body.focus .cms-shell [data-slot="sidebar-inset"] { grid-template-rows: 1fr; }
+/* the shadcn Sidebar renders its own wrapper, gap and rail: hide all three with the top bar */
+body.focus .cms-shell [data-slot="sidebar"],
+body.focus .cms-shell [data-slot="sidebar-gap"],
+body.focus .cms-shell [data-slot="sidebar-rail"],
+body.focus .cms-shell [data-slot="sidebar-inset"] > header { display: none; }
+/* SidebarProvider is the flex row; with the sidebar hidden the inset takes the full width */
+body.focus .cms-shell { display: block; }
 
 /* ---- Page renditions: what the builder shows for the tablet and mobile breakpoints of hsbc.co.uk ---- */
 .site.tablet .cblk { padding: 18px 20px; } .site.tablet .s-mast { margin: -18px -20px 0; padding: 28px 28px; }

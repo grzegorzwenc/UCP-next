@@ -17,7 +17,7 @@ import { AssetPicker } from "./AssetPicker";
 import { proposeAi, AI_SUGGESTIONS, type AiProposal } from "@/lib/ai/mock";
 import { planFor, revertOp, type Plan, type Change } from "@/lib/ai/planner";
 import { useSession } from "@/components/shell/Session";
-import { useShellMode } from "@/components/shell/SideNav";
+import { useShellMode } from "@/components/shell/useShellMode";
 import { InsightsPanel, VersionHistory, TranslateModal, pageInsights } from "@/components/builder";
 import { LeftPanel, type LeftTab } from "./LeftPanel";
 import { AuthorsChip, type PageAuthor } from "./Authors";

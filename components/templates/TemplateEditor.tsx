@@ -12,7 +12,7 @@ import { MARKETS } from "@/lib/markets";
 import { errorText as errText } from "@/lib/api/errors";
 import { useSession } from "@/components/shell/Session";
 import { LeftPanel } from "@/components/builder/LeftPanel";
-import { useShellMode } from "@/components/shell/SideNav";
+import { useShellMode } from "@/components/shell/useShellMode";
 import { templateBlocks } from "./TemplatePreview";
 import { tplFolders, tplFolderOf } from "./TemplateLibrary";
 import { useConfirm } from "@/components/ui/Confirm";

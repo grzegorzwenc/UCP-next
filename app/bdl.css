@@ -16,6 +16,8 @@
 
 @import './bdl/fonts.css';
 @import './bdl/tokens.css';
+/* Light + dark theme for the shadcn components (semantic tokens + the `dark` variant). */
+@import './bdl/theme.css';
 
 /* Staged — uncomment one at a time, with the screens that adopt it.
    base.css is the disruptive one: it sets body background/size, h1–h4, underlines

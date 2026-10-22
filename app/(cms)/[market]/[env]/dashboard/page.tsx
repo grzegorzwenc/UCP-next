@@ -58,11 +58,6 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
   const rel = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); const diff = Math.round((now() - d.getTime()) / 60000); return diff < 60 ? `${Math.max(diff, 0)} min ago` : diff < 1440 ? `${Math.round(diff / 60)} h ago` : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
   return (
     <div className="p-4 md:p-7 pb-14">
-      <div className="flex flex-wrap items-center gap-4 mb-6 p-5 bg-surface border border-line border-l-[5px] border-l-accent">
-        <div className="text-[40px] leading-none" aria-hidden>{mk.flag}</div>
-        <div><h1 className="text-2xl font-semibold leading-tight">{mk.name}</h1><div className="text-[13px] text-ink-3 mt-1 flex gap-1.5 items-center"><span className="font-mono">{mk.domain}</span> · {mk.locales.join(", ")} · <Pill status={mk.status === "Live on UCP" ? "published" : mk.status === "On AEM" ? "draft" : "scheduled"} label={mk.status} /></div></div>
-        <div className="ml-auto text-right text-sm font-semibold"><span><i className="inline-block w-2.5 h-2.5 rounded-full mr-1.5" style={{ background: ev.color }} />{ev.name}</span><small className="block font-normal text-xs text-ink-3">{ev.id === "prod" ? "Publishing here goes live for customers." : "Nothing in this environment reaches customers."}</small></div>
-      </div>
       <h2 className="text-[15px] font-semibold text-ink-2 mb-2.5">What do you want to do?</h2>
       <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3.5 mb-5">
         {[["Create a page", "Pick a folder and a template. Takes under a minute.", `${base}/pages?new=1`, true, "＋"], ["Edit a page", `Browse ${mk.name} or search by title or URL.`, `${base}/pages`, false, "▤"], ["Review and approve", `${c("review")} waiting for review, ${c("approved")} ready to publish.`, `${base}/tasks`, false, "✓"], ["Upload images or files", "Drag and drop, then use them on any page.", `${base}/assets`, false, "↑"]].map(([t, d, href, primary, ic]) => (

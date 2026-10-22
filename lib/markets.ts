@@ -15,12 +15,14 @@ export const MARKETS: Market[] = [
   { id: "mx", name: "HSBC Mexico", flag: "🇲🇽", locales: ["es-MX"], domain: "hsbc.com.mx", status: "Live on UCP", root: "/content/mx", instance: "na" },
   { id: "ae", name: "HSBC UAE", flag: "🇦🇪", locales: ["en-AE", "ar-AE"], domain: "hsbc.ae", status: "Validating", root: "/content/ae", instance: "emea" },
 ];
-export type Env = { id: string; name: string; color: string };
+/** `note`: what publishing here means, shown wherever the environment is picked. */
+export type Env = { id: string; name: string; color: string; note: string };
+const NOT_LIVE = "Nothing in this environment reaches customers.";
 export const ENVS: Env[] = [
-  { id: "dev", name: "Development", color: "#9DA1AC" },
-  { id: "test", name: "Test", color: "#7FAEDD" },
-  { id: "stage", name: "Staging", color: "#E9A23B" },
-  { id: "prod", name: "Production", color: "#3FBDB7" },
+  { id: "dev", name: "Development", color: "#9DA1AC", note: NOT_LIVE },
+  { id: "test", name: "Test", color: "#7FAEDD", note: NOT_LIVE },
+  { id: "stage", name: "Staging", color: "#E9A23B", note: NOT_LIVE },
+  { id: "prod", name: "Production", color: "#3FBDB7", note: "Publishing here goes live for customers." },
 ];
 export const instanceOf = (marketId: string) => INSTANCES.find((i) => i.id === market(marketId).instance) ?? INSTANCES[0];
 export const marketsIn = (instance: InstanceId) => MARKETS.filter((m) => m.instance === instance);

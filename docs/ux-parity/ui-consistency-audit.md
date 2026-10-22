@@ -259,17 +259,35 @@ This repo already satisfies every precondition: Tailwind v4, React 19, the `@/*`
 is missing, which `init` creates. Per the shadcn docs, Tailwind v4 + React 19 support is complete and
 was shipped as a non-breaking change.
 
-- [ ] **Before running `init`, avoid the filename collision.** The working filesystem is
+**Done.** Installed with `shadcn@latest init --base base --preset nova --pointer --css-variables`,
+then `add sidebar dropdown-menu` (which pulled button, input, separator, sheet, skeleton, tooltip
+and `hooks/use-mobile.ts`). Three things worth recording:
+
+1. **`init` is destructive on an existing themed project — review its diff.** It rewrote
+   `app/layout.tsx` to load **Geist** as `--font-sans`, undoing the Univers Next switch, and it
+   **overwrote `--accent`** — HSBC red `#DB0011` — with its own `oklch(0.97 0 0)`, a near-white
+   hover grey. 301 call sites depend on that token being red (`bg-accent` 70, `text-accent` 39,
+   `border-accent` 28, `var(--accent)` 28, `.btn-primary` 71, `.btn-next` 21, `accent-soft` 46,
+   `accent-hover` 19). Both edits were reverted; everything else from `init` was kept.
+2. **The `--accent` clash is resolved by scoping, not renaming.** UCP means HSBC red by it, shadcn
+   means "subtle hover background". Red keeps the global name; shadcn's meaning is scoped in
+   `app/globals.css` to `[data-slot^="dropdown-menu"]`, the only installed component that uses
+   `bg-accent`. Custom properties inherit, so portalled menu content is covered. A proper rename
+   (UCP's brand token → `--brand`) stays available later but was not needed to unblock this.
+3. **shadcn's OKLCH defaults are not used.** A bridge block in `app/globals.css` maps its semantic
+   tokens (`--background`, `--muted`, `--border`, `--sidebar*`, `--radius`, …) onto the existing UCP
+   and BDL values, so one palette drives both and the sidebar inherits HSBC colour. `--primary` is
+   HSBC red. `@theme inline` substitutes these directly into utilities, which is why
+   `--color-sidebar-*` never appears in the built CSS while `.bg-sidebar{background-color:var(--sidebar)}`
+   does — that is correct, not a broken import.
+
+- [x] **Avoided the filename collision.** The working filesystem is
       case-insensitive (verified: creating `Avatar.tsx` then `avatar.tsx` yields one file), and
-      `components/ui/` already holds `Avatar.tsx` and `Skeleton.tsx`. shadcn installs lowercase into
-      `components/ui/`, so `avatar.tsx` and `skeleton.tsx` would **silently overwrite** them.
-      Either set `"aliases": { "ui": "@/components/shadcn" }` in `components.json` (preferred — keeps
-      the two systems visibly separate during migration), or rename the two files first.
-- [ ] `pnpm dlx shadcn@latest init`
-- [ ] Add only what is needed: `button dialog sheet popover tooltip dropdown-menu tabs table
-      badge avatar skeleton input label card separator`
-- [ ] Note that `shadcn add` **overwrites local edits** when re-run on an existing component. Treat
-      every added file as owned by this repo from the moment it lands.
+      `components/ui/` already holds `Avatar.tsx` and `Skeleton.tsx`. `components.json` therefore sets
+      `"aliases": { "ui": "@/components/shadcn" }`, so the two systems stay visibly separate and
+      nothing was overwritten.
+- [ ] Remember that `shadcn add` **overwrites local edits** when re-run on an existing component.
+      Treat every added file as owned by this repo from the moment it lands.
 
 Coverage check against `hsbc-ucpmock`: every `ui/` component it uses exists upstream, **including
 `sidebar` and the TanStack-based `data-table`**. The one exception is `range-calendar`, which is a
@@ -319,6 +337,65 @@ keep the rename. The weight classes also independently confirm there is **no 600
    rather than broken: 199 places render heavier than intended, against 65 `font-medium`, 17
    `font-bold` and 1 `font-light`.
 
+**Theme — done.** `app/bdl/theme.css` is cloned from `hsbc-ucpmock/src/routes/layout.css`
+(lines 6–141): the `dark` custom variant, the light `:root` set and the `.dark` set, plus the
+`@theme inline` mappings. It supersedes the bridge block that was hand-written during Phase 0.
+What came with it:
+
+- `--radius: 0` — BDL is square-cornered. Note the mismatch this exposes: `app/globals.css`
+  still hard-codes `border-radius: 8px` on `.btn`, so hand-rolled buttons are rounded while
+  shadcn components are square. Pick one during Phase 4.
+- Sidebar tokens shadcn does not define: `--sidebar-footer`, `--sidebar-active`,
+  `--sidebar-active-hover`, `--sidebar-active-bar`. The selected-row idiom (2px red inset bar,
+  faint red tint, medium weight, deeper tint on hover, tint-only when collapsed) is ported into
+  `app/globals.css`. One adaptation: Base UI marks boolean state by attribute presence
+  (`data-active=""`) where the Svelte build used `data-active="true"`; the `data-sidebar` hooks
+  are identical, so the selectors otherwise port verbatim.
+- The footer user strip uses `bg-(--sidebar-footer)`, as in the source.
+
+**Theme switcher — done.** It lives in the sidebar's user menu (Sun/Moon), exactly where
+`hsbc-ucpmock/src/lib/components/nav-user.svelte` puts it: toggles `.dark` on
+`document.documentElement` and writes `localStorage.theme`. A blocking inline script in
+`app/layout.tsx` applies the saved theme before first paint so dark never flashes light — the
+Next equivalent of the source project's `app.html` head script. `<html>` carries
+`suppressHydrationWarning` because that script mutates it before React hydrates.
+
+**Shell alignment pass.** Laid out like the source project's app header: sidebar trigger, a
+vertical rule, then the breadcrumb, with search on the right.
+
+- `lib/nav.ts` is now the single list of sections. The sidebar renders it and the breadcrumb
+  resolves labels from it; before this the labels existed twice and would have drifted.
+- The HSBC mark in the sidebar header is the **hexagon only** (`public/hsbc-hexagon.svg`, cloned
+  from the source project) — `public/hsbc-logo.svg` is the full masterbrand lockup, whose wordmark
+  is unreadable at 32px. The mark is no longer repeated in the top bar.
+- Environment moved into the user menu, as its second line with the colour dot, so it is still
+  readable at a glance without occupying a top-bar slot.
+- Search is a fixed ~18rem field instead of stretching to fill the bar.
+- **Sidebar border fix:** the installed `sidebar.tsx` applies `group-data-[side=left]:border-r`
+  with no colour class, so Tailwind falls back to `currentColor` and the right edge rendered as a
+  near-black stroke against `#333` text. `app/globals.css` sets
+  `border-color: var(--sidebar-border)` (#d7d8d6) on the container — done in CSS, not in the
+  component, so `shadcn add` cannot overwrite it.
+
+**Top bar is now light**, on `bg-background` with a `border-b`, matching the source project's
+header. Every `#0F1013` / `text-white` / `bg-white/10` class in `TopBar.tsx` is gone; the unread
+badge keeps `bg-accent` (HSBC red) with white text on purpose. Search and notifications now sit
+together on the right, and search is ~16rem rather than stretching.
+
+**The dashboard's market/environment box is removed** (flag, domain, locales, status pill, and the
+"Publishing here goes live for customers." line). That copy now lives as data on each environment
+(`note` on `Env` in `lib/markets.ts`, so it is no longer an inline ternary) and surfaces as a
+tooltip on the environment line in the sidebar's user menu, plus `title` text on each environment
+in that menu. `TooltipProvider` is mounted in the CMS layout — the collapsed-rail tooltips needed
+it too.
+
+**One delta from the source project remains:** the header is a fixed 52px rather than `h-16`
+shrinking to `h-12` with the sidebar.
+
+**Dark mode is defined but inert.** The tokens and the `dark` variant are in place, but nothing
+in this app adds the `.dark` class — there is no theme switcher. Wiring one (and deciding whether
+it follows `prefers-color-scheme` or is an explicit preference) is a separate piece of work.
+
 **Stage B — remaining:**
 
 - [ ] Sweep the 199 `font-semibold` uses. Default to `font-medium` (500) for UI text — table headers,
@@ -365,7 +442,33 @@ Radix covers most of this once Phase 0 lands; these are the gaps it does not clo
 
 ### Phase 5 — Retire the hand-rolled overlays
 
-- [ ] Migrate the 13 ad-hoc `fixed inset-0` overlays onto shadcn `Dialog` / `Sheet`; delete
+**Sidebar: done.** `components/shell/SideNav.tsx` (the 57-line hand-rolled nav) is deleted and
+replaced by `components/shell/AppSidebar.tsx` on the shadcn Sidebar. The 11 items and 4 group
+labels are unchanged; what went away is the machinery:
+
+| Removed | Now |
+|---|---|
+| `useShellMode()` with 3 media queries + `useSyncExternalStore` | `useSidebar()` |
+| `localStorage["ucp-navmini"]` | `sidebar_state` cookie, read in the layout so first paint matches |
+| `openDrawer()` + a bespoke `fixed inset-0` phone drawer | built-in Sheet via `openMobile` |
+| `w-[60px]` mini rail + hand-written collapse button and aria | `collapsible="icon"` + `SidebarRail` + `SidebarTrigger`, and **⌘B** for free |
+| 11 inline SVG path strings | `lucide-react` icons |
+
+Also in that change: the market switcher moved to the sidebar header with instances (EMEA/APAC/NA)
+as the dropdown's group labels, so the separate instance `<select>` is gone — three top-bar
+selectors became one plus the environment, which stays in the top bar where its colour is visible
+even when the sidebar is collapsed. The account menu moved to the sidebar footer, which also
+deleted 7 hard-coded avatar hexes from `TopBar.tsx`.
+
+The viewport hook survives as `components/shell/useShellMode.ts` (phone/tablet only) because
+`Builder.tsx` and `TemplateEditor.tsx` use it for their own layouts, not for the nav.
+
+**Not reinstated:** the old nav force-collapsed itself inside the page builder ("the builder needs
+the room"). That needs either a controlled `open` on `SidebarProvider` or a `setOpen(false)` on the
+builder route, and `setOpen` writes the preference cookie — so it would clobber the user's choice.
+Left out deliberately rather than implemented fragilely; ⌘B still works.
+
+- [ ] Migrate the remaining 12 ad-hoc `fixed inset-0` overlays onto shadcn `Dialog` / `Sheet`; delete
       `components/models/ModalShell.tsx` once empty
 - [ ] Replace 16 `z-index` tiers with 5 named layers (`--z-nav`, `--z-dropdown`, `--z-overlay`,
       `--z-dialog`, `--z-toast`); Radix portals remove most of the need
