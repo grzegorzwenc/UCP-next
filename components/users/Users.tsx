@@ -127,6 +127,6 @@ export function Users({ users: initialUsers, folders, log, pageTitles, base, roo
         </div>
         <footer className="px-6 pb-5 pt-3 flex justify-end gap-2"><button className="btn" onClick={() => setInvite(false)}>Cancel</button><button className="btn btn-primary" disabled={!slugId(inv.name) || busy} onClick={() => void sendInvite()}>{busy ? "Inviting…" : "Send invitation"}</button></footer>
       </div></div>}
-    {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-sm z-50" role="status">{toast}</div>}
+    {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm z-50" role="status">{toast}</div>}
   </div>);
 }

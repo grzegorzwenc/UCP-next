@@ -91,7 +91,7 @@ export function TemplateLibrary({ marketId, envId, marketName, flag, templates, 
           </div>
           <footer className="px-6 pb-5 pt-3 flex justify-end gap-2"><button className="btn" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-primary" disabled={!name.trim() || busy} onClick={() => (modal.kind === "folder" ? addFolder() : createTemplate())}>{modal.kind === "folder" ? "Create folder" : busy ? "Creating…" : "Create and edit"}</button></footer>
         </div></div>}
-      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-sm z-50">{toast}</div>}
+      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm z-50">{toast}</div>}
     </div>
   );
   function addFolder() { const f = name.trim(); if (!f) return; if (!folders.includes(f)) setExtraFolders((x) => [...x, f]); setModal(null); router.push(href(f)); openTemplateModal(f); }

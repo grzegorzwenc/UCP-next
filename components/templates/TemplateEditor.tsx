@@ -105,7 +105,7 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
               {rendered.length ? rendered.map((b, i) => { const on = sel === i; const def = BLOCK_BY_TYPE[b.type];
                 return <div key={b.id} className={`cblk relative ${on && !preview ? "sel" : ""}`} onClick={(e) => { e.preventDefault(); e.stopPropagation(); if (!preview) setSel(on ? null : i); }}>
                   {!preview && <span className="tag">{def?.name ?? b.type}</span>}
-                  {on && !ro && <div role="toolbar" aria-label={`${def?.name} actions`} className="absolute -top-4 left-4 z-10 flex gap-1 bg-[#0F1013] text-white rounded-lg p-1 shadow-xl text-xs" style={{ transform: `scale(${1 / fit})`, transformOrigin: "top left" }} onClick={(e) => e.stopPropagation()}>
+                  {on && !ro && <div role="toolbar" aria-label={`${def?.name} actions`} className="absolute -top-4 left-4 z-10 flex gap-1 bg-foreground text-background rounded-lg p-1 shadow-xl text-xs" style={{ transform: `scale(${1 / fit})`, transformOrigin: "top left" }} onClick={(e) => e.stopPropagation()}>
                     <button type="button" className="px-2.5 py-1 rounded hover:bg-white/15 disabled:opacity-40" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up">↑</button>
                     <button type="button" className="px-2.5 py-1 rounded hover:bg-white/15 disabled:opacity-40" disabled={i === rendered.length - 1} onClick={() => move(i, 1)} aria-label="Move down">↓</button>
                     <button type="button" className="px-2.5 py-1 rounded hover:bg-white/15" onClick={() => remove(i)} aria-label="Remove">Remove</button>
@@ -137,7 +137,7 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
           </div>
         </aside>}
       </div>
-      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-sm z-50">{toast}</div>}
+      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm z-50">{toast}</div>}
     </div>
   );
 }

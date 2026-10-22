@@ -10,9 +10,9 @@ export type QcTarget = { id: string; field?: string; text?: string; kind: "text"
 type Check = { ok: boolean | "warn"; label: string; value?: string };
 
 const Mark = ({ ok }: { ok: Check["ok"] }) => ok === true
-  ? <svg aria-label="Passed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#00847F" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+  ? <svg aria-label="Passed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--good)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
   : ok === "warn" ? <svg aria-label="Check this" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B35900" strokeWidth="2.4" strokeLinecap="round"><path d="M12 7v6M12 17h.01" /><circle cx="12" cy="12" r="9" /></svg>
-  : <svg aria-label="Needs fixing" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#DB0011" strokeWidth="2.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>;
+  : <svg aria-label="Needs fixing" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" strokeWidth="2.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>;
 
 function Rows({ checks }: { checks: Check[] }) {
   return <ul className="divide-y divide-line">{checks.map((c, i) => <li key={i} className="flex items-start gap-2.5 py-2.5">

@@ -256,7 +256,7 @@ export function Tasks({ marketId, envId, tasks, published, view: view0 }: Props)
       {sharing && <ShareReviewDialog key={sharing.t.page.path + sharing.stage} marketId={marketOfPath(sharing.t.page.path).id} path={sharing.t.page.path} title={sharing.t.page.title} stage={sharing.stage} onClose={() => { setSharing(null); router.refresh(); }} />}
       {publishing && <PublishDialog marketId={marketOfPath(publishing.page.path).id} envName={envById(envId).name} pages={[{ path: publishing.page.path, title: publishing.page.title, status: publishing.page.status }]} mayPublish={(p) => can("publish", p)}
         onClose={() => setPublishing(null)} onDone={(r, mode) => { setPublishing(null); const ok = r.filter((x) => x.ok).length; setToast(mode === "cancel" ? "Schedule cancelled" : ok ? (mode === "schedule" ? `${publishing.page.title} is scheduled` : `${publishing.page.title} is live`) : r[0]?.reason ?? "Nothing was published"); router.refresh(); }} />}
-      {toast && <div role="status" className="fixed bottom-5 left-1/2 -translate-x-1/2 w-max max-w-[calc(100vw-32px)] flex items-center gap-2.5 bg-[#0F1013] text-white pl-3 pr-4 py-2.5 rounded-xl text-sm shadow-xl z-50"><span aria-hidden className="grid place-items-center w-5 h-5 rounded-full bg-white/15 text-xs flex-none">✓</span><span className="min-w-0">{toast}</span></div>}
+      {toast && <div role="status" className="fixed bottom-5 left-1/2 -translate-x-1/2 w-max max-w-[calc(100vw-32px)] flex items-center gap-2.5 bg-foreground text-background pl-3 pr-4 py-2.5 rounded-xl text-sm shadow-xl z-50"><span aria-hidden className="grid place-items-center w-5 h-5 rounded-full bg-white/15 text-xs flex-none">✓</span><span className="min-w-0">{toast}</span></div>}
     </div>
   );
 }

@@ -79,7 +79,7 @@ export function ReviewScreen(p: Props) {
   const sorted = [...list].sort((a, b) => Number(!!a.resolved) - Number(!!b.resolved) || Number(!!b.pinned) - Number(!!a.pinned) || b.time.localeCompare(a.time)); // resolved ones last
 
   return <main className="min-h-dvh bg-bg">
-    <header className="bg-[#0F1013] text-white px-4 md:px-6 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+    <header className="bg-foreground text-background px-4 md:px-6 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
       <img src="/hsbc-logo-white.svg" alt="HSBC" className="h-6" />
       <div className="min-w-0 flex-1"><div className="text-xs uppercase tracking-[.1em] text-white/60">Review · {p.stageLabel}</div><b className="block truncate text-base">{p.title}</b></div>
       <span className="text-xs text-white/70">{p.market!.flag} {p.market!.domain}{p.market!.route}</span>

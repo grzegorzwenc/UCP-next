@@ -23,7 +23,7 @@ export function Login({ users, next, demo }: { users: User[]; next: string; demo
     catch (e) { setErr(errorText(e)); setBusy(null); }
   }
   return (
-    <main className="min-h-dvh bg-[#0F1013] text-white flex flex-col items-center px-4 pt-10 pb-8" style={{ backgroundImage: "radial-gradient(1200px 600px at 50% -10%, rgba(219,0,17,.18), transparent 60%)" }}>
+    <main className="min-h-dvh bg-foreground text-background flex flex-col items-center px-4 pt-10 pb-8" style={{ backgroundImage: "radial-gradient(1200px 600px at 50% -10%, rgba(219,0,17,.18), transparent 60%)" }}>
       <div className="w-[min(440px,100%)] flex flex-col items-center text-center my-auto">
         <img src="/hsbc-logo-white.svg" alt="HSBC" className="h-12 mb-8" />
         <h1 className="text-3xl font-medium leading-tight">Unified Content Platform</h1>

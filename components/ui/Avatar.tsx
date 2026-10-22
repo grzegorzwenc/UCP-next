@@ -1,4 +1,4 @@
-const AVCOL = ["#00847F", "#376798", "#4D6474", "#DB0011", "#1B1C1F", "#83000A", "#5C5C5C"];
+const AVCOL = ["var(--good)", "var(--review)", "var(--info)", "var(--brand)", "var(--sched)", "#83000A", "#5C5C5C"];
 export const avatarColor = (name: string) => AVCOL[name.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % AVCOL.length];
 export const initials = (name: string) => name.split(" ").filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 

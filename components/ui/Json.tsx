@@ -9,7 +9,7 @@ function tokenize(src: string): Tok[] {
   while ((m = re.exec(src))) { if (m[1]) { flush(); out.push({ t: m[2] ? "k" : "s", v: m[1] }); if (m[2]) buf += m[2]; } else if (m[3]) { flush(); out.push({ t: "n", v: m[3] }); } else if (m[4]) { flush(); out.push({ t: "b", v: m[4] }); } else buf += m[5]; }
   flush(); return out;
 }
-const COLOR: Record<Tok["t"], string> = { k: "text-[#4D6474] font-medium", s: "text-[#00847F]", n: "text-[#DB0011]", b: "text-[#376798]", p: "text-ink-2" };
+const COLOR: Record<Tok["t"], string> = { k: "text-info font-medium", s: "text-good", n: "text-brand", b: "text-review", p: "text-ink-2" };
 
 export function Json({ value, maxHeight = 520, label, className = "" }: { value: unknown; maxHeight?: number; label?: string; className?: string }) {
   const text = useMemo(() => (typeof value === "string" ? value : JSON.stringify(value, null, 2)), [value]);

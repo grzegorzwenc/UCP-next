@@ -20,7 +20,7 @@ export function celebrate(titles: string[], where = "") {
   const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
   card.innerHTML = `<div style="width:64px;height:64px;margin:0 auto;border-radius:50%;background:#DB0011;display:grid;place-items:center;box-shadow:0 0 0 8px rgba(219,0,17,.12)">
       <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
-    <div style="margin-top:14px;font-size:26px;font-weight:700;color:#0F1013">Published!</div>
+    <div style="margin-top:14px;font-size:26px;font-weight:700;color:var(--foreground)">Published!</div>
     <div style="margin-top:4px;font-size:15px;color:#333">${one ? `<b>${esc(titles[0])}</b> is live` : `<b>${titles.length} pages</b> are live`}${where ? ` on ${esc(where)}` : ""}</div>
     <div style="margin-top:12px;font-size:12px;color:#767676">Customers see it now · click to close</div>`;
   root.appendChild(card); document.body.appendChild(root);

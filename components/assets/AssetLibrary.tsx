@@ -33,7 +33,7 @@ const TYPE_NAME: Record<string, string> = { image: "Image", pdf: "PDF", svg: "Ic
 function Thumb({ a, className = "", badge = true }: { a: Asset; className?: string; badge?: boolean }) {
   return a.data
     ? <div className={`bg-surface-3 bg-cover bg-center rounded-md ${className}`} style={{ backgroundImage: `url(${a.data})` }} role="img" aria-label={a.name} />
-    : <div className={`relative rounded-md grid place-items-center overflow-hidden ${a.type === "image" ? "bg-[linear-gradient(135deg,#dfe3ea,#b8bfcc)]" : a.type === "pdf" ? "bg-[#FDECEE]" : "bg-surface-3"} ${className}`} role="img" aria-label={`${a.name} (${TYPE_LABEL[a.type] ?? "FILE"})`}>
+    : <div className={`relative rounded-md grid place-items-center overflow-hidden ${a.type === "image" ? "bg-[linear-gradient(135deg,#dfe3ea,#b8bfcc)]" : a.type === "pdf" ? "bg-brand-soft" : "bg-surface-3"} ${className}`} role="img" aria-label={`${a.name} (${TYPE_LABEL[a.type] ?? "FILE"})`}>
         {a.type === "image" ? <svg viewBox="0 0 24 24" className="w-[38%] h-[38%] max-w-8 max-h-8 fill-none stroke-white" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.6" /><path d="M21 16l-5-5-8 8" /></svg>
         : a.type === "pdf" ? <svg viewBox="0 0 24 24" className="w-[38%] h-[38%] max-w-8 max-h-8 fill-none stroke-brand" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 3h8l5 5v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM14 3v5h5M8 13h8M8 17h5" /></svg>
         : <svg viewBox="0 0 24 24" className="w-[38%] h-[38%] max-w-8 max-h-8 fill-none stroke-ink-3" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 3l9 5-9 5-9-5zM3 13l9 5 9-5" /></svg>}
@@ -167,7 +167,7 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
           <div className="px-6 pb-2"><label className="text-xs text-ink-3">Folder name<input autoFocus className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink" value={folderName} onChange={(e) => setFolderName(e.target.value.replace(/[\/\\]/g, ""))} onKeyDown={(e) => { if (e.key === "Enter") createFolder(); }} placeholder="e.g. Spring campaign" /></label><div className="mt-1 font-mono text-xs text-ink-3">/content/dam/{marketId}/{folderName.trim() || "…"}</div></div>
           <footer className="px-6 pb-5 pt-3 flex justify-end gap-2"><button className="btn" onClick={() => setNewFolder(false)}>Cancel</button><button className="btn btn-primary" disabled={!folderName.trim() || busy === "folder"} onClick={createFolder}>{busy === "folder" ? "Creating…" : "Create folder"}</button></footer>
         </div></div>}
-      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-sm z-50">{toast}</div>}
+      {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm z-50">{toast}</div>}
     </div>
   );
 }

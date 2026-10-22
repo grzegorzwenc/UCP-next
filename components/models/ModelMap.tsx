@@ -127,7 +127,7 @@ export function ModelMap({ models, selected, onOpen, canConnect, onConnect, canL
       <svg ref={svg} width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Content model map" className="block select-none touch-none [&_g:focus]:outline-none [&_g:focus-visible]:outline-2 [&_g:focus-visible]:outline-brand" style={{ fontFamily: "var(--font-sans)", cursor: busy ? "crosshair" : undefined }} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={() => { drag.current = null; setLink(null); setMoving(null); }}>
         <defs>
           <marker id="mm-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#6B6F7A" /></marker>
-          <marker id="mm-arrow-on" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#DB0011" /></marker>
+          <marker id="mm-arrow-on" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="var(--brand)" /></marker>
         </defs>
         {rels.map((r) => {
           const a = byId.get(r.from)!, b = byId.get(r.to)!; const pk = [r.from, r.to].sort().join("|"); const n = pairs.get(pk) ?? 0; pairs.set(pk, n + 1);
@@ -135,27 +135,27 @@ export function ModelMap({ models, selected, onOpen, canConnect, onConnect, canL
           const strong = edge === id; const bad = !!canLink && !canLink(r.from, r.to); const txt = bad ? `⚠ ${r.label}` : r.label;
           return <g key={id} role="button" tabIndex={0} aria-label={`${a.name} to ${b.name}: ${txt}`} style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); setEdge(edge === id ? null : id); }} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setEdge(edge === id ? null : id); } }} onPointerDown={(e) => e.stopPropagation()}>
             <path d={g.d} fill="none" stroke="transparent" strokeWidth={14} />
-            <path d={g.d} fill="none" stroke={bad ? "#B7791F" : on ? "#DB0011" : "#8A8F99"} strokeWidth={strong ? 2.6 : on ? 1.8 : 1.4} strokeDasharray={bad ? "5 4" : undefined} markerEnd={`url(#${on ? "mm-arrow-on" : "mm-arrow"})`} />
-            <rect x={g.lx - txt.length * 3.1 - 6} y={g.ly - 11} width={txt.length * 6.2 + 12} height={16} rx={8} fill={bad ? "#FFF6E5" : "#fff"} stroke={bad ? "#B7791F" : on ? "#DB0011" : "#D7D8DC"} />
-            <text x={g.lx} y={g.ly + 1} textAnchor="middle" fontSize={10.5} fill={bad ? "#8A5A00" : on ? "#AF000D" : "#40434C"}>{txt}</text>
+            <path d={g.d} fill="none" stroke={bad ? "#B7791F" : on ? "var(--brand)" : "#8A8F99"} strokeWidth={strong ? 2.6 : on ? 1.8 : 1.4} strokeDasharray={bad ? "5 4" : undefined} markerEnd={`url(#${on ? "mm-arrow-on" : "mm-arrow"})`} />
+            <rect x={g.lx - txt.length * 3.1 - 6} y={g.ly - 11} width={txt.length * 6.2 + 12} height={16} rx={8} fill={bad ? "#FFF6E5" : "#fff"} stroke={bad ? "#B7791F" : on ? "var(--brand)" : "#D7D8DC"} />
+            <text x={g.lx} y={g.ly + 1} textAnchor="middle" fontSize={10.5} fill={bad ? "#8A5A00" : on ? "var(--brand-hover)" : "#40434C"}>{txt}</text>
           </g>;
         })}
-        {link?.moved && (() => { const s = pos[link.from]; return <path d={`M${s.x + BW - 16},${s.y + HEAD / 2} L${link.x},${link.y}`} stroke="#DB0011" strokeWidth={2} strokeDasharray="6 4" fill="none" markerEnd="url(#mm-arrow-on)" pointerEvents="none" />; })()}
+        {link?.moved && (() => { const s = pos[link.from]; return <path d={`M${s.x + BW - 16},${s.y + HEAD / 2} L${link.x},${link.y}`} stroke="var(--brand)" strokeWidth={2} strokeDasharray="6 4" fill="none" markerEnd="url(#mm-arrow-on)" pointerEvents="none" />; })()}
         {models.map((m) => {
           const q = pos[m.id]; const on = m.id === selected; const target = busy && valid(m.id); const blocked = busy && !!src && m.id !== src && !valid(m.id); const h = bh(m); const canLink = connectable(m.id);
           return <g key={m.id} role="link" tabIndex={0} aria-label={pick ? `Link ${byId.get(pick)?.name} to ${m.name}` : `Open ${m.name}`} style={{ cursor: pick ? "crosshair" : "grab" }}
             onPointerDown={(e) => onBoxDown(e, m.id)} onKeyDown={(e) => { if (e.key === "Enter") { if (pick) { if (pick !== m.id) finishConnect(pick, m.id); } else onOpen(m.id); } }}>
             <rect x={q.x + 2} y={q.y + 3} width={BW} height={h} rx={6} fill="#0F10131A" />
-            <rect x={q.x} y={q.y} width={BW} height={h} rx={6} fill="#fff" stroke={hoverOk === m.id ? "#0F8A7E" : hoverBad === m.id ? "#9DA1AC" : on ? "#DB0011" : "#D7D8DC"} strokeWidth={hoverOk === m.id ? 2.5 : on ? 2 : 1} strokeDasharray={target && hoverOk !== m.id ? "4 3" : undefined} opacity={blocked ? 0.45 : 1} />
-            <path d={`M${q.x},${q.y + 6} a6,6 0 0 1 6,-6 h${BW - 12} a6,6 0 0 1 6,6 v${HEAD - 6} h-${BW} z`} fill={on ? "#DB0011" : "#17181C"} />
+            <rect x={q.x} y={q.y} width={BW} height={h} rx={6} fill="#fff" stroke={hoverOk === m.id ? "#0F8A7E" : hoverBad === m.id ? "#9DA1AC" : on ? "var(--brand)" : "#D7D8DC"} strokeWidth={hoverOk === m.id ? 2.5 : on ? 2 : 1} strokeDasharray={target && hoverOk !== m.id ? "4 3" : undefined} opacity={blocked ? 0.45 : 1} />
+            <path d={`M${q.x},${q.y + 6} a6,6 0 0 1 6,-6 h${BW - 12} a6,6 0 0 1 6,6 v${HEAD - 6} h-${BW} z`} fill={on ? "var(--brand)" : "#17181C"} />
             <text x={q.x + 10} y={q.y + 19.5} fontSize={13} fontWeight={600} fill="#fff">{m.name.length > 20 ? `${m.name.slice(0, 19)}…` : m.name} <tspan fontWeight={400} fontSize={11} fill="#ffffffb3">v{m.version}</tspan></text>
-            {m.fields.slice(0, SHOWN).map((f, i) => { const ref = !!targetOf(f); return <text key={f.k} x={q.x + 10} y={q.y + HEAD + 18 + i * ROW} fontSize={11.5} fill={ref ? "#AF000D" : "#40434C"}>{ref ? "⇄ " : f.req ? "● " : "○ "}{f.l.length > 18 ? `${f.l.slice(0, 17)}…` : f.l}<tspan fill="#9DA1AC" fontFamily="var(--font-mono)" fontSize={10.5}> {f.t}</tspan></text>; })}
+            {m.fields.slice(0, SHOWN).map((f, i) => { const ref = !!targetOf(f); return <text key={f.k} x={q.x + 10} y={q.y + HEAD + 18 + i * ROW} fontSize={11.5} fill={ref ? "var(--brand-hover)" : "#40434C"}>{ref ? "⇄ " : f.req ? "● " : "○ "}{f.l.length > 18 ? `${f.l.slice(0, 17)}…` : f.l}<tspan fill="#9DA1AC" fontFamily="var(--font-mono)" fontSize={10.5}> {f.t}</tspan></text>; })}
             {blocked && <text x={q.x + BW / 2} y={q.y + h + 16} textAnchor="middle" fontSize={11} fill="#6B6F7A">No fields in common</text>}
             {m.fields.length > SHOWN && <text x={q.x + 10} y={q.y + HEAD + 18 + SHOWN * ROW} fontSize={11} fill="#9DA1AC">+{m.fields.length - SHOWN} more</text>}
             {canLink && <g role="button" tabIndex={0} aria-label={`Link ${m.name} to another model`} style={{ cursor: "crosshair" }} onPointerDown={(e) => onHandleDown(e, m.id)} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setPick(m.id); } }}>
               <title>Drag onto another model to link them</title>
-              <circle cx={q.x + BW - 16} cy={q.y + HEAD / 2} r={9} fill={pick === m.id ? "#DB0011" : "#fff"} stroke="#DB0011" strokeWidth={1.5} />
-              <text x={q.x + BW - 16} y={q.y + HEAD / 2 + 4.5} textAnchor="middle" fontSize={14} fontWeight={700} fill={pick === m.id ? "#fff" : "#DB0011"}>+</text></g>}
+              <circle cx={q.x + BW - 16} cy={q.y + HEAD / 2} r={9} fill={pick === m.id ? "var(--brand)" : "#fff"} stroke="var(--brand)" strokeWidth={1.5} />
+              <text x={q.x + BW - 16} y={q.y + HEAD / 2 + 4.5} textAnchor="middle" fontSize={14} fontWeight={700} fill={pick === m.id ? "#fff" : "var(--brand)"}>+</text></g>}
           </g>;
         })}
       </svg>

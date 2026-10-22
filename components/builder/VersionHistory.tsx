@@ -94,6 +94,6 @@ export function VersionHistory({ marketId, path, currentBlocks, onRestored, revi
         </div>
         <footer className="px-6 pb-5 pt-3 flex justify-end gap-2"><button type="button" className="btn" disabled={busy} onClick={() => setConfirm(null)}>Cancel</button><button type="button" className="btn btn-primary" disabled={busy} onClick={() => restore(confirm)}>{busy ? "Restoring…" : "Restore"}</button></footer>
       </div></div>}
-    {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#0F1013] text-white px-4 py-2.5 rounded-lg text-sm shadow-xl z-50">{toast}</div>}
+    {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm shadow-xl z-50">{toast}</div>}
   </div>;
 }

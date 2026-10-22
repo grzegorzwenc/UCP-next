@@ -7,7 +7,7 @@
 export function DecisionOverlay({ decision, title, by, at, action }: { decision: "signoff" | "reauthor"; title: string; by: string; at: string; action?: React.ReactNode }) {
   const ok = decision === "signoff";
   const when = new Date(at).toLocaleString("en-GB", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
-  return <div role="alertdialog" aria-modal="true" aria-labelledby="dec-h" className="fixed inset-0 z-[90] grid place-items-center p-4 bg-[#0F1013]/55 backdrop-blur-[3px] cmt-card-in">
+  return <div role="alertdialog" aria-modal="true" aria-labelledby="dec-h" className="fixed inset-0 z-[90] grid place-items-center p-4 bg-foreground/55 backdrop-blur-[3px] cmt-card-in">
     <div className="w-[min(520px,100%)] bg-surface rounded-2xl shadow-[0_30px_80px_rgba(0,0,0,.35)] overflow-hidden text-center">
       <div className={`h-1.5 ${ok ? "bg-good" : "bg-brand"}`} />
       <div className="px-8 pt-8 pb-7">
