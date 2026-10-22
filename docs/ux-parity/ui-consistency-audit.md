@@ -1,0 +1,363 @@
+# UI consistency audit
+
+Audit of the authoring UI as it stands on `main` at `8c6265b`, written for the `UX-Parity` branch.
+
+The product logic, the repository port and the workflow rules are sound (see [../spec/README.md](../spec/README.md)).
+This document is only about the **presentation layer**, where the same decision was made several times
+in several places and never reconciled. Each finding is a measurement, not an opinion: section 9 lists the
+command that produced every number so they can be re-run after a fix.
+
+Targets are not invented. They are measured from `hsbc-ucpmock`, the SvelteKit UX prototype of the same
+product, which is used throughout as the benchmark — see section 2.
+
+**One sentence:** a complete design-token system exists and is then bypassed by components that were
+built independently of it.
+
+## 1. The numbers
+
+| Measure | This repo | `hsbc-ucpmock` | Target |
+|---|---|---|---|
+| Distinct font sizes (`text-[Npx]`) | 23 — including 9.5 / 10.5 / 11.5 / 12.5 / 13.5 / 14.5px | **3** (10, 11, 13px) | 6 |
+| Files containing hard-coded hex | 28 (139 occurrences) | **1** — and it is the style-guide screen, which displays the swatches | 0 outside the site-render layer |
+| `cursor-pointer` vs `onClick` handlers | 26 + 7 CSS rules vs 434 | **432 vs 370** | every clickable |
+| `:active` press states | 0 | **39** | all pressable elements |
+| `hover:` classes behind `@media (hover: hover)` | 0 of 210 | — not measured | all of them |
+| Accent-edge treatments | 4 (1px, 2px, 3px, 5px; border and inset shadow) | — not measured | 1 |
+| Monospace usages | 110 across 32 files | **62** | ~15 (paths, routes, tokens, request ids) |
+| `✨` emoji | 14 | **0** | 0 |
+| Hand-rolled modal overlays | 14 independent re-implementations | 13 files, but 2 are `dialog-overlay` / `sheet-overlay` primitives everything else composes | 1 primitive |
+| `z-index` tiers | 16 (`z-[4]` … `z-[90]`) | — not measured | 5 named layers |
+| Status → label maps | 6, with drifting wording | — not measured | 1 |
+| Swallowed errors (`.catch(() => {})`, `catch {}`) | 31 | — not measured | reviewed case by case |
+| Lines over 300 / 500 characters | 762 / 148 (longest 1,754) | **127 / 19** | — |
+
+### Withdrawn finding
+
+An earlier draft counted `·` used as a copy separator (350 occurrences) as a defect. `hsbc-ucpmock`
+contains **419** — more, in a smaller surface — so it is house style, not drift. Removed.
+
+## 2. Benchmark: what `hsbc-ucpmock` proves
+
+`/Users/leon/Git/hsbc-ucpmock` is a SvelteKit 2 / Svelte 5 prototype of the same product: ~40,000 lines
+of `src`, a broader feature surface (email template builder, experience fragments, taxonomy types, SSG
+admin, operation log, entitlement wizard, global search, guided tours), real HSBC Univers Next fonts and
+10,616 lines of i18n messages.
+
+Its presentation layer scores an order of magnitude better on every metric above, and the cause is
+structural rather than a matter of care:
+
+| It has | This repo has |
+|---|---|
+| `src/bdl/` — 15 tokenised CSS files (tokens, base, buttons, cards, forms, modals, tables, tabs, badges, alerts, animations, icons, utilities, fonts) plus `ICONS.md` | one 209-line `app/globals.css` |
+| `shadcn-svelte` + `bits-ui` — 155 vendored primitives, 7 HSBC-specific | no primitive library; every component hand-rolled |
+| A `/bdl` style-guide route that renders the system, making drift visible | no style guide |
+| `tailwind-variants` enforcing variants per component | ad-hoc class strings |
+
+**The lesson is layer discipline, not framework choice.** `hsbc-ucpmock` has the same disease in a
+different layer: its own `docs/consistency-review-findings.md` records two PRNG families duplicated
+6× and 5×, `slug()` 4×, `pick()` 9× with signature drift, nine files declaring their own people roster
+with conflicting staff IDs, 18 stale hardcoded counts, and three label maps for one concept. Its data
+layer is undisciplined and its UI is not; here it is the other way round.
+
+### Why staying on React is still right
+
+`hsbc-ucpmock/docs/ucp-real-architecture.md` documents the **real** HSBC platform built by the Hong
+Kong team: `uce-service` (Java 21 / Spring Boot / DocumentDB / S3) behind `uce-ui` — **React 19 +
+MUI + Redux Toolkit + Vite**. This prototype's React stack is closer to the real frontend than the
+Svelte prototype is; what it lacks is the design system, which is portable. That is this plan.
+
+## 3. Colour
+
+`app/globals.css` declares 30 tokens and maps them into Tailwind through `@theme inline`. TSX then
+hard-codes past them, including values that are near-duplicates of the tokens themselves.
+
+| Token | Hard-coded near-duplicates found in `.tsx` |
+|---|---|
+| `--accent: #DB0011` | `#DB0011` ×20, `#AF000D`, `#A8000B`, `#83000A` |
+| `--good: #00847F` | `#0F8A7E`, `#3FBDB7`, `#7FD1A8` |
+| `--warn: #E9A23B` | `#F5B544`, `#F9CC5C`, `#F5B82E`, `#F5A623`, `#B7791F`, `#B35900`, `#8A5A00` |
+| `--ink-4: #9DA1AC` | `#8A9096`, `#8A8F99`, `#6B6F7A`, `#D7D8DC`, `#DFE3EA`, `#B8BFCC`, `#E9E9EC`, `#E6E8EA` |
+| `--review: #376798` | `#376798` hard-coded in both CSS and TSX |
+
+Seven ambers exist where one token is defined.
+
+Worst offenders by count: `components/models/ModelMap.tsx` (35), `lib/ui/celebrate.ts` (15),
+`components/ui/Icons.tsx` (11), `components/shell/TopBar.tsx` (10), `components/builder/Builder.tsx` (8).
+
+**Root cause for the icons:** `components/ui/Icons.tsx` bakes `stroke="#8A9096"` and `fill="#fff"` *inside*
+the SVG paths, so an icon cannot be recoloured by its context. Every screen that needed a different
+icon colour hard-coded one instead.
+
+### Out of scope — deliberate, do not "fix"
+
+`app/globals.css` lines 65–158 (`.site`, `.hs-*`, `.s-*`, `.cardv`) replicate the rendered
+hsbc.co.uk page inside the builder canvas. Those raw hex values are HSBC brand colours of the
+**published site**, not CMS chrome, and must not be swapped for CMS theme tokens. Keeping the two
+colour universes separate is correct; the defect is leakage out of the site layer into the chrome.
+
+## 4. Typography
+
+23 distinct font sizes, set with Tailwind arbitrary values rather than a scale:
+
+```
+234 × text-[13px]     170 × text-[12.5px]   138 × text-[12px]
+101 × text-[11.5px]    83 × text-[11px]      73 × text-[13.5px]
+ 45 × text-[10.5px]    23 × text-[15px]      18 × text-[14px]
+ … plus 9px, 9.5px, 10px, 14.5px, 16px, 17px, 18px, 20px, 22px, 26px, 28px, 34px, 40px, 44px
+```
+
+`globals.css` adds 12.5px, 11.5px, 13.5px, 10.5px and a 6px rule of its own.
+
+The half-pixel steps are the tell: nothing distinguishes 12.5px from 13px to a reader, so the two
+coexist only because they were chosen in separate sittings. `hsbc-ucpmock` ships the same product
+surface on three sizes.
+
+The radius scale has the same problem — `rounded`, `rounded-sm`, `rounded-md`, `rounded-lg`,
+`rounded-xl`, `rounded-2xl`, `rounded-[2px]` and `rounded-[10px]` are all in use, plus eight radius
+values in CSS.
+
+## 5. Monospace
+
+IBM Plex Mono is loaded in `app/layout.tsx` and used 110 times across 32 files. It earns its place for
+JCR paths, API routes, `{{alias.field}}` tokens and request ids. These uses do not:
+
+| Mono applied to | Location |
+|---|---|
+| Audit-log timestamps | `components/audit/AuditLog.tsx:63` |
+| A field **count** in a table cell | `components/models/Models.tsx:145` |
+| Version numbers (`v3`) | `components/models/Models.tsx:230` |
+| A character counter | `components/entities/EntityEditor.tsx:72` |
+| A drag-handle glyph | `components/models/FieldEditor.tsx:52` |
+| The work e-mail input | `components/users/Users.tsx:122` |
+| Folder-name input | `components/assets/AssetLibrary.tsx:167` |
+| Image dimensions (`1200×630`) | `components/assets/AssetLibrary.tsx:147` |
+| Every input in the Translate dialog | `components/builder/TranslateModal.tsx:12` |
+
+Monospace reads as "this is a machine value you may need to copy exactly". Applied to a count or a
+name field it says the opposite of what is true, and it costs legibility at 11px.
+
+## 6. Accent edges
+
+Four different treatments for one idea — "this element is the active or accented one":
+
+| Treatment | Where |
+|---|---|
+| `box-shadow: inset 0 -3px 0 var(--accent)` | `app/globals.css:58` (`.btn.on`) |
+| `border-l-[5px] border-l-accent` | `app/(cms)/[market]/[env]/dashboard/page.tsx:61` |
+| `border-l-2 border-accent` | `components/builder/PageComments.tsx:41` |
+| `box-shadow: inset 0 -1px 0 rgba(55,103,152,.55)` | `app/globals.css:96` (`.tok`) |
+
+Three widths, two mechanisms, two sides. Tab underlines in `components/models/Models.tsx:197`,
+`components/api/ApiExplorer.tsx:49` and `components/tasks/Tasks.tsx:226` add further variants.
+
+## 7. Motion and interaction
+
+Measured against the press / hover / easing expectations of a polished UI.
+
+| Issue | Evidence | Fix |
+|---|---|---|
+| No press feedback anywhere | 0 `:active` states against 434 `onClick` handlers (`hsbc-ucpmock` has 39) | `.btn:active { transform: scale(.97) }`, 160ms `ease-out` |
+| Hover sticks on touch | 210 `hover:` classes, 0 `@media (hover: hover) and (pointer: fine)` guards | wrap hover rules in the media query |
+| Pointer cursor missing off `.btn` | Tailwind v4 preflight (`node_modules/tailwindcss/preflight.css:377`) sets `appearance: button` but **not** `cursor: pointer`. `.btn` has it; every clickable row, card, tab and tree node does not | `cursor-pointer` at source on every interactive element |
+| No easing curves | `transition: transform .15s` and `transition: opacity .15s` carry no easing; `transition-all` used 3× | name the curve, e.g. `cubic-bezier(0.23, 1, 0.32, 1)`; never animate `all` |
+| Over-long animation | `animation: cmt-flash 1.4s` (`app/globals.css:179`) | ≤300ms for UI feedback |
+| Two durations for one concept | `cmt-card-in` declared at `.2s` (`:190`) and `.22s` (`:197`) | one token |
+| `prefers-reduced-motion` partly honoured | `app/globals.css:198` covers `cmt-card-in`; `cmt-flash` (`:178`) is not. The confetti in `lib/ui/celebrate.ts:10` does check it correctly | cover `cmt-flash` too |
+
+Adopting Radix primitives (section 10, Phase 0) resolves rows 1, 3 and most of 2 as a side effect,
+because the primitives own press, focus and pointer behaviour.
+
+## 8. Duplication and structure
+
+**Byte-identical code in two files.** `STATUS_WORD` is the same map, same strings, in
+`components/models/UsedOn.tsx:8` and `components/assets/AssetLibrary.tsx:45`.
+
+**One vocabulary, six encodings,** with wording that has drifted between them:
+
+| Map | File |
+|---|---|
+| `LABEL` | `components/ui/Pill.tsx:1` |
+| `STATUS_WORD` | `components/models/UsedOn.tsx:8` |
+| `STATUS_WORD` | `components/assets/AssetLibrary.tsx:45` |
+| `STATUS_TEXT` | `app/api/repo/[...op]/route.ts:31` |
+| `STAGE_LABEL` | `lib/server/ucp.ts:265` |
+| `STEPS` | `components/builder/Builder.tsx:58` |
+
+This is why 25 of 194 commits are re-wordings of copy set in an earlier commit.
+
+**Helpers redefined rather than shared:** `slug` in 5 files, `cls` in 5, `inputCls` in 4, `str` in 4,
+`initials` in 2, `fmt` in 2, `lbl` in 2.
+
+**`components/models/ModalShell.tsx` exists**, and 13 other components still hand-roll their own
+`fixed inset-0` overlay: `shell/Palette`, `shell/SideNav`, `explorer/Explorer`, `review/DecisionOverlay`,
+`users/Users`, `templates/TemplateLibrary`, `builder/VersionHistory`, `builder/SendForReview`,
+`builder/TranslateModal`, `builder/Authors`, `builder/AssetPicker`, `assets/AssetLibrary`,
+`pages/CompareView`. Each brings its own z-index, backdrop, focus handling and escape key.
+
+**Emoji in a codebase with an icon system:** `✨` 14× (`components/builder/Builder.tsx` ×9,
+`components/shell/Palette.tsx` ×3, `components/builder/TranslateModal.tsx`) and `📁` at
+`components/explorer/Explorer.tsx:313`, which sits next to an unused `<FolderIcon />`.
+
+**`components/builder/Builder.tsx`**: 841 lines, ~50 `useState` calls, several of which exist only to
+suppress an effect (`shellSeen`, `lockedSeen`, `reviewSeen`, `previewed`, `previewCheck`). It was
+touched in 88 of the repository's 194 commits — 45% of all work lands in one file.
+
+## 9. Reproducing the measurements
+
+Run from the repository root; re-run after each phase to check progress. The same commands run
+against `hsbc-ucpmock` with `--include='*.svelte'` produce the benchmark column in section 1.
+
+```bash
+# font sizes
+grep -rhoE 'text-\[[0-9.]+px\]' --include='*.tsx' app components | sort | uniq -c | sort -rn
+
+# hard-coded hex in TSX
+grep -rhoE '#[0-9a-fA-F]{6}\b' --include='*.tsx' --include='*.ts' app components lib \
+  | tr 'a-f' 'A-F' | sort | uniq -c | sort -rn
+
+# clickables vs pointer cursor
+grep -rho 'onClick=' --include='*.tsx' app components | wc -l
+grep -rho 'cursor-pointer' --include='*.tsx' app components | wc -l
+
+# press states and hover guards
+grep -rn ':active' --include='*.tsx' --include='*.css' app components | wc -l
+grep -c '@media (hover' app/globals.css
+
+# monospace usage
+grep -rco 'font-mono' --include='*.tsx' app components | grep -v ':0' | sort -t: -k2 -rn
+
+# modal overlays and z-index tiers
+grep -rc 'fixed inset-0' --include='*.tsx' app components | grep -v ':0'
+grep -rhoE 'z-\[?[0-9]+\]?' --include='*.tsx' app components | sort | uniq -c | sort -rn
+
+# line density
+awk 'length>300 {c++} END {print c}' $(find app components lib -name '*.tsx' -o -name '*.ts')
+```
+
+## 10. Remediation plan
+
+The plan is **adopt a system that already works**, not invent one. `shadcn/ui` supplies the primitives,
+`hsbc-ucpmock/src/bdl` supplies the tokens.
+
+### Phase 0 — shadcn/ui (precondition for everything else)
+
+`shadcn/ui` is the **original React** library; `shadcn-svelte` in `hsbc-ucpmock` is the community port
+of it. Both descend from the same designs: the React side sits on Radix UI, the Svelte side on
+`bits-ui`. Moving here is moving upstream, not switching ecosystems.
+
+| `hsbc-ucpmock` | Here |
+|---|---|
+| `shadcn-svelte` | `shadcn/ui` |
+| `bits-ui` | `@radix-ui/*` |
+| `tailwind-variants` | `class-variance-authority` |
+| `@lucide/svelte` | `lucide-react` |
+| `@tanstack/table-core` | `@tanstack/react-table` |
+| `tailwind-merge` + `clsx` | identical packages |
+
+This repo already satisfies every precondition: Tailwind v4, React 19, the `@/*` alias in
+`tsconfig.json`, and `globals.css` is already written with `@theme inline`. Only `components.json`
+is missing, which `init` creates. Per the shadcn docs, Tailwind v4 + React 19 support is complete and
+was shipped as a non-breaking change.
+
+- [ ] **Before running `init`, avoid the filename collision.** The working filesystem is
+      case-insensitive (verified: creating `Avatar.tsx` then `avatar.tsx` yields one file), and
+      `components/ui/` already holds `Avatar.tsx` and `Skeleton.tsx`. shadcn installs lowercase into
+      `components/ui/`, so `avatar.tsx` and `skeleton.tsx` would **silently overwrite** them.
+      Either set `"aliases": { "ui": "@/components/shadcn" }` in `components.json` (preferred — keeps
+      the two systems visibly separate during migration), or rename the two files first.
+- [ ] `pnpm dlx shadcn@latest init`
+- [ ] Add only what is needed: `button dialog sheet popover tooltip dropdown-menu tabs table
+      badge avatar skeleton input label card separator`
+- [ ] Note that `shadcn add` **overwrites local edits** when re-run on an existing component. Treat
+      every added file as owned by this repo from the moment it lands.
+
+Coverage check against `hsbc-ucpmock`: every `ui/` component it uses exists upstream, **including
+`sidebar` and the TanStack-based `data-table`**. The one exception is `range-calendar`, which is a
+`bits-ui` component — React uses `<Calendar mode="range">` backed by `react-day-picker` instead of
+`@internationalized/date`.
+
+### Phase 1 — Port the BDL tokens
+
+- [ ] Bring `hsbc-ucpmock/src/bdl/tokens.css` across as the token source; keep the `--color-bdl-*`
+      names so the two prototypes stay diffable
+- [ ] Follow shadcn's Tailwind v4 theming convention: `:root` and `.dark` **outside** `@layer base`,
+      consumed through `@theme inline`
+- [ ] Decide once whether to convert BDL's hex to **OKLCH** (shadcn's own defaults are OKLCH) or keep
+      hex and reference it unchanged. Either is fine; mixing is not
+- [ ] Map the existing 30 tokens onto BDL equivalents and delete the originals
+- [ ] Collapse the type scale to the 6 sizes BDL implies, and the radius scale to 3 plus `rounded-full`
+- [ ] Replace Google Archivo with **Univers Next** via `next/font/local`, using the four woff files in
+      `hsbc-ucpmock/static/fonts`
+
+### Phase 2 — Monospace
+
+- [ ] Keep mono for: JCR paths, API routes, `{{tokens}}`, request ids, JSON viewers, `kbd`
+- [ ] Remove it from the nine cases in section 5 and anywhere else that is prose, a count or a name field
+
+### Phase 3 — Interaction feel
+
+Radix covers most of this once Phase 0 lands; these are the gaps it does not close.
+
+- [ ] `.btn:active { transform: scale(.97) }` with a 160ms `ease-out` transition
+- [ ] Wrap remaining hover rules in `@media (hover: hover) and (pointer: fine)`
+- [ ] `cursor-pointer` on every non-`.btn`, non-primitive clickable (rows, cards, tree nodes)
+- [ ] Name the easing curves; replace `transition-all`; cap UI animation at 300ms; extend
+      `prefers-reduced-motion` to `cmt-flash` (`lib/ui/celebrate.ts` already handles it)
+
+### Phase 4 — Accent, icons, emoji
+
+- [ ] One accent-edge treatment everywhere (recommend a 2px inset bottom for active state; keep the
+      5px left border only for the page-level banner)
+- [ ] Replace `components/ui/Icons.tsx` with `lucide-react`, or convert it to `currentColor` and delete
+      the baked `stroke` / `fill` hex
+- [ ] Replace the 14 `✨` and the `📁` with icons from that set
+- [ ] Replace hard-coded hex in CMS chrome with BDL tokens — add a token if one is genuinely missing
+      rather than inventing a seventh amber
+
+### Phase 5 — Retire the hand-rolled overlays
+
+- [ ] Migrate the 13 ad-hoc `fixed inset-0` overlays onto shadcn `Dialog` / `Sheet`; delete
+      `components/models/ModalShell.tsx` once empty
+- [ ] Replace 16 `z-index` tiers with 5 named layers (`--z-nav`, `--z-dropdown`, `--z-overlay`,
+      `--z-dialog`, `--z-toast`); Radix portals remove most of the need
+- [ ] Each migrated screen should lose its bespoke focus-trap and escape handling, not keep both
+
+### Phase 6 — Shared vocabulary and helpers
+
+- [ ] One `lib/ucp/labels.ts` exporting the status vocabulary; delete the other five maps
+- [ ] One `cva` button/input variant set replacing `inputCls` / `lbl` / `cls`; one `slug`;
+      one `initials`; one `fmt`
+- [ ] Review the 31 swallowed errors; keep the deliberate ones with a comment, surface the rest
+
+### Phase 7 — Add a style guide (prevents regression)
+
+- [ ] Port the `/bdl` style-guide route from `hsbc-ucpmock` as a `(cms)` screen rendering every token,
+      size, radius and primitive. Without it, nothing makes drift visible and section 1 regresses.
+
+### Not in this plan
+
+- `components/builder/Builder.tsx` decomposition. It is the right call eventually, but it is a
+  behaviour-risk change, it is the most-edited file in the repo, and it should not be mixed into a
+  visual-consistency pass. File it separately.
+- i18n. `hsbc-ucpmock` has 10,616 lines of messages and this repo has none. Retrofitting it across
+  110 components is a project of its own, not a parity pass.
+- Anything in `app/globals.css` lines 65–158 (the hsbc.co.uk render layer) — see section 3.
+
+## 11. Caveats
+
+- Counts come from static greps over `app/`, `components/` and `lib/`; a class built by string
+  concatenation at runtime will not appear in them, so the figures are lower bounds.
+- Four benchmark cells are marked "not measured": `hsbc-ucpmock` was measured for the metrics where
+  the grep ports cleanly to `.svelte`. Do not read a blank as a zero.
+- `shadcn/ui` is a copy-in, not a dependency. The CLI writes files into this repo and they become
+  this repo's code — that is why the Svelte port was possible at all, and why `add` overwrites.
+- `tsc --noEmit` is clean at `8c6265b`. It should stay clean after every phase; none of this work
+  requires a type change.
+
+## 12. Sources
+
+- `shadcn/ui` Next.js installation — https://ui.shadcn.com/docs/installation/next
+- `shadcn/ui` Tailwind v4 and React 19 — https://ui.shadcn.com/docs/tailwind-v4
+- `shadcn-svelte` about / credits (names the original and Radix) — https://shadcn-svelte.com/docs/about
+- `hsbc-ucpmock` — `docs/consistency-review-findings.md`, `docs/code-review-findings.md`,
+  `docs/ucp-real-architecture.md`

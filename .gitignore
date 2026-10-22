@@ -48,3 +48,6 @@ playwright-report/
 # cloudflare
 .open-next
 .wrangler
+
+# claude code
+.claude/settings.json
