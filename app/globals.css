@@ -13,9 +13,19 @@
    renamed off `accent` so that name can carry shadcn's meaning (see app/bdl/theme.css). */
 :root {
   --brand: #DB0011; --brand-hover: #AF000D; --brand-soft: #FDECEE;
-  --ink: #17181C; --ink-2: #40434C; --ink-3: #5F6470; --ink-4: #9DA1AC;
-  --bg: #F5F5F7; --surface: var(--background); --surface-2: #FAFAFB; --surface-3: #EFEFF2;
-  --line: #E4E5EA; --line-2: #CFD1D8;
+  /* Text, surface and border ramps now resolve to BDL / shadcn values rather than their own
+     hex. The ramp is kept at full depth — secondary text, zebra rows and two border weights
+     are all load-bearing in this app — but every step is sourced from BDL. */
+  --ink: var(--foreground);                      /* #333333 */
+  --ink-2: var(--color-bdl-grey-dark);           /* #444444 */
+  --ink-3: var(--muted-foreground);              /* #767676 */
+  --ink-4: var(--color-bdl-grey-light);          /* #909090 */
+  --bg: #F5F5F7;
+  --surface: var(--background);                  /* #ffffff */
+  --surface-2: var(--color-bdl-grey-zebra);      /* #f9f9f9 */
+  --surface-3: var(--muted);                     /* #e6e6e6 */
+  --line: var(--color-bdl-grey-border);          /* #d7d8d6 */
+  --line-2: var(--border);                       /* #cccccc */
   --good: #00847F; --good-soft: #E0F1F0; --warn: #B25E00; --warn-soft: #FFF1DD;
   --crit: var(--destructive); --crit-soft: #FBE6E8; --info: #4D6474; --info-soft: #E8ECEF;
   --review: #376798; --review-soft: #E6EDF5; --neutral: #767676; --neutral-soft: #EDEDED;
@@ -41,6 +51,19 @@
   --font-sans: var(--font-univers), Arial, Helvetica, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, Menlo, monospace;
 
+}
+
+/* Dark mode for the ramps. Four of the steps above resolve to flat BDL greys, which have no
+   dark counterpart — left alone, --surface-2 would be near-white and --ink-2 near-black on a
+   dark canvas. Rather than invent values, the ramp collapses by one step in dark: secondary
+   text falls back to --foreground and the fourth step to --muted-foreground, both of which the
+   cloned theme defines for dark. */
+.dark {
+  --ink-2: var(--foreground);
+  --ink-4: var(--muted-foreground);
+  --bg: var(--background);
+  --surface-2: var(--card);
+  --line: var(--border);
 }
 
 /* ---- base layer ported from hsbc-ucpmock's layout.css --------------------------------

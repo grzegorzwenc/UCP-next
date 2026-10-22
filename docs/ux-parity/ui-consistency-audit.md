@@ -522,8 +522,19 @@ Nothing here alters a rendered value; it renames and adds.
 The values genuinely differ, so screens will shift. That is the point, but nothing automated
 catches it.
 
-- [ ] `--ink` #17181c → `--foreground` #333 · `--line` #e4e5ea → `--border` #ccc ·
-      `--surface-3` #efeff2 → `--muted` #e6e6e6 — ~1,700 sites, three different colours
+- [x] **Colour ramps repointed at BDL — done, and without touching the 1,387 call sites.** The
+      eight UCP steps are now defined as references rather than their own hex, so one edit moved
+      every screen. The ramp is kept at full depth because the app leans on it (secondary text
+      144 sites, zebra rows 107, two border weights 410/146), with every step BDL-sourced:
+      `--ink`→`--foreground` · `--ink-2`→`bdl-grey-dark` · `--ink-3`→`--muted-foreground` ·
+      `--ink-4`→`bdl-grey-light` · `--surface-2`→`bdl-grey-zebra` · `--surface-3`→`--muted` ·
+      `--line`→`bdl-grey-border` · `--line-2`→`--border`.
+      Four of those targets are flat BDL greys with no dark counterpart, so a `.dark` block
+      collapses the ramp by one step in dark (`--ink-2`→`--foreground`, `--ink-4`→
+      `--muted-foreground`, `--surface-2`→`--card`, `--line`→`--border`) rather than inventing
+      dark values.
+- [ ] Optional tidy-up: rename the `*-ink`/`*-line`/`*-surface` **class names** to the shadcn
+      ones. No longer needed for the colour match — purely so copied markup reads consistently.
 - [ ] The 904 `text-[Npx]` → 6 scale steps; 65 distinct `w-/h-[Npx]` → scale or token
 - [ ] 186 `font-semibold` → `font-medium` / `font-bold` (Univers has no 600, so they render 700)
 - [ ] Reconcile `--radius: 0` against `.btn`'s hard-coded `8px`
