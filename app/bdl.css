@@ -1,0 +1,38 @@
+/* ============================================
+   BDL (Brand Design Language) — HSBC
+   ============================================
+   Cloned from hsbc-ucpmock (src/bdl.css + src/bdl/*). The files under ./bdl/ are
+   byte-identical to that source so the two prototypes stay diffable — change them
+   there first, then re-clone, rather than editing in place.
+
+   Staged on purpose. Only the two layers below are additive: they define tokens and
+   register @font-face, and nothing in this app references them yet, so importing this
+   file changes nothing visually. The remaining layers restyle base elements and own
+   component class names (.btn, .card, …) that this app already defines in globals.css,
+   so each one goes in with the screens that adopt it.
+
+   Order matters: fonts and tokens must precede any layer that uses them.
+*/
+
+@import './bdl/fonts.css';
+@import './bdl/tokens.css';
+
+/* Staged — uncomment one at a time, with the screens that adopt it.
+   base.css is the disruptive one: it sets body background/size, h1–h4, underlines
+   every <a>, and restyles scrollbars. It also carries the global
+   `button, [role=button], select, summary { cursor: pointer }` rule that closes the
+   biggest interaction gap in docs/ux-parity/ui-consistency-audit.md §7.
+
+@import './bdl/base.css';
+@import './bdl/buttons.css';
+@import './bdl/badges.css';
+@import './bdl/tabs.css';
+@import './bdl/cards.css';
+@import './bdl/forms.css';
+@import './bdl/tables.css';
+@import './bdl/alerts.css';
+@import './bdl/modals.css';
+@import './bdl/animations.css';
+@import './bdl/icons.css';
+@import './bdl/utilities.css';
+*/

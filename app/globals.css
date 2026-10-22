@@ -1,4 +1,8 @@
 @import "tailwindcss";
+/* BDL tokens and @font-face, cloned from hsbc-ucpmock. Additive only — see app/bdl.css.
+   Imported before the tokens below so this file's @theme inline still wins on any
+   variable the two both define (today: --font-sans, see the note on it). */
+@import "./bdl.css";
 
 /* HSBC-inspired design tokens (same as the prototype) */
 :root {
@@ -21,7 +25,10 @@
   --color-crit: var(--crit); --color-crit-soft: var(--crit-soft); --color-info: var(--info); --color-info-soft: var(--info-soft);
   --color-review: var(--review); --color-review-soft: var(--review-soft); --color-neutral: var(--neutral); --color-neutral-soft: var(--neutral-soft);
   --color-sched: var(--sched); --color-sched-soft: var(--sched-soft);
-  --font-sans: var(--font-archivo), "Helvetica Neue", Arial, sans-serif;
+  /* --font-sans is BDL's: 'Univers Next for HSBC', set in app/bdl/tokens.css and registered
+     by app/bdl/fonts.css. Not redefined here on purpose.
+     The face ships 300/400/500/700 and no 600, so `font-semibold` falls through to the 700
+     face — heavier than intended in ~199 places until those are swept to font-medium. */
   --font-mono: var(--font-plex-mono), ui-monospace, Menlo, monospace;
 }
 

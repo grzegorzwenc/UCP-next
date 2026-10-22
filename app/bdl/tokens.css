@@ -1,0 +1,88 @@
+/* BDL Design Tokens — Tailwind v4 @theme configuration
+   All color, spacing, radius, shadow, and z-index tokens */
+
+@theme {
+  /* Brand Colors - Primary */
+  --color-bdl-red: #db0011;
+  --color-bdl-red-alt: #da0514;
+  --color-bdl-red-dark: #ba1110;
+  --color-bdl-red-error: #730014;
+
+  /* Neutrals */
+  --color-bdl-black: #000000;
+  --color-bdl-white: #ffffff;
+  --color-bdl-charcoal: #333333;
+  --color-bdl-dark-bg: #253038;
+  --color-bdl-dark-slate: #3e505d;
+  --color-bdl-slate: #4d6474;
+
+  /* Greys */
+  --color-bdl-grey-dark: #444444;
+  --color-bdl-grey-medium: #767676;
+  --color-bdl-grey: #767676;
+  --color-bdl-grey-light: #909090;
+  --color-bdl-grey-lighter: #929292;
+  --color-bdl-grey-border: #d7d8d6;
+  --color-bdl-grey-hover: #ededed;
+  --color-bdl-grey-disabled: #e6e6e6;
+
+  /* Accents */
+  --color-bdl-blue: #305a85;
+  --color-bdl-focus-blue: #a6c7ff;
+  --color-bdl-orange: #e8702a;
+  --color-bdl-lime: #7cb342;
+  --color-bdl-purple: #8b5cf6;
+  --color-bdl-cyan: #0891b2;
+  --color-bdl-steel: #475569;
+  --color-bdl-amber-dark: #b45309;
+
+  /* RAG Status Colors (from GDL) */
+  --color-bdl-rag-green: #00847f;
+  --color-bdl-rag-amber: #ffbb33;
+  --color-bdl-rag-red: #a8000b;
+  --color-bdl-rag-blue: #305a85;
+  --color-bdl-error-bg: #f9f2f3;
+  --color-bdl-info-bg: #ebeff4;
+  --color-bdl-success-bg: #e5f2f2;
+  --color-bdl-warning-bg: #fff8ea;
+
+  /* Legacy aliases (for backward compat) */
+  --color-success: #00847f;
+  --color-warning: #ffbb33;
+
+  /* Table & UI Colors */
+  --color-bdl-grey-zebra: #f9f9f9;
+  --color-bdl-grey-hover-light: #f3f3f3;
+  --color-bdl-grey-hover-table: #f0f0f0;
+  --color-bdl-modal-overlay: rgb(62 80 93 / 0.85);
+
+  /* Typography — renamed from 'Bapi Sans' in the clone; see app/bdl/fonts.css */
+  --font-sans: 'Univers Next for HSBC', 'Univers', Arial, Helvetica, sans-serif;
+
+  /* Custom Spacing */
+  --bdl-spacing-xs: 8px;
+  --bdl-spacing-sm: 16px;
+  --bdl-spacing-md: 20px;
+  --bdl-spacing-lg: 44px;
+
+  /* Border Radius */
+  --bdl-radius-none: 0;
+  --radius-toggle: 16px;
+  --bdl-radius-full: 50%;
+
+  /* Shadows */
+  --bdl-shadow-inset: inset 0px 0px 2px rgba(0, 0, 0, 0.5);
+
+  /* Syntax Highlighting */
+  --color-syn-keyword: #ff7b72;
+  --color-syn-command: #79c0ff;
+  --color-syn-string: #ffa657;
+  --color-syn-key: #7dd3fc;
+  --color-syn-number: #d2a8ff;
+  --color-syn-url: #a5d6ff;
+  --color-syn-punct: #8b949e;
+
+  /* Z-index */
+  --z-overlay: 1000;
+  --z-modal: 10000;
+}

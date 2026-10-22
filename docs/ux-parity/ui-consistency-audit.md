@@ -276,18 +276,67 @@ Coverage check against `hsbc-ucpmock`: every `ui/` component it uses exists upst
 `bits-ui` component — React uses `<Calendar mode="range">` backed by `react-day-picker` instead of
 `@internationalized/date`.
 
-### Phase 1 — Port the BDL tokens
+### Phase 1 — Clone the BDL library
 
-- [ ] Bring `hsbc-ucpmock/src/bdl/tokens.css` across as the token source; keep the `--color-bdl-*`
-      names so the two prototypes stay diffable
-- [ ] Follow shadcn's Tailwind v4 theming convention: `:root` and `.dark` **outside** `@layer base`,
-      consumed through `@theme inline`
+BDL is framework-agnostic: plain CSS plus Tailwind v4 `@theme`. It clones with almost no edits, so
+files under `app/bdl/` are kept as close to `hsbc-ucpmock/src/bdl/` as possible — prefer changing
+them there and re-cloning over editing in place. `hsbc-ucpmock` is read-only in this work.
+
+**One deliberate divergence.** In the source the UI face is declared as `'Bapi Sans'`, a label
+inherited from the HSBC FQDN Scanner project that BDL was first written for. The files are
+Univers Next for HSBC — confirmed by parsing the woff name tables: `Univers Next for HSBC W01
+Rg/Md/Bd/Lt` with `usWeightClass` 400/500/700/300. `app/bdl/fonts.css` and `app/bdl/tokens.css`
+therefore name the family `'Univers Next for HSBC'`. A re-clone will reintroduce the old label;
+keep the rename. The weight classes also independently confirm there is **no 600 face**.
+
+**Stage A — done.** Additive only, verified to change nothing visually:
+
+- [x] `app/bdl/tokens.css` and `app/bdl/fonts.css` cloned, plus `ICONS.md` as reference. Only the
+      font-family rename above differs from source
+- [x] The four Univers Next woff files cloned to `public/fonts/`. BDL's `fonts.css` already
+      references `/fonts/…` — SvelteKit serves that from `static/`, Next from `public/` — so the
+      stylesheet needed **no path edits**
+- [x] `app/bdl.css` added as the staged entry, mirroring `hsbc-ucpmock/src/bdl.css`, with the other
+      twelve layers listed but commented out
+- [x] Imported from `app/globals.css` immediately after `@import "tailwindcss"`
+- [x] **Univers Next is live.** Google Archivo removed from `app/layout.tsx` and the `--font-sans`
+      override deleted from `app/globals.css`, so the app renders the real HSBC face. Verified in
+      the production bundle: `--font-sans: "Univers Next for HSBC", "Univers", Arial, Helvetica,
+      sans-serif`, one `@font-face` family, all four woff files referenced, no Archivo anywhere,
+      `tsc --noEmit` clean
+
+**Two findings from Stage A, both load-bearing for later stages:**
+
+1. **Tailwind v4 tree-shakes `@theme` variables, and the shaking is `var()`-aware.** With only
+   tokens imported, **zero** `--color-bdl-*` variables reach the bundle, because nothing references
+   them yet. Probing with `base.css` enabled emitted exactly the 7 tokens it uses via `var()` and no
+   others. So plain `@theme` is correct and `@theme static` is unnecessary — but do not read an absent
+   variable in the built CSS as a broken import.
+2. **There is no 600 weight, and `font-semibold` is used 199 times.** The face ships 300/400/500/700
+   (`usWeightClass` confirmed from the files). Per the CSS font-matching algorithm, a target weight
+   ≥ 600 checks weights ≥ target in ascending order first, so `font-weight: 600` resolves to the real
+   **700 Bold** face — it is *not* synthesised faux-bold. The consequence is therefore cosmetic
+   rather than broken: 199 places render heavier than intended, against 65 `font-medium`, 17
+   `font-bold` and 1 `font-light`.
+
+**Stage B — remaining:**
+
+- [ ] Sweep the 199 `font-semibold` uses. Default to `font-medium` (500) for UI text — table headers,
+      card titles, labels — and keep `font-bold` (700) only where genuine emphasis is wanted. Doing
+      nothing leaves them at 700, which is legible but heavy
+- [ ] Consider `next/font/local` instead of the cloned `@font-face`: it adds automatic preloading and
+      avoids the swap-induced layout shift (`font-display: swap` is set today), at the cost of
+      diverging further from the source file
+- [ ] Enable the component layers one at a time, with the screens that adopt them. `base.css` is the
+      disruptive one — it sets body background and size, restyles `h1`–`h4`, underlines every `<a>`
+      and restyles scrollbars, so it needs a screen-by-screen pass, not a flip. It also carries the
+      global `button, [role=button], select, summary { cursor: pointer }` rule that closes most of §7
+- [ ] Watch for class-name collisions as each layer lands: BDL owns `.btn`, `.card` and friends, and
+      `app/globals.css` already defines `.btn`, `.btn-primary`, `.btn-next`, `.pill` and others
+- [ ] Map the existing 30 tokens onto BDL equivalents and delete the originals
 - [ ] Decide once whether to convert BDL's hex to **OKLCH** (shadcn's own defaults are OKLCH) or keep
       hex and reference it unchanged. Either is fine; mixing is not
-- [ ] Map the existing 30 tokens onto BDL equivalents and delete the originals
 - [ ] Collapse the type scale to the 6 sizes BDL implies, and the radius scale to 3 plus `rounded-full`
-- [ ] Replace Google Archivo with **Univers Next** via `next/font/local`, using the four woff files in
-      `hsbc-ucpmock/static/fonts`
 
 ### Phase 2 — Monospace
 
@@ -329,12 +378,16 @@ Radix covers most of this once Phase 0 lands; these are the gaps it does not clo
       one `initials`; one `fmt`
 - [ ] Review the 31 swallowed errors; keep the deliberate ones with a comment, surface the rest
 
-### Phase 7 — Add a style guide (prevents regression)
-
-- [ ] Port the `/bdl` style-guide route from `hsbc-ucpmock` as a `(cms)` screen rendering every token,
-      size, radius and primitive. Without it, nothing makes drift visible and section 1 regresses.
-
 ### Not in this plan
+
+- **The BDL style-guide page.** `hsbc-ucpmock` has a `/bdl` route rendering every token, size, radius
+  and component (`src/routes/bdl/+page.svelte` plus a 565-line `style-guide-content.svelte`). It was
+  deliberately **not** cloned, and should stay that way. Only `tokens.css`, `fonts.css`, `ICONS.md`
+  and the four woff files came across.
+  Trade-off to be aware of rather than solve here: that page is what makes drift visible in the other
+  prototype, and it is also the one file there that legitimately holds hard-coded hex (it displays the
+  swatches). Without it, the guard against section 1 regressing is re-running the greps in section 9,
+  not a screen.
 
 - `components/builder/Builder.tsx` decomposition. It is the right call eventually, but it is a
   behaviour-risk change, it is the most-edited file in the repo, and it should not be mixed into a
