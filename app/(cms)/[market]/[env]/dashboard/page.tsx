@@ -1,13 +1,12 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { FilePlus2, PenLine, ClipboardCheck, ImageUp, ArrowRight } from "lucide-react";
+import { FilePlus2, PenLine, ClipboardCheck, ImageUp } from "lucide-react";
 import { market, env } from "@/lib/markets";
 import { allPages } from "@/lib/server/pages";
 import { readLogFor, listTasks, userName, me } from "@/lib/server/ucp";
 import { Pill } from "@/components/ui/Pill";
 import { Avatar } from "@/components/ui/Avatar";
-/* aliased: this file has its own local `Card` section helper */
-import { Card as SCard, CardContent as SCardContent, CardDescription as SCardDescription, CardTitle as SCardTitle } from "@/components/shadcn/card";
+import { ActionCard } from "@/components/ui/ActionCard";
 import { DismissibleNotice } from "@/components/ui/DismissibleNotice";
 import { noticeCookie } from "@/lib/notices";
 
@@ -92,27 +91,7 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
           and slides in beside the title. "Create a page" keeps the filled HSBC red. */}
       <h2 className="text-sm font-medium text-muted-foreground mb-3">What do you want to do?</h2>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 mb-6">
-        {QUICK.map((a) => (
-          <Link key={a.title} href={a.href} className="group block no-underline outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            <SCard size="sm" className={`h-full py-5 transition-[background-color,box-shadow] duration-160 ease-out group-hover:shadow-sm ${a.primary ? "bg-accent border-accent text-white" : "group-hover:bg-muted/40"}`}>
-              <SCardContent className="flex h-full flex-col gap-4">
-                <div className={`flex size-10 items-center justify-center rounded-md ${a.primary ? "bg-white/20 text-white" : "bg-(--sidebar-active) text-bdl-red dark:text-(--sidebar-active-bar)"}`}>
-                  <a.icon className="size-5 group-hover:animate-(--animate-wiggle) motion-reduce:animate-none" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <SCardTitle className="text-base font-medium">{a.title}</SCardTitle>
-                    <span aria-hidden className={`flex shrink-0 items-center gap-1 text-sm font-medium opacity-0 translate-x-1 transition-[opacity,transform] duration-200 ease-out group-hover:translate-x-0 group-hover:opacity-100 group-focus-visible:translate-x-0 group-focus-visible:opacity-100 motion-reduce:translate-x-0 motion-reduce:transition-opacity ${a.primary ? "text-white" : "text-bdl-red dark:text-(--sidebar-active-bar)"}`}>
-                      Explore
-                      <ArrowRight className="size-4 -translate-x-1 transition-transform duration-200 ease-out delay-75 group-hover:translate-x-0 motion-reduce:translate-x-0" />
-                    </span>
-                  </div>
-                  <SCardDescription className={`mt-1 min-h-10 leading-5 ${a.primary ? "text-white/85" : ""}`}>{a.desc}</SCardDescription>
-                </div>
-              </SCardContent>
-            </SCard>
-          </Link>
-        ))}
+        {QUICK.map((a) => <ActionCard key={a.title} {...a} description={a.desc} />)}
       </div>
       <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3.5 mb-5">
         {tiles.map((t) => <Link key={t.l} href={t.href} className="bg-surface border border-line p-6 min-h-[150px] flex flex-col gap-1.5 hover:border-ink-3 hover:shadow-md" style={{ borderTop: `4px solid ${t.color}` }}><span className="text-[13px] text-ink-2">{t.l}</span><span className="text-[44px] font-light leading-none tabular-nums" style={{ color: t.color === "var(--crit)" ? t.color : undefined }}>{t.v}</span><span className="text-[13px] text-ink-3">{t.sub}</span><span className="text-[13px] font-medium mt-auto">{t.go} <span className="text-accent font-bold">›</span></span></Link>)}

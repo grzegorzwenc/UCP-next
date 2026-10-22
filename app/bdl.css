@@ -14,7 +14,9 @@
    Order matters: fonts and tokens must precede any layer that uses them.
 */
 
-@import './bdl/fonts.css';
+/* fonts.css is intentionally NOT imported: next/font/local in app/layout.tsx owns the
+   @font-face declarations so it can preload and metric-match the fallback. Importing both
+   would fetch the same four files under a second family name. */
 @import './bdl/tokens.css';
 /* Light + dark theme for the shadcn components (semantic tokens + the `dark` variant). */
 @import './bdl/theme.css';

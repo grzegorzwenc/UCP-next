@@ -396,6 +396,19 @@ shrinking to `h-12` with the sidebar.
 in this app adds the `.dark` class — there is no theme switcher. Wiring one (and deciding whether
 it follows `prefers-color-scheme` or is an explicit preference) is a separate piece of work.
 
+**Load jitter — fixed.** The UI face was declared with BDL's plain `@font-face` and
+`font-display: swap`, with no preload, so the page painted in Arial and every line reflowed when
+Univers arrived. `app/layout.tsx` now loads it through `next/font/local` with
+`adjustFontFallback: "Arial"`, which emits a metric-matched fallback (verified:
+`size-adjust: 105.83%`) so the swap no longer changes metrics, and preloads the file in
+production. `app/bdl/fonts.css` is therefore **not imported** — importing both would fetch the
+same four files under a second family name — and `--font-sans` points at the generated family.
+This is the one place where diverging from the clone was worth it.
+
+**`components/ui/ActionCard.tsx`** extracts the "start something" card (icon tile, wiggle on
+hover, "Explore →" reveal, optional filled-red `primary`) so section landings can reuse it
+instead of the markup living inline in the dashboard.
+
 **Stage B — remaining:**
 
 - [ ] Sweep the 199 `font-semibold` uses. Default to `font-medium` (500) for UI text — table headers,

@@ -34,6 +34,9 @@
      by app/bdl/fonts.css. Not redefined here on purpose.
      The face ships 300/400/500/700 and no 600, so `font-semibold` falls through to the 700
      face — heavier than intended in ~199 places until those are swept to font-medium. */
+  /* next/font/local owns the Univers face (see app/layout.tsx); this points BDL's --font-sans
+     at the generated family so the preload and the metric-matched fallback apply. */
+  --font-sans: var(--font-univers), Arial, Helvetica, sans-serif;
   --font-mono: var(--font-plex-mono), ui-monospace, Menlo, monospace;
 
 }
