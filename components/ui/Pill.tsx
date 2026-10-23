@@ -10,13 +10,13 @@ import { Badge } from "@/components/shadcn/badge";
  * label carries the distinction — which is how the source project does it too (three lifecycle
  * states over the same five).
  */
-const LABEL: Record<string, string> = {
+export const STATUS_LABEL: Record<string, string> = {
   draft: "Draft",
-  review: "Waiting for a reviewer",
-  inreview: "In author's review",
+  review: "Awaiting review",
+  inreview: "Author review",
   reviewed: "Reviewed",
-  bizreview: "In business review",
-  approved: "Ready to publish",
+  bizreview: "Business review",
+  approved: "Ready",
   published: "Published",
   scheduled: "Scheduled",
   failed: "Publish failed",
@@ -35,9 +35,12 @@ const TONE: Record<string, string> = {
 };
 
 export function Pill({ status, label }: { status: string; label?: string }) {
+  const text = label ?? STATUS_LABEL[status] ?? status;
+  /* max-w-full + truncate so a long label can never spill out of a fixed-width table cell and
+     over the column beside it; the title keeps the full wording reachable. */
   return (
-    <Badge variant="outline" className={`font-normal ${TONE[status] ?? "bdl-badge-neutral"}`}>
-      {label ?? LABEL[status] ?? status}
+    <Badge variant="outline" className={`max-w-full truncate font-normal ${TONE[status] ?? "bdl-badge-neutral"}`} title={typeof text === "string" ? text : undefined}>
+      {text}
     </Badge>
   );
 }

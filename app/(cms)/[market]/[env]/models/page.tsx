@@ -12,6 +12,8 @@ import { TABS, type ModelTab, type UsedPage } from "@/components/models/fieldMet
  *   ?model=<id>&edit=1&tab=… → model editor
  * Entities have their own section; old `?model=<id>&entity=<entityId>` links redirect there.
  */
+export const metadata = { title: "Content models" };
+
 export default async function Page({ params, searchParams }: PageProps<"/[market]/[env]/models">) {
   const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = market(mid);
   const s = (v: unknown) => (typeof v === "string" ? v : "");

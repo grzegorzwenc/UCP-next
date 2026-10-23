@@ -4,6 +4,12 @@ import { allPages } from "@/lib/server/pages";
 import { listTemplates } from "@/lib/server/ucp";
 import { TemplateEditor } from "@/components/templates/TemplateEditor";
 
+export async function generateMetadata({ params }: PageProps<"/[market]/[env]/templates/[id]">) {
+  const { market: mid, id } = await params;
+  const tpl = (await listTemplates(mid)).find((t) => t.id === id);
+  return { title: tpl?.name ?? "Template" };
+}
+
 export default async function Page({ params }: PageProps<"/[market]/[env]/templates/[id]">) {
   const { market: mid, env: eid, id } = await params; const mk = market(mid);
   const [templates, pages] = await Promise.all([listTemplates(), allPages(mk.root)]);

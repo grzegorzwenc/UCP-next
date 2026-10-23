@@ -20,7 +20,9 @@ const univers = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "HSBC Unified Content Platform",
+  /* Per-section titles, as theirs does: every route sets its own and this appends the product
+     name, so the tab reads "Pages · Unified Content Platform". */
+  title: { default: "Unified Content Platform", template: "%s · Unified Content Platform" },
   description: "UCP authoring on the ContentLIBRE Management API",
 };
 

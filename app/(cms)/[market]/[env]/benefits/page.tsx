@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AUDIENCES } from "@/lib/ucp/benefits";
 
-export const metadata = { title: "Why UCP · HSBC Unified Content Platform" };
+export const metadata = { title: "Why UCP" };
 
 const ICON: Record<string, string> = {
   developers: "M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16",

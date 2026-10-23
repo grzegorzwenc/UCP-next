@@ -4,6 +4,8 @@ import { listUsers, me, readLogFor } from "@/lib/server/ucp";
 import { AuditLog } from "@/components/audit/AuditLog";
 
 /** Audit log: append-only events under /var/audit/ucp/<market>. Filtering happens client-side. */
+export const metadata = { title: "Audit log" };
+
 export default async function Page({ params, searchParams }: PageProps<"/[market]/[env]/audit">) {
   const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = market(mid); const ev = env(eid);
   const [{ log, own }, users, pages, viewer] = await Promise.all([readLogFor(mid, 1000), listUsers(), allPages(mk.root), me()]);

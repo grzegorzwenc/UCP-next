@@ -5,6 +5,8 @@ import { ASSET_FOLDERS } from "@/lib/ucp/seed";
 import { AssetLibrary } from "@/components/assets/AssetLibrary";
 
 /** Asset library: every file is a dam:Asset node under /content/dam/<market>/<folder>. */
+export const metadata = { title: "Assets" };
+
 export default async function Page({ params, searchParams }: PageProps<"/[market]/[env]/assets">) {
   const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = market(mid);
   const folder = typeof sp.folder === "string" ? sp.folder : "";

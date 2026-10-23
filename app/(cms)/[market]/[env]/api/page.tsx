@@ -5,6 +5,8 @@ import { modelSchema } from "@/lib/ucp/schema";
 import { ApiExplorer, type ApiTab } from "@/components/api/ApiExplorer";
 
 /** API & delivery: every saved page and model as JSON, with the real endpoint served under /api/delivery/v1 on this instance. */
+export const metadata = { title: "API & delivery" };
+
 export default async function Page({ params, searchParams }: PageProps<"/[market]/[env]/api">) {
   const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = market(mid);
   const tab = (["pages", "models", "endpoints"].includes(String(sp.tab)) ? sp.tab : "pages") as ApiTab;

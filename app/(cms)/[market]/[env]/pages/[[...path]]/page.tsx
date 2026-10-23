@@ -3,6 +3,8 @@ import { children, getPage, allPages, archiveOf, withoutArchived } from "@/lib/s
 import { listTemplates, userName } from "@/lib/server/ucp";
 import { Explorer } from "@/components/explorer/Explorer";
 
+export const metadata = { title: "Pages" };
+
 export default async function PagesRoute({ params, searchParams }: PageProps<"/[market]/[env]/pages/[[...path]]">) {
   const { market: mid, env: eid, path = [] } = await params;
   const sp = await searchParams;

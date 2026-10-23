@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
-import { FileText, Folder, Grid3x3, LayoutGrid, List, Pencil } from "lucide-react";
+import { ExternalLink, Folder, FolderUp, Grid3x3, LayoutGrid, Link as LinkIcon, List, Pencil } from "lucide-react";
+import { PageThumb } from "@/components/explorer/PageThumb";
 import { Pill } from "@/components/ui/Pill";
 import { ukDate } from "@/lib/dates";
 import type { PageSummary } from "@/lib/api/types";
@@ -40,18 +41,29 @@ export function ViewToggle({ view, onChange }: { view: View; onChange: (v: View)
   );
 }
 
-export function FolderTiles({ folders, base, rel, counts, scopeName }: {
+export function FolderTiles({ folders, base, rel, counts, scopeName, upHref }: {
   folders: PageSummary[];
   base: string;
   rel: (p: string) => string;
   counts: Record<string, number>;
   scopeName: string;
+  /** The parent folder, when there is one — the card views have no breadcrumb of their own. */
+  upHref?: string;
 }) {
-  if (!folders.length) return null;
+  if (!folders.length && !upHref) return null;
   return (
     <section aria-label={`Folders in ${scopeName}`}>
       <h3 className="mb-2 text-xs font-medium text-ink-3">Folders</h3>
       <div className="grid gap-2 [grid-template-columns:repeat(auto-fill,minmax(12rem,1fr))]">
+        {upHref && (
+          <Link
+            href={upHref}
+            className="group flex cursor-pointer items-center gap-2 border border-dashed border-line bg-surface px-3 py-2 text-start text-sm text-ink-3 no-underline transition-[background-color,box-shadow] duration-160 ease-out hover:bg-accent/40 hover:text-ink hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            <FolderUp className="size-4 shrink-0 transition-colors group-hover:text-brand" />
+            <span className="min-w-0 flex-1 truncate font-medium">Up one level</span>
+          </Link>
+        )}
         {folders.map((f) => (
           <Link
             key={f.path}
@@ -70,23 +82,21 @@ export function FolderTiles({ folders, base, rel, counts, scopeName }: {
 
 const ACTION = "inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-ink no-underline transition-colors duration-160 ease-out hover:text-brand focus-visible:underline focus-visible:outline-none";
 
-export function PageCard({ page, href, compact, folderName, menu, rel }: {
+export function PageCard({ page, href, compact, folderName, menu, rel, onCopyUrl }: {
   page: PageSummary;
   href: string;
   compact: boolean;
   folderName?: string;
   menu: React.ReactNode;
   rel: (p: string) => string;
+  /** Copies the page's public address; the caller owns the clipboard and the toast. */
+  onCopyUrl: () => void;
 }) {
-  /* No thumbnail service in this prototype, so the card keeps the same 16:10 band and fills it
-     with the page glyph rather than collapsing the card's proportions. */
   const meta = [rel(page.path), compact ? null : ukDate(page.lastModified), folderName].filter(Boolean).join(" · ");
   return (
     <div className="group flex flex-col border border-line bg-surface transition-[box-shadow] duration-160 ease-out hover:shadow-sm">
       <Link href={href} aria-label={`Edit ${page.title}`} className="block w-full border-b border-line focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none">
-        <span className="grid aspect-[16/10] w-full place-items-center bg-surface-2">
-          <FileText className="size-8 text-ink-4" aria-hidden />
-        </span>
+        <PageThumb template={page.template} className="aspect-[16/10] w-full" />
       </Link>
       <div className={`flex flex-col ${compact ? "gap-0.5 p-2" : "gap-1 p-3"}`}>
         <div className="flex items-center gap-2">
@@ -97,9 +107,12 @@ export function PageCard({ page, href, compact, folderName, menu, rel }: {
           {page.title}
         </Link>
         <p className="truncate text-xs text-ink-3" title={meta}>{meta}</p>
+        {/* Their three card actions. Compact drops the row, as theirs does. */}
         {!compact && (
           <div className="mt-1.5 flex items-center gap-4">
             <Link href={href} className={ACTION}><Pencil className="size-3.5" />Edit</Link>
+            <Link href={`${href}?preview=1`} target="_blank" rel="noreferrer" className={ACTION}><ExternalLink className="size-3.5" />Preview</Link>
+            <button type="button" className={ACTION} onClick={onCopyUrl}><LinkIcon className="size-3.5" />URL</button>
           </div>
         )}
       </div>

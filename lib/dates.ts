@@ -8,21 +8,24 @@
  */
 const MIN = 60_000;
 
-/** `23 Oct 2026`, dropping the year while it is the current one. */
-export function ukDate(iso?: string, at: number = Date.now()): string {
+/**
+ * `23 Oct 2026`. The year is always shown: dropping it for the current year saved three
+ * characters and cost the reader the one thing they most often want to confirm, and the source
+ * project's own formatters (`src/lib/data/content.ts`) always carry it.
+ */
+export function ukDate(iso?: string): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  const sameYear = d.getFullYear() === new Date(at).getFullYear();
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", ...(sameYear ? {} : { year: "numeric" }) });
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-/** `23 Oct 2026, 14:05` — for a tooltip, where the exact moment is wanted. */
+/** `23 Oct 2026 14:05` — their `formatDateTime`, for a column or tooltip wanting the moment. */
 export function ukDateTime(iso?: string): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("en-GB", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+  return d.toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" }).replace(",", "");
 }
 
 /** Relative while that is more useful than a date, then the UK date. */
@@ -35,12 +38,12 @@ export function ago(iso?: string, at: number = Date.now()): string {
   if (mins < 60) return `${mins} min ago`;
   if (mins < 24 * 60) return `${Math.round(mins / 60)} h ago`;
   if (mins < 48 * 60) return "yesterday";
-  return ukDate(iso, at);
+  return ukDate(iso);
 }
 
 /** A due date read as urgency: overdue, today, or the UK date. */
-export function due(iso: string | undefined, overdueDays: number, at: number = Date.now()): string {
+export function due(iso: string | undefined, overdueDays: number): string {
   if (overdueDays > 0) return `${overdueDays} day${overdueDays === 1 ? "" : "s"} overdue`;
   if (overdueDays === 0) return "Due today";
-  return iso ? `Due ${ukDate(iso, at)}` : "";
+  return iso ? `Due ${ukDate(iso)}` : "";
 }

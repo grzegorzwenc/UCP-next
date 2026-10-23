@@ -4,6 +4,8 @@ import { allPages } from "@/lib/server/pages";
 import { Tasks, type PublishedItem } from "@/components/tasks/Tasks";
 
 /** My tasks: pages by stage of the review flow across every market, derived from page workflow state in the repository. */
+export const metadata = { title: "My tasks" };
+
 export default async function Page({ params, searchParams }: PageProps<"/[market]/[env]/tasks">) {
   const { market: mid, env: eid } = await params; const sp = await searchParams;
   const tasks = (await Promise.all(MARKETS.map((m) => listTasks(m.id)))).flat();

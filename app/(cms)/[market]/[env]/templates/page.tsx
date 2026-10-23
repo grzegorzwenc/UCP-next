@@ -3,6 +3,8 @@ import { allPages } from "@/lib/server/pages";
 import { listTemplates } from "@/lib/server/ucp";
 import { TemplateLibrary } from "@/components/templates/TemplateLibrary";
 
+export const metadata = { title: "Templates" };
+
 export default async function Page({ params, searchParams }: PageProps<"/[market]/[env]/templates">) {
   const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = market(mid);
   const [templates, pages] = await Promise.all([listTemplates(), allPages(mk.root)]);

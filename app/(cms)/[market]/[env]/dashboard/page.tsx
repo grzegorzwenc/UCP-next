@@ -37,6 +37,8 @@ function Card({ title, right, children }: { title: string; right?: React.ReactNo
   );
 }
 
+export const metadata = { title: "Dashboard" };
+
 export default async function Dashboard({ params }: PageProps<"/[market]/[env]/dashboard">) {
   const { market: mid, env: eid } = await params;
   const mk = market(mid), ev = env(eid); const base = `/${mid}/${eid}`;
@@ -129,7 +131,7 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
                     id: t.page.path,
                     href: `${base}/page${t.page.path.replace(mk.root, "")}`,
                     title: `${t.what}: ${t.page.title}`,
-                    meta: <span className={t.overdueDays > 0 ? "text-crit font-medium" : t.overdueDays === 0 ? "text-warn font-medium" : undefined}>{due(t.due, t.overdueDays, now())}</span>,
+                    meta: <span className={t.overdueDays > 0 ? "text-crit font-medium" : t.overdueDays === 0 ? "text-warn font-medium" : undefined}>{due(t.due, t.overdueDays)}</span>,
                     trailing: <Pill status={t.page.status as "draft"} label={t.kind} />,
                   }))} />,
               },

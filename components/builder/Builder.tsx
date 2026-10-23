@@ -38,7 +38,7 @@ import { normalizeRich, cellSafe, toPlain } from "@/lib/blocks/richtext";
 import { useRouter } from "next/navigation";
 import { permForStatus } from "@/lib/ucp/perms";
 
-type Props = { marketId: string; envId: string; marketName: string; flag: string; domain: string; locale: string; envName: string; root: string; page: PageView; names?: Record<string, string>; models?: ContentModelInfo[]; entities?: ResolvedEntities };
+type Props = { marketId: string; envId: string; marketName: string; flag: string; domain: string; locale: string; envName: string; root: string; page: PageView; /** Open straight into the visitor preview (?preview=1). */ startInPreview?: boolean; names?: Record<string, string>; models?: ContentModelInfo[]; entities?: ResolvedEntities };
 type RightTab = "block" | "page" | "content" | "ai" | "insights" | "comments" | "history";
 type PageField = "description" | "title";
 /** One page-level AI task: prompt → plan → run → review. `results` keeps the snapshot around each op so it can be undone alone. */
@@ -68,7 +68,7 @@ const EMPTY_NAMES: Record<string, string> = {}; const EMPTY_MODELS: ContentModel
 /** Line icon in the rail style (1.7 stroke, round joins) for the top bar buttons. */
 function Ico({ d }: { d: string }) { return <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none flex-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>; }
 
-export function Builder({ marketId, envId, marketName, flag, domain, locale, envName, root, page, names = EMPTY_NAMES, models = EMPTY_MODELS, entities: initialEntities = EMPTY_ENTS }: Props) {
+export function Builder({ marketId, envId, marketName, flag, domain, locale, envName, root, page, startInPreview = false, names = EMPTY_NAMES, models = EMPTY_MODELS, entities: initialEntities = EMPTY_ENTS }: Props) {
   const { can, user } = useSession(); const isAdmin = user.role === "admin" || !!user.perms.root?.manage;
   /* Pages → Lock: nobody else changes a locked page (whoever locked it and site admins still can) */
   const pageLock = (() => { const raw = page.meta?.["ucp:pageLock"]; if (typeof raw !== "string" || !raw) return null; try { return JSON.parse(raw) as { by: string; name: string; at: string }; } catch { return null; } })();
@@ -81,7 +81,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [mode, setMode] = useState<"select" | "edit">("select");
   const [pop, setPop] = useState<"ai" | "more" | null>(null);
   const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
-  const [preview, setPreviewRaw] = useState(!canEdit); // read-only users always see the preview
+  const [preview, setPreviewRaw] = useState(!canEdit || startInPreview); // read-only users always see the preview; ?preview=1 opens straight into it
   const { phone, tablet } = useShellMode(); const narrow = phone || tablet;
   const [left, setLeftRaw] = useState(true); const [right, setRight] = useState(false);
   // Panel widths are draggable (min 260, max 560) and remembered per browser.

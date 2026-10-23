@@ -8,6 +8,8 @@ import type { UsedPage } from "@/components/models/fieldMeta";
  * Content entities: concrete content built from a content model, laid out like Pages (tree left, detail right).
  *   (none) → all entities · ?model=<id> → entities of one model · ?model=<id>&entity=<entityId> → entity editor
  */
+export const metadata = { title: "Content entities" };
+
 export default async function Page({ params, searchParams }: PageProps<"/[market]/[env]/entities">) {
   const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = market(mid);
   const s = (v: unknown) => (typeof v === "string" ? v : "");

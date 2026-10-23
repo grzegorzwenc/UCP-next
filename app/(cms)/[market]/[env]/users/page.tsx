@@ -4,6 +4,8 @@ import { listUsers, readLog, me } from "@/lib/server/ucp";
 import { Users } from "@/components/users/Users";
 
 /** Users & permissions: users live at /home/users/<id>, per-folder grants as JSON in ucp:perms. */
+export const metadata = { title: "Users & roles" };
+
 export default async function Page({ params, searchParams }: PageProps<"/[market]/[env]/users">) {
   const { market: mid, env: eid } = await params; const sp = await searchParams; const mk = market(mid); const ev = env(eid);
   const [all, log, pages, viewer] = await Promise.all([listUsers(), readLog(mid, 300), allPages(mk.root), me()]);

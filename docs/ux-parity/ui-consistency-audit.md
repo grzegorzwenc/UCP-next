@@ -860,7 +860,10 @@ Rebuilt against `hsbc-ucpmock`'s `src/lib/components/library/library-browser.sve
 | Folder icons were the two-tone illustrative set, same colour always | lucide `Folder` / `FolderOpen`, `text-ink-3`, taking `text-brand` when the row is current — and on hover for the folder tiles |
 | Selected row: `bg-brand-soft text-brand-hover` | `bg-(--sidebar-active)` with an `inset 2px` red bar, matching the app sidebar |
 | One view: a table | Compact / grid / list, with folders as tiles above the cards in both card views |
-| Columns: ☐ · Name · Status · **URL** · **Template** · Updated · *Edit page* + ⋮ | ☐ · Name (URL folded into a sub-line) · Status · Updated by · Updated on · ⋮ |
+| Columns: ☐ · Name · Status · **URL** · Template · Updated · *Edit page* + ⋮ | ☐ · Name (URL folded into a sub-line) · Language · Status · Template · Updated by · Updated on · ⋮ — their `pages/columns.ts` set, with their widths |
+| No sorting | Every column sorts, default `updatedAt desc` as theirs sets. `SortHeader` ported: the glyph stays hidden until the column is sorted or hovered |
+| No filters beyond the search box | Status multi-select with a count badge, an Updated-on range, a Language quick-chip row with per-value counts, and an active-filter row with a match count and Clear all |
+| Dates dropped the year in the current year | `ukDate` always carries it, and Updated on uses their `formatDateTime` shape — `23 Oct 2026 14:05` |
 | Native `<select>` of raw paths for "where should it live" | `LocationSelect` — a dropdown radio list, depth-indented, Layers icon for the root |
 | Raw `<input type="checkbox">` | `.bdl-checkbox` with a new `.bdl-checkbox-sm` size and a dark-mode treatment |
 | `⌕` glyph in a rounded search box | lucide `Search` inset in the field, with a clear `✕` once there is a query |
@@ -906,6 +909,74 @@ Four things worth noting:
 - **The URL column was the main source of confusion.** It repeated what the Name column already
   linked to, in mono, on every row. Their `name-cell.svelte` folds it into a quiet sub-line under
   the title instead, which is also the only place mono belongs (see Phase 2).
+- **No table library.** Theirs runs on TanStack (`createSvelteTable`, `getSortedRowModel`,
+  `ColumnFiltersState`); this does the same work in plain state, since the whole list is already
+  client-side and the library would be ~15 KB for one screen. The parts worth testing —
+  `inRange`, `rangeActive` and the sort comparator — live in `lib/pages-filter.ts` rather than in
+  the component, and are covered by a headless check (19 cases: inclusive bounds both ways,
+  missing dates, folders pinned above pages in both directions, stability on equal keys,
+  no mutation, and the date formats).
+- **The date range is two native date fields, not a calendar.** Theirs is a two-month range picker
+  from `bits-ui` plus `@internationalized/date`; this keeps their exact `{ from, to }` shape and
+  inclusive-day comparison without adding two dependencies for one filter.
+- **The ⋯ menu is theirs, icons and all.** It was a hand-rolled dropdown with a `⋯` glyph and
+  plain text rows; it is now shadcn's `DropdownMenu` laid out like their `pages/page-menu.svelte`
+  — the three everyday actions, a separator, the structural ones, a separator, Delete on its own
+  as `variant="destructive"` — each with its lucide icon. Edit/Preview/Copy URL/Duplicate/Move/
+  Delete use their icons; Rename (`Type`) and Archive (`Archive`) are ours, as theirs has neither.
+  Keyboard navigation, typeahead and click-away come with the component, replacing a hand-written
+  `mousedown` listener.
+- **The card views gained an "Up one level" tile.** They have no breadcrumb of their own — that
+  lives in the list view's header — so the first folder tile is the way back, shown only below the
+  market root and never while searching. Dashed border and muted text so it reads as navigation
+  rather than as another folder.
+
+- **The grid card carries their three actions** — Edit · Preview · URL, with the row dropped in
+  compact view as theirs drops it. Two of them are more than theirs is:
+
+  - **Preview** is a real deep link, not a stub. Theirs answers `onPreview` with a toast; here the
+    builder already had an internal preview mode but no way to reach it by URL, so it now accepts
+    `?preview=1` (`startInPreview`) and the action opens the page as a visitor sees it, in a new
+    tab — which is what the external-link icon promises.
+  - **URL** copies the address the delivery tier would serve, `https://{market domain}{path}`,
+    and reports it in the existing toast. Theirs copies against a placeholder host
+    (`https://www.hsbc.example`); ours has the real per-market domains already.
+
+- **A drawn page preview replaces the file icon, in all three views.**
+  `components/explorer/PageThumb.tsx` ports their `pages/page-thumb.svelte`: a white page with
+  site chrome and neutral wireframe lines, laid out per template, so a product page looks like a
+  product page. The same drawing serves the list row at `h-9 w-12` and the card's
+  `aspect-[16/10]`, because every size in it is a percentage. Two things carried over on purpose:
+  the page is white with literal neutral greys in both themes, since that is what a screenshot
+  would look like, and the red accents are the CTA blocks.
+
+  Theirs has 27 layout variants; ours has the five page templates that exist here — `product`,
+  `rates`, `hub`, `campaign` and a quiet default for `blank` and anything unrecognised — with
+  `product`, `hub` and `campaign` ported from theirs and `rates` composed from their `comparison`
+  and `c-rates` drawings. Theirs also fills the image areas with a real photo through `photoSrc`;
+  there is no photo service here, so those are flat neutral blocks. At 48×36 in a table row the
+  shape is what reads, not the picture.
+
+- **Folders are not rows in the list view at all**, as theirs has none. They live in the tree and,
+  in the two card views, as tiles. Consequence to be aware of: in list view a subfolder is reached
+  from the tree only, so the tiles would be the thing to add back if that ever bites. Select-all
+  covers the pages on screen, and the three folder branches in the row markup went with it.
+- **Column visibility is a container query, not a viewport one.** This was a real bug:
+  the table lives in the viewport minus the app sidebar *and* the folder tree — roughly 860px on a
+  1440px window — but `xl:` asked about the viewport, so at 1280px+ every column switched on and
+  `table-fixed` squeezed Name down to its icon. The card is now an `@container` (their toolbar uses
+  the same idiom) and the columns appear at `@2xl` / `@3xl` / `@4xl` / `@5xl`, measured against the
+  pane. Verified in the compiled CSS: four `@container (min-width: …)` blocks and
+  `container-type: inline-size`.
+- **Status labels were too long for their column.** "Waiting for a reviewer", "In author's review"
+  and "In business review" overflowed `w-28` and ran over the column beside them. They are now
+  "Awaiting review", "Author review", "Business review" and "Ready"; the column is `w-32`; and
+  `Pill` carries `max-w-full truncate` with a `title`, so no label can spill out of a fixed cell
+  again whatever its wording.
+- **The language filter needed the market, not the rows.** It was built from the locales actually
+  present, and every mock page is `en-GB`, so the one-option guard hid the whole row. It now takes
+  the market's declared locales and counts rows against them — zeros included — which is how
+  theirs does it, so UK shows `en-GB` and `cy-GB`.
 - **The per-row "Edit page" / "Open folder" button is gone.** The name is already a link to the
   same place and the ⋮ menu still carries Open, so the button was a third route to one
   destination; their table has only the ⋮. That is what frees the row for Updated by.
@@ -920,6 +991,31 @@ Four things worth noting:
 `pages/loading.tsx` had to be rewritten with it: the shared `SectionSkeleton sidebar` variant
 mirrors the old aside-and-body layout, which would now jump on swap. That variant stays, because
 Assets and Templates still use it.
+
+### Favicon and tab titles
+
+- **The favicon is theirs** — `src/lib/assets/favicon.svg`, the HSBC hexagon, copied verbatim to
+  `app/icon.svg`, which is the App Router's icon convention. Next's default `app/favicon.ico` went
+  with it.
+
+  A matching `.ico` sits beside it, because `/favicon.ico` is still requested directly by
+  bookmarks, RSS readers and older browsers that never look at the `<link>` tags. It is generated
+  from the *same* polygon coordinates as the SVG rather than traced by hand, so the two are one
+  drawing — `docs/ux-parity/mkico.py` is the generator, and needs only Pillow.
+  Rendered at 16× and downsampled with LANCZOS, packed as six PNG frames (16–256px). Verified by
+  decoding it back: exact `#DB0011` in all three red caps, pure white chevrons, transparent
+  outside the mark, at every frame size. Both `/favicon.ico` and `/icon.svg` appear in
+  `app-path-routes-manifest.json`, and the served body is byte-identical to the source file.
+- **The tab title follows the section**, as every one of their routes sets its own. The root
+  layout holds `title: { default: "Unified Content Platform", template: "%s · Unified Content
+  Platform" }` and each route supplies just its own name, so the tab reads
+  `Pages · Unified Content Platform` — their exact wording.
+
+  Eleven section routes carry a static title taken from the sidebar's own label, so the tab and
+  the nav cannot drift. Two are generated: the page builder names the page being edited and the
+  template editor the template, both through `generateMetadata`. Three routes already had titles
+  with the product name written into them, which the template would have doubled; they now carry
+  only their own name.
 
 ### Workspace customisation
 

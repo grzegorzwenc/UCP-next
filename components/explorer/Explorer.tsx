@@ -7,14 +7,19 @@ import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ui/Confirm";
 import { Steps } from "@/components/ui/Steps";
 import { ModalShell as Dialog } from "@/components/models/ModalShell";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { PageSummary } from "@/lib/api/types";
 import { repoApi, ucpApi } from "@/lib/api";
 import { errorText as errText } from "@/lib/api/errors";
-import { ukDate } from "@/lib/dates";
-import { ChevronRight, FileText, Folder as FolderGlyph, FolderPlus, Lock, Plus, Search, X } from "lucide-react";
+import { ukDateTime } from "@/lib/dates";
+import { Archive, ChevronRight, Copy, EllipsisVertical, ExternalLink, FolderInput, FolderPlus, Link as LinkIcon, Lock, Pencil, Plus, Search, Trash2, Type, X } from "lucide-react";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/shadcn/dropdown-menu";
 import { FolderTiles, PageCard, ViewToggle, type View } from "@/components/explorer/PagesViews";
 import { LocationSelect, type FolderOption } from "@/components/explorer/LocationSelect";
+import { FilterChips, MultiFilter, QuickChips, RangeFilter, SortHeader } from "@/components/explorer/PagesFilters";
+import { PageThumb } from "@/components/explorer/PageThumb";
+import { inRange, rangeActive, sortRows, type Range, type Sort } from "@/lib/pages-filter";
+import { STATUS_LABEL } from "@/components/ui/Pill";
 import { Dialog as UIDialog, DialogContent as UIDialogContent, DialogFooter as UIDialogFooter, DialogHeader as UIDialogHeader, DialogTitle as UIDialogTitle } from "@/components/shadcn/dialog";
 import { useSession } from "@/components/shell/Session";
 import type { Template } from "@/lib/ucp/types";
@@ -96,13 +101,41 @@ function FolderSelect({ value, onChange, root, marketName, tree, rel, exclude = 
 }
 
 /* ---------------- row actions menu ---------------- */
-type RowAction = "open" | "rename" | "move" | "duplicate" | "archive" | "delete";
+type RowAction = "open" | "preview" | "copyurl" | "rename" | "move" | "duplicate" | "archive" | "delete";
+/**
+ * One corner menu per page, ported from their `pages/page-menu.svelte`: the three everyday
+ * actions first, then the structural ones, then Delete on its own — each with its icon, which the
+ * hand-rolled menu this replaces had none of. On shadcn's DropdownMenu, so it also gets keyboard
+ * navigation, typeahead and click-away for free.
+ */
 function RowMenu({ page, canEdit, onAction }: { page: PageSummary; canEdit: boolean; onAction: (a: RowAction, p: PageSummary) => void }) {
-  const [open, setOpen] = useState(false); const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => { if (!open) return; const h = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); }; document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h); }, [open]);
-  const item = (a: RowAction, label: string, cls = "") => <button key={a} className={`block w-full text-left px-3 py-1.5 text-sm hover:bg-surface-2 ${cls}`} onClick={() => { setOpen(false); onAction(a, page); }}>{label}</button>;
-  return <div ref={ref} className="relative inline-block"><button className="btn-icon" aria-label={`Actions for ${page.title}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(!open)}>⋯</button>
-    {open && <div role="menu" className="absolute right-0 top-full mt-1 bg-surface border border-line rounded-lg shadow-xl py-1 min-w-[160px] z-30">{item("open", page.isFolder ? "Open folder" : "Open in builder")}{canEdit ? <>{item("rename", "Rename")}{item("move", "Move to…")}{!page.isFolder && item("duplicate", "Duplicate")}<div className="border-t border-line my-1" />{item("archive", "Archive")}{item("delete", "Delete", "text-crit")}</> : <div className="px-3 py-1.5 text-xs text-ink-3">Read-only for you</div>}</div>}</div>;
+  const go = (a: RowAction) => () => onAction(a, page);
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={<button type="button" className="btn btn-icon btn-square cursor-pointer" aria-label={`Actions for ${page.title}`} />}
+      >
+        <EllipsisVertical className="size-4" />
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="min-w-44">
+        <DropdownMenuItem onClick={go("open")}><Pencil />Edit</DropdownMenuItem>
+        <DropdownMenuItem onClick={go("preview")}><ExternalLink />Preview</DropdownMenuItem>
+        <DropdownMenuItem onClick={go("copyurl")}><LinkIcon />Copy URL</DropdownMenuItem>
+        {canEdit ? <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={go("rename")}><Type />Rename</DropdownMenuItem>
+          <DropdownMenuItem onClick={go("duplicate")}><Copy />Duplicate</DropdownMenuItem>
+          <DropdownMenuItem onClick={go("move")}><FolderInput />Move to…</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={go("archive")}><Archive />Archive</DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onClick={go("delete")}><Trash2 />Delete</DropdownMenuItem>
+        </> : <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem disabled>Read-only for you</DropdownMenuItem>
+        </>}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
 }
 
 /* ---------------- translate modal (port of the prototype's translate flow) ---------------- */
@@ -216,11 +249,64 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
   const [title, setTitle] = useState(""); const [slug, setSlug] = useState(""); const [tpl, setTpl] = useState(newTemplate && templates.some((t) => t.id === newTemplate) ? newTemplate : templates.some((t) => t.id === "product") ? "product" : templates[0]?.id ?? "blank"); const [parent, setParent] = useState(folder.path); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
   const [sel, setSel] = useState<string[]>([]); const [toast, setToast] = useState<string | null>(null);
   const crumbs = useMemo(() => { const segs = folder.path.replace(root, "").split("/").filter(Boolean); return segs.map((s, i) => ({ name: s, path: root + "/" + segs.slice(0, i + 1).join("/") })); }, [folder.path, root]);
-  const rows = q ? allPages.filter((p) => (p.title ?? "").toLowerCase().includes(q.toLowerCase()) || rel(p.path).includes(q.toLowerCase())) : items;
+  /* Sorting and filtering, as their table has. Default newest-first on Updated on, like theirs. */
+  const [sort, setSort] = useState<Sort>({ id: "updatedAt", desc: true });
+  const [statusF, setStatusF] = useState<string[]>([]);
+  const [langF, setLangF] = useState<string[]>([]);
+  const [range, setRange] = useState<Range>({});
+  const filtersOn = statusF.length > 0 || langF.length > 0 || rangeActive(range);
+  const tplName = (id?: string) => templates.find((t) => t.id === id)?.name ?? id ?? "";
+  const localeOf = (p: PageSummary) => p.locale ?? "en-GB";
+
+  const matching = q ? allPages.filter((p) => (p.title ?? "").toLowerCase().includes(q.toLowerCase()) || rel(p.path).includes(q.toLowerCase())) : items;
+  const rows = useMemo(() => {
+    /* A folder has no status, language or edit date, so any of those filters is a request for
+       pages — folders drop out rather than lingering as rows nothing could match. */
+    const kept = matching.filter((p) => isFolder(p)
+      ? !filtersOn
+      : (!statusF.length || statusF.includes(p.status))
+        && (!langF.length || langF.includes(p.locale ?? "en-GB"))
+        && inRange(p.lastModified, range));
+    const key = (p: PageSummary) => {
+      switch (sort.id) {
+        case "title": return (p.title ?? "").toLowerCase();
+        case "language": return p.locale ?? "en-GB";
+        case "status": return p.status ?? "";
+        case "template": return (templates.find((t) => t.id === p.template)?.name ?? p.template ?? "").toLowerCase();
+        case "updatedBy": return (p.lastModifiedBy ? names[p.lastModifiedBy] ?? p.lastModifiedBy : "").toLowerCase();
+        default: return p.lastModified ?? "";
+      }
+    };
+    return sortRows(kept, isFolder, key, sort.desc);
+  }, [matching, filtersOn, statusF, langF, range, sort, names, templates]);
   const shown = rows.slice(0, limit);
+  const shownPages = shown.filter((n) => !isFolder(n));
+  /* The card views have no breadcrumb of their own, so the folder tiles carry the way back up. */
+  const upParent = folder.path === root ? null : parentOf(folder.path);
+  const upHref = upParent === null ? undefined : upParent === root ? `${base}/pages` : `${base}/pages${rel(upParent)}`;
+
+  /* The options are the market's declared locales, not just the ones present — as theirs takes
+     them from its language list and counts rows against it. Otherwise a market whose pages are all
+     one locale shows no filter at all, which is what happened here. */
+  const langs = useMemo(() => {
+    const pages = items.filter((x) => !isFolder(x));
+    return marketOf(marketId).locales.map((value) => ({ value, label: value, count: pages.filter((p) => (p.locale ?? "en-GB") === value).length }));
+  }, [items, marketId]);
+  const statusOptions = useMemo(() => {
+    const present = new Set(items.filter((x) => !isFolder(x)).map((p) => p.status));
+    return Object.entries(STATUS_LABEL).filter(([v]) => present.has(v as PageSummary["status"])).map(([value, label]) => ({ value, label }));
+  }, [items]);
+  const chips = [
+    ...statusF.map((v) => ({ key: "s:" + v, label: `Status: ${STATUS_LABEL[v] ?? v}`, remove: () => setStatusF(statusF.filter((x) => x !== v)) })),
+    ...langF.map((v) => ({ key: "l:" + v, label: `Language: ${v}`, remove: () => setLangF(langF.filter((x) => x !== v)) })),
+    ...(rangeActive(range) ? [{ key: "r", label: `Updated ${range.from ?? "…"} to ${range.to ?? "…"}`, remove: () => setRange({}) }] : []),
+  ];
+  const clearFilters = () => { setStatusF([]); setLangF([]); setRange({}); };
   const selected = rows.filter((r) => sel.includes(r.path));
   const canEditSelected = selected.length > 0 && selected.every((r) => can("edit", r.path));
-  const allChecked = shown.length > 0 && shown.every((r) => sel.includes(r.path));
+  /* Folders are not rows in the list view — theirs has none either; the tree and the folder
+     tiles are where folders live. Select-all therefore covers the pages actually on screen. */
+  const allChecked = shownPages.length > 0 && shownPages.every((r) => sel.includes(r.path));
   const say = (s: string) => { setToast(s); setTimeout(() => setToast(null), 2600); };
   const openModal = (m: Modal) => { setErr(null); setTitle(""); setSlug(""); setModal(m); };
 
@@ -347,8 +433,16 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
     try { for (const p of pages) await repoApi.deletePage(p.path, true); for (const f of dropFiles) await repoApi.deleteNode(f, { text: `deleted ${f.split("/").pop()} (with the page)`, target: "assets" }).catch(() => {}); setSel([]); say(`Deleted ${pages.length} item${pages.length === 1 ? "" : "s"}${dropFiles.length ? ` and ${dropFiles.length} file${dropFiles.length === 1 ? "" : "s"}` : ""}`); router.refresh(); }
     catch (e) { say(errText(e)); }
   }
+  /* The page's public address, as the delivery tier would serve it. */
+  async function copyUrl(p: PageSummary) {
+    const url = `https://${marketOf(marketId).domain}${rel(p.path)}`;
+    try { await navigator.clipboard.writeText(url); say(`Copied ${url}`); }
+    catch { say("Copy did not work · open the page and copy the address by hand"); }
+  }
   function onAction(a: RowAction, p: PageSummary) {
     if (a === "open") router.push(p.isFolder ? `${base}/pages${rel(p.path)}` : `${base}/page${rel(p.path)}`);
+    else if (a === "preview") window.open(`${base}/page${rel(p.path)}?preview=1`, "_blank", "noopener");
+    else if (a === "copyurl") void copyUrl(p);
     else if (a === "rename") { openModal({ kind: "rename", page: p }); setTitle(p.title); }
     else if (a === "move") { openModal({ kind: "move", pages: [p] }); setParent(parentOf(p.path)); }
     else if (a === "duplicate") duplicate(p);
@@ -357,7 +451,6 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
   }
   const cell = "px-4 py-2 border-b border-line";
   const scopeName = q ? `Search results for “${q}”` : folder.title;
-  const shownPages = shown.filter((n) => !isFolder(n));
   const empty = <div className="border border-dashed border-line-2 p-10 text-center text-ink-3">{q ? "No pages match." : canEditHere ? <>This folder is empty. <button className="cursor-pointer underline" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}>New page</button>.</> : "This folder is empty."}</div>;
   const barBtn = "btn btn-sm gap-1.5 hover:brightness-125"; const barStyle = { background: "transparent", borderColor: "rgba(255,255,255,.3)", color: "#fff" } as const;
 
@@ -391,7 +484,10 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
             : <span className="inline-flex shrink-0 items-center gap-1.5 border border-line bg-surface-3 px-3 py-1.5 text-xs text-ink-3" title="You don't have Edit on this folder. Ask a site admin."><Lock className="size-3.5" />Read-only in this folder</span>}
         </div>
 
-        <div className="flex min-h-0 flex-col overflow-hidden border border-line bg-surface">
+        {/* @container: the columns must respond to this pane, which is the viewport minus the app
+            sidebar and the folder tree — viewport breakpoints kept every column on at xl and
+            squeezed Name down to its icon. Their toolbar uses the same idiom. */}
+        <div className="@container flex min-h-0 flex-col overflow-hidden border border-line bg-surface">
           <div className="flex shrink-0 items-center gap-4 border-b border-line px-4 py-3">
             <div className="min-w-28 flex-1">
               <h2 className="truncate text-base font-medium" title={scopeName}>{scopeName}</h2>
@@ -408,54 +504,64 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
                 <input className="h-9 w-48 border border-line-2 bg-surface ps-8 pe-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring xl:w-60" placeholder="Find a page by title or URL" aria-label="Find a page by title or URL" value={q} onChange={(e) => setQ(e.target.value)} />
                 {q && <button type="button" className="absolute end-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center text-ink-3 transition-colors hover:text-ink" aria-label="Clear search" onClick={() => setQ("")}><X className="size-4" /></button>}
               </div>
+              {statusOptions.length > 1 && <MultiFilter label="Status" noun="pages" options={statusOptions} value={statusF} onChange={setStatusF} />}
+              <RangeFilter value={range} onChange={setRange} />
               <ViewToggle view={view} onChange={setView} />
             </div>
           </div>
 
+          <QuickChips label="Language" all={items.filter((p) => !isFolder(p)).length} options={langs} value={langF} onChange={setLangF} />
+          <FilterChips shown={rows.length} total={matching.length} noun="pages" chips={chips} onClear={clearFilters} />
+
           <div className="relative min-h-0 flex-1 overflow-auto">
             {view !== "list" ? (
               <div className="flex flex-col gap-4 p-4">
-                {!q && <FolderTiles folders={items.filter(isFolder)} base={base} rel={rel} counts={counts} scopeName={scopeName} />}
+                {!q && <FolderTiles folders={items.filter(isFolder)} base={base} rel={rel} counts={counts} scopeName={scopeName} upHref={upHref} />}
                 {shownPages.length ? (
                   <section aria-label={`Pages in ${scopeName}`}>
                     {!q && items.some(isFolder) && <h3 className="mb-2 text-xs font-medium text-ink-3">Pages</h3>}
                     <div className={`grid ${view === "compact" ? "gap-2 [grid-template-columns:repeat(auto-fill,minmax(9rem,1fr))]" : "gap-3 [grid-template-columns:repeat(auto-fill,minmax(13.5rem,1fr))]"}`}>
-                      {shownPages.map((n) => <PageCard key={n.path} page={n} href={`${base}/page${rel(n.path)}`} compact={view === "compact"} rel={rel} menu={<RowMenu page={n} canEdit={can("edit", n.path)} onAction={onAction} />} />)}
+                      {shownPages.map((n) => <PageCard key={n.path} page={n} href={`${base}/page${rel(n.path)}`} compact={view === "compact"} rel={rel} onCopyUrl={() => void copyUrl(n)} menu={<RowMenu page={n} canEdit={can("edit", n.path)} onAction={onAction} />} />)}
                     </div>
                   </section>
                 ) : empty}
               </div>
-            ) : rows.length ? (
+            ) : shownPages.length ? (
               <table className="w-full table-fixed text-sm">
                 <thead className="sticky top-0 z-10 bg-surface-2">
-                  <tr className="text-left text-xs tracking-[.06em] text-ink-3 uppercase">
-                    <th className="h-11 w-11 border-b border-line-2 px-4"><input type="checkbox" className="bdl-checkbox bdl-checkbox-sm" aria-label="Select all" checked={allChecked} onChange={(e) => setSel(e.target.checked ? shown.map((r) => r.path) : [])} /></th>
-                    <th className="h-11 border-b border-line-2 px-4">Name</th>
-                    <th className="h-11 w-28 border-b border-line-2 px-4">Status</th>
-                    <th className="hidden h-11 w-36 border-b border-line-2 px-4 xl:table-cell">Updated by</th>
-                    <th className="hidden h-11 w-32 border-b border-line-2 px-4 whitespace-nowrap md:table-cell">Updated on</th>
+                  <tr className="text-left text-xs text-ink-3">
+                    <th className="h-11 w-11 border-b border-line-2 px-4"><input type="checkbox" className="bdl-checkbox bdl-checkbox-sm" aria-label="Select all" checked={allChecked} onChange={(e) => setSel(e.target.checked ? shownPages.map((r) => r.path) : [])} /></th>
+                    <th className="h-11 border-b border-line-2 px-4"><SortHeader id="title" label="Name" sort={sort} onSort={setSort} /></th>
+                    <th className="hidden h-11 w-24 border-b border-line-2 px-4 @3xl:table-cell"><SortHeader id="language" label="Language" sort={sort} onSort={setSort} /></th>
+                    <th className="h-11 w-32 border-b border-line-2 px-4"><SortHeader id="status" label="Status" sort={sort} onSort={setSort} /></th>
+                    <th className="hidden h-11 w-32 border-b border-line-2 px-4 @5xl:table-cell"><SortHeader id="template" label="Template" sort={sort} onSort={setSort} /></th>
+                    <th className="hidden h-11 w-36 border-b border-line-2 px-4 @4xl:table-cell"><SortHeader id="updatedBy" label="Updated by" sort={sort} onSort={setSort} /></th>
+                    <th className="hidden h-11 w-40 border-b border-line-2 px-4 whitespace-nowrap @2xl:table-cell"><SortHeader id="updatedAt" label="Updated on" sort={sort} onSort={setSort} /></th>
                     <th className="h-11 w-12 border-b border-line-2" />
                   </tr>
                 </thead>
-                <tbody>{shown.map((n) => { const on = sel.includes(n.path); const editable = can("edit", n.path); const src = n.meta?.["ucp:sourcePath"] as string | undefined; const who = n.lastModifiedBy ? names[n.lastModifiedBy] ?? n.lastModifiedBy : ""; return <tr key={n.path} className={on ? "bg-brand-soft/40" : "hover:bg-surface-2"}>
+                <tbody>{shownPages.map((n) => { const on = sel.includes(n.path); const editable = can("edit", n.path); const src = n.meta?.["ucp:sourcePath"] as string | undefined; const who = n.lastModifiedBy ? names[n.lastModifiedBy] ?? n.lastModifiedBy : ""; return <tr key={n.path} className={on ? "bg-brand-soft/40" : "hover:bg-surface-2"}>
                   <td className={cell}><input type="checkbox" className="bdl-checkbox bdl-checkbox-sm" aria-label={`Select ${n.title}`} checked={on} onChange={(e) => setSel(e.target.checked ? [...sel, n.path] : sel.filter((x) => x !== n.path))} /></td>
                   <td className={cell}>
                     <div className="flex min-w-0 items-center gap-2.5">
-                      {isFolder(n) ? <FolderGlyph className="size-4 shrink-0 text-ink-3" /> : <FileText className="size-4 shrink-0 text-ink-3" />}
+                      <Link href={`${base}/page${rel(n.path)}`} aria-label={`Edit ${n.title}`} className="shrink-0 border border-line focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+                        <PageThumb template={n.template} className="h-9 w-12" />
+                      </Link>
                       <div className="min-w-0">
-                        <Link href={`${base}/${isFolder(n) ? "pages" : "page"}${rel(n.path)}`} className="flex min-w-0 items-center gap-1.5 font-medium no-underline hover:underline">
+                        <Link href={`${base}/page${rel(n.path)}`} className="flex min-w-0 items-center gap-1.5 font-medium no-underline hover:underline">
                           <span className="truncate">{n.title}</span>
                           {lockOf(n) && <span className="inline-flex shrink-0 items-center text-ink-3" title={`Locked by ${lockOf(n)!.name}`} aria-label={`Locked by ${lockOf(n)!.name}`}><BarIcon n="lock" /></span>}
-                          {n.locale && n.locale !== "en-GB" && <span className="shrink-0 bg-surface-3 px-1.5 text-xs">{n.locale}</span>}
                         </Link>
                         <span className="block truncate text-xs text-ink-3">{rel(n.path)}</span>
                         {src && <span className="block truncate text-xs text-ink-3">Source: <Link href={`${base}/page${rel(src)}`} className="hover:underline">{rel(src)}</Link></span>}
                       </div>
                     </div>
                   </td>
-                  <td className={cell}>{isFolder(n) ? <span className="text-ink-3">Folder</span> : <Pill status={n.status} />}</td>
-                  <td className={`${cell} hidden truncate text-ink-3 xl:table-cell`}>{who || "—"}</td>
-                  <td className={`${cell} hidden whitespace-nowrap text-ink-3 md:table-cell`}>{ukDate(n.lastModified) || "—"}</td>
+                  <td className={`${cell} hidden text-ink-3 @3xl:table-cell`}>{localeOf(n)}</td>
+                  <td className={cell}><Pill status={n.status} /></td>
+                  <td className={`${cell} hidden truncate text-ink-3 @5xl:table-cell`}>{tplName(n.template) || "—"}</td>
+                  <td className={`${cell} hidden truncate text-ink-3 @4xl:table-cell`}>{who || "—"}</td>
+                  <td className={`${cell} hidden whitespace-nowrap text-ink-3 @2xl:table-cell`}>{ukDateTime(n.lastModified) || "—"}</td>
                   <td className={`${cell} text-right whitespace-nowrap`}><RowMenu page={n} canEdit={editable} onAction={onAction} /></td>
                 </tr>; })}</tbody>
               </table>
