@@ -9,6 +9,9 @@
 
 :root {
   --brand: #db0011;
+
+  --chart-2: var(--color-bdl-cyan);
+  --chart-3: var(--color-bdl-amber-dark);
   --brand-hover: #af000d;
   --brand-soft: #fdecee;
 

@@ -12,7 +12,7 @@ import { Badge } from "@/components/shadcn/badge";
  */
 const LABEL: Record<string, string> = {
   draft: "Draft",
-  review: "Waiting for author's review assignment",
+  review: "Waiting for a reviewer",
   inreview: "In author's review",
   reviewed: "Reviewed",
   bizreview: "In business review",
