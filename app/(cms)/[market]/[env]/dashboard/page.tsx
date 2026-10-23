@@ -1,14 +1,14 @@
-import Link from "next/link";
 import { cookies } from "next/headers";
 import { FilePlus2, PenLine, ClipboardCheck, ImageUp, FileText, CheckCheck, Activity, TriangleAlert } from "lucide-react";
 import { market, env } from "@/lib/markets";
 import { allPages } from "@/lib/server/pages";
 import { readLogFor, listTasks, userName, me } from "@/lib/server/ucp";
 import { Pill } from "@/components/ui/Pill";
-import { Avatar } from "@/components/ui/Avatar";
 import { ActionCard } from "@/components/ui/ActionCard";
 import { StatCard } from "@/components/ui/StatCard";
 import { SectionTitle } from "@/components/ui/SectionTitle";
+import { ListCard } from "@/components/ui/ListCard";
+import { ago, due } from "@/lib/dates";
 import { ActivityChart, type ActivityPoint } from "@/components/ui/ActivityChart";
 import { DismissibleNotice } from "@/components/ui/DismissibleNotice";
 import { noticeCookie } from "@/lib/notices";
@@ -38,7 +38,7 @@ function Card({ title, right, children }: { title: string; right?: React.ReactNo
 export default async function Dashboard({ params }: PageProps<"/[market]/[env]/dashboard">) {
   const { market: mid, env: eid } = await params;
   const mk = market(mid), ev = env(eid); const base = `/${mid}/${eid}`;
-  const everything = await allPages(mk.root); const all = everything.filter((p) => !p.isFolder); const folders = everything.filter((p) => p.isFolder && p.path.split("/").length === mk.root.split("/").length + 1);
+  const everything = await allPages(mk.root); const all = everything.filter((p) => !p.isFolder);
   const [{ log }, tasks] = await Promise.all([readLogFor(mk.id, 5), listTasks(mk.id, everything)]);
   const names = Object.fromEntries(await Promise.all(log.map(async (e) => [e.who, await userName(e.who)] as const)));
   const c = (s: string) => all.filter((p) => p.status === s).length; const n = all.length; const pct = (a: number, b: number) => (b ? Math.round((a / b) * 100) : 0);
@@ -64,7 +64,6 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
   ];
 
   const recent = all.slice().sort((a, b) => (b.lastModified ?? "").localeCompare(a.lastModified ?? "")).slice(0, 6);
-  const bySection = folders.map((f) => ({ f, n: all.filter((p) => p.path.startsWith(f.path + "/")).length })).sort((a, b) => b.n - a.n); const secMax = bySection[0]?.n || 1;
   const who = await me();
   /* read server-side: a dismissed notice should not paint and then disappear */
   const introDismissed = (await cookies()).get(noticeCookie("ucp-intro"))?.value === "1";
@@ -76,7 +75,6 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
     { title: "Review and approve", desc: `${c("review")} waiting for review, ${c("approved")} ready to publish.`, href: `${base}/tasks`, icon: ClipboardCheck, primary: false },
     { title: "Upload images or files", desc: "Drag and drop, then use them on any page.", href: `${base}/assets`, icon: ImageUp, primary: false },
   ];
-  const rel = (iso?: string) => { if (!iso) return ""; const d = new Date(iso); const diff = Math.round((now() - d.getTime()) / 60000); return diff < 60 ? `${Math.max(diff, 0)} min ago` : diff < 1440 ? `${Math.round(diff / 60)} h ago` : d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }); };
   return (
     <div className="p-4 pt-0 pb-14">
       {/* Welcome: plain text, no block — the shared header treatment from hsbc-ucpmock. */}
@@ -102,18 +100,37 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 mb-6">
         {tiles.map((t) => <StatCard key={t.label} {...t} />)}
       </div>
-      <SectionTitle id="workspace" help="Status, activity, sections, tasks and what changed recently.">Your workspace</SectionTitle>
+      <SectionTitle id="workspace" help="How content is spread across statuses, how activity has trended, and what needs you now.">Your workspace</SectionTitle>
       <div className="grid md:grid-cols-2 gap-3.5 mb-3.5">
         <Card title="Content by status"><StatusViz total={n} parts={[{ l: "Published", n: c("published"), c: "var(--good)" }, { l: "Ready to publish", n: c("approved"), c: "var(--info)" }, { l: "Waiting for a reviewer", n: c("review"), c: "var(--review)" }, { l: "In author's review", n: c("inreview"), c: "var(--review)" }, { l: "Reviewed", n: c("reviewed"), c: "var(--good)" }, { l: "In business review", n: c("bizreview"), c: "var(--warn)" }, { l: "Scheduled", n: c("scheduled"), c: "var(--sched)" }, { l: "Draft", n: c("draft"), c: "var(--neutral)" }, { l: "Publish failed", n: c("failed"), c: "var(--crit)" }].filter((p) => p.n)} /></Card>
         <Card title="Content activity" right={<span className="font-normal text-ink-3">Last 30 days</span>}><ActivityChart data={activity} /></Card>
       </div>
-      <div className="grid md:grid-cols-2 gap-3.5 mb-3.5">
-        <Card title="Pages by section"><ul className="flex flex-col gap-1">{bySection.map(({ f, n: k }) => <li key={f.path}><Link href={`${base}/pages${f.path.replace(mk.root, "")}`} className="grid grid-cols-[140px_1fr_32px] items-center gap-3 py-1.5 text-sm hover:bg-surface-2 -mx-2 px-2 rounded"><span>{f.title}</span><span className="h-2.5 bg-surface-3 rounded overflow-hidden"><i className="block h-full bg-brand" style={{ width: `${Math.round((k / secMax) * 100)}%` }} /></span><b className="text-right tabular-nums">{k}</b></Link></li>)}</ul></Card>
-        <Card title="Your tasks" right={<Link href={`${base}/tasks`} className="text-info font-medium text-xs">All tasks{overdue ? ` · ${overdue} overdue` : ""}</Link>}><ul>{tasks.slice(0, 5).map((t) => <li key={t.page.path} className="flex items-center gap-2.5 py-2 border-b border-line last:border-0 text-sm"><Pill status={t.page.status as "draft"} label={t.kind} /><Link href={`${base}/page${t.page.path.replace(mk.root, "")}`} className="font-medium hover:underline truncate">{t.what}: {t.page.title}</Link><span className={`ml-auto text-xs whitespace-nowrap ${t.overdueDays > 0 ? "text-crit font-medium" : t.overdueDays === 0 ? "text-warn font-medium" : "text-ink-3"}`}>{t.overdueDays > 0 ? `${t.overdueDays} day${t.overdueDays === 1 ? "" : "s"} overdue` : t.overdueDays === 0 ? "Due today" : `Due ${new Date(t.due).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`}</span></li>)}{!tasks.length && <li className="text-ink-3 text-sm">Nothing is waiting on you.</li>}</ul></Card>
-      </div>
-      <div className="grid md:grid-cols-2 gap-3.5">
-        <Card title="Latest activity" right={<Link href={`${base}/audit`} className="text-info font-medium text-xs">Audit log</Link>}><ul>{log.map((e) => <li key={e.id} className="flex items-center gap-2.5 py-2 border-b border-line last:border-0 text-sm"><Avatar name={names[e.who]} size={26} /><span className="min-w-0 truncate"><b>{names[e.who]}</b> {e.text}</span><span className="ml-auto text-xs text-ink-3 whitespace-nowrap">{rel(e.time)}</span></li>)}</ul></Card>
-        <Card title={`Recently edited on ${mk.name}`} right={<Link href={`${base}/pages`} className="text-info font-medium text-xs">All pages</Link>}><ul>{recent.map((p) => <li key={p.path} className="flex items-center gap-2.5 py-2 border-b border-line last:border-0 text-sm"><Pill status={p.status ?? "draft"} /><Link href={`${base}/page${p.path.replace(mk.root, "")}`} className="font-medium hover:underline truncate">{p.title}</Link><span className="font-mono text-xs text-ink-3 truncate">{p.path.replace(mk.root, "")}</span><span className="ml-auto text-xs text-ink-3 whitespace-nowrap">{p.lastModified?.slice(0, 10)}</span></li>)}</ul></Card>
+      <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3">
+        <ListCard title="Your tasks" empty="Nothing is waiting on you."
+          action={{ label: overdue ? `All tasks · ${overdue} overdue` : "All tasks", href: `${base}/tasks` }}
+          rows={tasks.map((t) => ({
+            id: t.page.path,
+            href: `${base}/page${t.page.path.replace(mk.root, "")}`,
+            title: `${t.what}: ${t.page.title}`,
+            meta: <span className={t.overdueDays > 0 ? "text-crit font-medium" : t.overdueDays === 0 ? "text-warn font-medium" : undefined}>{due(t.due, t.overdueDays, now())}</span>,
+            trailing: <Pill status={t.page.status as "draft"} label={t.kind} />,
+          }))} />
+        <ListCard title={`Recently edited on ${mk.name}`} empty="No pages yet."
+          action={{ label: "All pages", href: `${base}/pages` }}
+          rows={recent.map((pg) => ({
+            id: pg.path,
+            href: `${base}/page${pg.path.replace(mk.root, "")}`,
+            title: pg.title,
+            meta: ago(pg.lastModified, now()),
+            trailing: <Pill status={pg.status ?? "draft"} />,
+          }))} />
+        <ListCard title="Latest activity" empty="Nothing logged yet."
+          action={{ label: "Audit log", href: `${base}/audit` }}
+          rows={log.map((e) => ({
+            id: e.id,
+            title: e.text,
+            meta: `${names[e.who]} · ${ago(e.time, now())}`,
+          }))} />
       </div>
     </div>
   );
