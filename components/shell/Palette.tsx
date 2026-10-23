@@ -46,7 +46,7 @@ function iconFor(it: Item) {
   return SECTION_ICON[it.section] ?? Search;
 }
 
-const KBD = "rounded border bg-muted px-1 py-0.5 font-mono";
+const KBD = "rounded border bg-muted px-1 py-0.5";
 
 export function Palette({ marketId, envId }: { marketId: string; envId: string }) {
   const router = useRouter(); const pathname = usePathname();
@@ -166,7 +166,7 @@ export function Palette({ marketId, envId }: { marketId: string; envId: string }
             className="h-16 flex-1 bg-transparent py-5 text-base text-foreground outline-none placeholder:text-muted-foreground"
             placeholder={inBuilder ? "What would you like to do? Search pages, components or ask AI…" : "Search pages, templates, users, settings…"}
           />
-          <kbd className="hidden shrink-0 rounded border bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline">ESC</kbd>
+          <kbd className="hidden shrink-0 rounded border bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground sm:inline">ESC</kbd>
         </div>
 
         <div ref={listRef} id={listId} role="listbox" aria-label="Results" className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">

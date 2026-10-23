@@ -41,8 +41,8 @@ export function ContentPicker({ marketId, marketName, flag, locale, models, curr
     footer={<>{chosen && f && <span className="mr-auto text-xs text-ink-3 min-w-0 truncate">Shows: <b className="text-ink">{cut(valueOf(chosen, f.k), 70) || "(empty)"}</b></span>}<button className="btn btn-sm btn-secondary" onClick={onClose}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!chosen || !f} onClick={() => chosen && f && onPick({ entity: chosen, field: f })}>Use this content</button></>}>
     <div className="flex flex-wrap items-center gap-2 mb-3 text-xs">
       <span className="inline-flex items-center gap-1.5 bg-surface-2 border border-line rounded-full px-2.5 py-1"><span className="text-ink-3">Market</span><b>{flag} {marketName}</b></span>
-      <span className="inline-flex items-center gap-1.5 bg-surface-2 border border-line rounded-full px-2.5 py-1"><span className="text-ink-3">Language root</span><b className="font-mono">{locale}</b></span>
-      <span className="inline-flex items-center gap-1.5 bg-surface-2 border border-line rounded-full px-2.5 py-1 font-mono text-ink-3" title="Where these entities are stored">/content/entities/{marketId}</span>
+      <span className="inline-flex items-center gap-1.5 bg-surface-2 border border-line rounded-full px-2.5 py-1"><span className="text-ink-3">Language root</span><b>{locale}</b></span>
+      <span className="inline-flex items-center gap-1.5 bg-surface-2 border border-line rounded-full px-2.5 py-1 text-ink-3" title="Where these entities are stored">/content/entities/{marketId}</span>
     </div>
     <label className="flex items-center gap-2 border border-line-2 rounded-md px-2.5 py-1.5 mb-3 bg-surface"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-sm bg-transparent" placeholder="Search all entities" autoFocus value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search all entities" /></label>
     <div className="grid grid-cols-[200px_1fr_1.2fr] gap-3 h-[360px]">

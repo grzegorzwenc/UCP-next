@@ -547,10 +547,8 @@ instead of the markup living inline in the dashboard.
 - [x] Keep mono for: JCR paths, API routes, `{{tokens}}`, request ids, JSON viewers, `kbd`
 - [x] Remove it from the nine cases in section 5 and anywhere else that is prose, a count or a name field
 
-Done: **94 uses → 70**, in 26 replacements. The source project keeps 61 of its own, so the target
-was never zero — it was "machine values only", and `src/lib/components/library/name-cell.svelte`
-settles the hard case: in the table that corresponds to our Pages screen, the title is
-`font-medium` and the sub-line carries `font-mono` *only when it is a URL*.
+Done in two passes: **94 → 70** by category (below), then **70 → 0** by removing the font face
+itself (see "Then it came back"). The monospace face is not loaded anywhere in the app.
 
 Removed, by category:
 
@@ -568,10 +566,74 @@ The Pages screen now has mono only on paths, the URL-slug input and the locale c
 and `FolderList` are mono-free. One date fix travelled with it: the Updated column was printing a
 raw ISO `slice(0, 10)`, so it now goes through `ukDate` like the dashboard.
 
-Two kept against the letter of "remove it everywhere", because the source project does the same:
-`kbd` chips (its palette and shortcut panel both use `font-mono` for keys) and the chart tooltip's
-sibling value, which is shadcn's own default — though the number itself lost mono and kept
-`tabular-nums`.
+#### Then it came back, so the face itself is gone
+
+The first pass kept 70 uses on the grounds that the source project keeps 61 of its own —
+`kbd` chips, API routes, JCR paths. That reasoning was wrong, not because the facts were wrong but
+because it re-opened a decision Leon had already given three times. The Pages rebuild then put
+mono back on the URL sub-line, reasoning from `name-cell.svelte`, and that was the third time.
+
+So it is now settled at the root rather than per call site:
+
+- **IBM Plex Mono is no longer loaded.** `next/font/google` import, the `plexMono` instance and the
+  `--font-plex-mono` variable are all out of `app/layout.tsx`.
+- **`--font-mono` points at the sans stack**, identical to `--font-sans`. The line is kept rather
+  than deleted on purpose: removing it would let Tailwind's default monospace stack back in the
+  moment anyone writes `font-mono` again, whereas this makes the utility a permanent no-op.
+- **All 66 remaining `font-mono` classes removed**, plus the three places that referenced
+  `var(--font-mono)` directly (`ModelMap`'s SVG label, `Render`'s forms placeholder, `.tok-raw`),
+  which now reference `var(--font-sans)`.
+
+`grep -rn font-mono app components lib` returns exactly one line: the token definition.
+
+#### The one that was never a class
+
+Removing the classes was not enough, and would not have been. Tailwind's preflight styles the
+elements themselves:
+
+```css
+code, kbd, samp, pre { font-family: var(--default-mono-font-family, ui-monospace, …, monospace); }
+```
+
+So every `<kbd>` (six of them — the palette and the top bar), the JSON viewer's `<pre>` and the
+entity editor's `<code>` rendered in a real monospace face no matter what classes they carried.
+`--default-mono-font-family` derives from `--font-mono`, which this repo overrides, so it does in
+fact resolve to Univers — but that is a two-step inference through a Tailwind internal, so it is
+now also stated outright in `@layer base`, after the import, where it outranks preflight:
+
+```css
+@layer base { code, kbd, samp, pre { font-family: var(--font-sans); … } }
+```
+
+Two independent guarantees, either of which is sufficient.
+
+`--font-serif` is pinned to the same stack for the same reason, and its one user is gone:
+`RichTextEditor`'s italic button drew its "I" with `font-serif`, which rendered in
+Georgia/Times — not a monospace, but not Univers either.
+
+**Verified against the compiled stylesheet, not the source.** Every `font-family` value Tailwind
+emits is now one of: `univers`, `univers Fallback`, `var(--font-sans)`,
+`var(--font-univers), Arial, Helvetica, sans-serif`, or a `var(--default-*-font-family, …)`
+whose variable resolves to that same stack. No `.font-serif` utility is emitted at all. A
+`.font-mono` utility still is — Tailwind's scanner finds the string in this very document — and it
+compiles to `font-family: var(--font-univers), Arial, Helvetica, sans-serif`, so even that is
+Univers.
+
+```
+grep -ho 'font-family:[^;}]*' .next/static/chunks/*.css | sort -u
+```
+
+is the check to re-run; it is the only one that accounts for preflight and for the theme
+indirection.
+
+Reversible in one line if a JSON viewer or a `kbd` chip ever wants it back, and that would then be
+a deliberate choice rather than a leftover.
+
+Worth recording for next time: the strip script's first version used a global
+`/ +"/g → '"'` rule to tidy whitespace after removing the token. That rewrote every
+`space-before-quote` in the file — turning `=== "x"` into `==="x"`, `from "x"` into `from"x"`, and,
+functionally, `.join(" · ")` into `.join(" ·")`. It type-checked and built clean, which is exactly
+why it was dangerous. Token-only replacement, never whitespace normalisation.
 
 ### Phase 3 — Interaction feel
 
@@ -782,6 +844,82 @@ either, which removes a request per open.
 
 Still not ported: the detail strip above the footer. It needs a second description field per
 entry, and ours carry one secondary line, already used as the subtitle.
+
+### Pages
+
+Rebuilt against `hsbc-ucpmock`'s `src/lib/components/library/library-browser.svelte`,
+`tree/tree.svelte`, `library/item-card.svelte`, `library/columns.ts` and
+`pages/create-page-dialog.svelte`.
+
+| Was | Now (theirs) |
+|---|---|
+| Full-height 260px `<aside>` beside the content, no page header | A page header (`h1 text-3xl font-light`) above a `lg:grid-cols-[16rem_minmax(0,1fr)]` pair of cards, each scrolling internally |
+| New folder / New page buttons beside the folder title, mid-page | Primary actions on the far right of the page header; New folder also as an icon button in the Folders card header |
+| Root row had a chevron and a flag emoji; its children indented from a chevron that did nothing | Root is `collapsible: false` — no chevron, always open, children start at the same level. No emoji |
+| No counts in the tree | Pages beneath each folder, right-aligned in `tabular-nums` |
+| Folder icons were the two-tone illustrative set, same colour always | lucide `Folder` / `FolderOpen`, `text-ink-3`, taking `text-brand` when the row is current — and on hover for the folder tiles |
+| Selected row: `bg-brand-soft text-brand-hover` | `bg-(--sidebar-active)` with an `inset 2px` red bar, matching the app sidebar |
+| One view: a table | Compact / grid / list, with folders as tiles above the cards in both card views |
+| Columns: ☐ · Name · Status · **URL** · **Template** · Updated · *Edit page* + ⋮ | ☐ · Name (URL folded into a sub-line) · Status · Updated by · Updated on · ⋮ |
+| Native `<select>` of raw paths for "where should it live" | `LocationSelect` — a dropdown radio list, depth-indented, Layers icon for the root |
+| Raw `<input type="checkbox">` | `.bdl-checkbox` with a new `.bdl-checkbox-sm` size and a dark-mode treatment |
+| `⌕` glyph in a rounded search box | lucide `Search` inset in the field, with a clear `✕` once there is a query |
+
+A second pass after review:
+
+- **The page title is gone**, and with it the full-width header row. The top bar's breadcrumb
+  already says Pages, so the `h1` repeated it — and once it went, the row held nothing but a button
+  while still pushing *both* cards down. New page now sits above the content card only, inside the
+  second column: the grid gains `lg:grid-rows-[auto_minmax(0,1fr)]` and the Folders panel takes
+  `lg:row-span-2`, so the right-hand card starts lower while the folder tree still runs the full
+  height. Done with rows rather than a nested wrapper, which keeps the card a direct grid child and
+  avoids re-indenting it.
+- **The screen sizes itself like theirs now.** It was `h-full p-4 md:p-6`, which depended on the
+  parent grid handing a height down and left a top gutter under the navbar. It now uses their page
+  root verbatim — `h-[calc(100svh-4rem)]`, `pt-0`, and
+  `group-has-data-[collapsible=icon]/sidebar-wrapper:h-[calc(100svh-3rem)]` so it tracks the top bar
+  shrinking to `h-12` in icon mode. The cards start flush under the navbar and the Folders panel
+  fills the full height.
+- **New folder lives only in the Folders card header**, where it belongs now that the card has one.
+  Its hover is ported from their `tree/new-folder-button.svelte`: a folder-plus icon at rest whose
+  label slides out on hover and focus (`max-w-0 → max-w-24` with opacity and margin, 200 ms
+  ease-out, `motion-reduce:transition-none`), so the action names itself without costing a label.
+- **The Folders panel is taller** — `max-h-96` below `lg`, unconstrained above it, where it fills
+  the grid row the removed title gave back.
+- **Every modal in the app got the better overlay.** `components/models/ModalShell.tsx` — the chrome
+  behind ten call sites — and Pages' own local shell were both hand-rolled `<div>`s with a
+  `bg-black/45` backdrop, no blur and no transition. Both now sit on shadcn's Dialog, and the
+  Dialog itself was brought in line with theirs: overlay `bg-black/60` with
+  `supports-backdrop-filter:backdrop-blur-sm` (was `bg-black/10` and `blur-xs`), content `gap-6 p-6
+  sm:max-w-md` (was `gap-4 p-4 sm:max-w-sm`), and `DialogFooter` reduced to their plain
+  `flex flex-col-reverse gap-2 sm:flex-row sm:justify-end` instead of a bleeding grey bar sized for
+  the old `p-4`. Focus trap, portal and Escape come with it.
+
+  One wrinkle worth recording: every call site mounts its modal behind its own condition, so
+  telling the parent to close ripped the popup out before it could animate — the open animation
+  played and the exit never did. Both shells now hold a local `open` flag, flip that first so Base
+  UI can play the fade-and-zoom out, and notify the caller 120 ms later, matching the Dialog's own
+  `duration-100`.
+
+Four things worth noting:
+
+- **The URL column was the main source of confusion.** It repeated what the Name column already
+  linked to, in mono, on every row. Their `name-cell.svelte` folds it into a quiet sub-line under
+  the title instead, which is also the only place mono belongs (see Phase 2).
+- **The per-row "Edit page" / "Open folder" button is gone.** The name is already a link to the
+  same place and the ⋮ menu still carries Open, so the button was a third route to one
+  destination; their table has only the ⋮. That is what frees the row for Updated by.
+- **Updated by needed data.** `lastModifiedBy` holds an id, so the route now resolves the ids to
+  names server-side with `userName`, once per request, the way the dashboard does for the audit
+  feed.
+- **The view choice is in local storage, not the URL.** Theirs uses `?view=`; here that would
+  re-run a dynamic server component on every toggle, so it uses the same `ucp-` local-storage
+  idiom the folder tree already uses on this screen, read through `useSyncExternalStore` so the
+  first paint and the server agree.
+
+`pages/loading.tsx` had to be rewritten with it: the shared `SectionSkeleton sidebar` variant
+mirrors the old aside-and-body layout, which would now jump on swap. That variant stays, because
+Assets and Templates still use it.
 
 ### Workspace customisation
 

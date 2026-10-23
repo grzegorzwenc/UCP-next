@@ -46,7 +46,7 @@ export function ShareReviewDialog({ marketId, path, title, stage, onClose, onApp
   return <ModalShell title={`Share for ${STAGE[stage]}`} subtitle={<b className="text-ink-2">{title}</b>} width={540} onClose={onClose}
     footer={<>{onApprove && <button className="btn btn-sm btn-secondary mr-auto" disabled={busy} onClick={async () => { onClose(); await onApprove(); /* the next stage opens its own share dialog */ }} title="Site admin: approve on behalf of the reviewer">{stage === "review" ? "Mark reviewed now" : "Sign off now"}</button>}<button className="btn btn-sm btn-primary" onClick={onClose}>Done</button></>}>
     <label className="block text-xs font-medium text-ink-2">Review link</label>
-    <div className="mt-1 flex gap-2"><input readOnly value={url ?? "Creating the link…"} onFocus={(e) => e.currentTarget.select()} className="flex-1 min-w-0 border border-line-2 rounded-md px-2.5 py-1.5 text-xs font-mono bg-surface-2" aria-label="Review link" />
+    <div className="mt-1 flex gap-2"><input readOnly value={url ?? "Creating the link…"} onFocus={(e) => e.currentTarget.select()} className="flex-1 min-w-0 border border-line-2 rounded-md px-2.5 py-1.5 text-xs bg-surface-2" aria-label="Review link" />
       <button className="btn btn-sm btn-secondary" disabled={!url} onClick={copy}>{copied ? "✓ Copied" : "Copy"}</button></div>
     <p className="text-xs text-ink-3 mt-1">Anyone with the link can comment until the {STAGE[stage]} ends.{stage === "bizreview" ? " Only people you e-mail or a group can sign off." : ""}</p>
     <label className="block text-xs font-medium text-ink-2 mt-4" htmlFor="rv-mail">Send by e-mail</label>

@@ -21,7 +21,7 @@ function Kpi({ label, value, tone }: { label: string; value: number; tone: "grey
 }
 function TargetChip({ t }: { t: TargetLink }) {
   if (t.kind === "none") return null;
-  return <span className="inline-flex items-center gap-1.5 text-xs border border-line rounded-full px-2 py-0.5 bg-surface-2 text-ink-2 max-w-full">{t.kind === "page" && <PageIcon />}{t.kind === "user" && <UserIcon />}<span className={t.kind === "path" ? "font-mono" : ""}>{t.label}</span>{t.sub && <span className="font-mono text-ink-3">{t.sub}</span>}</span>;
+  return <span className="inline-flex items-center gap-1.5 text-xs border border-line rounded-full px-2 py-0.5 bg-surface-2 text-ink-2 max-w-full">{t.kind === "page" && <PageIcon />}{t.kind === "user" && <UserIcon />}<span className={t.kind === "path" ? "" : ""}>{t.label}</span>{t.sub && <span className="text-ink-3">{t.sub}</span>}</span>;
 }
 
 export function AuditLog({ own, log, names, pageTitles, base, root, marketName, envName, initial }: Props) {

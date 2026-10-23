@@ -123,7 +123,7 @@ export function TopBar({ marketId, envId }: { marketId: string; envId: string })
       >
         <SearchIcon className="size-4 shrink-0" />
         <span className="hidden flex-1 text-start sm:inline">Global Search</span>
-        <kbd className="hidden shrink-0 rounded border bg-background px-1.5 py-0.5 font-mono text-[10px] sm:inline">⌘K</kbd>
+        <kbd className="hidden shrink-0 rounded border bg-background px-1.5 py-0.5 text-[10px] sm:inline">⌘K</kbd>
       </button>
       <div className="me-4 flex items-center"><Bell marketId={marketId} base={base} root={m.root} /></div>
     </header>

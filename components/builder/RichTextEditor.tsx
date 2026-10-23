@@ -58,7 +58,7 @@ export function useFormatState(getRoot: () => HTMLElement | null, on = true): Fo
 
 const ICON: Record<Cmd | "link" | "clear", React.ReactNode> = {
   bold: <b className="text-sm font-bold">B</b>,
-  italic: <i className="text-sm font-serif font-medium">I</i>,
+  italic: <i className="text-sm font-medium">I</i>,
   underline: <u className="text-sm font-medium">U</u>,
   insertUnorderedList: <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M9 6h11M9 12h11M9 18h11" /><circle cx="4.5" cy="6" r="1" /><circle cx="4.5" cy="12" r="1" /><circle cx="4.5" cy="18" r="1" /></svg>,
   insertOrderedList: <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M10 6h10M10 12h10M10 18h10M4 5l1.5-1v4M3.5 11.5c.5-1 2.5-1 2.5.3 0 1-2.5 1.7-2.5 3h2.6M3.5 17h2.3l-1.2 1.3c1 0 1.5.5 1.5 1.1 0 1.2-2 1.3-2.6.4" /></svg>,

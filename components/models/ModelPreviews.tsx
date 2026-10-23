@@ -21,7 +21,7 @@ export function FormPreview({ md, fields, locales }: { md: Pick<Model, "name">; 
     case "List": return <div className="grid gap-2"><div className="border border-line-2 rounded-md p-2.5"><b className="block text-xs mb-1">Item 1</b><label className="text-xs text-ink-3">Value<input disabled className={`${inp} mt-1`} /></label></div><span className="btn btn-sm btn-secondary justify-center">+ Add item</span></div>;
     case "Blocks": return <div className="p-3.5 text-center text-ink-3 border border-dashed border-line-2 rounded-lg text-sm">Blocks are edited on the page canvas</div>;
     case "Group": return <div className="border border-line-2 rounded-md p-2.5 grid gap-2"><label className="text-xs text-ink-3">Label<input disabled className={`${inp} mt-1`} /></label><label className="text-xs text-ink-3">Link<input disabled className={`${inp} mt-1`} /></label></div>;
-    case "JSON": return <textarea rows={3} disabled className={`${inp} font-mono`} placeholder={"{ }"} />;
+    case "JSON": return <textarea rows={3} disabled className={`${inp}`} placeholder={"{ }"} />;
     case "URL": return <input type="url" disabled className={inp} placeholder={f.default || "https://"} />;
     default: return <input type="text" disabled className={inp} placeholder={f.default || f.l} />; } };
   const shown = fields.filter((f) => !f.hidden);

@@ -71,7 +71,8 @@
   --color-sched-soft: var(--sched-soft);
 
   --font-sans: var(--font-univers), Arial, Helvetica, sans-serif;
-  --font-mono: var(--font-plex-mono), ui-monospace, Menlo, monospace;
+  --font-mono: var(--font-univers), Arial, Helvetica, sans-serif;
+  --font-serif: var(--font-univers), Arial, Helvetica, sans-serif;
 }
 
 .dark {
@@ -463,7 +464,7 @@
   text-decoration: none;
 }
 .tok-raw {
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   font-size: 0.82em;
   padding: 0 0.25em;
   border-radius: 4px;
@@ -1278,4 +1279,44 @@ body.focus .cms-shell {
 .dark .btn-ghost:hover {
   background-color: var(--muted);
   color: var(--foreground);
+}
+
+.bdl-checkbox-sm {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+.bdl-checkbox-sm::after {
+  width: 5px;
+  height: 10px;
+}
+
+.dark .bdl-checkbox {
+  border-color: var(--input);
+  background: var(--background);
+}
+.dark .bdl-checkbox::after {
+  border-color: var(--foreground);
+}
+.dark .bdl-checkbox:checked,
+.dark .bdl-checkbox:indeterminate,
+.dark .bdl-checkbox:hover {
+  border-color: var(--foreground);
+}
+.dark .bdl-checkbox:focus-visible {
+  outline-color: var(--ring);
+}
+.dark .bdl-checkbox:disabled {
+  background: var(--muted);
+  border-color: var(--border);
+}
+
+@layer base {
+  code,
+  kbd,
+  samp,
+  pre {
+    font-family: var(--font-sans);
+    font-feature-settings: normal;
+    font-variation-settings: normal;
+  }
 }

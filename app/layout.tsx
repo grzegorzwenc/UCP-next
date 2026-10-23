@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
 
@@ -19,7 +18,6 @@ const univers = localFont({
   display: "swap",
   adjustFontFallback: "Arial",
 });
-const plexMono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500"], variable: "--font-plex-mono" });
 
 export const metadata: Metadata = {
   title: "HSBC Unified Content Platform",
@@ -33,7 +31,7 @@ const THEME_SCRIPT = `try{if(localStorage.getItem('theme')==='dark')document.doc
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${univers.variable} ${plexMono.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="en" className={`${univers.variable} h-full antialiased`} suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} /></head>
       <body className="min-h-full">{children}</body>
     </html>

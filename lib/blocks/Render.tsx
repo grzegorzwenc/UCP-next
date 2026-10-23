@@ -46,7 +46,7 @@ export function RenderBlock({ b }: { b: Block }) {
     case "rates":
       return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<table className="s-table"><thead><tr><th>Term</th><th>AER</th><th>Gross</th></tr></thead><tbody>{lines(p.rows).map((r, i) => <tr key={i}>{r.map((c, ci) => <td key={ci}><T id={id} f="rows" r={i} c={ci}>{c}</T></td>)}</tr>)}</tbody></table>{p.note && <p className="s-disc" style={{ marginTop: 8 }}><T id={id} f="note">{p.note}</T></p>}</div>;
     case "form":
-      return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-form"><div><label>First name</label><i /></div><div><label>Last name</label><i /></div><div><label>Email</label><i /></div><div><label>Phone</label><i /></div><div className="full"><span className="s-cta">Continue</span></div><div className="full s-disc" style={{ fontFamily: "var(--font-mono)" }}>Forms service · {p.form}</div></div></div>;
+      return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-form"><div><label>First name</label><i /></div><div><label>Last name</label><i /></div><div><label>Email</label><i /></div><div><label>Phone</label><i /></div><div className="full"><span className="s-cta">Continue</span></div><div className="full s-disc" style={{ fontFamily: "var(--font-sans)" }}>Forms service · {p.form}</div></div></div>;
     case "disclaimer":
       return <RichText k={`${id}|text`} value={p.text} className="s-disc" />;
     default:

@@ -27,7 +27,7 @@ export function AssetPicker({ marketId, value, onChange, invalid }: { marketId: 
   return <div>
     <div className={`flex items-center gap-2.5 border rounded-md p-2 ${invalid ? "border-crit" : "border-line-2"}`}>
       <Thumb a={current} className="w-14 h-10 shrink-0" />
-      <div className="min-w-0 flex-1"><div className="text-xs truncate">{current ? current.name : value ? <span className="font-mono text-ink-3">{value}</span> : <span className="text-ink-3">No image chosen</span>}</div>{current && <div className="text-xs text-ink-3">{current.size} · {current.folder}</div>}</div>
+      <div className="min-w-0 flex-1"><div className="text-xs truncate">{current ? current.name : value ? <span className="text-ink-3">{value}</span> : <span className="text-ink-3">No image chosen</span>}</div>{current && <div className="text-xs text-ink-3">{current.size} · {current.folder}</div>}</div>
       <button className="btn btn-sm btn-secondary" onClick={() => setOpen(true)}>{value ? "Change" : "Choose image"}</button>
       {value && <button className="btn-ghost" onClick={() => onChange("")} aria-label="Remove image">✕</button>}
     </div>

@@ -33,7 +33,7 @@ export function UsedOn({ pages, base, marketRoot, marketName, flag, note, empty,
       {pages.length > 6 && <div className="px-4 pt-3"><input className="w-full border border-line-2 rounded-md px-2.5 py-1.5 text-xs" placeholder="Find a page" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a page" /></div>}
       <ul className="py-1.5">{shown.map((p) => <li key={p.path}>
         <Link href={href(p)} onClick={go ? (e) => { e.preventDefault(); go(href(p)); } : undefined} className="group flex items-center gap-2.5 px-4 py-2 hover:bg-surface-2">
-          <PageIcon /><span className="flex-1 min-w-0"><span className="block text-sm font-medium text-ink truncate group-hover:underline">{p.title}</span><span className="block font-mono text-xs text-ink-3 truncate">{p.path.replace(marketRoot, "") || "/"}</span></span>
+          <PageIcon /><span className="flex-1 min-w-0"><span className="block text-sm font-medium text-ink truncate group-hover:underline">{p.title}</span><span className="block text-xs text-ink-3 truncate">{p.path.replace(marketRoot, "") || "/"}</span></span>
           <Pill status={p.status} /><span className="text-ink-4 group-hover:text-ink" aria-hidden>›</span></Link></li>)}
         {!shown.length && <li className="px-4 py-3 text-xs text-ink-3">No page matches “{q}”.</li>}</ul>
       {!ql && hits.length > shown.length && <div className="px-4 pb-3"><button type="button" className="btn btn-sm btn-secondary w-full justify-center" onClick={() => setAll(true)}>Show all {hits.length} pages</button></div>}

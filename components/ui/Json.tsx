@@ -19,7 +19,7 @@ export function Json({ value, maxHeight = 520, label, className = "" }: { value:
   return (
     <div className={`relative border border-line rounded-lg bg-surface-2 ${className}`}>
       <button type="button" onClick={copy} className="btn btn-sm btn-secondary absolute top-2 right-2 z-10" aria-label={label ? `Copy ${label}` : "Copy JSON"}>{copied ? "Copied" : "Copy"}</button>
-      <pre className="font-mono text-xs leading-[1.55] p-3.5 pr-24 overflow-auto whitespace-pre" style={{ maxHeight }}>{toks.map((k, i) => k.t === "p" ? k.v : <span key={i} className={COLOR[k.t]}>{k.v}</span>)}</pre>
+      <pre className="text-xs leading-[1.55] p-3.5 pr-24 overflow-auto whitespace-pre" style={{ maxHeight }}>{toks.map((k, i) => k.t === "p" ? k.v : <span key={i} className={COLOR[k.t]}>{k.v}</span>)}</pre>
     </div>
   );
 }
