@@ -9,7 +9,7 @@ test.describe("keyboard and shell", () => {
     const opener = page.getByRole("link", { name: "Edit a page" });
     await opener.focus();
     await page.keyboard.press("Control+k");
-    const box = page.getByRole("combobox", { name: "Command" });
+    const box = page.getByRole("combobox", { name: "Search" });
     await expect(box).toBeFocused();
     const first = await box.getAttribute("aria-activedescendant");
     expect(first).toBeTruthy();
@@ -20,9 +20,9 @@ test.describe("keyboard and shell", () => {
     await expect(page.locator(`[id="${second}"]`)).toHaveAttribute("aria-selected", "true");
     // Tab stays inside the dialog
     await page.keyboard.press("Tab");
-    await expect(page.getByRole("dialog", { name: "Command palette" }).locator(":focus")).toHaveCount(1);
+    await expect(page.getByRole("dialog", { name: "Search" }).locator(":focus")).toHaveCount(1);
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog", { name: "Command palette" })).toHaveCount(0);
+    await expect(page.getByRole("dialog", { name: "Search" })).toHaveCount(0);
     await expect(opener).toBeFocused();
   });
 

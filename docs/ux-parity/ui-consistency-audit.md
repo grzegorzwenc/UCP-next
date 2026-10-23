@@ -698,6 +698,62 @@ catches it.
 not run at all until it was installed. Three tests also had to be rewritten against the new shell
 (the sidebar's `data-state` contract, the welcome `h1`, the market living in the sidebar).
 
+### Global search
+
+`components/shell/Palette.tsx` restyled against `hsbc-ucpmock`'s
+`src/lib/components/command-palette.svelte`. Behaviour is untouched — ⌘K, the `ucp:palette`
+event, the combobox/listbox semantics, the focus trap and the 150 ms debounce all stayed.
+
+| Was | Now (theirs) |
+|---|---|
+| Flex-centred overlay, `pt-[12vh]`, backdrop `bg-black/45`, no blur | Backdrop and panel are siblings; panel pinned `top-[12vh]`, `max-w-2xl`, `max-h-[70vh]`; backdrop `bg-black/40 backdrop-blur-sm` |
+| `bg-surface`, no border | `border bg-popover text-popover-foreground shadow-2xl` |
+| `⌕` / `✨` glyph, input `text-base`, `py-3` | lucide `Search` at `size-6`, input `h-16 py-5` |
+| Row: title with a right-aligned hint column | Row: `size-7` bordered icon tile, title over a `text-xs` subtitle, `CornerDownLeft` on the active row |
+| Selected row `bg-brand-soft text-brand-hover` (HSBC red) | `bg-accent text-accent-foreground`, `hover:bg-accent/50` |
+| Section heading `text-xs tracking-[.1em]` | `text-[11px] font-medium tracking-wide uppercase` |
+| Footer as plain text | `kbd` chips at `text-[11px]` — Navigate / Open / Search |
+| Empty state: one grey line | Centred icon, `No results for “{q}”`, and a hint line |
+| Input had no `type`, so BDL never styled it | `type="text"` — `bdl/forms.css` targets `input[type="text"]` and supplies the 1px outline |
+| Opening state listed 6 pages + all 11 nav items (17 rows) | "Recently viewed" + up to 6 "Suggestions", and every group capped at 6 |
+
+The icon tile needs a per-row icon, which their entries carry as a `group`; ours carry a section
+string, so `SECTION_ICON` maps the four sections onto Sparkles / Blocks / FileText / Compass —
+the same four their `groupIcon` uses for the equivalent groups.
+
+Three deliberate differences:
+
+- **`z-[60]`, not their `z-50`.** 35 shadcn components here already sit at `z-50`; the palette has
+  to clear them. No visual difference.
+- **Enter animation only** (backdrop fade 120 ms, panel fade + 8px slide, 160 ms, both ease-out).
+  Close is instant: ⌘K is pressed tens of times a day, and an exit transition on a frequently
+  keyed action reads as lag.
+- **The status `Pill` stayed** on page rows, as a trailing badge rather than inline in the title.
+  Their palette has no status concept; dropping ours would have removed information rather than
+  restyled it.
+
+Two of the three reported mismatches had the same shape — something of theirs that was never
+brought across, not a judgement call:
+
+- **The input outline** is BDL's, not the palette's. `bdl/forms.css` styles
+  `input[type="text"]`, and their input declares `type="text"` while ours had no `type`
+  attribute at all, so the selector could never match. One attribute restored it. Their
+  `data-slot="input"` came across with it: it carries no styling here, but it is the hook their
+  dark-mode retint rule uses, so porting that rule later will just work.
+- **The height** was the opening state. Theirs offers recents and a handful of suggestions;
+  ours listed six pages plus all eleven nav items. `lib/search/recents.ts` ports their
+  `recents.svelte.ts` — same `ucp:` key idiom, same cap of 6, most-recent-first with dedupe,
+  clear-all and per-row remove — and every group is now capped at `PER_GROUP = 6`.
+
+Their recents store ids and resolve them against a static entry list. Ours cannot: pages come
+from the API, so an id alone has no title. The label is stored alongside the id, and only
+route-shaped entries (`go:` and `pg:`) are recorded — an AI prompt or a block insertion only
+means something inside the builder it was invoked from. Pages are no longer prefetched on open
+either, which removes a request per open.
+
+Still not ported: the detail strip above the footer. It needs a second description field per
+entry, and ours carry one secondary line, already used as the subtitle.
+
 ### Workspace customisation
 
 Beyond parity: the "Your workspace" cards can be reordered and hidden per person

@@ -117,13 +117,13 @@ export function TopBar({ marketId, envId }: { marketId: string; envId: string })
       </div>
       <button
         type="button"
-        className="ms-auto me-2 inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-muted/40 px-3 text-sm text-muted-foreground transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-72"
+        className="ms-auto me-2 inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border bg-muted/40 px-3 text-sm text-muted-foreground transition-colors hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-72"
         onClick={openPalette}
         aria-label="Search"
       >
         <SearchIcon className="size-4 shrink-0" />
-        <span className="hidden flex-1 text-start sm:inline">Search pages or go to…</span>
-        <kbd className="hidden shrink-0 rounded border bg-background px-1.5 py-0.5 font-mono text-xs sm:inline">⌘K</kbd>
+        <span className="hidden flex-1 text-start sm:inline">Global Search</span>
+        <kbd className="hidden shrink-0 rounded border bg-background px-1.5 py-0.5 font-mono text-[10px] sm:inline">⌘K</kbd>
       </button>
       <div className="me-4 flex items-center"><Bell marketId={marketId} base={base} root={m.root} /></div>
     </header>
