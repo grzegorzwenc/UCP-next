@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/shadcn/too
  * that explains what the block is for. Ported from hsbc-ucpmock's home, where it keeps the page
  * calm by letting the heading recede and the content carry the weight.
  */
-export function SectionTitle({ id, children, help }: { id?: string; children: React.ReactNode; help?: string }) {
+export function SectionTitle({ id, children, help, right }: { id?: string; children: React.ReactNode; help?: string; right?: React.ReactNode }) {
   return (
     <div className="mb-3 flex items-center gap-1.5">
       <h2 id={id} className="text-sm font-medium text-muted-foreground">{children}</h2>
@@ -24,6 +24,7 @@ export function SectionTitle({ id, children, help }: { id?: string; children: Re
           <TooltipContent side="right" className="max-w-xs">{help}</TooltipContent>
         </Tooltip>
       )}
+      {right && <div className="ms-auto flex shrink-0 items-center gap-2">{right}</div>}
     </div>
   );
 }

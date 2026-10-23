@@ -20,6 +20,11 @@ export type ActivityPoint = { day: string; published: number; created: number; u
  * count that cannot go below zero.
  *
  * Recharts animates on mount but ignores prefers-reduced-motion, so that is handled here.
+ *
+ * `aspect-auto` undoes shadcn's `aspect-video` on ChartContainer, which ties height to width: at
+ * half a row that looks right, but when the status card beside it is hidden and this card goes
+ * full width, 16:9 makes it enormous. Height now comes from the card instead, with a floor so a
+ * chart sitting alone in a row still has room to read.
  */
 const config = {
   published: { label: "Pages published", color: "var(--chart-1)" },
@@ -40,7 +45,7 @@ export function ActivityChart({ data }: { data: ActivityPoint[] }) {
   }, []);
 
   return (
-    <ChartContainer config={config} className="h-full min-h-64 w-full">
+    <ChartContainer config={config} className="aspect-auto h-full min-h-80 w-full">
       <AreaChart accessibilityLayer data={data} margin={{ left: 4, right: 8, top: 8 }}>
         <defs>
           {SERIES.map((k) => (

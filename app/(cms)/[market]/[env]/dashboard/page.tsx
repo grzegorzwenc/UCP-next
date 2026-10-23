@@ -8,6 +8,8 @@ import { ActionCard } from "@/components/ui/ActionCard";
 import { StatCard } from "@/components/ui/StatCard";
 import { SectionTitle } from "@/components/ui/SectionTitle";
 import { ListCard } from "@/components/ui/ListCard";
+import { Workspace } from "@/components/ui/Workspace";
+import { LAYOUT_COOKIE, decodeLayout } from "@/lib/dashboard-layout";
 import { ago, due } from "@/lib/dates";
 import { ActivityChart, type ActivityPoint } from "@/components/ui/ActivityChart";
 import { DismissibleNotice } from "@/components/ui/DismissibleNotice";
@@ -65,8 +67,10 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
 
   const recent = all.slice().sort((a, b) => (b.lastModified ?? "").localeCompare(a.lastModified ?? "")).slice(0, 6);
   const who = await me();
-  /* read server-side: a dismissed notice should not paint and then disappear */
-  const introDismissed = (await cookies()).get(noticeCookie("ucp-intro"))?.value === "1";
+  /* read server-side: neither a dismissed notice nor a hidden card should paint and then vanish */
+  const jar = await cookies();
+  const introDismissed = jar.get(noticeCookie("ucp-intro"))?.value === "1";
+  const savedLayout = decodeLayout(jar.get(LAYOUT_COOKIE)?.value);
   /* "Priya Kaur" → "Priya"; a dotted id ("super.admin") takes its first part. */
   const firstName = (who.name || "").split(/[\s.]/)[0];
   const QUICK = [
@@ -100,38 +104,61 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 mb-6">
         {tiles.map((t) => <StatCard key={t.label} {...t} />)}
       </div>
-      <SectionTitle id="workspace" help="How content is spread across statuses, how activity has trended, and what needs you now.">Your workspace</SectionTitle>
-      <div className="grid md:grid-cols-2 gap-3.5 mb-3.5">
-        <Card title="Content by status"><StatusViz total={n} parts={[{ l: "Published", n: c("published"), c: "var(--good)" }, { l: "Ready to publish", n: c("approved"), c: "var(--info)" }, { l: "Waiting for a reviewer", n: c("review"), c: "var(--review)" }, { l: "In author's review", n: c("inreview"), c: "var(--review)" }, { l: "Reviewed", n: c("reviewed"), c: "var(--good)" }, { l: "In business review", n: c("bizreview"), c: "var(--warn)" }, { l: "Scheduled", n: c("scheduled"), c: "var(--sched)" }, { l: "Draft", n: c("draft"), c: "var(--neutral)" }, { l: "Publish failed", n: c("failed"), c: "var(--crit)" }].filter((p) => p.n)} /></Card>
-        <Card title="Content activity" right={<span className="font-normal text-ink-3">Last 30 days</span>}><ActivityChart data={activity} /></Card>
-      </div>
-      <div className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-3">
-        <ListCard title="Your tasks" empty="Nothing is waiting on you."
-          action={{ label: overdue ? `All tasks · ${overdue} overdue` : "All tasks", href: `${base}/tasks` }}
-          rows={tasks.map((t) => ({
-            id: t.page.path,
-            href: `${base}/page${t.page.path.replace(mk.root, "")}`,
-            title: `${t.what}: ${t.page.title}`,
-            meta: <span className={t.overdueDays > 0 ? "text-crit font-medium" : t.overdueDays === 0 ? "text-warn font-medium" : undefined}>{due(t.due, t.overdueDays, now())}</span>,
-            trailing: <Pill status={t.page.status as "draft"} label={t.kind} />,
-          }))} />
-        <ListCard title={`Recently edited on ${mk.name}`} empty="No pages yet."
-          action={{ label: "All pages", href: `${base}/pages` }}
-          rows={recent.map((pg) => ({
-            id: pg.path,
-            href: `${base}/page${pg.path.replace(mk.root, "")}`,
-            title: pg.title,
-            meta: ago(pg.lastModified, now()),
-            trailing: <Pill status={pg.status ?? "draft"} />,
-          }))} />
-        <ListCard title="Latest activity" empty="Nothing logged yet."
-          action={{ label: "Audit log", href: `${base}/audit` }}
-          rows={log.map((e) => ({
-            id: e.id,
-            title: e.text,
-            meta: `${names[e.who]} · ${ago(e.time, now())}`,
-          }))} />
-      </div>
+      <Workspace
+        saved={savedLayout}
+        rows={[
+          {
+            id: "charts", min: 1, cards: [
+              {
+                id: "status", label: "Content by status",
+                node: <Card title="Content by status"><StatusViz total={n} parts={[{ l: "Published", n: c("published"), c: "var(--good)" }, { l: "Ready to publish", n: c("approved"), c: "var(--info)" }, { l: "Waiting for a reviewer", n: c("review"), c: "var(--review)" }, { l: "In author's review", n: c("inreview"), c: "var(--review)" }, { l: "Reviewed", n: c("reviewed"), c: "var(--good)" }, { l: "In business review", n: c("bizreview"), c: "var(--warn)" }, { l: "Scheduled", n: c("scheduled"), c: "var(--sched)" }, { l: "Draft", n: c("draft"), c: "var(--neutral)" }, { l: "Publish failed", n: c("failed"), c: "var(--crit)" }].filter((p) => p.n)} /></Card>,
+              },
+              {
+                id: "activity", label: "Content activity",
+                node: <Card title="Content activity" right={<span className="font-normal text-ink-3">Last 30 days</span>}><ActivityChart data={activity} /></Card>,
+              },
+            ],
+          },
+          {
+            id: "lists", min: 0, cards: [
+              {
+                id: "tasks", label: "Your tasks",
+                node: <ListCard title="Your tasks" empty="Nothing is waiting on you."
+                  action={{ label: overdue ? `All tasks · ${overdue} overdue` : "All tasks", href: `${base}/tasks` }}
+                  rows={tasks.map((t) => ({
+                    id: t.page.path,
+                    href: `${base}/page${t.page.path.replace(mk.root, "")}`,
+                    title: `${t.what}: ${t.page.title}`,
+                    meta: <span className={t.overdueDays > 0 ? "text-crit font-medium" : t.overdueDays === 0 ? "text-warn font-medium" : undefined}>{due(t.due, t.overdueDays, now())}</span>,
+                    trailing: <Pill status={t.page.status as "draft"} label={t.kind} />,
+                  }))} />,
+              },
+              {
+                id: "recent", label: `Recently edited on ${mk.name}`,
+                node: <ListCard title={`Recently edited on ${mk.name}`} empty="No pages yet."
+                  action={{ label: "All pages", href: `${base}/pages` }}
+                  rows={recent.map((pg) => ({
+                    id: pg.path,
+                    href: `${base}/page${pg.path.replace(mk.root, "")}`,
+                    title: pg.title,
+                    meta: ago(pg.lastModified, now()),
+                    trailing: <Pill status={pg.status ?? "draft"} />,
+                  }))} />,
+              },
+              {
+                id: "log", label: "Latest activity",
+                node: <ListCard title="Latest activity" empty="Nothing logged yet."
+                  action={{ label: "Audit log", href: `${base}/audit` }}
+                  rows={log.map((e) => ({
+                    id: e.id,
+                    title: e.text,
+                    meta: `${names[e.who]} · ${ago(e.time, now())}`,
+                  }))} />,
+              },
+            ],
+          },
+        ]}
+      />
     </div>
   );
 }

@@ -208,7 +208,7 @@ Re-audited after the token work. **108 hex uses in our code → 22**, and the CS
 
 | Where | Hex | Verdict |
 |---|---|---|
-| `globals.css` `:root` / `.dark` | 26 | correct — this is where definitions belong |
+| `globals.css` `:root` / `.dark` | 39 | correct — this is where definitions belong; +13 are the dark status steps (see §7b) |
 | `globals.css` chrome **rules** | **0** | was 2, both tokenised |
 | `globals.css` site layer (line 158+) | 107 | correct — replicates hsbc.co.uk, out of scope |
 | `app/bdl/theme.css`, `tokens.css` | 118 | correct — these *are* the definitions |
@@ -222,6 +222,35 @@ where a literal dark toast would have stayed dark in dark mode. Then ~50 swaps o
 already existed, the `ModelMap` relationship diagram (21 literals), and the stragglers in
 `Icons`, `Avatar`, `AssetLibrary`, `PublishDialog`, `TemplatePreview`, `QualityChecklist`,
 `bits`, `PageComments`, `Builder` and `Login`.
+
+### 7b. The dark theme had no status ramp at all
+
+Three separate reports, one root cause: the status and BDL colours were only ever defined for
+light mode, and `.dark` overrode none of them.
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Badges render as a pale block with white text | `.bdl-badge-*` sets a pale `background-color` in the components layer; shadcn's `text-foreground` utility outranks it and goes white in dark | Ported the source project's `.dark .bdl-badge-*` tints (`src/routes/layout.css:338`), plus its unlayered `border-color` rules so the RAG border survives `border-border` |
+| `bdl-chip` unreadable on hover | `.bdl-chip:hover` sets `color: var(--color-bdl-charcoal)` — `#333` on a `#151d2a` surface | `.dark` chip rules. Our addition; the source project has no dark chip treatment because it does not use chips in dark |
+| "Scheduled" looks like a gap in the status bar | `--sched: #1b1c1f` on a `#151d2a` card — **1.01:1**, mathematically invisible | Dark steps for all seven status tokens |
+
+The status steps use the source project's own technique for lifting a RAG colour into dark —
+`color-mix(in srgb, <base> 55%, white)`, as it does for `.ucp-ok` — with the results written out
+as hex so they can be validated. All seven now clear 3:1 against the dark card where three
+previously failed. `--sched` inverts rather than lightens: near-black in light, near-grey in
+dark, keeping it stronger than `--neutral` in both, which is the relationship light mode has.
+
+The `-soft` halves had to move with them: they are used as `bg-X-soft text-X` pairs in ten
+places, so lifting only the foreground would have produced the same white-on-pale bug the badges
+had. The dark badge tints now reference `--good-soft` / `--warn-soft` / `--crit-soft` /
+`--info-soft` rather than repeating those hexes, which keeps the rules hex-free and stops a
+badge drifting from the utility beside it.
+
+One check still fails and is accepted: `--info` ↔ `--review` sit 3.0 ΔE apart. They are nearly
+as close in light mode (5.9 ΔE) — nine workflow statuses share six hues by design, exactly as
+the badges do — and every row in the viz carries a text label, a count and a percentage, which
+is the secondary encoding that makes a shared hue legible. Worth revisiting only if the status
+set itself is ever reduced.
 
 `Icons.tsx` is worth a note: the plan said "convert to `currentColor`", and that was wrong.
 These are illustrative two-tone icons — an amber folder, a white page with a grey outline and
@@ -668,6 +697,37 @@ catches it.
 `npx playwright install chromium` is required — the browser binary was missing, so the suite could
 not run at all until it was installed. Three tests also had to be rewritten against the new shell
 (the sidebar's `data-state` contract, the welcome `h1`, the market living in the sidebar).
+
+### Workspace customisation
+
+Beyond parity: the "Your workspace" cards can be reordered and hidden per person
+(`components/ui/Workspace.tsx`, state in `lib/dashboard-layout.ts`).
+
+The decisions worth recording:
+
+- **A cookie, not localStorage.** The server reads the layout and renders it on the first paint.
+  localStorage is only readable after hydration, so it would paint the default layout and then
+  rearrange it — the third instance of the jitter already fixed twice on this screen.
+- **Reordering is confined to a row.** A chart and a list panel are different shapes and heights,
+  so a mixed row reads as a mistake. A cross-row drag simply never calls `preventDefault`, so the
+  browser's own "no drop" cursor explains the rule without a message.
+- **The charts row keeps one card; the lists row can empty.** The floor lives in the row
+  definition (`min`) and is enforced twice: the hide button disables at the floor, and
+  `reconcileRow` re-shows cards if a hand-edited cookie claims otherwise.
+- **Hiding is reversible and visibly so.** A hidden card still exists; a `bdl-chip` next to the
+  title reads "N cards hidden" and opens the editor, because a card that vanishes with no trace
+  gets reported as lost data.
+- **Edit mode shows every card**, hidden ones at reduced opacity, so you arrange against the full
+  set rather than remembering what is missing. Card content is `pointer-events-none` while
+  editing, which both prevents a stray navigation mid-drag and keeps links from swallowing drags.
+- **No drag-and-drop dependency.** Native HTML5 drag plus arrow-key reordering on the handle, with
+  an `aria-live` announcement. `@dnd-kit` would have been ~30 KB for one screen.
+- `reconcileRow` drops unknown ids and appends new ones, so adding a card to the dashboard later
+  appears for people who already have a saved layout instead of being silently absent.
+
+The layout codec, the floor and the reconcile rules are covered by a headless check (11 cases,
+all passing); the drag interaction itself was verified in the browser by Leon, not by a test —
+an e2e spec for it is still outstanding.
 
 ### Not in this plan
 
