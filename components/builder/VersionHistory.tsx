@@ -38,7 +38,7 @@ function Row({ v, isLatest, comparing, currentBlocks, onRestore, onComment, busy
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1.5 text-xs text-ink-3 min-w-0">
         <span className="max-w-full"><Pill status={v.status} /></span>
         <span className="whitespace-nowrap">{v.blocks} block{v.blocks === 1 ? "" : "s"}</span>
-        {comparing && <span className={`font-mono whitespace-nowrap ${delta === 0 ? "text-ink-4" : delta > 0 ? "text-info" : "text-warn"}`}>{delta === 0 ? "same as now" : `${delta > 0 ? "+" : ""}${delta} vs now`}</span>}
+        {comparing && <span className={`tabular-nums whitespace-nowrap ${delta === 0 ? "text-ink-4" : delta > 0 ? "text-info" : "text-warn"}`}>{delta === 0 ? "same as now" : `${delta > 0 ? "+" : ""}${delta} vs now`}</span>}
       </div>
       <div className="flex items-center gap-2 mt-2">
         {isLatest ? <span className="text-xs font-medium text-ink-3 bg-surface-2 rounded-full px-2 py-0.5">Latest</span> : <button type="button" className="btn btn-sm btn-secondary" disabled={busy} onClick={() => onRestore(v)}><svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4.5h4.5" /></svg>Restore</button>}

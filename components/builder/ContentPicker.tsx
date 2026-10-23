@@ -48,8 +48,8 @@ export function ContentPicker({ marketId, marketName, flag, locale, models, curr
     <div className="grid grid-cols-[200px_1fr_1.2fr] gap-3 h-[360px]">
       <div className={col} aria-label="Folders"><div className="px-2.5 pt-2 pb-1 text-xs uppercase tracking-[.08em] text-ink-3 font-medium">1 · Folder</div><div className="p-1">
         {models.filter((m) => count(m.id, null) > 0).map((m) => <div key={m.id}>
-          <button type="button" className={rowCls(!ql && place?.model === m.id && place.folder === null)} onClick={() => { setQ(""); setPlace({ model: m.id, folder: null }); setEnt(""); setField(""); }}><FolderIcon /><span className="flex-1 truncate">{m.name}</span><small className="text-xs text-ink-4 font-mono">{count(m.id, null)}</small></button>
-          {(folders[m.id] ?? []).map((fo) => <button key={fo} type="button" className={`${rowCls(!ql && place?.model === m.id && place.folder === fo)} pl-7`} onClick={() => { setQ(""); setPlace({ model: m.id, folder: fo }); setEnt(""); setField(""); }}><FolderIcon /><span className="flex-1 truncate">{fo}</span><small className="text-xs text-ink-4 font-mono">{count(m.id, fo)}</small></button>)}
+          <button type="button" className={rowCls(!ql && place?.model === m.id && place.folder === null)} onClick={() => { setQ(""); setPlace({ model: m.id, folder: null }); setEnt(""); setField(""); }}><FolderIcon /><span className="flex-1 truncate">{m.name}</span><small className="text-xs text-ink-4 tabular-nums">{count(m.id, null)}</small></button>
+          {(folders[m.id] ?? []).map((fo) => <button key={fo} type="button" className={`${rowCls(!ql && place?.model === m.id && place.folder === fo)} pl-7`} onClick={() => { setQ(""); setPlace({ model: m.id, folder: fo }); setEnt(""); setField(""); }}><FolderIcon /><span className="flex-1 truncate">{fo}</span><small className="text-xs text-ink-4 tabular-nums">{count(m.id, fo)}</small></button>)}
         </div>)}
         {all !== null && !all.length && <p className="text-xs text-ink-3 p-2">No entities yet. Create them in Content entities.</p>}
       </div></div>

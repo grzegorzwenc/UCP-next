@@ -121,6 +121,9 @@ values in CSS.
 IBM Plex Mono is loaded in `app/layout.tsx` and used 110 times across 32 files. It earns its place for
 JCR paths, API routes, `{{alias.field}}` tokens and request ids. These uses do not:
 
+> **Resolved** — see Phase 2. Every case below is fixed, along with 17 more of the same kinds
+> found in the same sweep. 94 uses → 70, all of them machine values.
+
 | Mono applied to | Location |
 |---|---|
 | Audit-log timestamps | `components/audit/AuditLog.tsx:63` |
@@ -541,8 +544,34 @@ instead of the markup living inline in the dashboard.
 
 ### Phase 2 — Monospace
 
-- [ ] Keep mono for: JCR paths, API routes, `{{tokens}}`, request ids, JSON viewers, `kbd`
-- [ ] Remove it from the nine cases in section 5 and anywhere else that is prose, a count or a name field
+- [x] Keep mono for: JCR paths, API routes, `{{tokens}}`, request ids, JSON viewers, `kbd`
+- [x] Remove it from the nine cases in section 5 and anywhere else that is prose, a count or a name field
+
+Done: **94 uses → 70**, in 26 replacements. The source project keeps 61 of its own, so the target
+was never zero — it was "machine values only", and `src/lib/components/library/name-cell.svelte`
+settles the hard case: in the table that corresponds to our Pages screen, the title is
+`font-medium` and the sub-line carries `font-mono` *only when it is a URL*.
+
+Removed, by category:
+
+| Category | Replaced with | Sites |
+|---|---|---|
+| Counts (fields, children, folder items, filter chips, row numbers) | `tabular-nums` where the figure is aligned in a column | 9 |
+| Dates and times (audit timestamps, sign-in times) | nothing | 2 |
+| Character counters (entity fields, alt text) | `tabular-nums` | 2 |
+| Glyphs and icons (drag handle `⋮⋮`, field-type icons) | nothing — an icon is not a value | 3 |
+| Prose (folder summary line, user detail line, template id line, "required") | nothing | 4 |
+| Name and e-mail inputs (invite e-mail, every Translate-dialog input) | nothing | 2 |
+| Version numbers, image dimensions, version deltas, chart tooltip values | `tabular-nums` | 4 |
+
+The Pages screen now has mono only on paths, the URL-slug input and the locale code. `FolderTree`
+and `FolderList` are mono-free. One date fix travelled with it: the Updated column was printing a
+raw ISO `slice(0, 10)`, so it now goes through `ukDate` like the dashboard.
+
+Two kept against the letter of "remove it everywhere", because the source project does the same:
+`kbd` chips (its palette and shortcut panel both use `font-mono` for keys) and the chart tooltip's
+sibling value, which is shadcn's own default — though the number itself lost mono and kept
+`tabular-nums`.
 
 ### Phase 3 — Interaction feel
 

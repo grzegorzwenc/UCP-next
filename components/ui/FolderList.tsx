@@ -22,7 +22,7 @@ export function FolderList({ root, items, extra }: { root: { label: string; coun
   const flip = (it: FolderItem) => setOv((o) => ({ ...o, [it.key]: !isOpen(it) }));
   const row = (it: FolderItem, depth: number, icon: React.ReactNode, chevron?: React.ReactNode) => {
     const cls = `flex-1 min-w-0 flex items-center gap-1.5 py-1 pr-2 truncate text-left`;
-    const inner = <>{icon}<span className="truncate">{it.label}</span>{it.count !== undefined && <small className="ml-auto text-xs text-ink-4 font-mono tabular-nums">{it.count}</small>}</>;
+    const inner = <>{icon}<span className="truncate">{it.label}</span>{it.count !== undefined && <small className="ml-auto text-xs text-ink-4 tabular-nums">{it.count}</small>}</>;
     const folder = !!it.children; const cur = drag; const ok = !!cur && !!it.onDrop && it.dragId !== cur && (it.accepts?.(cur) ?? true); const hot = ok && over === it.key;
     const dnd = { draggable: !!it.dragId || undefined,
       onDragStart: it.dragId ? (e: React.DragEvent) => { e.dataTransfer.setData(MIME, it.dragId!); e.dataTransfer.effectAllowed = "move"; setDrag(it.dragId!); } : undefined,

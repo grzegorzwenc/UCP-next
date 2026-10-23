@@ -144,7 +144,7 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
           {a && <div className="bg-surface border border-line rounded-lg p-4 lg:sticky lg:top-0">
             <Thumb a={a} className="w-full h-[180px]" />
             <b className="block mt-3 mb-0.5 break-all text-sm">{a.name}</b>
-            <div className="font-mono text-xs text-ink-3">{a.width && a.height ? `${a.width}×${a.height} · ` : ""}{a.size} · {a.folder}</div>
+            <div className="text-xs text-ink-3 tabular-nums">{a.width && a.height ? `${a.width}×${a.height} · ` : ""}{a.size} · {a.folder}</div>
             {(a.uploadedBy || a.uploaded) && <div className="text-xs text-ink-3 mt-0.5">Uploaded{a.uploadedBy ? ` by ${who(a.uploadedBy)}` : ""}{a.uploaded ? ` ${when(a.uploaded)}` : ""}</div>}
             <div className="mt-2 flex items-center gap-2 text-xs">{a.status === "published"
               ? <span className="inline-flex items-center gap-1.5 text-good font-medium"><i className="w-2 h-2 rounded-full bg-good" />Published{a.publishedAt ? <span className="font-normal text-ink-3"> {when(a.publishedAt)}{a.publishedBy ? ` by ${who(a.publishedBy)}` : ""}</span> : null}</span>
