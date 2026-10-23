@@ -141,7 +141,7 @@ function Overview({ p, md, byModel, models, canEdit, go, onCreate, onNewFolder }
   }, [scope, modelOf, p.usage, q, status, sort, dir]);
   const sortBy = (k: Sort) => { if (sort === k) setDir((d) => (d === "asc" ? "desc" : "asc")); else { setSort(k); setDir("asc"); } };
   const filtered = !!(q || status); const sel = "border border-line-2 rounded-md px-2.5 py-1.5 text-sm bg-surface";
-  const createBtn = canEdit ? <>{!p.folder && <button className="btn" onClick={() => onNewFolder(md)}>＋ New folder</button>}<button className="btn btn-primary" onClick={onCreate}>＋ New entity</button></> : null;
+  const createBtn = canEdit ? <>{!p.folder && <button className="btn btn-sm btn-secondary" onClick={() => onNewFolder(md)}>＋ New folder</button>}<button className="btn btn-sm btn-primary" onClick={onCreate}>＋ New entity</button></> : null;
   const nav = (href: string) => ({ href, onClick: (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); go(href); } });
 
   return <div className="p-4 md:p-7">
@@ -163,7 +163,7 @@ function Overview({ p, md, byModel, models, canEdit, go, onCreate, onNewFolder }
           <td className="px-4 py-3"><StatusPill status={e.status} /></td>
           <td className="px-4 py-3 text-xs col-used">{pages.length ? <span className="flex items-center gap-1.5 min-w-0"><Link href={`${p.base}/page${pages[0].path.replace(p.marketRoot, "")}`} onClick={(ev) => ev.stopPropagation()} className="truncate text-ink-2 hover:underline" title={pages.map((x) => x.title).join(", ")}>{pages[0].title}</Link>{pages.length > 1 && <span className="flex-none text-ink-3" title={pages.slice(1).map((x) => x.title).join(", ")}>+{pages.length - 1}</span>}</span> : <span className="text-ink-4">Not used yet</span>}</td>
           <td className="px-4 py-3 col-upd">{e.lastModified ? <span className="flex items-center gap-2 min-w-0">{by && <Avatar name={by} size={22} />}<span className="min-w-0 leading-tight"><span className="block text-xs text-ink-2"><When iso={e.lastModified} /></span>{by && <span className="block text-xs text-ink-3 truncate">{e.lastModifiedBy === p.viewerId ? "You" : by}</span>}</span></span> : <span className="text-ink-4">—</span>}</td>
-          <td className="px-4 py-3 text-right"><Link {...nav(href)} className="btn btn-sm">{canEdit ? "Edit" : "View"}</Link></td>
+          <td className="px-4 py-3 text-right"><Link {...nav(href)} className="btn btn-sm btn-secondary">{canEdit ? "Edit" : "View"}</Link></td>
         </tr>; })}</tbody></table></div></div>
       : <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl">{filtered ? <><b className="block text-base">No entities match</b><p className="text-ink-3 text-sm mt-1"><button className="underline text-ink" onClick={() => { setQ(""); setStatus(""); }}>Clear filters</button></p></>
         : md ? <><b className="block text-base">No {md.name} entities yet</b><p className="text-ink-3 text-sm mt-1 mb-4">{md.status === "draft" ? "Publish the model first, then fill in its fields to create reusable content." : "Fill in this model’s fields to create reusable content."}</p>{md.status !== "draft" && createBtn}</>

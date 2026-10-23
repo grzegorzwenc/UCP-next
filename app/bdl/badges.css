@@ -1,15 +1,3 @@
-/* BDL Badge Status Colors
-   Used with ShadCN <Badge variant="outline"> component.
-   The component base already sets rounded-none (sharp corners).
-
-   Usage:
-     <Badge variant="outline" class="bdl-badge-success">Active</Badge>
-     <Badge variant="outline" class="bdl-badge-error">Failed</Badge>
-     <Badge variant="outline" class="bdl-badge-warning">Pending</Badge>
-     <Badge variant="outline" class="bdl-badge-info">Running</Badge>
-     <Badge variant="outline" class="bdl-badge-neutral">Unknown</Badge>
-*/
-
 @layer components {
   .bdl-badge-success {
     border-color: var(--color-bdl-rag-green);
@@ -41,15 +29,6 @@
     color: var(--color-bdl-charcoal);
   }
 
-  /* ============================================
-     Number Badge — GDL group-badge style
-     Red pill with white bold number (notification counter)
-     ============================================
-     Usage:
-       <span class="bdl-number-badge">3</span>
-       <span class="bdl-number-badge bdl-number-badge-grey">12</span>
-  */
-
   .bdl-number-badge {
     display: inline-flex;
     align-items: center;
@@ -71,15 +50,6 @@
     background-color: var(--color-bdl-grey);
   }
 
-  /* ============================================
-     Toggle Chips — clickable selection buttons
-     ============================================
-     Usage:
-       <button class="bdl-chip {active ? 'bdl-chip-active' : ''}">PCA GB</button>
-       <button class="bdl-chip bdl-chip-red {active ? 'bdl-chip-active' : ''}">Edit</button>
-  */
-
-  /* Base chip — inactive state */
   .bdl-chip {
     font-family: var(--font-sans);
     font-size: 0.75rem;
@@ -97,7 +67,11 @@
     text-decoration: none;
     box-shadow: none;
     margin: 0;
-    transition: background-color 150ms var(--ease-out), border-color 150ms var(--ease-out), color 150ms var(--ease-out), transform 150ms var(--ease-out);
+    transition:
+      background-color 150ms var(--ease-out),
+      border-color 150ms var(--ease-out),
+      color 150ms var(--ease-out),
+      transform 150ms var(--ease-out);
   }
 
   .bdl-chip:active:not(:disabled) {
@@ -109,7 +83,6 @@
     color: var(--color-bdl-charcoal);
   }
 
-  /* Charcoal active (default) */
   .bdl-chip.bdl-chip-active {
     border-color: var(--color-bdl-charcoal);
     background-color: var(--color-bdl-charcoal);
@@ -121,7 +94,6 @@
     background-color: var(--color-bdl-charcoal);
   }
 
-  /* Red active variant */
   .bdl-chip-red.bdl-chip-active {
     border-color: var(--color-bdl-red);
     background-color: var(--color-bdl-red);

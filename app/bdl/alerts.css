@@ -1,5 +1,3 @@
-/* BDL Alerts — info, success, warning, error */
-
 @layer components {
   .alert,
   .toast,

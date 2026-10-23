@@ -81,13 +81,13 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
         <div className="hidden sm:inline-flex border border-line-2 rounded-lg overflow-hidden">{(["desktop", "tablet", "mobile"] as const).map((d) => <button key={d} type="button" onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink"}`} title={d} aria-label={`${d} view`} aria-pressed={device === d}><Ico d={d === "desktop" ? "M3 4.5h18v11.5H3zM8.5 20h7M12 16v4" : d === "tablet" ? "M5.5 3h13v18h-13zM11 18h2" : "M8 2.5h8v19H8zM11 18.5h2"} /></button>)}</div>
         <span className="hidden sm:inline text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1 whitespace-nowrap">{ro ? "🔒 Read-only" : saving ? "Saving…" : "✓ Saved"}</span>
         <div className="hidden md:flex gap-1 pl-2.5 border-l border-line">
-          {!ro && <button type="button" className={`btn btn-icon btn-sm ${left ? "on" : ""}`} onClick={() => { setPreview(false); setLeft(!left); }} title="Components panel" aria-label="Components panel" aria-pressed={left}><Ico d="M3.5 4h17v16h-17zM9 4v16" /></button>}
-          <button type="button" className={`btn btn-icon btn-sm ${right ? "on" : ""}`} onClick={() => { setPreview(false); setRight(!right); }} title="Template settings panel" aria-label="Template settings panel" aria-pressed={right}><Ico d="M3.5 4h17v16h-17zM15 4v16" /></button>
-          <button type="button" className={`btn btn-sm ${preview ? "on" : ""}`} onClick={() => { setPreview(!preview); setSel(null); }} title="See the template as a page" aria-pressed={preview}>{preview ? <><Ico d="M6 6l12 12M18 6L6 18" />Exit preview</> : <><Ico d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />Preview</>}</button>
+          {!ro && <button type="button" className={`bdl-chip btn-square size-8 ${left ? "bdl-chip-active" : ""}`} onClick={() => { setPreview(false); setLeft(!left); }} title="Components panel" aria-label="Components panel" aria-pressed={left}><Ico d="M3.5 4h17v16h-17zM9 4v16" /></button>}
+          <button type="button" className={`bdl-chip btn-square size-8 ${right ? "bdl-chip-active" : ""}`} onClick={() => { setPreview(false); setRight(!right); }} title="Template settings panel" aria-label="Template settings panel" aria-pressed={right}><Ico d="M3.5 4h17v16h-17zM15 4v16" /></button>
+          <button type="button" className={`bdl-chip ${preview ? "bdl-chip-active" : ""}`} onClick={() => { setPreview(!preview); setSel(null); }} title="See the template as a page" aria-pressed={preview}>{preview ? <><Ico d="M6 6l12 12M18 6L6 18" />Exit preview</> : <><Ico d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" />Preview</>}</button>
         </div>
-        {phone && !ro && <button type="button" className={`btn btn-sm ${left ? "on" : ""}`} onClick={() => setLeft(!left)}>＋ Add</button>}
-        {phone && <button type="button" className={`btn btn-sm ${right ? "on" : ""}`} onClick={() => setRight(!right)}>Settings</button>}
-        <Link className="btn btn-primary btn-sm whitespace-nowrap" href={`${base}/pages?new=1&template=${t.id}`}><span className="hidden sm:inline">New page from this template</span><span className="sm:hidden">Use</span></Link>
+        {phone && !ro && <button type="button" className={`bdl-chip ${left ? "bdl-chip-active" : ""}`} onClick={() => setLeft(!left)}>＋ Add</button>}
+        {phone && <button type="button" className={`bdl-chip ${right ? "bdl-chip-active" : ""}`} onClick={() => setRight(!right)}>Settings</button>}
+        <Link className="btn btn-sm btn-primary whitespace-nowrap" href={`${base}/pages?new=1&template=${t.id}`}><span className="hidden sm:inline">New page from this template</span><span className="sm:hidden">Use</span></Link>
       </div>
 
       <div className="relative min-h-0 overflow-hidden">
@@ -133,7 +133,7 @@ export function TemplateEditor({ marketId, envId, marketName, template: t, templ
             <div className="border border-line rounded-lg p-3"><div className="text-xs text-ink-2 font-medium mb-1">Blocks, top to bottom</div>
               {blocks.length ? <ol className="grid gap-0.5">{blocks.map((b, i) => <li key={`${b}-${i}`}><button type="button" onClick={() => setSel(i)} className={`w-full flex items-center gap-2 text-left rounded px-1.5 py-1 ${sel === i ? "bg-brand-soft text-brand-hover font-medium" : "hover:bg-surface-2"}`}><span className="w-5 h-5 rounded-full grid place-items-center text-xs bg-surface-3 text-ink-2 flex-none">{i + 1}</span><span className="truncate">{BLOCK_BY_TYPE[b]?.name ?? b}</span></button></li>)}</ol> : <p className="text-xs text-ink-3">No blocks yet.</p>}</div>
             <p className="text-xs text-ink-3">Used by {used} page{used === 1 ? "" : "s"}. Changing the template does not change pages already created with it.</p>
-            {!ro && t.id !== "blank" && <button className="btn btn-sm text-crit justify-center" onClick={del}>Delete template</button>}
+            {!ro && t.id !== "blank" && <button className="btn btn-sm btn-secondary text-crit justify-center" onClick={del}>Delete template</button>}
           </div>
         </aside>}
       </div>

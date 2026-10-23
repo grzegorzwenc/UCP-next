@@ -264,6 +264,13 @@ winner is decided by layer, not position:
 Verified in the bundle: the last `@layer` block closes at byte ~137,600 of ~231,600, and `.btn`,
 `.pill` and `.site` are all emitted after it.
 
+**Tailwind v4 gotcha, learned the hard way:** an `@layer components { … }` block written
+*inline in the entry stylesheet* — the file that holds `@import "tailwindcss"` — is **silently
+dropped from the build**. No error, build passes, the rules simply never reach the bundle
+(`.pill` went to 0 occurrences, only BDL's `.btn` rules survived). The identical block in a
+separate file, imported the way the BDL layers are, emits correctly. So custom
+`@layer components` CSS lives in `app/ucp-components.css`, never in `app/globals.css`.
+
 Two consequences:
 
 - **BDL component CSS can never override this app's own classes.** Anything in `@layer components`

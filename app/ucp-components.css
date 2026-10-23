@@ -1,0 +1,10 @@
+@layer components {
+  .btn-next::after {
+    content: "\2192";
+    margin-left: 1px;
+    transition: transform 160ms var(--ease-out);
+  }
+  .btn-next:hover::after {
+    transform: translateX(2px);
+  }
+}

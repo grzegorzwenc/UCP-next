@@ -28,7 +28,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   return <Ctx.Provider value={ask}>
     {children}
     {st && <ModalShell title={st.title} width={520} onClose={() => close(false)}
-      footer={<><button type="button" className="btn" autoFocus={!st.typeToConfirm} onClick={() => close(false)}>Cancel</button>
+      footer={<><button type="button" className="btn btn-sm btn-secondary" autoFocus={!st.typeToConfirm} onClick={() => close(false)}>Cancel</button>
         {st.alt && <button type="button" className={`btn ${st.alt.danger ? "text-brand" : ""}`} onClick={() => close("alt")}>{st.alt.label}</button>}
         <button type="button" className={`btn ${st.danger ? "btn-danger" : "btn-primary"}`} disabled={!ready} onClick={() => close(true)}>{st.confirmLabel ?? "Confirm"}</button></>}>
       {st.body && <div className="text-sm text-ink-2 leading-relaxed">{st.body}</div>}

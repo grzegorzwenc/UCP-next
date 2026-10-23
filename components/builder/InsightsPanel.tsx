@@ -22,7 +22,7 @@ function Row({ item, area, onFix, onSelectBlock }: { item: Insight; area?: strin
       <div className={`text-sm leading-snug ${done ? "text-ink-2" : "font-medium text-ink"}`}><span className="sr-only">{LEVEL_WORD[item.level]}: </span>{item.title}</div>
       {!done && <div className="text-xs text-ink-3 mt-0.5 leading-relaxed">{item.detail}</div>}
       {!done && (item.blockId || item.fix || area) && <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
-        {item.blockId && <button type="button" className="btn btn-sm" onClick={() => onSelectBlock(item.blockId!)}>Show on page</button>}
+        {item.blockId && <button type="button" className="btn btn-sm btn-secondary" onClick={() => onSelectBlock(item.blockId!)}>Show on page</button>}
         {item.fix && <button type="button" className="btn btn-sm btn-primary" onClick={() => onFix(item.fix!.apply, item.fix!.label)}>{item.fix.label}</button>}
         {area && <span className="ml-auto text-xs uppercase tracking-[.06em] text-ink-4">{area}</span>}
       </div>}

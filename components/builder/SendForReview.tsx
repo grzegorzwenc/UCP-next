@@ -28,7 +28,7 @@ export function SendForReviewModal({ marketId, pagePath, onClose, onSend }: { ma
     catch (e) { setErr(errorText(e)); setBusy(false); }
   }
   return <ModalShell title="Send page for review" subtitle="The page becomes read-only until the review is finished or someone reopens it." width={520} onClose={() => { if (!busy) onClose(); }}
-    footer={<><button className="btn" onClick={onClose} disabled={busy}>Cancel</button><button className="btn btn-primary" onClick={() => void send()} disabled={!ready}>{busy ? "Sending…" : "Send to the Backlog"}</button></>}>
+    footer={<><button className="btn btn-sm btn-secondary" onClick={onClose} disabled={busy}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => void send()} disabled={!ready}>{busy ? "Sending…" : "Send to the Backlog"}</button></>}>
     <div className="flex flex-col gap-3 text-sm">
       <div className="border border-line rounded-lg p-3 bg-surface-2"><b className="block font-medium">It goes to the Backlog · open to all reviewers</b>
         <span className="block text-xs text-ink-3 mt-0.5">{list === null ? "Checking who can review it…" : none ? "Nobody has Review on this folder yet. Ask a site admin to grant it." : `Nobody is assigned. Any of the ${list.length} reviewer${list.length === 1 ? "" : "s"} who can review this page takes it from My tasks → Backlog.`}</span>

@@ -48,14 +48,14 @@ export function AuditLog({ own, log, names, pageTitles, base, root, marketName, 
 
   return (<div className="p-4 md:p-7">
     <div className="flex flex-wrap items-start gap-x-4 gap-y-3 mb-5"><div><h1 className="text-2xl font-medium">{own ? "My activity" : "Audit log"}</h1><p className="text-ink-3 text-sm mt-1">{own && <><b className="text-ink-2">Only your own actions, {own}.</b> Site admins see everyone&rsquo;s. </>}Every change on {marketName} · {envName}</p></div>
-      <div className="ml-auto flex gap-2"><button className="btn" onClick={exportCsv} disabled={rows.length === 0}>Export CSV</button></div></div>
+      <div className="ml-auto flex gap-2"><button className="btn btn-sm btn-secondary" onClick={exportCsv} disabled={rows.length === 0}>Export CSV</button></div></div>
     <div className="grid grid-cols-2 xl:grid-cols-4 gap-3.5 mb-4"><Kpi label="Events today" value={today.length} tone="grey" /><Kpi label="Publishes today" value={cntType("publishing")} tone="green" /><Kpi label="Permission changes today" value={cntType("permissions")} tone="blue" /><Kpi label="Failures today" value={failures} tone={failures > 0 ? "crit" : "grey"} /></div>
     <div className="flex items-center gap-2 mb-3 flex-wrap">
       <label className={`flex items-center gap-2 ${inputCls} min-w-[280px]`}><SearchIcon /><input aria-label="Search" className="flex-1 outline-none bg-transparent" placeholder="Search people, pages, actions" value={q} onChange={(e) => { setQ(e.target.value); sync({ q: e.target.value }); }} /></label>
       <select aria-label="Person" className={inputCls} value={who} onChange={(e) => { setWho(e.target.value); sync({ who: e.target.value }); }}><option value="">Anyone</option>{actors.map((a) => <option key={a} value={a}>{nameOf(a)}</option>)}</select>
       <select aria-label="Period" className={inputCls} value={period} onChange={(e) => { setPeriod(e.target.value as Period); sync({ period: e.target.value }); }}><option value="all">All time</option><option value="today">Today</option><option value="2d">Last 2 days</option></select>
       {rows.length !== log.length && <span className="ml-auto text-xs text-ink-3">{rows.length} of {log.length} events</span>}</div>
-    <div className="flex gap-1.5 mb-3 flex-wrap">{TABS.map(([k, l]) => <button key={k} className={`btn btn-sm ${type === k ? "on" : ""}`} onClick={() => { setType(k); sync({ type: k }); }}>{l}{k !== "all" && <span className={`font-mono text-xs ${type === k ? "text-white/70" : "text-ink-3"}`}>{count(k)}</span>}</button>)}</div>
+    <div className="flex gap-1.5 mb-3 flex-wrap">{TABS.map(([k, l]) => <button key={k} className={`bdl-chip ${type === k ? "bdl-chip-active" : ""}`} onClick={() => { setType(k); sync({ type: k }); }}>{l}{k !== "all" && <span className={`font-mono text-xs ${type === k ? "text-white/70" : "text-ink-3"}`}>{count(k)}</span>}</button>)}</div>
     {groups.length === 0 ? <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">Nothing logged for this filter. <button className="underline" onClick={clear}>Clear filters</button></div>
       : groups.map((g) => <section key={g.d}><h4 className="mt-1.5 mb-2 text-xs tracking-[.08em] uppercase text-ink-3 font-medium">{g.d}</h4>
         <div className="bg-surface border border-line rounded-lg px-5 py-1 mb-3.5"><ul>{g.items.map((e) => { const t = resolveTarget(e.target, { base, root, pages: pageTitles, names }); const system = e.who === "system";
@@ -64,6 +64,6 @@ export function AuditLog({ own, log, names, pageTitles, base, root, marketName, 
             <span className="grid place-items-center h-[26px]">{system ? <span className={`w-2 h-2 rounded-full ${LEVEL_DOT[e.level === "crit" ? "crit" : e.type] ?? "bg-ink-4"}`} /> : <Avatar name={nameOf(e.who)} size={26} />}</span>
             <span className="min-w-0 text-sm"><b className="font-medium">{nameOf(e.who)}</b> {e.text}<span className="flex items-center gap-2 mt-1 flex-wrap">{t.label === nameOf(e.who) ? null : t.href ? <Link href={t.href} onClick={(ev) => ev.stopPropagation()} className="hover:underline"><TargetChip t={t} /></Link> : <TargetChip t={t} />}</span></span>
             <span className={`text-xs tracking-[.06em] uppercase font-medium pt-1 ${e.level === "crit" ? "text-crit" : "text-ink-3"}`}>{e.level === "crit" ? "failed" : e.type}</span></li>; })}</ul></div></section>)}
-    {rows.length > shown.length && <div className="flex items-center justify-center gap-3 py-3 text-xs text-ink-3">Showing the latest {shown.length} of {rows.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Load older events</button></div>}
+    {rows.length > shown.length && <div className="flex items-center justify-center gap-3 py-3 text-xs text-ink-3">Showing the latest {shown.length} of {rows.length}<button className="btn btn-sm btn-secondary" onClick={() => setLimit(limit + PAGE)}>Load older events</button></div>}
   </div>);
 }

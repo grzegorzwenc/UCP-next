@@ -1,41 +1,30 @@
-/* BDL Font Declarations — Univers Next for HSBC
-   Weights: 300 (Light), 400 (Regular), 500 (Medium), 700 (Bold)
-   No 600 (semibold) — use 500 or 700 instead
-
-   Deliberate divergence from the hsbc-ucpmock clone: there this family is called
-   'Bapi Sans', a label inherited from the HSBC FQDN Scanner project that BDL was first
-   written for. The files are Univers Next for HSBC — confirmed from their own name
-   tables ('Univers Next for HSBC W01 Rg/Md/Bd/Lt', usWeightClass 400/500/700/300) — so
-   the family is named after the font here. Re-cloning fonts.css will reintroduce the
-   old label; keep this rename. */
-
 @font-face {
-  font-family: 'Univers Next for HSBC';
-  src: url('/fonts/UniversNextforHSBCW01-Rg.woff') format('woff');
+  font-family: "Univers Next for HSBC";
+  src: url("/fonts/UniversNextforHSBCW01-Rg.woff") format("woff");
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Univers Next for HSBC';
-  src: url('/fonts/UniversNextforHSBCW01-Bd.woff') format('woff');
+  font-family: "Univers Next for HSBC";
+  src: url("/fonts/UniversNextforHSBCW01-Bd.woff") format("woff");
   font-weight: 700;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Univers Next for HSBC';
-  src: url('/fonts/UniversNextforHSBCW01-Lt.woff') format('woff');
+  font-family: "Univers Next for HSBC";
+  src: url("/fonts/UniversNextforHSBCW01-Lt.woff") format("woff");
   font-weight: 300;
   font-style: normal;
   font-display: swap;
 }
 
 @font-face {
-  font-family: 'Univers Next for HSBC';
-  src: url('/fonts/UniversNextforHSBCW01-Md.woff') format('woff');
+  font-family: "Univers Next for HSBC";
+  src: url("/fonts/UniversNextforHSBCW01-Md.woff") format("woff");
   font-weight: 500;
   font-style: normal;
   font-display: swap;

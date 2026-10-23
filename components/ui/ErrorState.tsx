@@ -16,7 +16,7 @@ export function ErrorState({ section, error, reset }: Props) {
         <h1 className="text-xl font-medium">Something went wrong loading {section}</h1>
         <p className="text-sm text-ink-2 mt-2 break-words">{error.message || "The page could not be loaded."}</p>
         {requestId && <p className="text-xs text-ink-3 mt-2">Request id <span className="font-mono text-ink-2">{requestId}</span> · quote it if you contact support.</p>}
-        <div className="flex gap-2 mt-6"><button className="btn btn-primary" onClick={reset}>Try again</button><Link href={dash} className="btn">Go to dashboard</Link></div>
+        <div className="flex gap-2 mt-6"><button className="btn btn-sm btn-primary" onClick={reset}>Try again</button><Link href={dash} className="btn btn-sm btn-secondary">Go to dashboard</Link></div>
       </div>
     </div>
   );

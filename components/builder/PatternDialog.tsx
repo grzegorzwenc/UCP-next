@@ -11,7 +11,7 @@ export function SavePatternDialog({ blocks, marketId, onSave, onClose }: { block
   const [name, setName] = useState(""); const [desc, setDesc] = useState(""); const [markets, setMarkets] = useState<string[]>([]); const [busy, setBusy] = useState(false); const [err, setErr] = useState("");
   const save = async () => { if (!name.trim()) { setErr("Give the pattern a name"); return; } setBusy(true); setErr(""); const e = await onSave({ name: name.trim(), desc: desc.trim(), markets }); setBusy(false); if (e) setErr(e); };
   return <ModalShell title="Save as design pattern" width={620} onClose={onClose}
-    footer={<><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="button" className="btn btn-primary" disabled={busy || !name.trim()} onClick={save}>{busy ? "Saving…" : "Save pattern"}</button></>}>
+    footer={<><button type="button" className="btn btn-sm btn-secondary" onClick={onClose}>Cancel</button><button type="button" className="btn btn-sm btn-primary" disabled={busy || !name.trim()} onClick={save}>{busy ? "Saving…" : "Save pattern"}</button></>}>
     <div className="grid gap-4 md:grid-cols-[1fr_200px]">
       <div className="grid gap-3 content-start">
         <label className="block text-xs text-ink-2 font-medium">Name<input autoFocus className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink font-normal" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") save(); }} placeholder="e.g. Savings product intro" /></label>
@@ -32,7 +32,7 @@ export function SavePatternDialog({ blocks, marketId, onSave, onClose }: { block
 export function PatternMarketsDialog({ name, value, marketId, onSave, onClose }: { name: string; value: string[]; marketId: string; onSave: (m: string[]) => void; onClose: () => void }) {
   const [markets, setMarkets] = useState(value);
   return <ModalShell title={`Markets · ${name}`} width={480} onClose={onClose}
-    footer={<><button type="button" className="btn" onClick={onClose}>Cancel</button><button type="button" className="btn btn-primary" onClick={() => onSave(markets)}>Save</button></>}>
+    footer={<><button type="button" className="btn btn-sm btn-secondary" onClick={onClose}>Cancel</button><button type="button" className="btn btn-sm btn-primary" onClick={() => onSave(markets)}>Save</button></>}>
     <MarketPicker value={markets} onChange={setMarkets} current={marketId} what="pattern" />
     {markets.length > 0 && !markets.includes(marketId) && <p className="mt-3 text-xs text-ink bg-warn-soft rounded-md px-2.5 py-1.5">This market will no longer see it. Pages that already use it keep their components.</p>}
   </ModalShell>;

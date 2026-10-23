@@ -114,8 +114,8 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
     {err && <div className="text-crit text-xs bg-crit-soft px-3 py-2 rounded">{err}</div>}
     {list === null ? <p className="text-xs text-ink-3">Loading comments…</p> : !list.length ? <p className="text-xs text-ink-3">No comments yet.{mayWrite ? " Leave a note for the next person who edits or reviews this page." : ""}</p>
       : <ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5">{shown.filter((c) => !c.pinned).map(renderItem)}</ul>}
-    {rest.length > shown.length && <button type="button" className="btn btn-sm btn-quiet justify-self-start" onClick={() => setAll(true)}>Show all {rest.length} comments</button>}
-    {all && rest.length > FIRST && <button type="button" className="btn btn-sm btn-quiet justify-self-start" onClick={() => setAll(false)}>Show fewer</button>}
+    {rest.length > shown.length && <button type="button" className="btn-ghost justify-self-start" onClick={() => setAll(true)}>Show all {rest.length} comments</button>}
+    {all && rest.length > FIRST && <button type="button" className="btn-ghost justify-self-start" onClick={() => setAll(false)}>Show fewer</button>}
     {resolved.length > 0 && <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 pt-1">
       <button type="button" onClick={() => setShowResolved(!showResolved)} aria-expanded={showResolved} className="flex items-center gap-2 text-xs font-medium text-ink-2 hover:text-ink justify-self-start">
         <svg aria-hidden width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" className={`transition-transform ${showResolved ? "rotate-90" : ""}`}><path d="M9 6l6 6-6 6" /></svg>

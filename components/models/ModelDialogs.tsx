@@ -50,7 +50,7 @@ export function PublishModal({ model, fields, nextVersion, dirty, busy, onClose,
   const [ack, setAck] = useState(false); const [err, setErr] = useState<string | null>(null);
   const go = async () => { setErr(null); try { await onPublish(); } catch (e) { setErr(errorText(e)); } };
   return <ModalShell title="Publish Content Model" subtitle={<><b className="text-ink">{model.name}</b> · v{model.publishedVersion ?? "—"} → v{nextVersion}{dirty && " · unsaved changes will be saved first"}</>} width={680} onClose={onClose}
-    footer={<><button type="button" className="btn" onClick={onClose} disabled={busy}>Cancel</button><button type="button" className="btn btn-primary" disabled={busy || (diff.breaking.length > 0 && !ack)} onClick={go}>{busy ? "Publishing…" : `Publish v${nextVersion}`}</button></>}>
+    footer={<><button type="button" className="btn btn-sm btn-secondary" onClick={onClose} disabled={busy}>Cancel</button><button type="button" className="btn btn-sm btn-primary" disabled={busy || (diff.breaking.length > 0 && !ack)} onClick={go}>{busy ? "Publishing…" : `Publish v${nextVersion}`}</button></>}>
     <DiffView diff={diff} />
     {diff.breaking.length > 0 && <div className="mt-4 border border-crit/40 bg-crit-soft rounded-lg p-3.5"><h4 className="text-sm font-medium text-crit mb-1.5">Potential breaking changes</h4><ul className="grid gap-1 text-xs text-ink list-disc pl-4">{diff.breaking.map((b, i) => <li key={i}>{b}</li>)}</ul>
       <label className="flex items-center gap-2 mt-3 text-sm font-medium"><input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />I understand the impact on existing content and API clients</label></div>}
@@ -61,7 +61,7 @@ export function PublishModal({ model, fields, nextVersion, dirty, busy, onClose,
 
 /* ---------------- unsaved changes guard ---------------- */
 export function UnsavedModal({ busy, onStay, onDiscard, onSave, what = "this Content Model" }: { busy: boolean; onStay: () => void; onDiscard: () => void; onSave: () => void; what?: string }) {
-  return <ModalShell title="Unsaved changes" width={460} onClose={onStay} footer={<><button type="button" className="btn" onClick={onStay} disabled={busy}>Stay</button><button type="button" className="btn" onClick={onDiscard} disabled={busy}>Discard changes</button><button type="button" className="btn btn-primary" onClick={onSave} disabled={busy}>{busy ? "Saving…" : "Save"}</button></>}>
+  return <ModalShell title="Unsaved changes" width={460} onClose={onStay} footer={<><button type="button" className="btn btn-sm btn-secondary" onClick={onStay} disabled={busy}>Stay</button><button type="button" className="btn btn-sm btn-secondary" onClick={onDiscard} disabled={busy}>Discard changes</button><button type="button" className="btn btn-sm btn-primary" onClick={onSave} disabled={busy}>{busy ? "Saving…" : "Save"}</button></>}>
     <p className="text-sm text-ink-2">You have unsaved changes to {what}. Save them as a draft, discard them, or stay on this page.</p>
   </ModalShell>;
 }
@@ -84,10 +84,10 @@ export function CreateWizard({ models, marketId, folders, onClose, onDone }: { m
     catch (e) { setErr(errorText(e)); setBusy(""); }
   }
   const footer = <>
-    <button type="button" className="btn" onClick={onClose} disabled={!!busy}>Cancel</button>
-    {step > 0 && <button type="button" className="btn" onClick={() => setStep((step - 1) as Step)} disabled={!!busy}>Back</button>}
-    {step < 2 ? <button type="button" className="btn btn-primary" disabled={step === 0 && !step1ok} onClick={() => setStep((step + 1) as Step)}>{step === 0 ? "Next: define fields" : "Next: review"}</button>
-      : <><button type="button" className="btn" disabled={!!busy} onClick={() => create(true)}>{busy === "publish" ? "Publishing…" : "Save & publish"}</button><button type="button" className="btn btn-primary" disabled={!!busy} onClick={() => create(false)}>{busy === "draft" ? "Saving…" : "Save as draft"}</button></>}
+    <button type="button" className="btn btn-sm btn-secondary" onClick={onClose} disabled={!!busy}>Cancel</button>
+    {step > 0 && <button type="button" className="btn btn-sm btn-secondary" onClick={() => setStep((step - 1) as Step)} disabled={!!busy}>Back</button>}
+    {step < 2 ? <button type="button" className="btn btn-sm btn-primary" disabled={step === 0 && !step1ok} onClick={() => setStep((step + 1) as Step)}>{step === 0 ? "Next: define fields" : "Next: review"}</button>
+      : <><button type="button" className="btn btn-sm btn-secondary" disabled={!!busy} onClick={() => create(true)}>{busy === "publish" ? "Publishing…" : "Save & publish"}</button><button type="button" className="btn btn-sm btn-primary" disabled={!!busy} onClick={() => create(false)}>{busy === "draft" ? "Saving…" : "Save as draft"}</button></>}
   </>;
   return <>
     <ModalShell title="New content model" subtitle={<span className="inline-flex gap-3">{STEPS.map((s, i) => <span key={s} className={`inline-flex items-center gap-1.5 ${i === step ? "text-ink font-medium" : i < step ? "text-good" : ""}`}><span className={`w-[18px] h-[18px] rounded-full grid place-items-center text-xs font-medium ${i === step ? "bg-brand text-white" : i < step ? "bg-good text-white" : "bg-surface-3 text-ink-3"}`}>{i < step ? "✓" : i + 1}</span>{s}</span>)}</span>} width={step === 1 ? 1040 : 720} onClose={onClose} footer={footer}>

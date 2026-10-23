@@ -68,7 +68,7 @@ export function LeftPanel({ phone, width = 320, onResizeStart, canEdit, onAdd, o
             <button type="button" className="w-full flex items-center gap-2 px-2 py-1.5 text-xs font-medium text-ink-2 hover:text-ink" aria-expanded={showArchived} onClick={() => setShowArchived(!showArchived)}><span aria-hidden>{showArchived ? "▾" : "▸"}</span>Archived · {archived.length}<span className="ml-auto font-normal text-ink-3">can be restored</span></button>
             {showArchived && <ul className="grid gap-1 mt-1">{archived.map((p) => <li key={p.id} className="flex items-center gap-2 rounded-md border border-line px-2.5 py-2 text-xs">
               <span className="min-w-0 flex-1"><b className="block truncate text-ink-2">{p.name}</b><small className="block text-xs text-ink-3">Archived by {p.archived!.name} · {new Date(p.archived!.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</small></span>
-              {mayManage(p) && <><button type="button" className="btn btn-sm" onClick={() => onRestorePattern(p)}>Restore</button><button type="button" className="btn btn-sm text-brand" onClick={() => onDeletePattern(p)}>Delete</button></>}</li>)}</ul>}
+              {mayManage(p) && <><button type="button" className="btn btn-sm btn-secondary" onClick={() => onRestorePattern(p)}>Restore</button><button type="button" className="btn btn-sm btn-secondary text-brand" onClick={() => onDeletePattern(p)}>Delete</button></>}</li>)}</ul>}
           </div>}
         </div> : <div className="flex-1 overflow-auto p-2">
           {!canEdit && <div className="m-1 mb-2 text-xs text-ink-3 bg-surface-3 border border-line rounded-md px-2.5 py-2">Read-only: you can look, but not add.</div>}

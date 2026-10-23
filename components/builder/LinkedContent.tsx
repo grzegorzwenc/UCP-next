@@ -53,7 +53,7 @@ export function EntitiesPanel({ marketId, base, pagePath, bindings, entities, mo
         {canEdit && !r.uses && <button className="flex-none w-6 h-6 -mt-0.5 rounded text-ink-3 hover:bg-surface-3" title="Remove from this page" aria-label={`Remove ${r.title ?? r.alias} from this page`} disabled={busy} onClick={() => remove(r.alias, r.title)}>✕</button>}</div>
       <div className="text-xs text-ink-3 mt-0.5">{modelName(r.mid)} · {r.uses ? `used ${r.uses}× in the text` : "not used in the text yet"}</div>
       <div className="flex items-center gap-2 mt-2">{r.e && (r.e.status === "modified" ? <Pill status="review" label="Modified" /> : <Pill status={r.e.status} label={r.e.status === "published" ? "Published" : "Draft"} />)}
-        {r.e && <Link className="btn btn-sm ml-auto" href={`${base}/entities?model=${encodeURIComponent(r.mid)}&entity=${encodeURIComponent(r.e.id)}`}>Open</Link>}</div>
+        {r.e && <Link className="btn btn-sm btn-secondary ml-auto" href={`${base}/entities?model=${encodeURIComponent(r.mid)}&entity=${encodeURIComponent(r.e.id)}`}>Open</Link>}</div>
     </li>)}</ul>}
     {typed.length > 0 && <div className="border border-warn/40 bg-warn-soft rounded-lg p-2.5 flex flex-col gap-2">
       <b className="text-xs">Not linked yet</b>
@@ -67,8 +67,8 @@ export function EntitiesPanel({ marketId, base, pagePath, bindings, entities, mo
       <label className="text-xs text-ink-2 font-medium">Entity<select className="mt-1 w-full border border-line-2 rounded-md px-2 py-1.5 text-sm font-normal text-ink bg-surface" value={pick} onChange={(e) => setPick(e.target.value)} autoFocus>
         <option value="">{all === null ? "Loading…" : "Choose an entity…"}</option>
         {Object.keys(byModel).sort().map((m) => <optgroup key={m} label={modelName(m)}>{byModel[m].map((x) => <option key={x.path} value={x.path}>{x.title}{x.status === "draft" ? " (draft)" : ""}</option>)}</optgroup>)}</select></label>
-      <div className="flex justify-end gap-2"><button className="btn btn-sm" onClick={() => { setAdding(false); setPick(""); }}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!pick || busy} onClick={() => void add()}>{busy ? "Adding…" : "Add"}</button></div>
-    </div> : <button className="btn btn-sm justify-center" onClick={() => setAdding(true)}>＋ Add entity</button>)}
+      <div className="flex justify-end gap-2"><button className="btn btn-sm btn-secondary" onClick={() => { setAdding(false); setPick(""); }}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!pick || busy} onClick={() => void add()}>{busy ? "Adding…" : "Add"}</button></div>
+    </div> : <button className="btn btn-sm btn-secondary justify-center" onClick={() => setAdding(true)}>＋ Add entity</button>)}
     {err && <div role="alert" className="text-crit text-xs bg-crit-soft px-3 py-2 rounded">{err}</div>}
   </div>;
 }

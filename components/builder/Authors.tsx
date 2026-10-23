@@ -28,7 +28,7 @@ export function AuthorsChip({ authors, meId, admin, canEdit, people, onAction }:
         {more > 0 && <span className="text-ink-3">+{more}</span>}
         <span aria-hidden className="text-ink-3 text-xs">▾</span>
       </button>
-      {canEdit && !mine && <button type="button" className="btn btn-sm" disabled={!!busy} onClick={() => void run("join")} title="Add yourself as an author · the others stay assigned">{busy === "join" ? "Assigning…" : "Assign me"}</button>}
+      {canEdit && !mine && <button type="button" className="btn btn-sm btn-secondary" disabled={!!busy} onClick={() => void run("join")} title="Add yourself as an author · the others stay assigned">{busy === "join" ? "Assigning…" : "Assign me"}</button>}
     </span>
     {at && <div className="fixed inset-0 z-[60]" onClick={() => setAt(null)}>
       <div role="dialog" aria-label="Authors of this page" className="absolute w-[300px] bg-surface border border-line rounded-xl shadow-2xl text-sm overflow-hidden" style={{ top: at.top, right: at.right }} onClick={(e) => e.stopPropagation()}>
@@ -41,7 +41,7 @@ export function AuthorsChip({ authors, meId, admin, canEdit, people, onAction }:
         {((canEdit && !mine) || admin) && <div className="border-t border-line p-3 grid gap-2">
           {canEdit && !mine && <button type="button" className="btn btn-sm btn-primary justify-center" disabled={!!busy} onClick={() => void run("join")}>Assign me too</button>}
           {admin && <div className="flex gap-1.5"><select aria-label="Add an author" className="flex-1 min-w-0 border border-line-2 rounded-md px-2 py-1 text-xs bg-surface" value={adding} onChange={(e) => setAdding(e.target.value)}><option value="">Add a person…</option>{others.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
-            <button type="button" className="btn btn-sm" disabled={!adding || !!busy} onClick={() => { void run("add", adding).then(() => setAdding("")); }}>Add</button></div>}
+            <button type="button" className="btn btn-sm btn-secondary" disabled={!adding || !!busy} onClick={() => { void run("add", adding).then(() => setAdding("")); }}>Add</button></div>}
         </div>}
       </div>
     </div>}

@@ -1,5 +1,3 @@
-/* BDL Modals — overlay + content container */
-
 @layer components {
   .modal {
     position: fixed;
@@ -50,7 +48,6 @@
   }
 }
 
-/* Native <dialog> alert — replaces bits-ui AlertDialog */
 .native-alert-dialog {
   font-family: var(--font-sans);
   border: none;

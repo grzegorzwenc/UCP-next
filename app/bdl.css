@@ -1,52 +1,15 @@
-/* ============================================
-   BDL (Brand Design Language) — HSBC
-   ============================================
-   Cloned from hsbc-ucpmock (src/bdl.css + src/bdl/*). The files under ./bdl/ are kept as close
-   to that source as possible so the two prototypes stay diffable — change them there and
-   re-clone rather than editing in place. Divergences are noted in the file that carries them.
+@import "./bdl/tokens.css";
 
-   What is active below is additive: tokens, the theme, and the component layers whose class
-   names are namespaced (`bdl-*`, `icon--ph--*`, `.alert*`) and were checked against every class
-   this app already uses. Order matters: tokens and theme precede anything that reads them.
-*/
+@import "./bdl/theme.css";
 
-/* fonts.css is intentionally NOT imported: next/font/local in app/layout.tsx owns the @font-face
-   declarations so it can preload the files and metric-match the fallback. Importing both would
-   fetch the same four files under a second family name. */
-@import './bdl/tokens.css';
-/* Light + dark theme for the shadcn components (semantic tokens + the `dark` variant). */
-@import './bdl/theme.css';
+@import "./bdl/alerts.css";
+@import "./bdl/cards.css";
+@import "./bdl/forms.css";
+@import "./bdl/tables.css";
+@import "./bdl/badges.css";
+@import "./bdl/tabs.css";
+@import "./bdl/modals.css";
+@import "./bdl/icons.css";
 
-/* Component layers — collision-free, verified against app/ and components/. */
-@import './bdl/alerts.css';
-@import './bdl/cards.css';
-@import './bdl/forms.css';
-@import './bdl/tables.css';
-@import './bdl/badges.css';
-@import './bdl/tabs.css';
-@import './bdl/modals.css';
-@import './bdl/icons.css';
-/* animations.css: BDL's easing tokens (--ease-out / --ease-in-out, stronger than Tailwind's
-   defaults), the stagger and pulse utilities, and a reduced-motion block. Its only `.btn`
-   rules are inside that block — `:active { transform: none !important }` — which guards the
-   press feedback rather than restyling anything, so it is additive after all. */
-@import './bdl/animations.css';
-
-/* Staged — these cannot go in additively (Tier 3 in docs/ux-parity/ui-consistency-audit.md):
-
-   buttons.css redefines .btn, .btn-primary, .btn-danger, .btn-icon and .btn-sm. This app uses
-   bare `.btn` 553 times as a complete outlined button, where BDL's `.btn` is a base that needs
-   a variant and carries ~2x the padding — so enabling it would un-style and balloon every one.
-   Its values were adopted into app/globals.css instead; see the button block there.
-
-   base.css sets body font-size to 16px (this app renders at 14px), underlines every <a>, and
-   restyles h1–h4 and the scrollbars. It also carries the global
-   `button, [role=button], select, summary { cursor: pointer }` rule that closes most of §7, so it
-   is worth adopting — but screen by screen, not in one flip.
-
-   utilities.css redefines .sr-only, which Tailwind also provides; check which wins first.
-
-@import './bdl/base.css';
-@import './bdl/buttons.css';
-@import './bdl/utilities.css';
-*/
+@import "./bdl/buttons.css";
+@import "./bdl/animations.css";

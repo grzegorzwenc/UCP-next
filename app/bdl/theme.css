@@ -1,145 +1,122 @@
-/* BDL light + dark theme — cloned from hsbc-ucpmock src/routes/layout.css (lines 6-141).
-   shadcn semantic tokens mapped onto the HSBC BDL palette, plus sidebar extras that are not
-   part of shadcn's set (--sidebar-footer, --sidebar-active, --sidebar-active-bar).
-   Kept close to source so the two prototypes stay diffable — change it there and re-clone.
-
-   Note for this repo: --accent is shadcn's (a subtle grey hover surface) and nothing overrides
-   it — UCP's HSBC red lives on --brand in app/globals.css, renamed off this name precisely so
-   class strings copied from the source project behave the same way here. */
-
 @custom-variant dark (&:is(.dark *));
 
-/* shadcn semantic tokens mapped onto the HSBC BDL palette.
-   Ported from the FQDN scanner's layout.css. */
 :root {
-	--radius: 0;
-	--background: #ffffff;
-	--foreground: #333333;
-	--card: #ffffff;
-	--card-foreground: #333333;
-	--popover: #ffffff;
-	--popover-foreground: #333333;
-	--primary: #333333;
-	--primary-foreground: #ffffff;
-	--secondary: #cccccc;
-	--secondary-foreground: #333333;
-	--muted: #e6e6e6;
-	--muted-foreground: #767676; /* BDL grey-4: 4.54:1 on white (AA); #7b7b7b was 4.23 */
-	--accent: #d9d9d9;
-	--accent-foreground: #333333;
-	--destructive: #db0011;
-	--border: #cccccc;
-	--input: #929292;
-	--ring: #a6c7ff;
-	--chart-1: #db0011;
-	--chart-2: #376798;
-	--chart-3: #333333;
-	--chart-4: #ff9800;
-	--chart-5: #4caf50;
-	/* Sidebar sits on BDL grey-1 (#f3f3f3) so the white content area reads as
-	   the working surface; each state steps one BDL grey darker. */
-	--sidebar: #f3f3f3; /* BDL grey-hover-light / grey-1 */
-	--sidebar-foreground: #333333;
-	--sidebar-primary: #333333;
-	--sidebar-primary-foreground: #ffffff;
-	--sidebar-accent: #e6e6e6; /* hover surface (BDL grey-disabled tone) */
-	--sidebar-accent-foreground: #333333;
-	--sidebar-border: #d7d8d6; /* BDL grey-border */
-	--sidebar-ring: #a6c7ff;
-	/* Sidebar extras (not part of shadcn's set) */
-	--sidebar-footer: #e6e6e6; /* user strip */
-	--sidebar-active: #f3e4e6; /* selected row tint (red at ~6% over grey-1) */
-	--sidebar-active-hover: #ecd6d9; /* selected row, hovered */
-	--sidebar-active-bar: #db0011; /* selected row indicator */
+  --radius: 0;
+  --background: #ffffff;
+  --foreground: #333333;
+  --card: #ffffff;
+  --card-foreground: #333333;
+  --popover: #ffffff;
+  --popover-foreground: #333333;
+  --primary: #333333;
+  --primary-foreground: #ffffff;
+  --secondary: #cccccc;
+  --secondary-foreground: #333333;
+  --muted: #e6e6e6;
+  --muted-foreground: #767676;
+  --accent: #d9d9d9;
+  --accent-foreground: #333333;
+  --destructive: #db0011;
+  --border: #cccccc;
+  --input: #929292;
+  --ring: #a6c7ff;
+  --chart-1: #db0011;
+  --chart-2: #376798;
+  --chart-3: #333333;
+  --chart-4: #ff9800;
+  --chart-5: #4caf50;
+
+  --sidebar: #f3f3f3;
+  --sidebar-foreground: #333333;
+  --sidebar-primary: #333333;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #e6e6e6;
+  --sidebar-accent-foreground: #333333;
+  --sidebar-border: #d7d8d6;
+  --sidebar-ring: #a6c7ff;
+
+  --sidebar-footer: #e6e6e6;
+  --sidebar-active: #f3e4e6;
+  --sidebar-active-hover: #ecd6d9;
+  --sidebar-active-bar: #db0011;
 }
 
-/* Dark theme — HSBC-neutral charcoal (test/dark experiment). create.hsbc's
-   public guidance: dark designs are DEDICATED, never auto-inverted; the core
-   colours stay core, so the red is lifted only as far as contrast demands
-   (#ff4954 ≈ 5.4:1 on the background — AA for text) instead of drifting to
-   coral/pink. No blue cast anywhere: surfaces are true greys, and blue is
-   reserved for focus (BDL focus-blue), matching the light theme's behaviour.
-   Body text ≥ 15:1, muted text ≥ 7:1. */
 .dark {
-	/* The AI Markets three-surface mapping at the same lightness, shifted
-	   cool (blue channel lifted): #151D2A canvas · #19222E cards · #28303B
-	   sidebar/chips. Red saturated for identity, lifted to #ff4954 for text. */
-	--background: #151d2a;
-	--foreground: #f1f4f8;
-	--card: #19222e;
-	--card-foreground: #f1f4f8;
-	--popover: #19222e;
-	--popover-foreground: #f1f4f8;
-	--primary: #f1f4f8;
-	--primary-foreground: #151d2a;
-	--secondary: #28303b;
-	--secondary-foreground: #f1f4f8;
-	--muted: #28303b;
-	--muted-foreground: #a6b1bf;
-	--accent: #28303b;
-	--accent-foreground: #f1f4f8;
-	--destructive: #ff4954;
-	--border: rgba(255, 255, 255, 0.13);
-	--input: rgba(255, 255, 255, 0.2);
-	--ring: #a6c7ff;
-	--chart-1: #ff4954;
-	--chart-2: #a6c7ff;
-	--chart-3: #ffb866;
-	--chart-4: #6fcf97;
-	--chart-5: #ccd3dc;
-	--sidebar: #28303b;
-	--sidebar-foreground: #f1f4f8;
-	--sidebar-primary: #f1f4f8;
-	--sidebar-primary-foreground: #151d2a;
-	--sidebar-accent: #343d49;
-	--sidebar-accent-foreground: #ffffff;
-	--sidebar-border: rgba(255, 255, 255, 0.1);
-	--sidebar-ring: #a6c7ff;
-	--sidebar-footer: #212935;
-	--sidebar-active: rgba(219, 0, 17, 0.38);
-	--sidebar-active-hover: rgba(219, 0, 17, 0.5);
-	--sidebar-active-bar: #ff4954;
+  --background: #151d2a;
+  --foreground: #f1f4f8;
+  --card: #19222e;
+  --card-foreground: #f1f4f8;
+  --popover: #19222e;
+  --popover-foreground: #f1f4f8;
+  --primary: #f1f4f8;
+  --primary-foreground: #151d2a;
+  --secondary: #28303b;
+  --secondary-foreground: #f1f4f8;
+  --muted: #28303b;
+  --muted-foreground: #a6b1bf;
+  --accent: #28303b;
+  --accent-foreground: #f1f4f8;
+  --destructive: #ff4954;
+  --border: rgba(255, 255, 255, 0.13);
+  --input: rgba(255, 255, 255, 0.2);
+  --ring: #a6c7ff;
+  --chart-1: #ff4954;
+  --chart-2: #a6c7ff;
+  --chart-3: #ffb866;
+  --chart-4: #6fcf97;
+  --chart-5: #ccd3dc;
+  --sidebar: #28303b;
+  --sidebar-foreground: #f1f4f8;
+  --sidebar-primary: #f1f4f8;
+  --sidebar-primary-foreground: #151d2a;
+  --sidebar-accent: #343d49;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: #a6c7ff;
+  --sidebar-footer: #212935;
+  --sidebar-active: rgba(219, 0, 17, 0.38);
+  --sidebar-active-hover: rgba(219, 0, 17, 0.5);
+  --sidebar-active-bar: #ff4954;
 }
 
 @theme inline {
-	--radius-sm: calc(var(--radius) - 4px);
-	--radius-md: calc(var(--radius) - 2px);
-	--radius-lg: var(--radius);
-	--radius-xl: calc(var(--radius) + 4px);
-	/* Larger steps also derive from --radius (0 in BDL); without these Tailwind's
-	   defaults (1rem–2rem) leak in, e.g. rounded-4xl on Badge becomes a pill. */
-	--radius-2xl: calc(var(--radius) + 8px);
-	--radius-3xl: calc(var(--radius) + 12px);
-	--radius-4xl: var(--radius);
-	--color-background: var(--background);
-	--color-foreground: var(--foreground);
-	--color-card: var(--card);
-	--color-card-foreground: var(--card-foreground);
-	--color-popover: var(--popover);
-	--color-popover-foreground: var(--popover-foreground);
-	--color-primary: var(--primary);
-	--color-primary-foreground: var(--primary-foreground);
-	--color-secondary: var(--secondary);
-	--color-secondary-foreground: var(--secondary-foreground);
-	--color-muted: var(--muted);
-	--color-muted-foreground: var(--muted-foreground);
-	--color-accent: var(--accent);
-	--color-accent-foreground: var(--accent-foreground);
-	--color-destructive: var(--destructive);
-	--color-border: var(--border);
-	--color-input: var(--input);
-	--color-ring: var(--ring);
-	--color-chart-1: var(--chart-1);
-	--color-chart-2: var(--chart-2);
-	--color-chart-3: var(--chart-3);
-	--color-chart-4: var(--chart-4);
-	--color-chart-5: var(--chart-5);
-	--color-sidebar: var(--sidebar);
-	--color-sidebar-foreground: var(--sidebar-foreground);
-	--color-sidebar-primary: var(--sidebar-primary);
-	--color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-	--color-sidebar-accent: var(--sidebar-accent);
-	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-	--color-sidebar-border: var(--sidebar-border);
-	--color-sidebar-ring: var(--sidebar-ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: var(--radius);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
 }

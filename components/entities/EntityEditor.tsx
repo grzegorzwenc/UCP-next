@@ -127,8 +127,8 @@ export function EntityEditor({ base, marketId, marketRoot, marketName, flag, mod
       <p className="text-sm text-ink-3 mt-1 flex items-center gap-2 flex-wrap"><Link {...nav(detailLink(base, model.id))} className={`${chip} hover:bg-surface-2`} title="Open this content model in Content models">Model: {model.name} v{model.publishedVersion ?? model.version}</Link>{entity.lastModified && <When iso={entity.lastModified} prefix="Last modified " suffix={by ? ` by ${by}` : ""} />}</p></div>
       <div className="ml-auto flex gap-2 items-center flex-wrap">
         {canEdit ? <>{invalid && <span className="text-xs text-crit">{nErr} field{nErr === 1 ? "" : "s"} to fix</span>}
-          <button className="btn" disabled={!dirty || invalid || !!busy} onClick={save}>{busy === "save" ? "Saving…" : "Save"}</button>
-          <button className="btn btn-primary" disabled={pubDisabled} onClick={publish} title={entity.status === "published" && !dirty ? "Everything is published" : invalid ? "Fix the highlighted fields first" : undefined}>{busy === "publish" ? "Publishing…" : "Publish"}</button>
+          <button className="btn btn-sm btn-secondary" disabled={!dirty || invalid || !!busy} onClick={save}>{busy === "save" ? "Saving…" : "Save"}</button>
+          <button className="btn btn-sm btn-primary" disabled={pubDisabled} onClick={publish} title={entity.status === "published" && !dirty ? "Everything is published" : invalid ? "Fix the highlighted fields first" : undefined}>{busy === "publish" ? "Publishing…" : "Publish"}</button>
           <Menu label="More ▾" ariaLabel="More actions" buttonClassName="btn" items={[{ id: "dup", label: "Duplicate", disabled: !!busy, onSelect: duplicate }, { id: "del", label: "Delete", danger: true, disabled: !!busy, onSelect: remove }]} /></>
           : <span className="inline-flex items-center gap-1.5 text-xs text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="You need Edit on this site to change content."><span aria-hidden="true">🔒</span>Read-only</span>}
       </div></div>
@@ -147,7 +147,7 @@ export function EntityEditor({ base, marketId, marketRoot, marketName, flag, mod
         <UsedOn compact pages={usedOn} base={base} marketRoot={marketRoot} marketName={marketName} flag={flag} go={go} note="Publishing this entity updates these pages automatically." empty="Open a page, click a text and use ⤓ Choose content to show this entity there." />
         <section className="bg-surface border border-line rounded-xl p-4"><h2 className="text-sm font-medium mb-1">Tokens you can use on pages</h2>
           <p className="text-xs text-ink-3 mb-2">Type a token into any text on a page that uses this {model.name.toLowerCase()}. It shows this field’s value.</p>
-          <ul className="grid gap-1">{schema.map((f) => { const t = `{{${alias}.${f.k}}}`; return <li key={f.k} className="flex items-center gap-2 min-w-0"><code className="font-mono text-xs bg-surface-3 border border-line rounded px-1.5 py-0.5 truncate min-w-0 max-w-[65%]">{t}</code><span className="text-xs text-ink-4 truncate flex-1">{f.l}</span><button type="button" className="btn btn-sm btn-quiet" onClick={() => copy(t)} aria-label={`Copy ${t}`}>Copy</button></li>; })}</ul></section>
+          <ul className="grid gap-1">{schema.map((f) => { const t = `{{${alias}.${f.k}}}`; return <li key={f.k} className="flex items-center gap-2 min-w-0"><code className="font-mono text-xs bg-surface-3 border border-line rounded px-1.5 py-0.5 truncate min-w-0 max-w-[65%]">{t}</code><span className="text-xs text-ink-4 truncate flex-1">{f.l}</span><button type="button" className="btn-ghost" onClick={() => copy(t)} aria-label={`Copy ${t}`}>Copy</button></li>; })}</ul></section>
       </aside>
     </div>
   </div>;

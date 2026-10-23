@@ -57,7 +57,7 @@ function UsedOnPages({ used, hrefOf }: { used: { path: string; title: string; st
       <span className="text-xs font-medium text-ink-2 whitespace-nowrap">{open ? "Hide" : "Show"}</span><span aria-hidden className={`text-ink-3 text-xs transition-transform ${open ? "rotate-180" : ""}`}>▾</span>
     </button>
     {open && <><ul className="text-sm mt-1">{shown.map((p) => <li key={p.path}><Link href={hrefOf(p.path)} className="flex items-center gap-2 py-1.5 border-b border-line last:border-0 hover:bg-surface-2"><Pill status={p.status} /><span className="truncate">{p.title}</span><span className="ml-auto text-ink-3">›</span></Link></li>)}</ul>
-      {used.length > FIRST && <button type="button" className="btn btn-sm btn-quiet mt-1.5" onClick={() => setAll(!all)}>{all ? "Show fewer" : `Show all ${used.length}`}</button>}</>}
+      {used.length > FIRST && <button type="button" className="btn-ghost mt-1.5" onClick={() => setAll(!all)}>{all ? "Show fewer" : `Show all ${used.length}`}</button>}</>}
   </section>;
 }
 
@@ -103,7 +103,7 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
       <SideTree label="Folders" current={title}>
         <h6 className="text-xs tracking-[.1em] uppercase text-ink-3 font-medium px-2 mb-2">Asset library</h6>
         <FolderList root={{ label: `${flag} All assets`, count: assets.length, active: !folder && !view, onClick: () => go("") }} items={folders.map((f) => ({ key: f, label: f, count: assets.filter((x) => x.folder === f).length, active: folder === f, onClick: () => go(`?folder=${encodeURIComponent(f)}`) }))} />
-        {canEdit && <button className="btn btn-quiet btn-sm mt-2.5 ml-1" onClick={() => setNewFolder(true)}>＋ New folder</button>}
+        {canEdit && <button className="btn-ghost mt-2.5 ml-1" onClick={() => setNewFolder(true)}>＋ New folder</button>}
         <h6 className="text-xs tracking-[.1em] uppercase text-ink-3 font-medium px-2 mt-5 mb-2">Smart views</h6>
         <FolderList root={{ label: "Needs attention", count: unusedCount + noAlt.length }} items={[{ key: "unused", label: "Not used on any page", count: unusedCount, active: view === "unused", onClick: () => go("?view=unused"), icon: "page" }, { key: "noalt", label: "Missing accessibility info", count: noAlt.length, active: view === "noalt", onClick: () => go("?view=noalt"), icon: "page" }]} />
       </SideTree>
@@ -113,7 +113,7 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
         <input ref={replRef} type="file" accept="image/*,.pdf,.svg" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) replace(f); e.target.value = ""; }} />
         <div className="text-xs text-ink-3 mb-2 flex items-center gap-1.5"><button className="hover:underline" onClick={() => go("")}>Asset library</button>{(folder || view) && <><span>/</span><b className="text-ink">{title}</b></>}</div>
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3 mb-5"><div><h1 className="text-2xl font-medium">{title}</h1><p className="text-ink-3 text-sm mt-1">{list.length} file{list.length === 1 ? "" : "s"}{folder ? " in this folder" : view ? " in this view" : ` in the ${marketName} library`}</p></div>
-          <div className="ml-auto flex gap-2 items-center">{canEdit ? <><button className="btn" onClick={() => setNewFolder(true)}>＋ New folder</button><button className="btn btn-primary" disabled={busy === "upload"} onClick={() => uplRef.current?.click()}>{busy === "upload" ? "Uploading…" : "↑ Upload files"}</button></> : <span className="inline-flex items-center gap-1.5 text-xs text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="You don't have Edit on this site. Ask a site admin."><span aria-hidden="true">🔒</span>Read-only library</span>}</div></div>
+          <div className="ml-auto flex gap-2 items-center">{canEdit ? <><button className="btn btn-sm btn-secondary" onClick={() => setNewFolder(true)}>＋ New folder</button><button className="btn btn-sm btn-primary" disabled={busy === "upload"} onClick={() => uplRef.current?.click()}>{busy === "upload" ? "Uploading…" : "↑ Upload files"}</button></> : <span className="inline-flex items-center gap-1.5 text-xs text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="You don't have Edit on this site. Ask a site admin."><span aria-hidden="true">🔒</span>Read-only library</span>}</div></div>
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <input className="border border-line-2 rounded-md px-2.5 py-1.5 text-sm flex-1 sm:flex-none sm:w-[280px] min-w-[150px]" placeholder="Find a file by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a file by name" />
           <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-sm bg-surface" value={type} onChange={(e) => setType(e.target.value)} aria-label="File type"><option value="">Any type</option><option value="image">Images</option><option value="pdf">Documents</option><option value="svg">Icons</option></select>
@@ -136,10 +136,10 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
                   <td className="px-4 py-2.5">{a11y}</td>
                 </tr>; })
                 : <tr><td colSpan={3} className="p-10 text-center text-ink-3">No files here yet.{canEdit && " Upload some or drag them in."}</td></tr>}</tbody></table></div>
-            {list.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-xs text-ink-3">Showing {shown.length} of {list.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show more</button></div>}</div>
+            {list.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-xs text-ink-3">Showing {shown.length} of {list.length}<button className="btn btn-sm btn-secondary" onClick={() => setLimit(limit + PAGE)}>Show more</button></div>}</div>
             : <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">{list.length ? shown.map((x) => <button key={x.id} onClick={() => setSel(x.id)} className={`text-left bg-surface border rounded-lg p-2 hover:border-ink-4 ${a && x.id === a.id ? "border-brand ring-2 ring-brand-soft" : "border-line"}`}><Thumb a={x} className="w-full h-[96px]" /><b className="block text-xs mt-2 truncate" title={x.name}>{x.name}</b><small className="text-ink-3 text-xs flex items-center gap-1.5">{x.size}{noAlt.includes(x.id) && <span className="ml-auto text-xs font-medium px-1.5 rounded bg-warn-soft text-warn" title={`Missing: ${a11yGaps(x, locales[0]).join(", ")}`}>{(() => { const g = a11yGaps(x, locales[0]); return g.length > 1 ? "Needs alt text +" : `No ${g[0]?.toLowerCase() ?? "alt text"}`; })()}</span>}</small></button>)
               : <div className="col-span-full p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">No files here yet.{canEdit && " Upload some or drag them in."}</div>}
-              {list.length > shown.length && <div className="col-span-full flex items-center justify-center gap-3 py-4 text-xs text-ink-3">Showing {shown.length} of {list.length}<button className="btn btn-sm" onClick={() => setLimit(limit + PAGE)}>Show more</button></div>}</div>}
+              {list.length > shown.length && <div className="col-span-full flex items-center justify-center gap-3 py-4 text-xs text-ink-3">Showing {shown.length} of {list.length}<button className="btn btn-sm btn-secondary" onClick={() => setLimit(limit + PAGE)}>Show more</button></div>}</div>}
 
           {a && <div className="bg-surface border border-line rounded-lg p-4 lg:sticky lg:top-0">
             <Thumb a={a} className="w-full h-[180px]" />
@@ -152,10 +152,10 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
             <A11yPanel key={`${a.id}:${JSON.stringify(a.a11y ?? {})}`} asset={a} locales={locales} canEdit={canEdit} busy={busy === "a11y"} onSave={saveA11y} />
             <UsedOnPages key={a.id} used={used} hrefOf={(p) => `${base}/page${p.replace(root, "")}`} />
             <div className="flex flex-wrap gap-1.5 mt-4">
-              {canEdit && <><button className="btn btn-sm" disabled={!!busy} onClick={() => replRef.current?.click()}>{busy === "replace" ? "Replacing…" : "Replace"}</button>
-              <label className="btn btn-sm gap-1.5">Move to <select className="bg-transparent border-0 text-[inherit]" value={a.folder} disabled={!!busy} onChange={(e) => move(e.target.value)} aria-label="Move to folder">{folders.map((f) => <option key={f} value={f}>{f}</option>)}</select></label>
-              <button className="btn btn-sm" disabled={!!busy || !!used.length} title={used.length ? "Remove it from pages first" : undefined} onClick={del}>{busy === "delete" ? "Deleting…" : "Delete"}</button></>}
-              <button className="btn btn-sm" onClick={copyId} title={a.id}>Copy id</button>
+              {canEdit && <><button className="btn btn-sm btn-secondary" disabled={!!busy} onClick={() => replRef.current?.click()}>{busy === "replace" ? "Replacing…" : "Replace"}</button>
+              <label className="btn btn-sm btn-secondary gap-1.5">Move to <select className="bg-transparent border-0 text-[inherit]" value={a.folder} disabled={!!busy} onChange={(e) => move(e.target.value)} aria-label="Move to folder">{folders.map((f) => <option key={f} value={f}>{f}</option>)}</select></label>
+              <button className="btn btn-sm btn-secondary" disabled={!!busy || !!used.length} title={used.length ? "Remove it from pages first" : undefined} onClick={del}>{busy === "delete" ? "Deleting…" : "Delete"}</button></>}
+              <button className="btn btn-sm btn-secondary" onClick={copyId} title={a.id}>Copy id</button>
             </div>
           </div>}
         </div>
@@ -165,7 +165,7 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
         <div role="dialog" aria-labelledby="nf" className="bg-surface rounded-xl w-[min(480px,94vw)] shadow-2xl">
           <header className="px-6 pt-5 pb-3 flex items-center"><h2 id="nf" className="text-lg font-medium">New folder</h2><button className="ml-auto w-8 h-8 rounded text-ink-3 hover:bg-surface-3" onClick={() => setNewFolder(false)} aria-label="Close">×</button></header>
           <div className="px-6 pb-2"><label className="text-xs text-ink-3">Folder name<input autoFocus className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink" value={folderName} onChange={(e) => setFolderName(e.target.value.replace(/[\/\\]/g, ""))} onKeyDown={(e) => { if (e.key === "Enter") createFolder(); }} placeholder="e.g. Spring campaign" /></label><div className="mt-1 font-mono text-xs text-ink-3">/content/dam/{marketId}/{folderName.trim() || "…"}</div></div>
-          <footer className="px-6 pb-5 pt-3 flex justify-end gap-2"><button className="btn" onClick={() => setNewFolder(false)}>Cancel</button><button className="btn btn-primary" disabled={!folderName.trim() || busy === "folder"} onClick={createFolder}>{busy === "folder" ? "Creating…" : "Create folder"}</button></footer>
+          <footer className="px-6 pb-5 pt-3 flex justify-end gap-2"><button className="btn btn-sm btn-secondary" onClick={() => setNewFolder(false)}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!folderName.trim() || busy === "folder"} onClick={createFolder}>{busy === "folder" ? "Creating…" : "Create folder"}</button></footer>
         </div></div>}
       {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm z-50">{toast}</div>}
     </div>

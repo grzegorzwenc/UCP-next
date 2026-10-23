@@ -21,7 +21,7 @@ export function AssignDialog({ marketId, task, pageHref, onClose, onDone }: { ma
 
   return <ModalShell title={task.assigneeName ? "Change who does this" : "Assign this task"} width={480} onClose={onClose}
     subtitle={<>{task.what} · <b className="text-ink-2">{task.page.title}</b></>}
-    footer={<><Link href={pageHref} className="btn mr-auto">Open page</Link>{task.assigneeName && <button className="btn text-crit" disabled={busy} onClick={() => pick(null)}>Remove {task.assigneeName.split(" ")[0]}</button>}<button className="btn" onClick={onClose}>Cancel</button></>}>
+    footer={<><Link href={pageHref} className="btn btn-sm btn-secondary mr-auto">Open page</Link>{task.assigneeName && <button className="btn btn-sm btn-secondary text-crit" disabled={busy} onClick={() => pick(null)}>Remove {task.assigneeName.split(" ")[0]}</button>}<button className="btn btn-sm btn-secondary" onClick={onClose}>Cancel</button></>}>
     <label className="flex items-center gap-2 border border-line-2 rounded-md px-2.5 py-2 bg-surface"><span className="text-ink-3" aria-hidden>⌕</span>
       <input autoFocus className="flex-1 outline-none text-sm bg-transparent" placeholder="Type a name or team" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a person" /></label>
     <p className="text-xs text-ink-3 mt-2 mb-1.5">People with {perm} on this page</p>

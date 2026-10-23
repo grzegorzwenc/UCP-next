@@ -36,7 +36,7 @@ export function UsedOn({ pages, base, marketRoot, marketName, flag, note, empty,
           <PageIcon /><span className="flex-1 min-w-0"><span className="block text-sm font-medium text-ink truncate group-hover:underline">{p.title}</span><span className="block font-mono text-xs text-ink-3 truncate">{p.path.replace(marketRoot, "") || "/"}</span></span>
           <Pill status={p.status} /><span className="text-ink-4 group-hover:text-ink" aria-hidden>›</span></Link></li>)}
         {!shown.length && <li className="px-4 py-3 text-xs text-ink-3">No page matches “{q}”.</li>}</ul>
-      {!ql && hits.length > shown.length && <div className="px-4 pb-3"><button type="button" className="btn btn-sm w-full justify-center" onClick={() => setAll(true)}>Show all {hits.length} pages</button></div>}
+      {!ql && hits.length > shown.length && <div className="px-4 pb-3"><button type="button" className="btn btn-sm btn-secondary w-full justify-center" onClick={() => setAll(true)}>Show all {hits.length} pages</button></div>}
       {note && <p className="px-4 pb-3 text-xs text-ink-3">{note}</p>}
     </> : <div className="px-4 py-5 text-center"><span className="inline-grid place-items-center w-9 h-9 rounded-full bg-surface-3 text-ink-3 mb-2"><PageIcon /></span><div className="text-sm font-medium">Not used on any page yet</div><p className="text-xs text-ink-3 mt-0.5">{empty}</p></div>}
   </section>;

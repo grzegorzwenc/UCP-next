@@ -11,7 +11,7 @@ export function ReviewedChoice({ title, onBehalf, onSend, onReauthor, onClose }:
   const go = async (fn: () => Promise<void> | void) => { setBusy(true); try { await fn(); onClose(); } finally { setBusy(false); } };
   const opt = "w-full text-left border rounded-lg p-3.5 flex items-start gap-3 disabled:opacity-50 transition-colors";
   return <ModalShell title="Author's review done · what next?" subtitle={<><b className="text-ink-2">{title}</b>{onBehalf ? <> · on behalf of {onBehalf}</> : null}</>} width={500} onClose={() => { if (!busy) onClose(); }}
-    footer={<button className="btn" onClick={onClose} disabled={busy}>Cancel</button>}>
+    footer={<button className="btn btn-sm btn-secondary" onClick={onClose} disabled={busy}>Cancel</button>}>
     <div className="grid gap-2.5">
       <button type="button" disabled={busy} onClick={() => void go(onSend)} className={`${opt} border-brand/50 bg-brand-soft/40 hover:bg-brand-soft`}>
         <span aria-hidden className="mt-0.5 grid place-items-center w-7 h-7 rounded-full bg-brand text-white flex-none"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>

@@ -23,7 +23,7 @@ const ENDPOINTS: [string, string, string][] = [
 
 function CopyBtn({ text, label }: { text: string; label: string }) {
   const [ok, setOk] = useState(false);
-  return <button type="button" className="btn btn-sm" onClick={async () => { try { await navigator.clipboard.writeText(text); setOk(true); setTimeout(() => setOk(false), 1500); } catch {} }}>{ok ? "Copied" : label}</button>;
+  return <button type="button" className="btn btn-sm btn-secondary" onClick={async () => { try { await navigator.clipboard.writeText(text); setOk(true); setTimeout(() => setOk(false), 1500); } catch {} }}>{ok ? "Copied" : label}</button>;
 }
 const UrlLine = ({ url, tryHref }: { url: string; tryHref: string }) => <div className="flex items-center gap-2.5 bg-surface-2 border border-line rounded-lg px-3 py-2 mb-3 font-mono text-sm min-w-0"><span className="bg-good-soft text-good font-bold text-xs px-1.5 py-0.5 rounded">GET</span><span className="truncate flex-1">{url}</span><CopyBtn text={url} label="Copy URL" /><a className="btn btn-sm btn-primary" href={tryHref} target="_blank" rel="noreferrer">Try it ↗</a></div>;
 
@@ -55,12 +55,12 @@ export function ApiExplorer(p: Props) {
         <section className="bg-surface border border-line rounded-lg p-5 min-w-0">
           {p.tab === "pages" && (p.page ? <>
             <UrlLine url={pageUrl} tryHref={pageTry} />
-            <div className="flex items-center gap-2.5 mb-3 flex-wrap"><Pill status={p.page.status} label={published ? "Served from production" : "Available on preview API only"} /><span className="text-xs text-ink-3">{blocks} block{blocks === 1 ? "" : "s"} · generated from the current saved version</span><div className="ml-auto flex gap-2"><CopyBtn text={JSON.stringify(p.pageJson, null, 2)} label="Copy JSON" /><Link className="btn btn-sm" href={`${p.base}/page${route(p.page.path)}`}>Open in builder</Link></div></div>
+            <div className="flex items-center gap-2.5 mb-3 flex-wrap"><Pill status={p.page.status} label={published ? "Served from production" : "Available on preview API only"} /><span className="text-xs text-ink-3">{blocks} block{blocks === 1 ? "" : "s"} · generated from the current saved version</span><div className="ml-auto flex gap-2"><CopyBtn text={JSON.stringify(p.pageJson, null, 2)} label="Copy JSON" /><Link className="btn btn-sm btn-secondary" href={`${p.base}/page${route(p.page.path)}`}>Open in builder</Link></div></div>
             <Json value={p.pageJson ?? {}} maxHeight={620} label="page JSON" />
           </> : <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">No pages in this market yet.</div>)}
           {p.tab === "models" && (model ? <>
             <UrlLine url={modelUrl} tryHref={`/api/delivery/v1/models/${model.id}`} />
-            <div className="flex items-center gap-2.5 mb-3"><span className="text-xs text-ink-3">JSON Schema · {model.fields} field{model.fields === 1 ? "" : "s"} · v{model.version} · {model.group}</span><div className="ml-auto flex gap-2"><CopyBtn text={JSON.stringify(p.modelSchema, null, 2)} label="Copy JSON" /><Link className="btn btn-sm" href={`${p.base}/models?model=${model.id}`}>Edit model</Link></div></div>
+            <div className="flex items-center gap-2.5 mb-3"><span className="text-xs text-ink-3">JSON Schema · {model.fields} field{model.fields === 1 ? "" : "s"} · v{model.version} · {model.group}</span><div className="ml-auto flex gap-2"><CopyBtn text={JSON.stringify(p.modelSchema, null, 2)} label="Copy JSON" /><Link className="btn btn-sm btn-secondary" href={`${p.base}/models?model=${model.id}`}>Edit model</Link></div></div>
             <Json value={p.modelSchema ?? {}} maxHeight={620} label="schema" />
           </> : <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg">No models.</div>)}
           {p.tab === "endpoints" && <>

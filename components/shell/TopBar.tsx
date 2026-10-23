@@ -42,13 +42,13 @@ function Bell({ marketId, base, root }: { marketId: string; base: string; root: 
         {unread > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-brand text-white text-xs font-medium grid place-items-center">{unread}</span>}
       </button>
       {open && <div role="dialog" aria-label="Notifications" className="absolute right-0 top-[40px] w-[380px] bg-surface text-ink border border-line rounded-xl shadow-2xl z-50 overflow-hidden">
-        <div className="flex items-center px-4 py-3 border-b border-line"><b className="text-sm">Notifications</b><button className="btn btn-quiet btn-sm ml-auto" onClick={markAll}>Mark all as read</button></div>
+        <div className="flex items-center px-4 py-3 border-b border-line"><b className="text-sm">Notifications</b><button className="btn-ghost ml-auto" onClick={markAll}>Mark all as read</button></div>
         <div className="max-h-[380px] overflow-auto">{items.length ? items.map((n) => { const r = read.has(notifId(n)); return (
           <button key={notifId(n)} onClick={() => go(n)} className={`w-full text-left flex gap-3 px-4 py-3 border-b border-line hover:bg-surface-2 ${r ? "opacity-70" : ""}`}>
             <span className={`mt-1.5 w-2 h-2 rounded-full flex-none ${n.level === "crit" ? "bg-crit" : n.level === "warn" ? "bg-warn" : "bg-ink-4"}`} />
             <span className="text-sm leading-snug"><RichText text={n.text} /><small className="block text-ink-3 text-xs mt-0.5">{n.when}</small></span>
           </button>); }) : <div className="p-6 text-center text-ink-3 text-sm">Nothing new.</div>}</div>
-        <div className="flex gap-2 px-3 py-2 bg-surface-2"><Link href={`${base}/tasks`} onClick={close} className="btn btn-quiet btn-sm">See all tasks</Link><Link href={`${base}/audit`} onClick={close} className="btn btn-quiet btn-sm">Audit log</Link></div>
+        <div className="flex gap-2 px-3 py-2 bg-surface-2"><Link href={`${base}/tasks`} onClick={close} className="btn-ghost">See all tasks</Link><Link href={`${base}/audit`} onClick={close} className="btn-ghost">Audit log</Link></div>
       </div>}
       {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm shadow-xl z-50">{toast}</div>}
     </div>

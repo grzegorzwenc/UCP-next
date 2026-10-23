@@ -84,7 +84,7 @@ export function Users({ users: initialUsers, folders, log, pageTitles, base, roo
 
   return (<div className="p-4 md:p-7">
     <div className="flex flex-wrap items-start gap-x-4 gap-y-3 mb-5"><div><h1 className="text-2xl font-medium">Users & permissions</h1><p className="text-ink-3 text-sm mt-1">Who can see, edit, approve and publish, per folder</p></div>
-      <div className="ml-auto flex gap-2"><button className="btn btn-primary" disabled={!isAdmin} title={isAdmin ? undefined : "Only site admins can invite users"} onClick={() => { setErr(null); setInvite(true); }}>＋ Invite user</button></div></div>
+      <div className="ml-auto flex gap-2"><button className="btn btn-sm btn-primary" disabled={!isAdmin} title={isAdmin ? undefined : "Only site admins can invite users"} onClick={() => { setErr(null); setInvite(true); }}>＋ Invite user</button></div></div>
     {!isAdmin && <div role="note" className="mb-4 flex items-center gap-2.5 text-sm text-ink-2 bg-info-soft border border-info/30 px-3.5 py-2.5 rounded-lg"><span aria-hidden="true">🔒</span>Only site admins can change users and permissions. Ask {adminName}.</div>}
     {err && <div className="mb-4 text-crit text-xs bg-crit-soft px-3 py-2 rounded" role="alert">{err}</div>}
     <div className="grid grid-cols-1 md:grid-cols-[300px_1fr] gap-4 items-start">
@@ -98,7 +98,7 @@ export function Users({ users: initialUsers, folders, log, pageTitles, base, roo
         <div className="bg-surface border border-line rounded-lg p-5 mb-3.5 flex gap-4 items-center flex-wrap">
           <Avatar name={u.name} size={56} /><div className="flex-1 min-w-[200px]"><div className="text-xl font-medium">{u.name}</div><div className="font-mono text-ink-3 text-xs">{u.email} · {u.team} · signs in with company SSO</div></div>
           <label className="min-w-[220px] text-xs text-ink-2 font-medium">Role<select disabled={locked} className="mt-1 block w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink font-normal bg-surface" value={u.role} onChange={(e) => void setRole(e.target.value as Role)}>{(Object.keys(ROLES) as Role[]).map((k) => <option key={k} value={k}>{ROLES[k].name}</option>)}</select></label>
-          <button className="btn" disabled={locked} onClick={() => void remove()}>Remove access</button>
+          <button className="btn btn-sm btn-secondary" disabled={locked} onClick={() => void remove()}>Remove access</button>
         </div>
         <div className="bg-surface border border-line rounded-lg p-5">
           <h3 className="text-base font-medium mb-3">Permissions on {marketFlag} {marketName} <span className="font-normal text-ink-3 text-sm"></span></h3>
@@ -125,7 +125,7 @@ export function Users({ users: initialUsers, folders, log, pageTitles, base, roo
           <div className="col-span-2 text-xs text-ink-3">Sign-in id <span className="font-mono text-ink">{slugId(inv.name) || "…"}</span> · starts with the {ROLES[inv.role].name} permissions on the whole site; adjust per folder afterwards.</div>
           {err && <div className="col-span-2 text-crit text-xs bg-crit-soft px-3 py-2 rounded">{err}</div>}
         </div>
-        <footer className="px-6 pb-5 pt-3 flex justify-end gap-2"><button className="btn" onClick={() => setInvite(false)}>Cancel</button><button className="btn btn-primary" disabled={!slugId(inv.name) || busy} onClick={() => void sendInvite()}>{busy ? "Inviting…" : "Send invitation"}</button></footer>
+        <footer className="px-6 pb-5 pt-3 flex justify-end gap-2"><button className="btn btn-sm btn-secondary" onClick={() => setInvite(false)}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!slugId(inv.name) || busy} onClick={() => void sendInvite()}>{busy ? "Inviting…" : "Send invitation"}</button></footer>
       </div></div>}
     {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm z-50" role="status">{toast}</div>}
   </div>);

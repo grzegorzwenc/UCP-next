@@ -26,10 +26,10 @@ export function ModelDetail({ p, md, isAdmin, go }: { p: Props; md: Model; isAdm
       <div className="flex items-center gap-2.5 flex-wrap"><h1 className="text-2xl font-medium leading-tight">{md.name}</h1><StatusPill status={md.status} /><span className={chip} title="Draft version">v{md.version}</span>{md.publishedVersion && <span className={chip} title="Version served by the delivery API">Published: v{md.publishedVersion}</span>}</div>
       <p className="text-sm text-ink-3 mt-1 max-w-[720px]">{md.description || <span className="text-ink-4">No description</span>}</p></div>
       <div className="ml-auto flex gap-2 items-center flex-wrap">
-        <Link className="btn btn-sm" {...nav(`${p.base}/api?tab=models&model=${md.id}`)}>View JSON schema</Link>
-        {block ? <Link className="btn btn-sm" {...nav(editLink(p.base, md.id))}>View details</Link>
-          : isAdmin ? <Link className="btn" {...nav(editLink(p.base, md.id))}>✎ Edit model</Link>
-          : <Link className="btn btn-sm" {...nav(editLink(p.base, md.id))} title="Only site admins can change content models">View documentation</Link>}
+        <Link className="btn btn-sm btn-secondary" {...nav(`${p.base}/api?tab=models&model=${md.id}`)}>View JSON schema</Link>
+        {block ? <Link className="btn btn-sm btn-secondary" {...nav(editLink(p.base, md.id))}>View details</Link>
+          : isAdmin ? <Link className="btn btn-sm btn-secondary" {...nav(editLink(p.base, md.id))}>✎ Edit model</Link>
+          : <Link className="btn btn-sm btn-secondary" {...nav(editLink(p.base, md.id))} title="Only site admins can change content models">View documentation</Link>}
       </div></div>
 
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3 max-w-[640px]">

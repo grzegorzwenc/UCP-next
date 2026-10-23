@@ -79,7 +79,7 @@ export function CompareView({ marketId, marketName, path, onClose }: { marketId:
   return <div role="dialog" aria-modal="true" aria-label="Compare with live" className="fixed inset-0 z-[80] bg-bg flex flex-col">
     <header className="flex flex-wrap items-center gap-3 px-4 py-2.5 bg-surface border-b border-line">
       <b className="text-base">Compare with live</b><span className="text-ink-3 text-sm truncate">{data?.authoring.title ?? ""}</span>
-      <button type="button" className="btn btn-sm ml-auto" onClick={onClose}>Close</button>
+      <button type="button" className="btn btn-sm btn-secondary ml-auto" onClick={onClose}>Close</button>
     </header>
     {err ? <p className="m-6 text-crit">{err}</p> : !data ? <p className="m-6 text-ink-3">Loading…</p> : !data.live ? <p className="m-6 text-ink-2">This page has never been published, so there is nothing to compare with.</p> :
     <div className="flex-1 min-h-0 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_320px]">

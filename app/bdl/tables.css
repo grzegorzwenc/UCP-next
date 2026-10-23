@@ -1,5 +1,3 @@
-/* BDL Tables — base table styles + variants */
-
 @layer base {
   table:not(.table-plain) {
     width: 100%;
