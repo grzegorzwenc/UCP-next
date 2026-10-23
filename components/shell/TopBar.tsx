@@ -56,6 +56,25 @@ function Bell({ marketId, base, root }: { marketId: string; base: string; root: 
 }
 
 /**
+ * True once the page content is scrolled away from the top. The scrolling element is the inset's
+ * content div, not the window, so it is found by the `data-scroll-root` hook the CMS layout puts
+ * on it. The initial read happens in a rAF rather than inline in the effect, so no state is set
+ * synchronously during the effect.
+ */
+function useScrolled() {
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const el = document.querySelector<HTMLElement>("[data-scroll-root]");
+    if (!el) return;
+    const read = () => setScrolled(el.scrollTop > 2);
+    const frame = requestAnimationFrame(read);
+    el.addEventListener("scroll", read, { passive: true });
+    return () => { cancelAnimationFrame(frame); el.removeEventListener("scroll", read); };
+  }, []);
+  return scrolled;
+}
+
+/**
  * Verbatim port of hsbc-ucpmock's app header (`src/routes/(app)/+layout.svelte`): h-16 that
  * shrinks to h-12 when the sidebar is in icon mode, a px-4 group holding the trigger, a vertical
  * rule and the breadcrumb, then a search control that looks like a field and opens the ⌘K palette.
@@ -68,11 +87,16 @@ function Bell({ marketId, base, root }: { marketId: string; base: string; root: 
  */
 export function TopBar({ marketId, envId }: { marketId: string; envId: string }) {
   const pathname = usePathname();
+  const scrolled = useScrolled();
   const m = market(marketId); const base = `/${marketId}/${envId}`;
   const crumbs = crumbsFor(pathname, marketId, envId);
   const openPalette = () => window.dispatchEvent(new Event("ucp:palette"));
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
+    <header
+      className={`flex h-16 shrink-0 items-center gap-2 border-b transition-[width,height,background-color,border-color] duration-160 ease-out group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 ${
+        scrolled ? "bg-surface-2 border-border" : "bg-background border-transparent"
+      }`}
+    >
       <div className="flex items-center gap-2 px-4">
         <SidebarTrigger className="-ms-1" />
         <Separator orientation="vertical" className="me-2 self-center! h-4!" />

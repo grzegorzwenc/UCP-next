@@ -1,12 +1,14 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
-import { FilePlus2, PenLine, ClipboardCheck, ImageUp } from "lucide-react";
+import { FilePlus2, PenLine, ClipboardCheck, ImageUp, FileText, CheckCheck, Activity, TriangleAlert } from "lucide-react";
 import { market, env } from "@/lib/markets";
 import { allPages } from "@/lib/server/pages";
 import { readLogFor, listTasks, userName, me } from "@/lib/server/ucp";
 import { Pill } from "@/components/ui/Pill";
 import { Avatar } from "@/components/ui/Avatar";
 import { ActionCard } from "@/components/ui/ActionCard";
+import { StatCard } from "@/components/ui/StatCard";
+import { SectionTitle } from "@/components/ui/SectionTitle";
 import { DismissibleNotice } from "@/components/ui/DismissibleNotice";
 import { noticeCookie } from "@/lib/notices";
 
@@ -52,12 +54,17 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
   const health = ({ prod: ["99.98%", "84 ms"], stage: ["99.9%", "96 ms"], test: ["98.7%", "140 ms"], dev: ["97.2%", "210 ms"] } as Record<string, string[]>)[ev.id] ?? ["99.9%", "90 ms"];
   const overdue = tasks.filter((t) => t.overdueDays > 0).length; const oldest = tasks.filter((t) => t.kind === "Review").sort((a, b) => (a.sentAt ?? "").localeCompare(b.sentAt ?? ""))[0];
   const waitingDays = oldest?.sentAt ? Math.max(0, Math.round((now() - new Date(oldest.sentAt).getTime()) / 86400000)) : 0;
+  const failed = c("failed");
+  const waiting = c("review") + c("inreview") + c("bizreview");
   const tiles = [
-    { l: `Pages on ${mk.name}`, v: n, sub: `${c("published")} published · ${c("draft") + c("failed")} in draft`, href: `${base}/pages`, go: "View pages", color: "var(--brand)" },
-    { l: "Waiting for review", v: c("review") + c("inreview") + c("bizreview"), sub: c("review") + c("inreview") + c("bizreview") ? `${c("review") + c("inreview")} author's · ${c("bizreview")} business${c("review") ? ` · oldest ${waitingDays} day${waitingDays === 1 ? "" : "s"}` : ""}` : "Nothing waiting. Nice.", href: `${base}/tasks`, go: "Open reviews", color: "var(--review)" },
-    { l: "Published", v: c("published"), sub: `${pct(c("published"), n)}% of the site is live`, href: `${base}/pages`, go: "See published pages", color: "var(--good)" },
-    { l: `Delivery · ${ev.name}`, v: c("failed") ? `${c("failed")} failed` : health[0], sub: c("failed") ? "A publish failed and needs action" : `Uptime · ${health[1]} typical response`, href: `${base}/api`, go: "Delivery details", color: c("failed") ? "var(--crit)" : "var(--info)" },
+    { label: `Pages on ${mk.name}`, value: n, detail: `${c("published")} published · ${c("draft") + failed} in draft`, href: `${base}/pages`, icon: FileText },
+    { label: "Waiting for review", value: waiting, detail: waiting ? `${c("review") + c("inreview")} author's · ${c("bizreview")} business${c("review") ? ` · oldest ${waitingDays}d` : ""}` : "Nothing waiting", href: `${base}/tasks`, icon: ClipboardCheck },
+    { label: "Published", value: c("published"), detail: `${pct(c("published"), n)}% of the site is live`, href: `${base}/pages`, icon: CheckCheck },
+    failed
+      ? { label: `Delivery · ${ev.name}`, value: `${failed} failed`, detail: "A publish failed and needs action", href: `${base}/api`, icon: TriangleAlert, tone: "alert" as const }
+      : { label: `Delivery · ${ev.name}`, value: health[0], detail: `Uptime · ${health[1]} typical response`, href: `${base}/api`, icon: Activity },
   ];
+
   const recent = all.slice().sort((a, b) => (b.lastModified ?? "").localeCompare(a.lastModified ?? "")).slice(0, 6);
   const bySection = folders.map((f) => ({ f, n: all.filter((p) => p.path.startsWith(f.path + "/")).length })).sort((a, b) => b.n - a.n); const secMax = bySection[0]?.n || 1;
   const who = await me();
@@ -89,13 +96,15 @@ export default async function Dashboard({ params }: PageProps<"/[market]/[env]/d
       {/* Quick actions, ordered by how often authors use them. Card treatment ported from
           hsbc-ucpmock's home: an icon tile that wiggles on hover, and an "Explore →" that fades
           and slides in beside the title. "Create a page" keeps the filled HSBC red. */}
-      <h2 className="text-sm font-medium text-muted-foreground mb-3">What do you want to do?</h2>
+      <SectionTitle id="quick-actions">What do you want to do?</SectionTitle>
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 mb-6">
         {QUICK.map((a) => <ActionCard key={a.title} {...a} description={a.desc} />)}
       </div>
-      <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-3.5 mb-5">
-        {tiles.map((t) => <Link key={t.l} href={t.href} className="bg-surface border border-line p-6 min-h-[150px] flex flex-col gap-1.5 hover:border-ink-3 hover:shadow-md" style={{ borderTop: `4px solid ${t.color}` }}><span className="text-sm text-ink-2">{t.l}</span><span className="text-4xl font-light leading-none tabular-nums" style={{ color: t.color === "var(--crit)" ? t.color : undefined }}>{t.v}</span><span className="text-sm text-ink-3">{t.sub}</span><span className="text-sm font-medium mt-auto">{t.go} <span className="text-brand font-bold">›</span></span></Link>)}
+      <SectionTitle id="at-a-glance" help="Where this market stands right now. Every figure opens the list behind it.">Where things stand</SectionTitle>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 mb-6">
+        {tiles.map((t) => <StatCard key={t.label} {...t} />)}
       </div>
+      <SectionTitle id="workspace" help="Status, activity, sections, tasks and what changed recently.">Your workspace</SectionTitle>
       <div className="grid md:grid-cols-2 gap-3.5 mb-3.5">
         <Card title="Content by status"><StatusViz total={n} parts={[{ l: "Published", n: c("published"), c: "var(--good)" }, { l: "Ready to publish", n: c("approved"), c: "var(--info)" }, { l: "Waiting for author's review assignment", n: c("review"), c: "var(--review)" }, { l: "In author's review", n: c("inreview"), c: "var(--review)" }, { l: "Reviewed", n: c("reviewed"), c: "var(--good)" }, { l: "In business review", n: c("bizreview"), c: "var(--warn)" }, { l: "Scheduled", n: c("scheduled"), c: "var(--sched)" }, { l: "Draft", n: c("draft"), c: "var(--neutral)" }, { l: "Publish failed", n: c("failed"), c: "var(--crit)" }].filter((p) => p.n)} /></Card>
         <Card title="Content activity" right={<span className="font-normal text-ink-3">Last 30 days</span>}><LineChart /></Card>

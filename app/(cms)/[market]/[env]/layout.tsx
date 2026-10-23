@@ -24,7 +24,7 @@ export default async function CmsLayout({ children, params }: LayoutProps<"/[mar
         <SidebarInset className="min-w-0 grid grid-rows-[auto_1fr] overflow-hidden">
           <TopBar marketId={mid} envId={env} />
           <Palette marketId={mid} envId={env} />
-          <div className="overflow-auto min-w-0">{children}</div>
+          <div data-scroll-root className="overflow-auto min-w-0">{children}</div>
         </SidebarInset>
       </SidebarProvider>
       </TooltipProvider>
