@@ -1,42 +1,32 @@
 # EP-09 · Delivery API
 
-| | |
-|---|---|
-| **Epic** | EP-09 · Delivery API |
-| **Business benefit** | Every website and app reads the same approved content from one API, so the bank stops duplicating content per channel. Clear contracts and schemas let development teams integrate quickly and with fewer defects. |
-| **Scope** | Approved content as JSON for every HSBC website and app. |
-| **Stories** | 3 |
-| **Jira** | Issue type Epic · Team WPB Digital Browser: Tools |
+**Epic:** EP-09 · Delivery API
 
-## Stories in this epic
+**Business benefit:** Every website and app reads the same approved content from one API, so the bank stops duplicating content per channel. Clear contracts and schemas let development teams integrate quickly and with fewer defects.
 
-| # | Story | Persona | Depends on |
-|---|---|---|---|
-| 1 | [US-09.01 · Get only approved content, and preview drafts separately](#us-0901--get-only-approved-content-and-preview-drafts-separately) | front-end developer | US-05.01 |
-| 2 | [US-09.02 · Render pages straight from the JSON](#us-0902--render-pages-straight-from-the-json) | front-end developer | US-09.01, US-03.15, US-06.04 |
-| 3 | [US-09.03 · Explore and try the API in the CMS](#us-0903--explore-and-try-the-api-in-the-cms) | front-end developer | US-09.01, US-09.02 |
+**Scope:** Approved content as JSON for every HSBC website and app.
 
-🛡 site-admin story · ⏭ planned, not built yet · 🧪 runs on a stand-in today (mock)
+**Stories (3):**
+
+1. [US-09.01 · Get only approved content, and preview drafts separately](#us-0901--get-only-approved-content-and-preview-drafts-separately)
+2. [US-09.02 · Render pages straight from the JSON](#us-0902--render-pages-straight-from-the-json)
+3. [US-09.03 · Explore and try the API in the CMS](#us-0903--explore-and-try-the-api-in-the-cms)
 
 ---
 
 ## US-09.01 · Get only approved content, and preview drafts separately
 
-| | |
-|---|---|
-| **Story** | US-09.01 · Get only approved content, and preview drafts separately |
-| **Business benefit** | Only approved content can reach customers through any channel, reducing the risk of leaking unreleased offers. Separate previews let teams test upcoming pages without affecting live sites. |
-| **Persona** | front-end developer |
-| **Depends on** | US-05.01 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Only approved content can reach customers through any channel, reducing the risk of leaking unreleased offers. Separate previews let teams test upcoming pages without affecting live sites.
 
-**User story**
+**User story:**
 
-> As a front-end developer  
-> I want the public API to return only published pages, with a separate preview address for drafts  
-> So that customers only ever see approved content while I can still test upcoming pages  
+As a front-end developer  
+I want the public API to return only published pages, with a separate preview address for drafts  
+So that customers only ever see approved content while I can still test upcoming pages  
 
-**Acceptance criteria**
+**Persona:** front-end developer · **Depends on:** US-05.01
+
+**Acceptance criteria:**
 
 **Scenario 1 · List of published pages**
 
@@ -59,25 +49,22 @@ When I call "GET /api/delivery/v1/preview/pages/banking/new-offer"
 Then I get the page JSON
 ```
 
+
 ---
 
 ## US-09.02 · Render pages straight from the JSON
 
-| | |
-|---|---|
-| **Story** | US-09.02 · Render pages straight from the JSON |
-| **Business benefit** | All websites and apps show the same approved content from one source, cutting duplicate work across channels. Ready-to-use JSON and schemas shorten integration time and reduce rendering errors. |
-| **Persona** | front-end developer |
-| **Depends on** | US-09.01, US-03.15, US-06.04 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** All websites and apps show the same approved content from one source, cutting duplicate work across channels. Ready-to-use JSON and schemas shorten integration time and reduce rendering errors.
 
-**User story**
+**User story:**
 
-> As a front-end developer  
-> I want page JSON with resolved values, image renditions, form references and meta, plus a JSON Schema for each model  
-> So that any channel can render the content without extra lookups or guesswork  
+As a front-end developer  
+I want page JSON with resolved values, image renditions, form references and meta, plus a JSON Schema for each model  
+So that any channel can render the content without extra lookups or guesswork  
 
-**Acceptance criteria**
+**Persona:** front-end developer · **Depends on:** US-09.01, US-03.15, US-06.04
+
+**Acceptance criteria:**
 
 **Scenario 1 · Page JSON**
 
@@ -95,34 +82,27 @@ When I call "GET /api/delivery/v1/models/rate"
 Then I get a JSON Schema with the required fields and localised fields marked
 ```
 
+
 ---
 
 ## US-09.03 · Explore and try the API in the CMS
 
-| | |
-|---|---|
-| **Story** | US-09.03 · Explore and try the API in the CMS |
-| **Business benefit** | Developers integrate new channels faster without waiting for separate documentation. Self-service exploration lowers support effort and time to market. |
-| **Persona** | front-end developer |
-| **Depends on** | US-09.01, US-09.02 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Developers integrate new channels faster without waiting for separate documentation. Self-service exploration lowers support effort and time to market.
 
-**User story**
+**User story:**
 
-> As a front-end developer  
-> I want a screen that shows each page's address and JSON, the model schemas and all endpoints, with "Copy URL" and "Try it"  
-> So that I can integrate quickly without reading separate documentation  
+As a front-end developer  
+I want a screen that shows each page's address and JSON, the model schemas and all endpoints, with "Copy URL" and "Try it"  
+So that I can integrate quickly without reading separate documentation  
 
-**Acceptance criteria**
+**Persona:** front-end developer · **Depends on:** US-09.01, US-09.02
 
-**Scenario · API & delivery screen**
+**Acceptance criteria:**
+
+**Scenario 1 · API & delivery screen**
 
 ```gherkin
 When I open "API & delivery"
 Then I can pick a page and see its public or preview address, its JSON, "Copy URL" and "Try it"
 And see the JSON Schema of each model and a table of all endpoints
 ```
-
----
-
-Source (Gherkin): [`gherkin/09-delivery-api.feature`](gherkin/09-delivery-api.feature) · Generated with `python3 tools/story-map.py` — edit the Gherkin file, then regenerate.

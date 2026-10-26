@@ -1,50 +1,41 @@
 # HSBC Unified Content Platform — product specification
 
 Reverse-engineered from the working prototype (`ucp-next`, October 2026).
-Behaviour is written in Gherkin (`Given / When / Then`) so it can be read by the business
-and turned into automated acceptance tests later.
+Acceptance criteria are written as Gherkin scenarios (`Given / When / Then`) so they can be read
+by the business and turned into automated acceptance tests later.
 
 ## 1. Product in one sentence
 
 **One platform where every HSBC market builds, reviews, approves and publishes web content
 with the same HSBC components, the same four-eyes workflow and a full audit trail.**
 
-## 2. Hierarchy
+## 2. How this specification is organised
+
+**One source of truth: the epic pages in [`epics/`](epics/).** Everything about an epic and its
+stories is written there, and only there. This README and the roadmap only point to them.
 
 ```
-Product  ─ HSBC Unified Content Platform
- └─ Epic        (9)    EP-<nn> · name, one page in epics/ = one Jira Epic, e.g. "EP-04 · Review workflow"
-     └─ Story   (87)   Rule: US-<epic>.<nn> · name = one Jira Story
-         │              As a <persona> / I want … / So that …
-         └─ Scenario (236) acceptance criteria (Given / When / Then)
+docs/spec/
+├── README.md     this page: overview, epics list, how to create them in Jira
+├── ROADMAP.md    what is built, what comes next, build order
+└── epics/        one page per Jira Epic (EP-01 … EP-09) — the source of truth
 ```
 
-Every story has the same shape, in this order:
+Every epic page reads top to bottom:
 
-```gherkin
-  # Business benefit: <two sentences: what the bank gains — time, risk, compliance, cost, trust>.
-  @admin @depends:US-03.02        ← optional tags: site-admin story, stories it needs first
-  Rule: US-03.04 · Never lose my work      ← ID (epic.order) and name
-    As a content author                       ← user story
-    I want …
-    So that …
+```
+# EP-03 · Page builder
+Epic · Business benefit · Scope · list of stories
 
-    Scenario: …                               ← acceptance criteria
+## US-03.04 · Never lose my work          ← one Jira Story (ID = epic.order)
+Business benefit                           two sentences: what the bank gains
+User story                                 As a … / I want … / So that …
+Persona · Depends on                       stories that must exist first ("is blocked by")
+Acceptance criteria                        Scenario 1, Scenario 2, … (Given / When / Then)
 ```
 
-Inside each epic, stories are listed **in build order** (the last number of the ID is that order).
-`@depends:` names every story that has to exist first, also in other epics. Readable epic pages are in [`epics/`](epics/) (one `EP-nn-….md` per epic);
-the Gherkin sources they are generated from are in `epics/gherkin/`. The sources keep the `.feature` extension and the `Feature:` keyword only because Gherkin tools require them — in this
-project that line always names an epic (`Feature: EP-03 · Page builder`), with the epic's `# Business benefit:`
-above it. A Background that only some stories need sits inside those stories.
-Old three-part IDs (before the Epic → Story layout) map to the new ones in [tools/id-mapping.txt](tools/id-mapping.txt). The whole picture —
-benefits, dependencies and build waves for the product — is in **[STORY-MAP.md](STORY-MAP.md)**.
-
-Related requirements are merged into one story (one goal for one persona); a story is split only
-when the persona changes. Site-admin-only stories are tagged `@admin`, planned ones `@status:next`.
-
-Tags: `@epic:<name>` and `@status:done | next | later` on every epic, `@mock` where the
-prototype uses a stand-in (SSO, AI), `@admin` / `@status:next` on individual stories.
+Stories inside an epic are listed **in build order**. Related requirements are merged into one story
+(one goal for one persona); a story is split only when the persona changes.
 
 ## 3. Who uses it (personas)
 
@@ -116,11 +107,11 @@ sequenceDiagram
 **Site admin is the exception, not the flow.** A site admin sees every action on every step
 ("Reviewed for …", "Sign off for …", take their own page from the Backlog) so the platform can be
 demoed end to end and urgent pages can be unblocked. Each such step is written to the audit log
-as "on behalf of". Ordinary users never see buttons for someone else's step (stories tagged `@admin`).
+as "on behalf of". Ordinary users never see buttons for someone else's step (stories marked "site admin only").
 
 ## 5. Epics
 
-| # | Epic (file) | Stories | What it covers |
+| # | Epic | Stories | What it covers |
 |---|---|---|---|
 | EP-01 | [Access & navigation](epics/EP-01-access-and-navigation.md) | 9 | Who you are, where you are, what you may do |
 | EP-02 | [Pages](epics/EP-02-pages.md) | 8 | The site tree and safe page operations |
@@ -132,7 +123,37 @@ as "on behalf of". Ordinary users never see buttons for someone else's step (sto
 | EP-08 | [Governance](epics/EP-08-governance.md) | 3 | Proof and overview |
 | EP-09 | [Delivery API](epics/EP-09-delivery-api.md) | 3 | Content for every channel |
 
-## 6. Glossary
+## 6. Creating the epics and stories in Jira
+
+Copy everything from the epic pages; nothing has to be invented.
+
+**Epics** (create the 9 epics first)
+
+| Jira field | Value |
+|---|---|
+| Issue type | **Epic** |
+| Epic name / Summary | e.g. `EP-03 · Page builder` |
+| Team | **WPB Digital Browser: Tools** |
+| Description | the epic's **Business benefit** and **Scope** |
+
+**Stories** (same settings for all 87)
+
+| Jira field | Value |
+|---|---|
+| Issue type | **Story** |
+| Story type | **Functional** |
+| Sprint | **TBD** |
+| Team | **WPB Digital Browser: Tools** |
+| Epic Link | the epic the story is under, e.g. `EP-03 · Page builder` |
+| Summary | story ID and name, e.g. `US-03.04 · Never lose my work` |
+| Description | **Business benefit**, then **User story**, then **Acceptance criteria** |
+| Acceptance criteria | **only** the acceptance criteria (Background, if any, and Scenario 1, 2, …) |
+
+- Create the stories in the order they appear on the epic page.
+- Record every **Depends on** as an issue link "is blocked by".
+- Keep the story ID at the start of the Summary, so a Jira ticket always matches its section on the epic page.
+
+## 7. Glossary
 
 | Term | Meaning |
 |---|---|
@@ -147,7 +168,7 @@ as "on behalf of". Ordinary users never see buttons for someone else's step (sto
 | Four eyes | The rule that a different person checks each step |
 | Review link | A link that lets people without UCP comment and, if invited, decide |
 
-## 7. Where the truth lives in the code
+## 8. Where the behaviour lives in the code
 
 | Area | Files |
 |---|---|

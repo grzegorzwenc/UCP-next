@@ -1,47 +1,37 @@
 # EP-05 · Publishing
 
-| | |
-|---|---|
-| **Epic** | EP-05 · Publishing |
-| **Business benefit** | Only signed-off pages go live, together with every image and document they need, so customers never see half-finished or broken content. Scheduled releases go live at the agreed minute without out-of-hours work. |
-| **Scope** | Going live safely: publish now or on schedule together with the files a page uses, and compare drafts with what customers see. |
-| **Stories** | 6 |
-| **Jira** | Issue type Epic · Team WPB Digital Browser: Tools |
+**Epic:** EP-05 · Publishing
 
-## Stories in this epic
+**Business benefit:** Only signed-off pages go live, together with every image and document they need, so customers never see half-finished or broken content. Scheduled releases go live at the agreed minute without out-of-hours work.
 
-| # | Story | Persona | Depends on |
-|---|---|---|---|
-| 1 | [US-05.01 · Publish a signed-off page now, together with its files](#us-0501--publish-a-signed-off-page-now-together-with-its-files) | publisher | US-04.09, US-06.07 |
-| 2 | [US-05.02 · Publish later at a chosen time](#us-0502--publish-later-at-a-chosen-time) | publisher | US-05.01 |
-| 3 | [US-05.03 · Publish several pages in one go](#us-0503--publish-several-pages-in-one-go) | publisher | US-05.01 |
-| 4 | [US-05.04 · Hand a signed-off page over to the publisher](#us-0504--hand-a-signed-off-page-over-to-the-publisher) | content author | US-05.01 |
-| 5 | [US-05.05 · See what will change before publishing](#us-0505--see-what-will-change-before-publishing) | publisher | US-05.01, US-03.20 |
-| 6 | [US-05.06 · Check an older version against live](#us-0506--check-an-older-version-against-live) | content author | US-05.05 |
+**Scope:** Going live safely: publish now or on schedule together with the files a page uses, and compare drafts with what customers see.
 
-🛡 site-admin story · ⏭ planned, not built yet · 🧪 runs on a stand-in today (mock)
+**Stories (6):**
+
+1. [US-05.01 · Publish a signed-off page now, together with its files](#us-0501--publish-a-signed-off-page-now-together-with-its-files)
+2. [US-05.02 · Publish later at a chosen time](#us-0502--publish-later-at-a-chosen-time)
+3. [US-05.03 · Publish several pages in one go](#us-0503--publish-several-pages-in-one-go)
+4. [US-05.04 · Hand a signed-off page over to the publisher](#us-0504--hand-a-signed-off-page-over-to-the-publisher)
+5. [US-05.05 · See what will change before publishing](#us-0505--see-what-will-change-before-publishing)
+6. [US-05.06 · Check an older version against live](#us-0506--check-an-older-version-against-live)
 
 ---
 
 ## US-05.01 · Publish a signed-off page now, together with its files
 
-| | |
-|---|---|
-| **Story** | US-05.01 · Publish a signed-off page now, together with its files |
-| **Business benefit** | Approved pages reach customers in one controlled step instead of a chain of manual releases. Publishing the files with the page removes broken pictures and missing documents that damage customer trust. |
-| **Persona** | publisher |
-| **Depends on** | US-04.09, US-06.07 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Approved pages reach customers in one controlled step instead of a chain of manual releases. Publishing the files with the page removes broken pictures and missing documents that damage customer trust.
 
-**User story**
+**User story:**
 
-> As a publisher  
-> I want to put a page that passed both reviews live in one step, together with the pictures and documents it uses  
-> So that customers never see a page with missing pictures or documents  
+As a publisher  
+I want to put a page that passed both reviews live in one step, together with the pictures and documents it uses  
+So that customers never see a page with missing pictures or documents  
 
-**Acceptance criteria**
+**Persona:** publisher · **Depends on:** US-04.09, US-06.07
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given I am signed in as "jordan.mensah" with Publish on the folder
@@ -89,27 +79,24 @@ And a live copy of the page is kept for comparisons
 And confetti and "Published! Cash ISA is live" fill the screen
 ```
 
+
 ---
 
 ## US-05.02 · Publish later at a chosen time
 
-| | |
-|---|---|
-| **Story** | US-05.02 · Publish later at a chosen time |
-| **Business benefit** | Campaigns and rate changes go live at the agreed minute without anyone working out of hours. Fewer manual late-night releases also means fewer publishing mistakes and lower overtime cost. |
-| **Persona** | publisher |
-| **Depends on** | US-05.01 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Campaigns and rate changes go live at the agreed minute without anyone working out of hours. Fewer manual late-night releases also means fewer publishing mistakes and lower overtime cost.
 
-**User story**
+**User story:**
 
-> As a publisher  
-> I want to schedule a signed-off page to go live at a chosen time, and cancel that schedule if plans change  
-> So that content goes live exactly when the campaign or rate change starts, without anyone being online  
+As a publisher  
+I want to schedule a signed-off page to go live at a chosen time, and cancel that schedule if plans change  
+So that content goes live exactly when the campaign or rate change starts, without anyone being online  
 
-**Acceptance criteria**
+**Persona:** publisher · **Depends on:** US-05.01
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given I am signed in as "jordan.mensah" with Publish on the folder
@@ -146,33 +133,30 @@ When I click "Cancel schedule"
 Then the page is back at "Ready to publish"
 ```
 
+
 ---
 
 ## US-05.03 · Publish several pages in one go
 
-| | |
-|---|---|
-| **Story** | US-05.03 · Publish several pages in one go |
-| **Business benefit** | Related pages of a launch go live together, so customers never see half of a product release. Per-page results cut the time spent finding out what was held back and why. |
-| **Persona** | publisher |
-| **Depends on** | US-05.01 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Related pages of a launch go live together, so customers never see half of a product release. Per-page results cut the time spent finding out what was held back and why.
 
-**User story**
+**User story:**
 
-> As a publisher  
-> I want to publish a selection of pages at once and see the result for each  
-> So that a release of related pages goes live together and I know which ones were held back and why  
+As a publisher  
+I want to publish a selection of pages at once and see the result for each  
+So that a release of related pages goes live together and I know which ones were held back and why  
 
-**Acceptance criteria**
+**Persona:** publisher · **Depends on:** US-05.01
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given I am signed in as "jordan.mensah" with Publish on the folder
 ```
 
-**Scenario · Bulk publish from the page list**
+**Scenario 1 · Bulk publish from the page list**
 
 ```gherkin
 Given I selected 3 pages in Pages and 1 of them is still in review
@@ -181,60 +165,54 @@ Then the 2 ready pages go live
 And "Publishing results" shows a tick for each and the reason for the third
 ```
 
+
 ---
 
 ## US-05.04 · Hand a signed-off page over to the publisher
 
-| | |
-|---|---|
-| **Story** | US-05.04 · Hand a signed-off page over to the publisher |
-| **Business benefit** | Keeping publishing with authorised publishers enforces separation of duties that auditors and regulators expect. Clear hand-over status reduces chasing between teams and shortens time to market. |
-| **Persona** | content author |
-| **Depends on** | US-05.01 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Keeping publishing with authorised publishers enforces separation of duties that auditors and regulators expect. Clear hand-over status reduces chasing between teams and shortens time to market.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want to see that my signed-off page is waiting for a publisher instead of publishing it myself  
-> So that only people with Publish put content live, and I know who acts next until I am told the page is live  
+As a content author  
+I want to see that my signed-off page is waiting for a publisher instead of publishing it myself  
+So that only people with Publish put content live, and I know who acts next until I am told the page is live  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-05.01
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given I am signed in as "jordan.mensah" with Publish on the folder
 ```
 
-**Scenario · No Publish permission**
+**Scenario 1 · No Publish permission**
 
 ```gherkin
 Given I am signed in as "content.author"
 Then a page at "Ready to publish" shows "Waiting for a publisher"
 ```
 
+
 ---
 
 ## US-05.05 · See what will change before publishing
 
-| | |
-|---|---|
-| **Story** | US-05.05 · See what will change before publishing |
-| **Business benefit** | Publishers catch unintended changes before customers see them, lowering the risk of wrong rates or terms going live. A clear list of differences makes sign-off faster and easier to evidence. |
-| **Persona** | publisher |
-| **Depends on** | US-05.01, US-03.20 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Publishers catch unintended changes before customers see them, lowering the risk of wrong rates or terms going live. A clear list of differences makes sign-off faster and easier to evidence.
 
-**User story**
+**User story:**
 
-> As a publisher  
-> I want to see the authoring version next to the live page, with every difference listed  
-> So that I know exactly what will change for customers when I publish  
+As a publisher  
+I want to see the authoring version next to the live page, with every difference listed  
+So that I know exactly what will change for customers when I publish  
 
-**Acceptance criteria**
+**Persona:** publisher · **Depends on:** US-05.01, US-03.20
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the page "Cash ISA" was published before and has been edited since
@@ -266,39 +244,32 @@ When I click a difference in the sidebar
 Then it flashes on both sides
 ```
 
+
 ---
 
 ## US-05.06 · Check an older version against live
 
-| | |
-|---|---|
-| **Story** | US-05.06 · Check an older version against live |
-| **Business benefit** | The bank can quickly establish when a change was made and what customers were shown at the time. This supports complaint handling and regulatory enquiries without costly investigation. |
-| **Persona** | content author |
-| **Depends on** | US-05.05 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** The bank can quickly establish when a change was made and what customers were shown at the time. This supports complaint handling and regulatory enquiries without costly investigation.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want to compare any saved version of my page with the live page  
-> So that I can find when a change was made and what customers still see  
+As a content author  
+I want to compare any saved version of my page with the live page  
+So that I can find when a change was made and what customers still see  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-05.05
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the page "Cash ISA" was published before and has been edited since
 ```
 
-**Scenario · Pick an older authoring version**
+**Scenario 1 · Pick an older authoring version**
 
 ```gherkin
 When I choose a saved version from the authoring dropdown
 Then the left side shows that version and the differences are recalculated
 ```
-
----
-
-Source (Gherkin): [`gherkin/05-publishing.feature`](gherkin/05-publishing.feature) · Generated with `python3 tools/story-map.py` — edit the Gherkin file, then regenerate.

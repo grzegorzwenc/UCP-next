@@ -1,67 +1,57 @@
 # EP-04 · Review workflow
 
-| | |
-|---|---|
-| **Epic** | EP-04 · Review workflow |
-| **Business benefit** | Every page is checked by separate people for content and for business sign-off before it goes live, which builds the four-eyes control regulators expect into the tool itself. Clear hand-offs, tasks and reminders remove idle time between teams and make delays visible. |
-| **Scope** | The four-eyes approval chain: the author hands the page to a peer reviewer, then to the business, with comments, review links, My tasks and notifications. |
-| **Stories** | 26 |
-| **Jira** | Issue type Epic · Team WPB Digital Browser: Tools |
+**Epic:** EP-04 · Review workflow
 
-## Stories in this epic
+**Business benefit:** Every page is checked by separate people for content and for business sign-off before it goes live, which builds the four-eyes control regulators expect into the tool itself. Clear hand-offs, tasks and reminders remove idle time between teams and make delays visible.
 
-| # | Story | Persona | Depends on |
-|---|---|---|---|
-| 1 | [US-04.01 · Request a review from the shared Backlog](#us-0401--request-a-review-from-the-shared-backlog) | content author | US-03.04, US-01.07 |
-| 2 | [US-04.02 · Check the page before handing it over](#us-0402--check-the-page-before-handing-it-over) | content author | US-04.01, US-03.10 |
-| 3 | [US-04.03 · Keep the page stable while it is being reviewed](#us-0403--keep-the-page-stable-while-it-is-being-reviewed) | content author | US-04.01 |
-| 4 | [US-04.04 · Take a review from the Backlog, or give it back](#us-0404--take-a-review-from-the-backlog-or-give-it-back) | peer reviewer | US-04.01 |
-| 5 | [US-04.05 · Review the page and decide what happens next](#us-0405--review-the-page-and-decide-what-happens-next) | peer reviewer | US-04.04 |
-| 6 | [US-04.06 · Nudge a reviewer who is taking long](#us-0406--nudge-a-reviewer-who-is-taking-long) | content author | US-04.04 |
-| 7 | [US-04.07 · Steer reviews as a site admin](#us-0407--steer-reviews-as-a-site-admin) 🛡 | site admin | US-04.04, US-04.05 |
-| 8 | [US-04.08 · Take the business review](#us-0408--take-the-business-review) | business owner | US-04.05 |
-| 9 | [US-04.09 · Sign off the page or send it back to the author](#us-0409--sign-off-the-page-or-send-it-back-to-the-author) | business owner | US-04.08 |
-| 10 | [US-04.10 · Share the page with the right business reviewers](#us-0410--share-the-page-with-the-right-business-reviewers) | peer reviewer | US-04.08 |
-| 11 | [US-04.11 · Sign off on behalf of the business reviewer as a site admin](#us-0411--sign-off-on-behalf-of-the-business-reviewer-as-a-site-admin) 🛡 | site admin | US-04.08, US-04.09 |
-| 12 | [US-04.12 · Read and comment through a link](#us-0412--read-and-comment-through-a-link) | guest reviewer | US-04.10 |
-| 13 | [US-04.13 · Decide through the link, only if invited](#us-0413--decide-through-the-link-only-if-invited) | guest reviewer who was invited | US-04.12 |
-| 14 | [US-04.14 · Comment on exactly what I mean](#us-0414--comment-on-exactly-what-i-mean) | peer reviewer or business owner | US-04.05 |
-| 15 | [US-04.15 · Work through the feedback](#us-0415--work-through-the-feedback) | content author | US-04.14 |
-| 16 | [US-04.16 · See what needs me, by stage](#us-0416--see-what-needs-me-by-stage) | As anyone in the content team | US-04.01 |
-| 17 | [US-04.17 · Follow my own pages as an author](#us-0417--follow-my-own-pages-as-an-author) | content author | US-04.16 |
-| 18 | [US-04.18 · Pick up and finish work as a reviewer or publisher](#us-0418--pick-up-and-finish-work-as-a-reviewer-or-publisher) | peer reviewer, business owner or publisher | US-04.16 |
-| 19 | [US-04.19 · Oversee everything as a site admin](#us-0419--oversee-everything-as-a-site-admin) 🛡 | site admin | US-04.16, US-04.18 |
-| 20 | [US-04.20 · Be told when a page is handed to me](#us-0420--be-told-when-a-page-is-handed-to-me) | As anyone in the content team | US-04.16 |
-| 21 | [US-04.21 · Act on a notification in one click](#us-0421--act-on-a-notification-in-one-click) | As anyone in the content team | US-04.20 |
-| 22 | [US-04.22 · Hand the page over step by step](#us-0422--hand-the-page-over-step-by-step) | content author | US-04.01, US-04.05, US-04.09, US-05.01 |
-| 23 | [US-04.23 · Get the page back when someone asks for changes](#us-0423--get-the-page-back-when-someone-asks-for-changes) | content author | US-04.22 |
-| 24 | [US-04.24 · Nobody approves their own work](#us-0424--nobody-approves-their-own-work) | bank | US-04.22 |
-| 25 | [US-04.25 · Walk the whole flow as a site admin, on record](#us-0425--walk-the-whole-flow-as-a-site-admin-on-record) 🛡 | site admin | US-04.22, US-04.24 |
-| 26 | [US-04.26 · Ask for publishing and hear when the page is live](#us-0426--ask-for-publishing-and-hear-when-the-page-is-live) ⏭ | content author | US-04.22 |
+**Scope:** The four-eyes approval chain: the author hands the page to a peer reviewer, then to the business, with comments, review links, My tasks and notifications.
 
-🛡 site-admin story · ⏭ planned, not built yet · 🧪 runs on a stand-in today (mock)
+**Stories (26):**
+
+1. [US-04.01 · Request a review from the shared Backlog](#us-0401--request-a-review-from-the-shared-backlog)
+2. [US-04.02 · Check the page before handing it over](#us-0402--check-the-page-before-handing-it-over)
+3. [US-04.03 · Keep the page stable while it is being reviewed](#us-0403--keep-the-page-stable-while-it-is-being-reviewed)
+4. [US-04.04 · Take a review from the Backlog, or give it back](#us-0404--take-a-review-from-the-backlog-or-give-it-back)
+5. [US-04.05 · Review the page and decide what happens next](#us-0405--review-the-page-and-decide-what-happens-next)
+6. [US-04.06 · Nudge a reviewer who is taking long](#us-0406--nudge-a-reviewer-who-is-taking-long)
+7. [US-04.07 · Steer reviews as a site admin](#us-0407--steer-reviews-as-a-site-admin)
+8. [US-04.08 · Take the business review](#us-0408--take-the-business-review)
+9. [US-04.09 · Sign off the page or send it back to the author](#us-0409--sign-off-the-page-or-send-it-back-to-the-author)
+10. [US-04.10 · Share the page with the right business reviewers](#us-0410--share-the-page-with-the-right-business-reviewers)
+11. [US-04.11 · Sign off on behalf of the business reviewer as a site admin](#us-0411--sign-off-on-behalf-of-the-business-reviewer-as-a-site-admin)
+12. [US-04.12 · Read and comment through a link](#us-0412--read-and-comment-through-a-link)
+13. [US-04.13 · Decide through the link, only if invited](#us-0413--decide-through-the-link-only-if-invited)
+14. [US-04.14 · Comment on exactly what I mean](#us-0414--comment-on-exactly-what-i-mean)
+15. [US-04.15 · Work through the feedback](#us-0415--work-through-the-feedback)
+16. [US-04.16 · See what needs me, by stage](#us-0416--see-what-needs-me-by-stage)
+17. [US-04.17 · Follow my own pages as an author](#us-0417--follow-my-own-pages-as-an-author)
+18. [US-04.18 · Pick up and finish work as a reviewer or publisher](#us-0418--pick-up-and-finish-work-as-a-reviewer-or-publisher)
+19. [US-04.19 · Oversee everything as a site admin](#us-0419--oversee-everything-as-a-site-admin)
+20. [US-04.20 · Be told when a page is handed to me](#us-0420--be-told-when-a-page-is-handed-to-me)
+21. [US-04.21 · Act on a notification in one click](#us-0421--act-on-a-notification-in-one-click)
+22. [US-04.22 · Hand the page over step by step](#us-0422--hand-the-page-over-step-by-step)
+23. [US-04.23 · Get the page back when someone asks for changes](#us-0423--get-the-page-back-when-someone-asks-for-changes)
+24. [US-04.24 · Nobody approves their own work](#us-0424--nobody-approves-their-own-work)
+25. [US-04.25 · Walk the whole flow as a site admin, on record](#us-0425--walk-the-whole-flow-as-a-site-admin-on-record)
+26. [US-04.26 · Ask for publishing and hear when the page is live](#us-0426--ask-for-publishing-and-hear-when-the-page-is-live)
 
 ---
 
 ## US-04.01 · Request a review from the shared Backlog
 
-| | |
-|---|---|
-| **Story** | US-04.01 · Request a review from the shared Backlog |
-| **Business benefit** | A shared Backlog lets the first free reviewer start, so pages do not queue behind one person's calendar. Due dates and audit entries make review turnaround measurable from day one. |
-| **Persona** | content author |
-| **Depends on** | US-03.04, US-01.07 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** A shared Backlog lets the first free reviewer start, so pages do not queue behind one person's calendar. Due dates and audit entries make review turnaround measurable from day one.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want to send the page to a Backlog that every reviewer sees, with a note  
-> So that the first free reviewer can take it and I don't have to chase one person  
+As a content author  
+I want to send the page to a Backlog that every reviewer sees, with a note  
+So that the first free reviewer can take it and I don't have to chase one person  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-03.04, US-01.07
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given I am signed in as "content.author" with Edit on the folder of the page
@@ -90,27 +80,24 @@ Then I see "Nobody can review this page"
 And I am told "Ask a site admin to grant Review & approve on this folder"
 ```
 
+
 ---
 
 ## US-04.02 · Check the page before handing it over
 
-| | |
-|---|---|
-| **Story** | US-04.02 · Check the page before handing it over |
-| **Business benefit** | Catching missing fields and quality problems before hand-off avoids wasted review cycles. Fewer round trips mean faster delivery and lower review cost. |
-| **Persona** | content author |
-| **Depends on** | US-04.01, US-03.10 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Catching missing fields and quality problems before hand-off avoids wasted review cycles. Fewer round trips mean faster delivery and lower review cost.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want a last check of the page, with any problems Page insights found  
-> So that I only send pages that are complete  
+As a content author  
+I want a last check of the page, with any problems Page insights found  
+So that I only send pages that are complete  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-04.01, US-03.10
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given I am signed in as "content.author" with Edit on the folder of the page
@@ -143,27 +130,24 @@ Then I see "Fill in 3 required fields first"
 And the first incomplete component opens in Configure
 ```
 
+
 ---
 
 ## US-04.03 · Keep the page stable while it is being reviewed
 
-| | |
-|---|---|
-| **Story** | US-04.03 · Keep the page stable while it is being reviewed |
-| **Business benefit** | Reviewers approve exactly the version that will be published, which protects the integrity of the four-eyes check. It prevents silent changes after approval that could expose the bank to conduct risk. |
-| **Persona** | content author |
-| **Depends on** | US-04.01 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Reviewers approve exactly the version that will be published, which protects the integrity of the four-eyes check. It prevents silent changes after approval that could expose the bank to conduct risk.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want the page to be read-only during review, with a clear way to take it back  
-> So that reviewers check exactly what I sent  
+As a content author  
+I want the page to be read-only during review, with a clear way to take it back  
+So that reviewers check exactly what I sent  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-04.01
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given I am signed in as "content.author" with Edit on the folder of the page
@@ -188,27 +172,24 @@ And I confirm "Reopen this page for editing? It will leave the review queue."
 Then the page is back at "Build the page"
 ```
 
+
 ---
 
 ## US-04.04 · Take a review from the Backlog, or give it back
 
-| | |
-|---|---|
-| **Story** | US-04.04 · Take a review from the Backlog, or give it back |
-| **Business benefit** | Reviews start as soon as any reviewer is free, so pages do not wait for one person. Each review has one named owner, which makes delays visible. |
-| **Persona** | peer reviewer |
-| **Depends on** | US-04.01 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Reviews start as soon as any reviewer is free, so pages do not wait for one person. Each review has one named owner, which makes delays visible.
 
-**User story**
+**User story:**
 
-> As a peer reviewer  
-> I want to assign a waiting page to myself and return it if I cannot do it  
-> So that every review has exactly one owner and nothing gets stuck with me  
+As a peer reviewer  
+I want to assign a waiting page to myself and return it if I cannot do it  
+So that every review has exactly one owner and nothing gets stuck with me  
 
-**Acceptance criteria**
+**Persona:** peer reviewer · **Depends on:** US-04.01
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the page "Cash ISA" was sent for review by "content.author"
@@ -263,27 +244,24 @@ When the reviewer clicks "Back to backlog"
 Then they see "The review has already started"
 ```
 
+
 ---
 
 ## US-04.05 · Review the page and decide what happens next
 
-| | |
-|---|---|
-| **Story** | US-04.05 · Review the page and decide what happens next |
-| **Business benefit** | A single decision point moves the page on or back without extra meetings or e-mails. Only the assigned reviewer can approve, which keeps the peer check accountable and auditable. |
-| **Persona** | peer reviewer |
-| **Depends on** | US-04.04 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** A single decision point moves the page on or back without extra meetings or e-mails. Only the assigned reviewer can approve, which keeps the peer check accountable and auditable.
 
-**User story**
+**User story:**
 
-> As a peer reviewer  
-> I want to finish my review with one decision: business review or back to the author  
-> So that the page moves on without extra hand-offs  
+As a peer reviewer  
+I want to finish my review with one decision: business review or back to the author  
+So that the page moves on without extra hand-offs  
 
-**Acceptance criteria**
+**Persona:** peer reviewer · **Depends on:** US-04.04
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the page "Cash ISA" was sent for review by "content.author"
@@ -333,27 +311,24 @@ Then the page is back at "Build the page"
 And the peer reviewer, the business reviewer and the review groups are cleared
 ```
 
+
 ---
 
 ## US-04.06 · Nudge a reviewer who is taking long
 
-| | |
-|---|---|
-| **Story** | US-04.06 · Nudge a reviewer who is taking long |
-| **Business benefit** | Rate-limited reminders keep pages moving without manual chasing or noisy escalation. Shorter waiting times bring content to market faster. |
-| **Persona** | content author |
-| **Depends on** | US-04.04 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Rate-limited reminders keep pages moving without manual chasing or noisy escalation. Shorter waiting times bring content to market faster.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want to remind the reviewer, but not more often than every 15 minutes  
-> So that my page keeps moving without spamming anyone  
+As a content author  
+I want to remind the reviewer, but not more often than every 15 minutes  
+So that my page keeps moving without spamming anyone  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-04.04
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the page "Cash ISA" was sent for review by "content.author"
@@ -376,29 +351,24 @@ When I click "Remind" again
 Then I see "A reminder was sent a few minutes ago"
 ```
 
+
 ---
 
 ## US-04.07 · Steer reviews as a site admin
 
-*🛡*
+**Business benefit:** Admins can rebalance workload and unblock stuck reviews, which protects launch dates. Every intervention is logged on behalf of the reviewer, so oversight never weakens the audit trail.
 
-| | |
-|---|---|
-| **Story** | US-04.07 · Steer reviews as a site admin |
-| **Business benefit** | Admins can rebalance workload and unblock stuck reviews, which protects launch dates. Every intervention is logged on behalf of the reviewer, so oversight never weakens the audit trail. |
-| **Persona** | site admin |
-| **Depends on** | US-04.04, US-04.05 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**User story:**
 
-**User story**
+As a site admin  
+I want to reassign reviewers and act for them when needed  
+So that reviews never get stuck, and everyone can see that I stepped in  
 
-> As a site admin  
-> I want to reassign reviewers and act for them when needed  
-> So that reviews never get stuck, and everyone can see that I stepped in  
+**Persona:** site admin · **Depends on:** US-04.04, US-04.05 · **Note:** site admin only
 
-**Acceptance criteria**
+**Acceptance criteria:**
 
-**Background** · applies to every scenario below
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the page "Cash ISA" was sent for review by "content.author"
@@ -439,27 +409,24 @@ When I click "Reviewed for Rachel Hughes" as "super.admin"
 Then the audit line ends with "(on behalf of Rachel Hughes)"
 ```
 
+
 ---
 
 ## US-04.08 · Take the business review
 
-| | |
-|---|---|
-| **Story** | US-04.08 · Take the business review |
-| **Business benefit** | Each business decision has one named owner, which gives clear accountability for customer-facing messages. Blocking the peer reviewer from also signing off enforces four-eyes separation. |
-| **Persona** | business owner |
-| **Depends on** | US-04.05 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Each business decision has one named owner, which gives clear accountability for customer-facing messages. Blocking the peer reviewer from also signing off enforces four-eyes separation.
 
-**User story**
+**User story:**
 
-> As a business owner  
-> I want to take a page that waits for business review  
-> So that it is clear who decides on it  
+As a business owner  
+I want to take a page that waits for business review  
+So that it is clear who decides on it  
 
-**Acceptance criteria**
+**Persona:** business owner · **Depends on:** US-04.05
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the author's review of "Cash ISA" was done by "rachel.hughes"
@@ -490,27 +457,24 @@ When I try to take the business review
 Then I see "You did the author's review · someone else does the business review"
 ```
 
+
 ---
 
 ## US-04.09 · Sign off the page or send it back to the author
 
-| | |
-|---|---|
-| **Story** | US-04.09 · Sign off the page or send it back to the author |
-| **Business benefit** | Nothing reaches customers without explicit business approval, which reduces conduct and mis-selling risk. Deciding on the page as customers see it lowers the chance of costly post-launch corrections. |
-| **Persona** | business owner |
-| **Depends on** | US-04.08 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Nothing reaches customers without explicit business approval, which reduces conduct and mis-selling risk. Deciding on the page as customers see it lowers the chance of costly post-launch corrections.
 
-**User story**
+**User story:**
 
-> As a business owner  
-> I want to sign the page off or send it back to the author, also from full screen  
-> So that I decide while looking at the page as customers will see it  
+As a business owner  
+I want to sign the page off or send it back to the author, also from full screen  
+So that I decide while looking at the page as customers will see it  
 
-**Acceptance criteria**
+**Persona:** business owner · **Depends on:** US-04.08
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the author's review of "Cash ISA" was done by "rachel.hughes"
@@ -552,27 +516,24 @@ And I confirm "Yes, sign off"
 Then a full-screen message says "Signed off" with my name and the time
 ```
 
+
 ---
 
 ## US-04.10 · Share the page with the right business reviewers
 
-| | |
-|---|---|
-| **Story** | US-04.10 · Share the page with the right business reviewers |
-| **Business benefit** | Getting the right stakeholders in early avoids late rejections and repeated review rounds. External partners can contribute without new UCP licences, which keeps cost down. |
-| **Persona** | peer reviewer |
-| **Depends on** | US-04.08 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Getting the right stakeholders in early avoids late rejections and repeated review rounds. External partners can contribute without new UCP licences, which keeps cost down.
 
-**User story**
+**User story:**
 
-> As a peer reviewer  
-> I want to share the page with a person, a review group or a link  
-> So that the right business owners see it, even without a UCP account  
+As a peer reviewer  
+I want to share the page with a person, a review group or a link  
+So that the right business owners see it, even without a UCP account  
 
-**Acceptance criteria**
+**Persona:** peer reviewer · **Depends on:** US-04.08
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the author's review of "Cash ISA" was done by "rachel.hughes"
@@ -611,29 +572,24 @@ When I send the review link to "not-an-email"
 Then I see "That e-mail address does not look right"
 ```
 
+
 ---
 
 ## US-04.11 · Sign off on behalf of the business reviewer as a site admin
 
-*🛡*
+**Business benefit:** Keeping the business reviewer fixed protects the integrity of the business decision. Recorded on-behalf sign-off still lets urgent pages move without breaking the audit trail.
 
-| | |
-|---|---|
-| **Story** | US-04.11 · Sign off on behalf of the business reviewer as a site admin |
-| **Business benefit** | Keeping the business reviewer fixed protects the integrity of the business decision. Recorded on-behalf sign-off still lets urgent pages move without breaking the audit trail. |
-| **Persona** | site admin |
-| **Depends on** | US-04.08, US-04.09 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**User story:**
 
-**User story**
+As a site admin  
+I want people to stay fixed during the business review, but be able to sign off for the assignee  
+So that the business decision is not changed behind its back, and urgent pages can still move  
 
-> As a site admin  
-> I want people to stay fixed during the business review, but be able to sign off for the assignee  
-> So that the business decision is not changed behind its back, and urgent pages can still move  
+**Persona:** site admin · **Depends on:** US-04.08, US-04.09 · **Note:** site admin only
 
-**Acceptance criteria**
+**Acceptance criteria:**
 
-**Background** · applies to every scenario below
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the author's review of "Cash ISA" was done by "rachel.hughes"
@@ -656,27 +612,24 @@ Then I see "Signed off as site admin · ready to publish"
 And the audit line ends with "(on behalf of David Clarke)"
 ```
 
+
 ---
 
 ## US-04.12 · Read and comment through a link
 
-| | |
-|---|---|
-| **Story** | US-04.12 · Read and comment through a link |
-| **Business benefit** | Stakeholders without a UCP account can give feedback, which saves licence cost and onboarding effort. Feedback lands on the page itself, so nothing is lost in e-mail threads. |
-| **Persona** | guest reviewer |
-| **Depends on** | US-04.10 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Stakeholders without a UCP account can give feedback, which saves licence cost and onboarding effort. Feedback lands on the page itself, so nothing is lost in e-mail threads.
 
-**User story**
+**User story:**
 
-> As a guest reviewer  
-> I want to open a link, see the page full screen and comment on any part of it  
-> So that I can give feedback without learning the CMS  
+As a guest reviewer  
+I want to open a link, see the page full screen and comment on any part of it  
+So that I can give feedback without learning the CMS  
 
-**Acceptance criteria**
+**Persona:** guest reviewer · **Depends on:** US-04.10
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the page "Cash ISA" is in business review
@@ -724,27 +677,24 @@ When I open a review link with an unknown token
 Then I see "This review link does not work"
 ```
 
+
 ---
 
 ## US-04.13 · Decide through the link, only if invited
 
-| | |
-|---|---|
-| **Story** | US-04.13 · Decide through the link, only if invited |
-| **Business benefit** | The business can approve without a UCP account, which speeds up sign-off for busy owners. Restricting decisions to invited addresses stops forwarded links from approving content, which limits fraud and compliance risk. |
-| **Persona** | guest reviewer who was invited |
-| **Depends on** | US-04.12 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** The business can approve without a UCP account, which speeds up sign-off for busy owners. Restricting decisions to invited addresses stops forwarded links from approving content, which limits fraud and compliance risk.
 
-**User story**
+**User story:**
 
-> As a guest reviewer who was invited  
-> I want to sign off or send the page back from the link  
-> So that the business can decide without a UCP account, while a forwarded link cannot approve anything  
+As a guest reviewer who was invited  
+I want to sign off or send the page back from the link  
+So that the business can decide without a UCP account, while a forwarded link cannot approve anything  
 
-**Acceptance criteria**
+**Persona:** guest reviewer who was invited · **Depends on:** US-04.12
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the page "Cash ISA" is in business review
@@ -783,27 +733,24 @@ And the note is added as a comment
 And a full-screen message says "Sent back to the author"
 ```
 
+
 ---
 
 ## US-04.14 · Comment on exactly what I mean
 
-| | |
-|---|---|
-| **Story** | US-04.14 · Comment on exactly what I mean |
-| **Business benefit** | Feedback pinned to the exact element removes ambiguity and reduces rework. Limiting who can comment keeps feedback relevant and the review record trustworthy. |
-| **Persona** | peer reviewer or business owner |
-| **Depends on** | US-04.05 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Feedback pinned to the exact element removes ambiguity and reduces rework. Limiting who can comment keeps feedback relevant and the review record trustworthy.
 
-**User story**
+**User story:**
 
-> As a peer reviewer or business owner  
-> I want to click a text, picture or component and comment on it  
-> So that the author knows exactly what to change  
+As a peer reviewer or business owner  
+I want to click a text, picture or component and comment on it  
+So that the author knows exactly what to change  
 
-**Acceptance criteria**
+**Persona:** peer reviewer or business owner · **Depends on:** US-04.05
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the page "Cash ISA" is in the author's review
@@ -851,27 +798,24 @@ Then the Comments panel opens with the number of open comments
 And "Review & feedback" next to "1:1" opens the page full screen with floating comments
 ```
 
+
 ---
 
 ## US-04.15 · Work through the feedback
 
-| | |
-|---|---|
-| **Story** | US-04.15 · Work through the feedback |
-| **Business benefit** | Authors see at a glance what is still open, so no requested change is missed before sign-off. Resolved comments never leak onto the published page, which protects the customer experience. |
-| **Persona** | content author |
-| **Depends on** | US-04.14 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Authors see at a glance what is still open, so no requested change is missed before sign-off. Resolved comments never leak onto the published page, which protects the customer experience.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want to jump to each comment's place, resolve it and undo by mistake  
-> So that I see what is still open and the published page stays clean  
+As a content author  
+I want to jump to each comment's place, resolve it and undo by mistake  
+So that I see what is still open and the published page stays clean  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-04.14
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the page "Cash ISA" is in the author's review
@@ -924,25 +868,22 @@ When I delete a comment written by someone else
 Then I see "You can only delete your own comments"
 ```
 
+
 ---
 
 ## US-04.16 · See what needs me, by stage
 
-| | |
-|---|---|
-| **Story** | US-04.16 · See what needs me, by stage |
-| **Business benefit** | One prioritised work list reduces time lost looking for pending work across tools. Due dates and overdue markers make bottlenecks visible to the team and management. |
-| **Persona** | As anyone in the content team |
-| **Depends on** | US-04.01 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** One prioritised work list reduces time lost looking for pending work across tools. Due dates and overdue markers make bottlenecks visible to the team and management.
 
-**User story**
+**User story:**
 
-> As anyone in the content team  
-> I want every page in the workflow as one task in the right tab  
-> So that I know what to do next without thinking  
+As anyone in the content team  
+I want every page in the workflow as one task in the right tab  
+So that I know what to do next without thinking  
 
-**Acceptance criteria**
+**Persona:** As anyone in the content team · **Depends on:** US-04.01
+
+**Acceptance criteria:**
 
 **Scenario 1 · Task per stage** *(one run per row of the table)*
 
@@ -980,25 +921,22 @@ And new tasks have a red dot until I have seen them
 And the header says "N assigned to you · M new"
 ```
 
+
 ---
 
 ## US-04.17 · Follow my own pages as an author
 
-| | |
-|---|---|
-| **Story** | US-04.17 · Follow my own pages as an author |
-| **Business benefit** | Authors can track their pages without asking around, which reduces status meetings. Hiding review actions on their own work enforces four-eyes separation in the interface. |
-| **Persona** | content author |
-| **Depends on** | US-04.16 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Authors can track their pages without asking around, which reduces status meetings. Hiding review actions on their own work enforces four-eyes separation in the interface.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want to see where each of my pages is and who has it, without review buttons for my own work  
-> So that I know whom to remind and when the page comes back to me  
+As a content author  
+I want to see where each of my pages is and who has it, without review buttons for my own work  
+So that I know whom to remind and when the page comes back to me  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-04.16
+
+**Acceptance criteria:**
 
 **Scenario 1 · My page waits for a reviewer**
 
@@ -1021,25 +959,22 @@ Examples:
   | Published        | Open                    |
 ```
 
+
 ---
 
 ## US-04.18 · Pick up and finish work as a reviewer or publisher
 
-| | |
-|---|---|
-| **Story** | US-04.18 · Pick up and finish work as a reviewer or publisher |
-| **Business benefit** | Taking and finishing work from one list shortens cycle time for every hand-off. Showing only the permitted action reduces errors and unauthorised steps. |
-| **Persona** | peer reviewer, business owner or publisher |
-| **Depends on** | US-04.16 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Taking and finishing work from one list shortens cycle time for every hand-off. Showing only the permitted action reduces errors and unauthorised steps.
 
-**User story**
+**User story:**
 
-> As a peer reviewer, business owner or publisher  
-> I want the action for my step right on the row  
-> So that I can take and finish work from one list  
+As a peer reviewer, business owner or publisher  
+I want the action for my step right on the row  
+So that I can take and finish work from one list  
 
-**Acceptance criteria**
+**Persona:** peer reviewer, business owner or publisher · **Depends on:** US-04.16
+
+**Acceptance criteria:**
 
 **Scenario 1 · The Backlog is a shared bucket**
 
@@ -1065,27 +1000,22 @@ Examples:
   | Ready to publish          | a publisher           | Publish                       |
 ```
 
+
 ---
 
 ## US-04.19 · Oversee everything as a site admin
 
-*🛡*
+**Business benefit:** Admins can balance workload across reviewers, which protects delivery dates. Restricting reassignment once a page is ready to publish keeps late changes under control.
 
-| | |
-|---|---|
-| **Story** | US-04.19 · Oversee everything as a site admin |
-| **Business benefit** | Admins can balance workload across reviewers, which protects delivery dates. Restricting reassignment once a page is ready to publish keeps late changes under control. |
-| **Persona** | site admin |
-| **Depends on** | US-04.16, US-04.18 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**User story:**
 
-**User story**
+As a site admin  
+I want to see all tasks, split by who has them, and change the peer reviewer  
+So that I can balance work and unblock pages  
 
-> As a site admin  
-> I want to see all tasks, split by who has them, and change the peer reviewer  
-> So that I can balance work and unblock pages  
+**Persona:** site admin · **Depends on:** US-04.16, US-04.18 · **Note:** site admin only
 
-**Acceptance criteria**
+**Acceptance criteria:**
 
 **Scenario 1 · Admin view**
 
@@ -1101,25 +1031,22 @@ And a pencil next to the Peer reviewer lets me change the person while the page 
 Then rows in "Ready to publish" have no pencil and no "Assign to anyone"
 ```
 
+
 ---
 
 ## US-04.20 · Be told when a page is handed to me
 
-| | |
-|---|---|
-| **Story** | US-04.20 · Be told when a page is handed to me |
-| **Business benefit** | People learn immediately when it is their turn, which removes idle time between hand-offs. Faster hand-offs shorten time to market for every page. |
-| **Persona** | As anyone in the content team |
-| **Depends on** | US-04.16 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** People learn immediately when it is their turn, which removes idle time between hand-offs. Faster hand-offs shorten time to market for every page.
 
-**User story**
+**User story:**
 
-> As anyone in the content team  
-> I want a notification when it is my turn on a page  
-> So that I don't have to keep checking My tasks  
+As anyone in the content team  
+I want a notification when it is my turn on a page  
+So that I don't have to keep checking My tasks  
 
-**Acceptance criteria**
+**Persona:** As anyone in the content team · **Depends on:** US-04.16
+
+**Acceptance criteria:**
 
 **Scenario 1 · The bell polls and shows unread items**
 
@@ -1146,25 +1073,22 @@ Examples:
   | my draft has not been sent               | Your draft of Cash ISA is waiting to be sent for review               |
 ```
 
+
 ---
 
 ## US-04.21 · Act on a notification in one click
 
-| | |
-|---|---|
-| **Story** | US-04.21 · Act on a notification in one click |
-| **Business benefit** | Overdue items stand out, so service levels and regulatory deadlines are met more reliably. One-click access cuts the time from notice to action. |
-| **Persona** | As anyone in the content team |
-| **Depends on** | US-04.20 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Overdue items stand out, so service levels and regulatory deadlines are met more reliably. One-click access cuts the time from notice to action.
 
-**User story**
+**User story:**
 
-> As anyone in the content team  
-> I want urgent items to stand out and to open the page from the notification  
-> So that overdue work is handled first  
+As anyone in the content team  
+I want urgent items to stand out and to open the page from the notification  
+So that overdue work is handled first  
 
-**Acceptance criteria**
+**Persona:** As anyone in the content team · **Depends on:** US-04.20
+
+**Acceptance criteria:**
 
 **Scenario 1 · Overdue work stands out**
 
@@ -1180,27 +1104,24 @@ When I click a notification about "Cash ISA"
 Then the page opens in the page builder
 ```
 
+
 ---
 
 ## US-04.22 · Hand the page over step by step
 
-| | |
-|---|---|
-| **Story** | US-04.22 · Hand the page over step by step |
-| **Business benefit** | Every page passes through separate authoring, review, sign-off and publishing hands, which builds four-eyes control into the process itself. Clear hand-offs cut idle time between teams and shorten time to market. |
-| **Persona** | content author |
-| **Depends on** | US-04.01, US-04.05, US-04.09, US-05.01 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Every page passes through separate authoring, review, sign-off and publishing hands, which builds four-eyes control into the process itself. Clear hand-offs cut idle time between teams and shorten time to market.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want to request each next step instead of doing it myself  
-> So that every page is checked by other people before customers see it  
+As a content author  
+I want to request each next step instead of doing it myself  
+So that every page is checked by other people before customers see it  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-04.01, US-04.05, US-04.09, US-05.01
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given these people work on the UK site
@@ -1247,27 +1168,24 @@ Examples:
   | Published                              | Edit to start a new version       | me                             |
 ```
 
+
 ---
 
 ## US-04.23 · Get the page back when someone asks for changes
 
-| | |
-|---|---|
-| **Story** | US-04.23 · Get the page back when someone asks for changes |
-| **Business benefit** | Rework goes back to one accountable author instead of being patched by reviewers, which keeps responsibility clear. Restarting both reviews after changes means no unchecked edit can reach customers. |
-| **Persona** | content author |
-| **Depends on** | US-04.22 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Rework goes back to one accountable author instead of being patched by reviewers, which keeps responsibility clear. Restarting both reviews after changes means no unchecked edit can reach customers.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want any reviewer to send the page back to me with comments  
-> So that I fix it once and the whole check starts again  
+As a content author  
+I want any reviewer to send the page back to me with comments  
+So that I fix it once and the whole check starts again  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-04.22
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given these people work on the UK site
@@ -1279,7 +1197,7 @@ Given these people work on the UK site
 | super.admin    | site admin      | everything                          |
 ```
 
-**Scenario · Reauthor returns the page to the author** *(one run per row of the table)*
+**Scenario 1 · Reauthor returns the page to the author** *(one run per row of the table)*
 
 ```gherkin
 Given "<reviewer>" is reviewing "Cash ISA" at "<stage>"
@@ -1294,27 +1212,24 @@ Examples:
   | david.clarke  | In business review |
 ```
 
+
 ---
 
 ## US-04.24 · Nobody approves their own work
 
-| | |
-|---|---|
-| **Story** | US-04.24 · Nobody approves their own work |
-| **Business benefit** | Segregation of duties is enforced by the system rather than by policy documents, which satisfies four-eyes compliance requirements. Auditors can rely on the platform instead of sampling manual evidence. |
-| **Persona** | bank |
-| **Depends on** | US-04.22 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Segregation of duties is enforced by the system rather than by policy documents, which satisfies four-eyes compliance requirements. Auditors can rely on the platform instead of sampling manual evidence.
 
-**User story**
+**User story:**
 
-> As the bank  
-> I want different people for authoring, peer review and business review  
-> So that the four-eyes principle holds on every page  
+As the bank  
+I want different people for authoring, peer review and business review  
+So that the four-eyes principle holds on every page  
 
-**Acceptance criteria**
+**Persona:** bank · **Depends on:** US-04.22
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given these people work on the UK site
@@ -1348,29 +1263,24 @@ And I am signed in as "content.author"
 Then I see "Waiting for a publisher" instead of "Publish"
 ```
 
+
 ---
 
 ## US-04.25 · Walk the whole flow as a site admin, on record
 
-*🛡*
+**Business benefit:** Urgent regulatory or pricing changes can still go live when reviewers are unavailable, which reduces business risk. Every override is recorded as on behalf of a named person, so audit trails stay complete.
 
-| | |
-|---|---|
-| **Story** | US-04.25 · Walk the whole flow as a site admin, on record |
-| **Business benefit** | Urgent regulatory or pricing changes can still go live when reviewers are unavailable, which reduces business risk. Every override is recorded as on behalf of a named person, so audit trails stay complete. |
-| **Persona** | site admin |
-| **Depends on** | US-04.22, US-04.24 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**User story:**
 
-**User story**
+As a site admin  
+I want to perform any step for the person who should do it  
+So that I can demo the platform and unblock urgent pages  
 
-> As a site admin  
-> I want to perform any step for the person who should do it  
-> So that I can demo the platform and unblock urgent pages  
+**Persona:** site admin · **Depends on:** US-04.22, US-04.24 · **Note:** site admin only
 
-**Acceptance criteria**
+**Acceptance criteria:**
 
-**Background** · applies to every scenario below
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given these people work on the UK site
@@ -1405,29 +1315,24 @@ Given I am signed in as "content.author"
 Then no button on the stepper or in My tasks lets me act for someone else
 ```
 
+
 ---
 
 ## US-04.26 · Ask for publishing and hear when the page is live
 
-*⏭*
+**Business benefit:** Planned launch dates reduce last-minute coordination between marketing and publishers. Authors learn when a page is live without chasing anyone, which saves time and avoids missed campaign starts.
 
-| | |
-|---|---|
-| **Story** | US-04.26 · Ask for publishing and hear when the page is live |
-| **Business benefit** | Planned launch dates reduce last-minute coordination between marketing and publishers. Authors learn when a page is live without chasing anyone, which saves time and avoids missed campaign starts. |
-| **Persona** | content author |
-| **Depends on** | US-04.22 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**User story:**
 
-**User story**
+As a content author  
+I want to request publishing at a date and be told when the page is live  
+So that I can plan launches without chasing the publisher  
 
-> As a content author  
-> I want to request publishing at a date and be told when the page is live  
-> So that I can plan launches without chasing the publisher  
+**Persona:** content author · **Depends on:** US-04.22 · **Note:** planned, not built yet
 
-**Acceptance criteria**
+**Acceptance criteria:**
 
-**Background** · applies to every scenario below
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given these people work on the UK site
@@ -1453,7 +1358,3 @@ Then the publishers get a task "Publish Cash ISA on 1 Nov 09:00"
 When the publisher publishes "Cash ISA"
 Then I get the notification "Cash ISA is live"
 ```
-
----
-
-Source (Gherkin): [`gherkin/04-review-workflow.feature`](gherkin/04-review-workflow.feature) · Generated with `python3 tools/story-map.py` — edit the Gherkin file, then regenerate.

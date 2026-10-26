@@ -1,44 +1,32 @@
 # EP-08 · Governance
 
-| | |
-|---|---|
-| **Epic** | EP-08 · Governance |
-| **Business benefit** | Every change is recorded with who, what and when, giving the bank evidence for auditors and regulators on demand. A shared dashboard shows bottlenecks early, so managers act before deadlines are missed. |
-| **Scope** | Proof and overview: the audit trail of every change and the dashboard of what needs attention. |
-| **Stories** | 3 |
-| **Jira** | Issue type Epic · Team WPB Digital Browser: Tools |
+**Epic:** EP-08 · Governance
 
-## Stories in this epic
+**Business benefit:** Every change is recorded with who, what and when, giving the bank evidence for auditors and regulators on demand. A shared dashboard shows bottlenecks early, so managers act before deadlines are missed.
 
-| # | Story | Persona | Depends on |
-|---|---|---|---|
-| 1 | [US-08.01 · Search and export a full audit trail](#us-0801--search-and-export-a-full-audit-trail) 🛡 | site admin | US-01.07 |
-| 2 | [US-08.02 · See my own activity](#us-0802--see-my-own-activity) | content author | US-08.01 |
-| 3 | [US-08.03 · See what needs attention](#us-0803--see-what-needs-attention) | content author | US-08.01, US-04.16 |
+**Scope:** Proof and overview: the audit trail of every change and the dashboard of what needs attention.
 
-🛡 site-admin story · ⏭ planned, not built yet · 🧪 runs on a stand-in today (mock)
+**Stories (3):**
+
+1. [US-08.01 · Search and export a full audit trail](#us-0801--search-and-export-a-full-audit-trail)
+2. [US-08.02 · See my own activity](#us-0802--see-my-own-activity)
+3. [US-08.03 · See what needs attention](#us-0803--see-what-needs-attention)
 
 ---
 
 ## US-08.01 · Search and export a full audit trail
 
-*🛡*
+**Business benefit:** The bank can answer auditors and regulators with complete evidence of who changed what and when. Fast search and CSV export cut the cost of compliance reviews.
 
-| | |
-|---|---|
-| **Story** | US-08.01 · Search and export a full audit trail |
-| **Business benefit** | The bank can answer auditors and regulators with complete evidence of who changed what and when. Fast search and CSV export cut the cost of compliance reviews. |
-| **Persona** | site admin |
-| **Depends on** | US-01.07 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**User story:**
 
-**User story**
+As a site admin  
+I want every change recorded with who, what, when and a request id, and to search and export everyone's events  
+So that the bank can prove who did what to auditors and regulators  
 
-> As a site admin  
-> I want every change recorded with who, what, when and a request id, and to search and export everyone's events  
-> So that the bank can prove who did what to auditors and regulators  
+**Persona:** site admin · **Depends on:** US-01.07 · **Note:** site admin only
 
-**Acceptance criteria**
+**Acceptance criteria:**
 
 **Scenario 1 · Audit entries**
 
@@ -56,27 +44,24 @@ And choose All time, Today or Last 2 days
 And export the result to CSV
 ```
 
+
 ---
 
 ## US-08.02 · See my own activity
 
-| | |
-|---|---|
-| **Story** | US-08.02 · See my own activity |
-| **Business benefit** | Staff can check their own work without seeing colleagues' activity, respecting need-to-know access. Fewer support requests to admins lowers operating cost. |
-| **Persona** | content author |
-| **Depends on** | US-08.01 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Staff can check their own work without seeing colleagues' activity, respecting need-to-know access. Fewer support requests to admins lowers operating cost.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want to see a log of my own actions only  
-> So that I can check what I did without seeing other people's activity  
+As a content author  
+I want to see a log of my own actions only  
+So that I can check what I did without seeing other people's activity  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-08.01
 
-**Scenario · Admins see everyone, others see themselves**
+**Acceptance criteria:**
+
+**Scenario 1 · Admins see everyone, others see themselves**
 
 ```gherkin
 Given I am not a site admin
@@ -84,25 +69,22 @@ When I open the audit log
 Then it is titled "My activity" and shows only my actions
 ```
 
+
 ---
 
 ## US-08.03 · See what needs attention
 
-| | |
-|---|---|
-| **Story** | US-08.03 · See what needs attention |
-| **Business benefit** | Waiting reviews and failed publishes are spotted early, so content reaches customers on time. Managers get a quick view of throughput without manual reporting. |
-| **Persona** | content author |
-| **Depends on** | US-08.01, US-04.16 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Waiting reviews and failed publishes are spotted early, so content reaches customers on time. Managers get a quick view of throughput without manual reporting.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want a dashboard that summarises waiting reviews, how much of the site is live, failed publishes, my tasks and recent activity  
-> So that I see at a glance where work stands and what to do next  
+As a content author  
+I want a dashboard that summarises waiting reviews, how much of the site is live, failed publishes, my tasks and recent activity  
+So that I see at a glance where work stands and what to do next  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-08.01, US-04.16
+
+**Acceptance criteria:**
 
 **Scenario 1 · Dashboard tiles**
 
@@ -121,7 +103,3 @@ And the latest 5 activity lines
 Given no page waits for review
 Then the tile says "Nothing waiting. Nice."
 ```
-
----
-
-Source (Gherkin): [`gherkin/08-governance.feature`](gherkin/08-governance.feature) · Generated with `python3 tools/story-map.py` — edit the Gherkin file, then regenerate.

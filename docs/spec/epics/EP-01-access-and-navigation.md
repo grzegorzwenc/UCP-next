@@ -1,51 +1,39 @@
 # EP-01 · Access & navigation
 
-| | |
-|---|---|
-| **Epic** | EP-01 · Access & navigation |
-| **Business benefit** | Only identified staff with the right permissions can change customer-facing content, which closes the door to anonymous or unauthorised changes. One platform for every market and environment replaces separate country tools and cuts licence and support cost. |
-| **Scope** | Who you are, where you are and what you may do: sign-in, markets and environments, navigation, roles and permissions. |
-| **Stories** | 9 |
-| **Jira** | Issue type Epic · Team WPB Digital Browser: Tools |
+**Epic:** EP-01 · Access & navigation
 
-## Stories in this epic
+**Business benefit:** Only identified staff with the right permissions can change customer-facing content, which closes the door to anonymous or unauthorised changes. One platform for every market and environment replaces separate country tools and cuts licence and support cost.
 
-| # | Story | Persona | Depends on |
-|---|---|---|---|
-| 1 | [US-01.01 · Sign in with the company account](#us-0101--sign-in-with-the-company-account) 🧪 | content author | — |
-| 2 | [US-01.02 · Open a review link without an account](#us-0102--open-a-review-link-without-an-account) 🧪 | guest reviewer | US-04.12 |
-| 3 | [US-01.03 · Try the private demo as any person](#us-0103--try-the-private-demo-as-any-person) 🧪 | business owner | US-01.01 |
-| 4 | [US-01.04 · Switch between markets](#us-0104--switch-between-markets) | content author | — |
-| 5 | [US-01.05 · Always know which environment I am in](#us-0105--always-know-which-environment-i-am-in) | publisher | — |
-| 6 | [US-01.06 · Reach any screen quickly on any device](#us-0106--reach-any-screen-quickly-on-any-device) | content author | — |
-| 7 | [US-01.07 · Give each role and workflow step the right permissions](#us-0107--give-each-role-and-workflow-step-the-right-permissions) | business owner | — |
-| 8 | [US-01.08 · Manage people and their permissions](#us-0108--manage-people-and-their-permissions) 🛡 | site admin | US-01.07 |
-| 9 | [US-01.09 · Only site admins can change access](#us-0109--only-site-admins-can-change-access) | business owner | US-01.08 |
+**Scope:** Who you are, where you are and what you may do: sign-in, markets and environments, navigation, roles and permissions.
 
-🛡 site-admin story · ⏭ planned, not built yet · 🧪 runs on a stand-in today (mock)
+**Stories (9):**
+
+1. [US-01.01 · Sign in with the company account](#us-0101--sign-in-with-the-company-account)
+2. [US-01.02 · Open a review link without an account](#us-0102--open-a-review-link-without-an-account)
+3. [US-01.03 · Try the private demo as any person](#us-0103--try-the-private-demo-as-any-person)
+4. [US-01.04 · Switch between markets](#us-0104--switch-between-markets)
+5. [US-01.05 · Always know which environment I am in](#us-0105--always-know-which-environment-i-am-in)
+6. [US-01.06 · Reach any screen quickly on any device](#us-0106--reach-any-screen-quickly-on-any-device)
+7. [US-01.07 · Give each role and workflow step the right permissions](#us-0107--give-each-role-and-workflow-step-the-right-permissions)
+8. [US-01.08 · Manage people and their permissions](#us-0108--manage-people-and-their-permissions)
+9. [US-01.09 · Only site admins can change access](#us-0109--only-site-admins-can-change-access)
 
 ---
 
 ## US-01.01 · Sign in with the company account
 
-*🧪*
+**Business benefit:** Only identified staff can reach the CMS, which closes the door to anonymous changes on customer-facing pages. Every action is tied to a named person, giving auditors a reliable trail.
 
-| | |
-|---|---|
-| **Story** | US-01.01 · Sign in with the company account |
-| **Business benefit** | Only identified staff can reach the CMS, which closes the door to anonymous changes on customer-facing pages. Every action is tied to a named person, giving auditors a reliable trail. |
-| **Persona** | content author |
-| **Depends on** | — |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**User story:**
 
-**User story**
+As a content author  
+I want to sign in with my company account and land where I was going  
+So that UCP knows who I am and only signed-in people reach the CMS  
+Note: the prototype uses an SSO stand-in (pick an account, no password). Real SSO is on the roadmap.  
 
-> As a content author  
-> I want to sign in with my company account and land where I was going  
-> So that UCP knows who I am and only signed-in people reach the CMS  
-> Note: the prototype uses an SSO stand-in (pick an account, no password). Real SSO is on the roadmap.  
+**Persona:** content author · **Depends on:** — · **Note:** runs on a stand-in (mock) today
 
-**Acceptance criteria**
+**Acceptance criteria:**
 
 **Scenario 1 · Opening a screen without a session**
 
@@ -85,58 +73,48 @@ Then I am on the login screen
 Then a session lasts 12 hours
 ```
 
+
 ---
 
 ## US-01.02 · Open a review link without an account
 
-*🧪*
+**Business benefit:** External and occasional reviewers can sign off pages without the bank buying and managing extra CMS licences. Reviews happen sooner because nobody waits for an account to be created.
 
-| | |
-|---|---|
-| **Story** | US-01.02 · Open a review link without an account |
-| **Business benefit** | External and occasional reviewers can sign off pages without the bank buying and managing extra CMS licences. Reviews happen sooner because nobody waits for an account to be created. |
-| **Persona** | guest reviewer |
-| **Depends on** | US-04.12 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**User story:**
 
-**User story**
+As a guest reviewer  
+I want to open a review link without signing in  
+So that I can give feedback on a page without a CMS account  
+Note: the prototype uses an SSO stand-in (pick an account, no password). Real SSO is on the roadmap.  
 
-> As a guest reviewer  
-> I want to open a review link without signing in  
-> So that I can give feedback on a page without a CMS account  
-> Note: the prototype uses an SSO stand-in (pick an account, no password). Real SSO is on the roadmap.  
+**Persona:** guest reviewer · **Depends on:** US-04.12 · **Note:** runs on a stand-in (mock) today
 
-**Acceptance criteria**
+**Acceptance criteria:**
 
-**Scenario · Review links do not need a session**
+**Scenario 1 · Review links do not need a session**
 
 ```gherkin
 When I open a review link "/review/<token>"
 Then the page opens without signing in
 ```
 
+
 ---
 
 ## US-01.03 · Try the private demo as any person
 
-*🧪*
+**Business benefit:** Stakeholders can evaluate every role before the bank commits to a rollout, reducing the risk of a costly wrong choice. The demo stays private, so unfinished screens and sample data are never exposed publicly.
 
-| | |
-|---|---|
-| **Story** | US-01.03 · Try the private demo as any person |
-| **Business benefit** | Stakeholders can evaluate every role before the bank commits to a rollout, reducing the risk of a costly wrong choice. The demo stays private, so unfinished screens and sample data are never exposed publicly. |
-| **Persona** | business owner |
-| **Depends on** | US-01.01 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**User story:**
 
-**User story**
+As a business owner  
+I want the hosted demo kept behind a password and to try it as any demo person  
+So that I can evaluate every role without exposing the demo to the public  
+Note: the prototype uses an SSO stand-in (pick an account, no password). Real SSO is on the roadmap.  
 
-> As a business owner  
-> I want the hosted demo kept behind a password and to try it as any demo person  
-> So that I can evaluate every role without exposing the demo to the public  
-> Note: the prototype uses an SSO stand-in (pick an account, no password). Real SSO is on the roadmap.  
+**Persona:** business owner · **Depends on:** US-01.01 · **Note:** runs on a stand-in (mock) today
 
-**Acceptance criteria**
+**Acceptance criteria:**
 
 **Scenario 1 · The hosted demo is behind a password**
 
@@ -154,25 +132,22 @@ When I open "/login?demo=1"
 Then every demo person is listed with their role and team
 ```
 
+
 ---
 
 ## US-01.04 · Switch between markets
 
-| | |
-|---|---|
-| **Story** | US-01.04 · Switch between markets |
-| **Business benefit** | One platform serves every market, so the bank runs and pays for a single CMS instead of one per country. Authors working across markets make fewer wrong-market edits. |
-| **Persona** | content author |
-| **Depends on** | — |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** One platform serves every market, so the bank runs and pays for a single CMS instead of one per country. Authors working across markets make fewer wrong-market edits.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want to pick an instance and market and switch market without losing my place  
-> So that I can work across several countries on one platform without confusion  
+As a content author  
+I want to pick an instance and market and switch market without losing my place  
+So that I can work across several countries on one platform without confusion  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** —
+
+**Acceptance criteria:**
 
 **Scenario 1 · Instances** *(one run per row of the table)*
 
@@ -195,27 +170,24 @@ When I switch to "HSBC France"
 Then I am on Pages in France
 ```
 
+
 ---
 
 ## US-01.05 · Always know which environment I am in
 
-| | |
-|---|---|
-| **Story** | US-01.05 · Always know which environment I am in |
-| **Business benefit** | Constant visibility of the environment prevents accidental publication to customers, a costly and reputationally damaging incident. Teams can test freely in staging with confidence. |
-| **Persona** | publisher |
-| **Depends on** | — |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Constant visibility of the environment prevents accidental publication to customers, a costly and reputationally damaging incident. Teams can test freely in staging with confidence.
 
-**User story**
+**User story:**
 
-> As a publisher  
-> I want the environment and its consequences always visible  
-> So that I never publish to customers by mistake  
+As a publisher  
+I want the environment and its consequences always visible  
+So that I never publish to customers by mistake  
 
-**Acceptance criteria**
+**Persona:** publisher · **Depends on:** —
 
-**Scenario · Environment note** *(one run per row of the table)*
+**Acceptance criteria:**
+
+**Scenario 1 · Environment note** *(one run per row of the table)*
 
 ```gherkin
 When I choose "<environment>"
@@ -227,25 +199,22 @@ Examples:
   | Staging     | Nothing in this environment reaches customers.    |
 ```
 
+
 ---
 
 ## US-01.06 · Reach any screen quickly on any device
 
-| | |
-|---|---|
-| **Story** | US-01.06 · Reach any screen quickly on any device |
-| **Business benefit** | Authors spend less time hunting through menus, which raises daily output at no extra cost. The same tool works on laptops and small screens, so work does not stall away from the desk. |
-| **Persona** | content author |
-| **Depends on** | — |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Authors spend less time hunting through menus, which raises daily output at no extra cost. The same tool works on laptops and small screens, so work does not stall away from the desk.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want a command palette, a global search and a menu that fits my screen  
-> So that every page and section is a couple of keystrokes away  
+As a content author  
+I want a command palette, a global search and a menu that fits my screen  
+So that every page and section is a couple of keystrokes away  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** —
+
+**Acceptance criteria:**
 
 **Scenario 1 · Command palette**
 
@@ -277,27 +246,24 @@ Examples:
   | narrower than 768 px  | hidden behind ☰ and opens as a drawer       |
 ```
 
+
 ---
 
 ## US-01.07 · Give each role and workflow step the right permissions
 
-| | |
-|---|---|
-| **Story** | US-01.07 · Give each role and workflow step the right permissions |
-| **Business benefit** | Approval rights follow the bank's segregation-of-duties rules, which supports regulatory compliance. Sensible defaults also cut the admin effort of setting up each new person. |
-| **Persona** | business owner |
-| **Depends on** | — |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Approval rights follow the bank's segregation-of-duties rules, which supports regulatory compliance. Sensible defaults also cut the admin effort of setting up each new person.
 
-**User story**
+**User story:**
 
-> As a business owner  
-> I want each role to come with sensible defaults and each workflow step to need its permission  
-> So that only qualified people edit, approve and publish content  
+As a business owner  
+I want each role to come with sensible defaults and each workflow step to need its permission  
+So that only qualified people edit, approve and publish content  
 
-**Acceptance criteria**
+**Persona:** business owner · **Depends on:** —
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the permissions are Read, Edit, Review & approve, Publish and Manage
@@ -334,29 +300,24 @@ Examples:
   | Scheduled / Published     | Publish            |
 ```
 
+
 ---
 
 ## US-01.08 · Manage people and their permissions
 
-*🛡*
+**Business benefit:** Access can be tailored per folder, so teams work independently without over-privileged accounts. Every grant is logged, which makes access reviews and audits straightforward.
 
-| | |
-|---|---|
-| **Story** | US-01.08 · Manage people and their permissions |
-| **Business benefit** | Access can be tailored per folder, so teams work independently without over-privileged accounts. Every grant is logged, which makes access reviews and audits straightforward. |
-| **Persona** | site admin |
-| **Depends on** | US-01.07 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**User story:**
 
-**User story**
+As a site admin  
+I want to invite people and grant them permissions on the right folders  
+So that everyone has exactly the access their job needs  
 
-> As a site admin  
-> I want to invite people and grant them permissions on the right folders  
-> So that everyone has exactly the access their job needs  
+**Persona:** site admin · **Depends on:** US-01.07 · **Note:** site admin only
 
-**Acceptance criteria**
+**Acceptance criteria:**
 
-**Background** · applies to every scenario below
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the permissions are Read, Edit, Review & approve, Publish and Manage
@@ -387,27 +348,24 @@ Then the sign-in id is "sam.taylor"
 And they get the Author permissions on the whole site
 ```
 
+
 ---
 
 ## US-01.09 · Only site admins can change access
 
-| | |
-|---|---|
-| **Story** | US-01.09 · Only site admins can change access |
-| **Business benefit** | Server-side enforcement closes a privilege-escalation risk that would otherwise undermine every other control. It gives security and audit teams evidence that access rules cannot be bypassed. |
-| **Persona** | business owner |
-| **Depends on** | US-01.08 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Server-side enforcement closes a privilege-escalation risk that would otherwise undermine every other control. It gives security and audit teams evidence that access rules cannot be bypassed.
 
-**User story**
+**User story:**
 
-> As a business owner  
-> I want only site admins to change users and permissions, enforced on screen and on the server  
-> So that nobody can grant themselves more than they should have  
+As a business owner  
+I want only site admins to change users and permissions, enforced on screen and on the server  
+So that nobody can grant themselves more than they should have  
 
-**Acceptance criteria**
+**Persona:** business owner · **Depends on:** US-01.08
 
-**Background** · applies to every scenario below
+**Acceptance criteria:**
+
+**Background** (applies to every scenario below)
 
 ```gherkin
 Given the permissions are Read, Edit, Review & approve, Publish and Manage
@@ -430,7 +388,3 @@ Given I am a viewer
 When I save components of a page or change a user
 Then the answer is 403 with a request id
 ```
-
----
-
-Source (Gherkin): [`gherkin/01-access-and-navigation.feature`](gherkin/01-access-and-navigation.feature) · Generated with `python3 tools/story-map.py` — edit the Gherkin file, then regenerate.

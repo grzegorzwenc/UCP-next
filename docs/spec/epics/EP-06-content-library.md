@@ -1,51 +1,39 @@
 # EP-06 · Content library
 
-| | |
-|---|---|
-| **Epic** | EP-06 · Content library |
-| **Business benefit** | Templates, assets, models and shared content are defined once and reused everywhere, so facts like rates are correct on every page and brand rules are applied by default. Accessibility data on every file supports inclusive design and regulatory accessibility duties. |
-| **Scope** | Reusable building blocks and content: page templates, assets with accessibility data, content models and entities. |
-| **Stories** | 10 |
-| **Jira** | Issue type Epic · Team WPB Digital Browser: Tools |
+**Epic:** EP-06 · Content library
 
-## Stories in this epic
+**Business benefit:** Templates, assets, models and shared content are defined once and reused everywhere, so facts like rates are correct on every page and brand rules are applied by default. Accessibility data on every file supports inclusive design and regulatory accessibility duties.
 
-| # | Story | Persona | Depends on |
-|---|---|---|---|
-| 1 | [US-06.01 · Build and maintain page templates](#us-0601--build-and-maintain-page-templates) 🛡 | site admin | — |
-| 2 | [US-06.02 · Limit a template to some markets](#us-0602--limit-a-template-to-some-markets) 🛡 | site admin | US-06.01 |
-| 3 | [US-06.03 · Pick the right template for my market](#us-0603--pick-the-right-template-for-my-market) | content author | US-06.01, US-06.02 |
-| 4 | [US-06.04 · Upload and replace files safely](#us-0604--upload-and-replace-files-safely) | content author | — |
-| 5 | [US-06.05 · Make files accessible](#us-0605--make-files-accessible) | content author | US-06.04 |
-| 6 | [US-06.06 · Find the right file](#us-0606--find-the-right-file) | content author | US-06.04, US-06.05 |
-| 7 | [US-06.07 · Approve files for live use](#us-0607--approve-files-for-live-use) | publisher | US-06.04 |
-| 8 | [US-06.08 · Define and evolve content models](#us-0608--define-and-evolve-content-models) 🛡 | site admin | — |
-| 9 | [US-06.09 · Create reusable content items from a model](#us-0609--create-reusable-content-items-from-a-model) | content author | US-06.08 |
-| 10 | [US-06.10 · Update a fact everywhere at once](#us-0610--update-a-fact-everywhere-at-once) | content author | US-06.09, US-03.15 |
+**Scope:** Reusable building blocks and content: page templates, assets with accessibility data, content models and entities.
 
-🛡 site-admin story · ⏭ planned, not built yet · 🧪 runs on a stand-in today (mock)
+**Stories (10):**
+
+1. [US-06.01 · Build and maintain page templates](#us-0601--build-and-maintain-page-templates)
+2. [US-06.02 · Limit a template to some markets](#us-0602--limit-a-template-to-some-markets)
+3. [US-06.03 · Pick the right template for my market](#us-0603--pick-the-right-template-for-my-market)
+4. [US-06.04 · Upload and replace files safely](#us-0604--upload-and-replace-files-safely)
+5. [US-06.05 · Make files accessible](#us-0605--make-files-accessible)
+6. [US-06.06 · Find the right file](#us-0606--find-the-right-file)
+7. [US-06.07 · Approve files for live use](#us-0607--approve-files-for-live-use)
+8. [US-06.08 · Define and evolve content models](#us-0608--define-and-evolve-content-models)
+9. [US-06.09 · Create reusable content items from a model](#us-0609--create-reusable-content-items-from-a-model)
+10. [US-06.10 · Update a fact everywhere at once](#us-0610--update-a-fact-everywhere-at-once)
 
 ---
 
 ## US-06.01 · Build and maintain page templates
 
-*🛡*
+**Business benefit:** Every page type starts from an approved structure with mandatory brand and navigation parts, so brand and compliance consistency is built in. New pages are created faster, cutting time to market.
 
-| | |
-|---|---|
-| **Story** | US-06.01 · Build and maintain page templates |
-| **Business benefit** | Every page type starts from an approved structure with mandatory brand and navigation parts, so brand and compliance consistency is built in. New pages are created faster, cutting time to market. |
-| **Persona** | site admin |
-| **Depends on** | — |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**User story:**
 
-**User story**
+As a site admin  
+I want to create, edit, duplicate and delete templates the way I edit pages  
+So that every new page of a type starts consistent, with the required HSBC parts in place  
 
-> As a site admin  
-> I want to create, edit, duplicate and delete templates the way I edit pages  
-> So that every new page of a type starts consistent, with the required HSBC parts in place  
+**Persona:** site admin · **Depends on:** — · **Note:** site admin only
 
-**Acceptance criteria**
+**Acceptance criteria:**
 
 **Scenario 1 · Editing a template**
 
@@ -69,29 +57,24 @@ Then I can create a template with a unique name, duplicate it as "(copy)" and de
 But the "Blank page" template cannot be duplicated or deleted
 ```
 
+
 ---
 
 ## US-06.02 · Limit a template to some markets
 
-*🛡*
+**Business benefit:** Market-specific layouts cannot be reused by markets they were not approved for, reducing local regulatory and brand risk. Central teams can share templates safely without extra manual checks.
 
-| | |
-|---|---|
-| **Story** | US-06.02 · Limit a template to some markets |
-| **Business benefit** | Market-specific layouts cannot be reused by markets they were not approved for, reducing local regulatory and brand risk. Central teams can share templates safely without extra manual checks. |
-| **Persona** | site admin |
-| **Depends on** | US-06.01 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**User story:**
 
-**User story**
+As a site admin  
+I want to choose in which local markets a template can be used  
+So that local templates stay local  
 
-> As a site admin  
-> I want to choose in which local markets a template can be used  
-> So that local templates stay local  
+**Persona:** site admin · **Depends on:** US-06.01 · **Note:** site admin only
 
-**Acceptance criteria**
+**Acceptance criteria:**
 
-**Scenario · Choosing markets**
+**Scenario 1 · Choosing markets**
 
 ```gherkin
 When I choose "Only some local markets" and tick "Hong Kong" in Template settings
@@ -99,25 +82,22 @@ Then only Hong Kong can create pages from it
 And I am warned that the UK can no longer create pages from it
 ```
 
+
 ---
 
 ## US-06.03 · Pick the right template for my market
 
-| | |
-|---|---|
-| **Story** | US-06.03 · Pick the right template for my market |
-| **Business benefit** | Authors start from approved, market-appropriate templates instead of improvising layouts, which lowers rework and review effort. Read-only access protects templates from accidental change. |
-| **Persona** | content author |
-| **Depends on** | US-06.01, US-06.02 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Authors start from approved, market-appropriate templates instead of improvising layouts, which lowers rework and review effort. Read-only access protects templates from accidental change.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want to browse the template library and see what each template contains and where it can be used, without being able to change it  
-> So that I start pages from an approved template that is allowed in my market  
+As a content author  
+I want to browse the template library and see what each template contains and where it can be used, without being able to change it  
+So that I start pages from an approved template that is allowed in my market  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-06.01, US-06.02
+
+**Acceptance criteria:**
 
 **Scenario 1 · Read-only for everyone else**
 
@@ -141,25 +121,22 @@ When I open the library in the UK
 Then its card is dimmed and the button says "Not for UK"
 ```
 
+
 ---
 
 ## US-06.04 · Upload and replace files safely
 
-| | |
-|---|---|
-| **Story** | US-06.04 · Upload and replace files safely |
-| **Business benefit** | Files can be updated without breaking live pages, protecting the customer experience and the bank's reputation. Automatic renaming prevents costly overwrites of approved material. |
-| **Persona** | content author |
-| **Depends on** | — |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Files can be updated without breaking live pages, protecting the customer experience and the bank's reputation. Automatic renaming prevents costly overwrites of approved material.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want to upload and replace files without ever overwriting another file or deleting one that pages still use  
-> So that no live page breaks because of a change in the library  
+As a content author  
+I want to upload and replace files without ever overwriting another file or deleting one that pages still use  
+So that no live page breaks because of a change in the library  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** —
+
+**Acceptance criteria:**
 
 **Scenario 1 · Uploading**
 
@@ -184,25 +161,22 @@ Given "hero.jpg" is used on 2 pages
 Then I cannot delete it and I am told "Remove it from pages first"
 ```
 
+
 ---
 
 ## US-06.05 · Make files accessible
 
-| | |
-|---|---|
-| **Story** | US-06.05 · Make files accessible |
-| **Business benefit** | Recording alt text and document accessibility details helps the bank meet its accessibility obligations and avoid legal risk. Customers using assistive technology get the same information as everyone else. |
-| **Persona** | content author |
-| **Depends on** | US-06.04 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Recording alt text and document accessibility details helps the bank meet its accessibility obligations and avoid legal risk. Customers using assistive technology get the same information as everyone else.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want to record alt text per language for images and the accessibility details of documents  
-> So that every file on our pages can be used by customers with assistive technology  
+As a content author  
+I want to record alt text per language for images and the accessibility details of documents  
+So that every file on our pages can be used by customers with assistive technology  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-06.04
+
+**Acceptance criteria:**
 
 **Scenario 1 · Alt text per language**
 
@@ -219,25 +193,22 @@ And I am told not to start with "image of" and to keep it under 150 characters
 Then a PDF needs a title, a language and "Tagged PDF, checked"
 ```
 
+
 ---
 
 ## US-06.06 · Find the right file
 
-| | |
-|---|---|
-| **Story** | US-06.06 · Find the right file |
-| **Business benefit** | Reusing approved files avoids duplicate purchases and repeated approvals, lowering cost. Smart views surface unused and inaccessible files so problems are fixed before audits find them. |
-| **Persona** | content author |
-| **Depends on** | US-06.04, US-06.05 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Reusing approved files avoids duplicate purchases and repeated approvals, lowering cost. Smart views surface unused and inaccessible files so problems are fixed before audits find them.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want to browse files by folder and type and see which ones are unused or missing accessibility details  
-> So that I reuse approved files and can clean up problems quickly  
+As a content author  
+I want to browse files by folder and type and see which ones are unused or missing accessibility details  
+So that I reuse approved files and can clean up problems quickly  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-06.04, US-06.05
+
+**Acceptance criteria:**
 
 **Scenario 1 · Browsing**
 
@@ -258,25 +229,22 @@ Examples:
   | Missing accessibility info   | images without alt text and untagged PDFs   |
 ```
 
+
 ---
 
 ## US-06.07 · Approve files for live use
 
-| | |
-|---|---|
-| **Story** | US-06.07 · Approve files for live use |
-| **Business benefit** | Only approved files can appear on live pages, reducing brand, legal and compliance risk. The publish record shows who approved each file and when, supporting audits. |
-| **Persona** | publisher |
-| **Depends on** | US-06.04 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Only approved files can appear on live pages, reducing brand, legal and compliance risk. The publish record shows who approved each file and when, supporting audits.
 
-**User story**
+**User story:**
 
-> As a publisher  
-> I want to publish draft files and have pages refused while they still use a draft file  
-> So that customers only ever see approved files  
+As a publisher  
+I want to publish draft files and have pages refused while they still use a draft file  
+So that customers only ever see approved files  
 
-**Acceptance criteria**
+**Persona:** publisher · **Depends on:** US-06.04
+
+**Acceptance criteria:**
 
 **Scenario 1 · Publishing a file**
 
@@ -292,27 +260,22 @@ Then it shows "Published" with who and when
 Then publishing a page that uses a draft file is refused until the file is published
 ```
 
+
 ---
 
 ## US-06.08 · Define and evolve content models
 
-*🛡*
+**Business benefit:** Structured, validated content types give every channel consistent data and reduce errors in key facts. Guarded breaking changes protect live content and avoid costly outages.
 
-| | |
-|---|---|
-| **Story** | US-06.08 · Define and evolve content models |
-| **Business benefit** | Structured, validated content types give every channel consistent data and reduce errors in key facts. Guarded breaking changes protect live content and avoid costly outages. |
-| **Persona** | site admin |
-| **Depends on** | — |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**User story:**
 
-**User story**
+As a site admin  
+I want to create content models with validated fields, publish them, and change them safely over time  
+So that authors get well-structured content types and live content is not broken by a careless change  
 
-> As a site admin  
-> I want to create content models with validated fields, publish them, and change them safely over time  
-> So that authors get well-structured content types and live content is not broken by a careless change  
+**Persona:** site admin · **Depends on:** — · **Note:** site admin only
 
-**Acceptance criteria**
+**Acceptance criteria:**
 
 **Scenario 1 · Creating a model**
 
@@ -352,25 +315,22 @@ Then I must tick "I understand the impact"
 Then every change is kept as a version I can compare and restore into the draft
 ```
 
+
 ---
 
 ## US-06.09 · Create reusable content items from a model
 
-| | |
-|---|---|
-| **Story** | US-06.09 · Create reusable content items from a model |
-| **Business benefit** | Facts such as rates are entered once, so the bank avoids inconsistent figures that could mislead customers. Blocking deletion of items in use prevents broken pages. |
-| **Persona** | content author |
-| **Depends on** | US-06.08 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** Facts such as rates are entered once, so the bank avoids inconsistent figures that could mislead customers. Blocking deletion of items in use prevents broken pages.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want to fill in entities from published models, see the model as documentation, and be stopped from deleting entities in use  
-> So that facts like rates are written once, correctly, and no page loses its content  
+As a content author  
+I want to fill in entities from published models, see the model as documentation, and be stopped from deleting entities in use  
+So that facts like rates are written once, correctly, and no page loses its content  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-06.08
+
+**Acceptance criteria:**
 
 **Scenario 1 · Read-only for others**
 
@@ -408,34 +368,27 @@ When I delete it
 Then I see "Used on 3 pages · Remove it from those pages first"
 ```
 
+
 ---
 
 ## US-06.10 · Update a fact everywhere at once
 
-| | |
-|---|---|
-| **Story** | US-06.10 · Update a fact everywhere at once |
-| **Business benefit** | A rate change reaches every page and channel at the same moment, lowering conduct risk from outdated figures. It removes the cost of editing many pages by hand. |
-| **Persona** | content author |
-| **Depends on** | US-06.09, US-03.15 |
-| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |
+**Business benefit:** A rate change reaches every page and channel at the same moment, lowering conduct risk from outdated figures. It removes the cost of editing many pages by hand.
 
-**User story**
+**User story:**
 
-> As a content author  
-> I want publishing an entity to update every page that shows it  
-> So that a changed rate is correct on all pages and channels at the same moment  
+As a content author  
+I want publishing an entity to update every page that shows it  
+So that a changed rate is correct on all pages and channels at the same moment  
 
-**Acceptance criteria**
+**Persona:** content author · **Depends on:** US-06.09, US-03.15
 
-**Scenario · Publishing an entity updates the pages that use it**
+**Acceptance criteria:**
+
+**Scenario 1 · Publishing an entity updates the pages that use it**
 
 ```gherkin
 When I publish "ISA rates 2026"
 Then the audit log says it updates the pages that show it
 And the delivery API shows the new values on those pages
 ```
-
----
-
-Source (Gherkin): [`gherkin/06-content-library.feature`](gherkin/06-content-library.feature) · Generated with `python3 tools/story-map.py` — edit the Gherkin file, then regenerate.
