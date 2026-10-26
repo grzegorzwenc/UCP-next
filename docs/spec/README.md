@@ -18,16 +18,17 @@ stories is written there, and only there. This README and the roadmap only point
 docs/spec/
 ├── README.md     this page: overview, epics list, how to create them in Jira
 ├── ROADMAP.md    what is built, what comes next, build order
-└── epics/        one page per Jira Epic (EP-01 … EP-09) — the source of truth
+└── epics/        one page per Jira Epic (EP-01 … EP-19), one per screen — the source of truth
+    └── img/      screenshots of every view and state, used on the epic pages
 ```
 
 Every epic page reads top to bottom:
 
 ```
-# EP-03 · Page builder
-Epic · Business benefit · Scope · list of stories
+# EP-04 · Page builder · Building the page
+Epic · Business benefit · Scope · The view (screenshots + what is on screen) · list of stories
 
-## US-03.04 · Saving: autosave, Save button, ⌘S and a 'not saved' warning   ← one Jira Story
+## US-04.14 · Saving: autosave, Save button, ⌘S and a 'not saved' warning   ← one Jira Story
 Business benefit                           two sentences: what the bank gains
 User story                                 As a … / I want … / So that …
 Persona · Depends on                       stories that must exist first ("is blocked by")
@@ -110,34 +111,49 @@ sequenceDiagram
 demoed end to end and urgent pages can be unblocked. Each such step is written to the audit log
 as "on behalf of". Ordinary users never see buttons for someone else's step (stories marked "site admin only").
 
-## 5. Epics
+## 5. Epics — one per screen, in the order you move through the app
 
-| # | Epic | Stories | What it covers |
-|---|---|---|---|
-| EP-01 | [Access & navigation](epics/EP-01-access-and-navigation.md) | 9 | Who you are, where you are, what you may do |
-| EP-02 | [Pages](epics/EP-02-pages.md) | 8 | The site tree and safe page operations |
-| EP-03 | [Page builder](epics/EP-03-page-builder.md) | 20 | Making a page |
-| EP-04 | [Review workflow](epics/EP-04-review-workflow.md) | 26 | Four-eyes approval |
-| EP-05 | [Publishing](epics/EP-05-publishing.md) | 6 | Going live safely |
-| EP-06 | [Content library](epics/EP-06-content-library.md) | 10 | Reusable building blocks and content |
-| EP-07 | [Translations](epics/EP-07-translations.md) | 2 | Language versions through the same workflow |
-| EP-08 | [Governance](epics/EP-08-governance.md) | 3 | Proof and overview |
-| EP-09 | [Delivery API](epics/EP-09-delivery-api.md) | 3 | Content for every channel |
+Each epic is one screen (or one part of the page builder): it starts with screenshots of the view and what is on it,
+then the stories for everything on that screen. The page builder is split into six epics because most of the work happens there.
+
+| # | Epic | Stories |
+|---|---|---|
+| EP-01 | [Sign-in & global navigation](epics/EP-01-sign-in-and-navigation.md) | 12 |
+| EP-02 | [Dashboard](epics/EP-02-dashboard.md) | 10 |
+| EP-03 | [Pages](epics/EP-03-pages.md) | 19 |
+| EP-04 | [Page builder · Building the page](epics/EP-04-page-builder-building.md) | 19 |
+| EP-05 | [Page builder · Design patterns](epics/EP-05-page-builder-design-patterns.md) | 7 |
+| EP-06 | [Page builder · Page settings, linked content & collaboration](epics/EP-06-page-builder-settings-content-collaboration.md) | 14 |
+| EP-07 | [Page builder · Quality checks & AI](epics/EP-07-page-builder-quality-and-ai.md) | 9 |
+| EP-08 | [Page builder · Review workflow](epics/EP-08-page-builder-review-workflow.md) | 24 |
+| EP-09 | [Page builder · Publishing](epics/EP-09-page-builder-publishing.md) | 9 |
+| EP-10 | [Review link (guest reviewers)](epics/EP-10-review-link.md) | 8 |
+| EP-11 | [My tasks](epics/EP-11-my-tasks.md) | 11 |
+| EP-12 | [Assets](epics/EP-12-assets.md) | 12 |
+| EP-13 | [Content entities](epics/EP-13-content-entities.md) | 15 |
+| EP-14 | [Content models](epics/EP-14-content-models.md) | 15 |
+| EP-15 | [Templates](epics/EP-15-templates.md) | 11 |
+| EP-16 | [API & delivery](epics/EP-16-api-and-delivery.md) | 13 |
+| EP-17 | [Users & roles](epics/EP-17-users-and-roles.md) | 10 |
+| EP-18 | [Audit log](epics/EP-18-audit-log.md) | 11 |
+| EP-19 | [Why UCP](epics/EP-19-why-ucp.md) | 3 |
+
+**19 epics · 232 stories · 866 scenarios.**
 
 ## 6. Creating the epics and stories in Jira
 
 Copy everything from the epic pages; nothing has to be invented.
 
-**Epics** (create the 9 epics first)
+**Epics** (create the 19 epics first)
 
 | Jira field | Value |
 |---|---|
 | Issue type | **Epic** |
-| Epic name / Summary | e.g. `EP-03 · Page builder` |
+| Epic name / Summary | e.g. `EP-04 · Page builder · Building the page` |
 | Team | **WPB Digital Browser: Tools** |
 | Description | the epic's **Business benefit** and **Scope** |
 
-**Stories** (same settings for all 87)
+**Stories** (same settings for all 232)
 
 | Jira field | Value |
 |---|---|
@@ -145,8 +161,8 @@ Copy everything from the epic pages; nothing has to be invented.
 | Story type | **Functional** |
 | Sprint | **TBD** |
 | Team | **WPB Digital Browser: Tools** |
-| Epic Link | the epic the story is under, e.g. `EP-03 · Page builder` |
-| Summary | story ID and name, e.g. `US-03.04 · Saving: autosave, Save button, ⌘S and a 'not saved' warning` |
+| Epic Link | the epic the story is under, e.g. `EP-04 · Page builder · Building the page` |
+| Summary | story ID and name, e.g. `US-04.14 · Saving: autosave, Save button, ⌘S and a 'not saved' warning` |
 | Description | **Business benefit**, then **User story**, then **Acceptance criteria** |
 | Acceptance criteria | **only** the acceptance criteria (Background, if any, and Scenario 1, 2, …) |
 
