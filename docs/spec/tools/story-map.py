@@ -46,8 +46,8 @@ waves = max(wave(s["id"]) for s in allst)
 
 o = ["# Story map", "", open("tools/jira-notes.md").read().rstrip(), "",
      "## How to read a story", "",
-     "Every story below is one Jira Story, shown the way it is filled in: **ID · name**, **persona**, **business benefit**, "
-     "**user story**, then the **acceptance criteria**. `Depends on` = create as \"is blocked by\" links. "
+     "Each feature has one table: every row is one Jira Story with its **ID · name**, **persona**, **business benefit** and **user story**. "
+     "Under the table, click a story to see its **acceptance criteria**. `Depends on` = create as \"is blocked by\" links. "
      "**Wave** = earliest build wave across the whole product (wave 1 needs nothing; a story can start once everything it depends on is done). "
      "🛡 site-admin story · ⏭ planned, not built yet.", "",
      f"**{len(allst)} stories · {len(feats)} features · 9 epics · {waves} build waves.** "
@@ -61,21 +61,16 @@ for f, feat, bg, st in feats:
     if st[0]["ep"] != cur:
         cur = st[0]["ep"]; o += ["", "---", "", f"## {cur} · {EPIC[cur]}"]
     o += ["", f"### Feature: {feat}", f"Source: [`{os.path.basename(f)}`]({f})", "",
-          "| # | Story | Persona | Depends on | Wave |", "|---|---|---|---|---|"]
+          "| # | Story | Persona | Business benefit | User story | Depends on | Wave |", "|---|---|---|---|---|---|---|"]
     for s in st:
         mark = (" 🛡" if s["admin"] else "") + (" ⏭" if s["nxt"] else "")
-        o.append(f"| {s['n']} | {s['id']} · {s['title']}{mark} | {s['persona']} | {', '.join(s['deps']) or '—'} | {wave(s['id'])} |")
+        us = "<br>".join(x.replace("|", "\\|") for x in s["story"])
+        o.append(f"| {s['n']} | **{s['id']}** · {s['title']}{mark} | {s['persona']} | {s['ben']} | {us} | {', '.join(s['deps']) or '—'} | {wave(s['id'])} |")
+    o += ["", "**Acceptance criteria**" + (" — the Background applies to every story of this feature" if bg else "")]
     if bg:
-        o += ["", "*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*", "", "```gherkin", "Background:"] + ["  " + b for b in bg] + ["```"]
+        o += ["", "```gherkin", "Background:"] + ["  " + b for b in bg] + ["```"]
     for s in st:
-        mark = (" 🛡" if s["admin"] else "") + (" ⏭" if s["nxt"] else "")
-        o += ["", f"#### {s['id']} · {s['title']}{mark}", "",
-              "| Field | Value |", "|---|---|",
-              f"| Issue type | Story |", f"| Story type | Functional |", f"| Sprint | TBD |", f"| Team | WPB Digital Browser: Tools |",
-              f"| Persona | {s['persona']} |", f"| Depends on | {', '.join(s['deps']) or '—'} |", f"| Build wave | {wave(s['id'])} |", "",
-              "**Business benefit**", "", s["ben"], "",
-              "**User story**", ""] + [f"> {line}  " for line in s["story"]] + ["",
-              "**Acceptance criteria**", "", "```gherkin", s["ac"], "```"]
+        o += ["", f"<details><summary><b>{s['id']}</b> · {s['title']}</summary>", "", "```gherkin", s["ac"], "```", "", "</details>"]
 o += ["", "---", "", "## Build waves (whole product)", "", "Stories in the same wave can be built in parallel once the earlier waves are done.", ""]
 for w in range(1, waves + 1):
     o += [f"**Wave {w}** — " + " · ".join(f"{s['id']} {s['title']}" for s in allst if wave(s["id"]) == w), ""]

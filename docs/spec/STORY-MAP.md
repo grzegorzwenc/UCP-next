@@ -48,7 +48,7 @@ Notes
 
 ## How to read a story
 
-Every story below is one Jira Story, shown the way it is filled in: **ID · name**, **persona**, **business benefit**, **user story**, then the **acceptance criteria**. `Depends on` = create as "is blocked by" links. **Wave** = earliest build wave across the whole product (wave 1 needs nothing; a story can start once everything it depends on is done). 🛡 site-admin story · ⏭ planned, not built yet.
+Each feature has one table: every row is one Jira Story with its **ID · name**, **persona**, **business benefit** and **user story**. Under the table, click a story to see its **acceptance criteria**. `Depends on` = create as "is blocked by" links. **Wave** = earliest build wave across the whole product (wave 1 needs nothing; a story can start once everything it depends on is done). 🛡 site-admin story · ⏭ planned, not built yet.
 
 **87 stories · 28 features · 9 epics · 16 build waves.** Generated from the `.feature` files with `python3 tools/story-map.py` — edit the features, then regenerate.
 
@@ -71,35 +71,15 @@ Every story below is one Jira Story, shown the way it is filled in: **ID · name
 ### Feature: Sign in and sign out
 Source: [`01-sign-in.feature`](features/01-access-and-navigation/01-sign-in.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-01.01.1 · Sign in with the company account | content author | — | 1 |
-| 2 | US-01.01.2 · Open a review link without an account | guest reviewer | US-04.04.1 | 14 |
-| 3 | US-01.01.3 · Try the private demo as any person | business owner | US-01.01.1 | 2 |
-
-#### US-01.01.1 · Sign in with the company account
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | — |
-| Build wave | 1 |
-
-**Business benefit**
-
-Only identified staff can reach the CMS, which closes the door to anonymous changes on customer-facing pages. Every action is tied to a named person, giving auditors a reliable trail.
-
-**User story**
-
-> As a content author  
-> I want to sign in with my company account and land where I was going  
-> So that UCP knows who I am and only signed-in people reach the CMS  
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-01.01.1** · Sign in with the company account | content author | Only identified staff can reach the CMS, which closes the door to anonymous changes on customer-facing pages. Every action is tied to a named person, giving auditors a reliable trail. | As a content author<br>I want to sign in with my company account and land where I was going<br>So that UCP knows who I am and only signed-in people reach the CMS | — | 1 |
+| 2 | **US-01.01.2** · Open a review link without an account | guest reviewer | External and occasional reviewers can sign off pages without the bank buying and managing extra CMS licences. Reviews happen sooner because nobody waits for an account to be created. | As a guest reviewer<br>I want to open a review link without signing in<br>So that I can give feedback on a page without a CMS account | US-04.04.1 | 14 |
+| 3 | **US-01.01.3** · Try the private demo as any person | business owner | Stakeholders can evaluate every role before the bank commits to a rollout, reducing the risk of a costly wrong choice. The demo stays private, so unfinished screens and sample data are never exposed publicly. | As a business owner<br>I want the hosted demo kept behind a password and to try it as any demo person<br>So that I can evaluate every role without exposing the demo to the public | US-01.01.1 | 2 |
 
 **Acceptance criteria**
+
+<details><summary><b>US-01.01.1</b> · Sign in with the company account</summary>
 
 ```gherkin
 Scenario: Opening a screen without a session
@@ -126,29 +106,9 @@ Scenario: Session length
   Then a session lasts 12 hours
 ```
 
-#### US-01.01.2 · Open a review link without an account
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | guest reviewer |
-| Depends on | US-04.04.1 |
-| Build wave | 14 |
-
-**Business benefit**
-
-External and occasional reviewers can sign off pages without the bank buying and managing extra CMS licences. Reviews happen sooner because nobody waits for an account to be created.
-
-**User story**
-
-> As a guest reviewer  
-> I want to open a review link without signing in  
-> So that I can give feedback on a page without a CMS account  
-
-**Acceptance criteria**
+<details><summary><b>US-01.01.2</b> · Open a review link without an account</summary>
 
 ```gherkin
 Scenario: Review links do not need a session
@@ -156,29 +116,9 @@ Scenario: Review links do not need a session
   Then the page opens without signing in
 ```
 
-#### US-01.01.3 · Try the private demo as any person
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | business owner |
-| Depends on | US-01.01.1 |
-| Build wave | 2 |
-
-**Business benefit**
-
-Stakeholders can evaluate every role before the bank commits to a rollout, reducing the risk of a costly wrong choice. The demo stays private, so unfinished screens and sample data are never exposed publicly.
-
-**User story**
-
-> As a business owner  
-> I want the hosted demo kept behind a password and to try it as any demo person  
-> So that I can evaluate every role without exposing the demo to the public  
-
-**Acceptance criteria**
+<details><summary><b>US-01.01.3</b> · Try the private demo as any person</summary>
 
 ```gherkin
 Scenario: The hosted demo is behind a password
@@ -192,38 +132,20 @@ Scenario: Demo accounts
   Then every demo person is listed with their role and team
 ```
 
+</details>
+
 ### Feature: Markets, environments and navigation
 Source: [`02-markets-and-navigation.feature`](features/01-access-and-navigation/02-markets-and-navigation.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-01.02.1 · Switch between markets | content author | — | 1 |
-| 2 | US-01.02.2 · Always know which environment I am in | publisher | — | 1 |
-| 3 | US-01.02.3 · Reach any screen quickly on any device | content author | — | 1 |
-
-#### US-01.02.1 · Switch between markets
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | — |
-| Build wave | 1 |
-
-**Business benefit**
-
-One platform serves every market, so the bank runs and pays for a single CMS instead of one per country. Authors working across markets make fewer wrong-market edits.
-
-**User story**
-
-> As a content author  
-> I want to pick an instance and market and switch market without losing my place  
-> So that I can work across several countries on one platform without confusion  
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-01.02.1** · Switch between markets | content author | One platform serves every market, so the bank runs and pays for a single CMS instead of one per country. Authors working across markets make fewer wrong-market edits. | As a content author<br>I want to pick an instance and market and switch market without losing my place<br>So that I can work across several countries on one platform without confusion | — | 1 |
+| 2 | **US-01.02.2** · Always know which environment I am in | publisher | Constant visibility of the environment prevents accidental publication to customers, a costly and reputationally damaging incident. Teams can test freely in staging with confidence. | As a publisher<br>I want the environment and its consequences always visible<br>So that I never publish to customers by mistake | — | 1 |
+| 3 | **US-01.02.3** · Reach any screen quickly on any device | content author | Authors spend less time hunting through menus, which raises daily output at no extra cost. The same tool works on laptops and small screens, so work does not stall away from the desk. | As a content author<br>I want a command palette, a global search and a menu that fits my screen<br>So that every page and section is a couple of keystrokes away | — | 1 |
 
 **Acceptance criteria**
+
+<details><summary><b>US-01.02.1</b> · Switch between markets</summary>
 
 ```gherkin
 Scenario Outline: Instances
@@ -242,29 +164,9 @@ Scenario: Switching market keeps my place
   Then I am on Pages in France
 ```
 
-#### US-01.02.2 · Always know which environment I am in
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | publisher |
-| Depends on | — |
-| Build wave | 1 |
-
-**Business benefit**
-
-Constant visibility of the environment prevents accidental publication to customers, a costly and reputationally damaging incident. Teams can test freely in staging with confidence.
-
-**User story**
-
-> As a publisher  
-> I want the environment and its consequences always visible  
-> So that I never publish to customers by mistake  
-
-**Acceptance criteria**
+<details><summary><b>US-01.02.2</b> · Always know which environment I am in</summary>
 
 ```gherkin
 Scenario Outline: Environment note
@@ -277,29 +179,9 @@ Scenario Outline: Environment note
     | Staging     | Nothing in this environment reaches customers.    |
 ```
 
-#### US-01.02.3 · Reach any screen quickly on any device
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | — |
-| Build wave | 1 |
-
-**Business benefit**
-
-Authors spend less time hunting through menus, which raises daily output at no extra cost. The same tool works on laptops and small screens, so work does not stall away from the desk.
-
-**User story**
-
-> As a content author  
-> I want a command palette, a global search and a menu that fits my screen  
-> So that every page and section is a couple of keystrokes away  
-
-**Acceptance criteria**
+<details><summary><b>US-01.02.3</b> · Reach any screen quickly on any device</summary>
 
 ```gherkin
 Scenario: Command palette
@@ -324,16 +206,18 @@ Scenario Outline: Side menu
     | narrower than 768 px  | hidden behind ☰ and opens as a drawer       |
 ```
 
+</details>
+
 ### Feature: Roles and permissions
 Source: [`03-permissions.feature`](features/01-access-and-navigation/03-permissions.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-01.03.1 · Give each role and workflow step the right permissions | business owner | — | 1 |
-| 2 | US-01.03.2 · Manage people and their permissions 🛡 | site admin | US-01.03.1 | 2 |
-| 3 | US-01.03.3 · Only site admins can change access | business owner | US-01.03.2 | 3 |
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-01.03.1** · Give each role and workflow step the right permissions | business owner | Approval rights follow the bank's segregation-of-duties rules, which supports regulatory compliance. Sensible defaults also cut the admin effort of setting up each new person. | As a business owner<br>I want each role to come with sensible defaults and each workflow step to need its permission<br>So that only qualified people edit, approve and publish content | — | 1 |
+| 2 | **US-01.03.2** · Manage people and their permissions 🛡 | site admin | Access can be tailored per folder, so teams work independently without over-privileged accounts. Every grant is logged, which makes access reviews and audits straightforward. | As a site admin<br>I want to invite people and grant them permissions on the right folders<br>So that everyone has exactly the access their job needs | US-01.03.1 | 2 |
+| 3 | **US-01.03.3** · Only site admins can change access | business owner | Server-side enforcement closes a privilege-escalation risk that would otherwise undermine every other control. It gives security and audit teams evidence that access rules cannot be bypassed. | As a business owner<br>I want only site admins to change users and permissions, enforced on screen and on the server<br>So that nobody can grant themselves more than they should have | US-01.03.2 | 3 |
 
-*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*
+**Acceptance criteria** — the Background applies to every story of this feature
 
 ```gherkin
 Background:
@@ -341,29 +225,7 @@ Background:
   And they are granted on the whole site or on a top-level folder
 ```
 
-#### US-01.03.1 · Give each role and workflow step the right permissions
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | business owner |
-| Depends on | — |
-| Build wave | 1 |
-
-**Business benefit**
-
-Approval rights follow the bank's segregation-of-duties rules, which supports regulatory compliance. Sensible defaults also cut the admin effort of setting up each new person.
-
-**User story**
-
-> As a business owner  
-> I want each role to come with sensible defaults and each workflow step to need its permission  
-> So that only qualified people edit, approve and publish content  
-
-**Acceptance criteria**
+<details><summary><b>US-01.03.1</b> · Give each role and workflow step the right permissions</summary>
 
 ```gherkin
 Scenario Outline: Role defaults
@@ -391,29 +253,9 @@ Scenario Outline: Status changes
     | Scheduled / Published     | Publish            |
 ```
 
-#### US-01.03.2 · Manage people and their permissions 🛡
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | site admin |
-| Depends on | US-01.03.1 |
-| Build wave | 2 |
-
-**Business benefit**
-
-Access can be tailored per folder, so teams work independently without over-privileged accounts. Every grant is logged, which makes access reviews and audits straightforward.
-
-**User story**
-
-> As a site admin  
-> I want to invite people and grant them permissions on the right folders  
-> So that everyone has exactly the access their job needs  
-
-**Acceptance criteria**
+<details><summary><b>US-01.03.2</b> · Manage people and their permissions</summary>
 
 ```gherkin
 Scenario: Granting a permission
@@ -432,29 +274,9 @@ Scenario: Inviting a person
   And they get the Author permissions on the whole site
 ```
 
-#### US-01.03.3 · Only site admins can change access
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | business owner |
-| Depends on | US-01.03.2 |
-| Build wave | 3 |
-
-**Business benefit**
-
-Server-side enforcement closes a privilege-escalation risk that would otherwise undermine every other control. It gives security and audit teams evidence that access rules cannot be bypassed.
-
-**User story**
-
-> As a business owner  
-> I want only site admins to change users and permissions, enforced on screen and on the server  
-> So that nobody can grant themselves more than they should have  
-
-**Acceptance criteria**
+<details><summary><b>US-01.03.3</b> · Only site admins can change access</summary>
 
 ```gherkin
 Scenario: Non-admins see only themselves
@@ -469,6 +291,8 @@ Scenario: The server refuses changes from non-admins
   Then the answer is 403 with a request id
 ```
 
+</details>
+
 ---
 
 ## 02 · Pages
@@ -476,41 +300,19 @@ Scenario: The server refuses changes from non-admins
 ### Feature: Browse and create pages
 Source: [`01-browse-and-create.feature`](features/02-pages/01-browse-and-create.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-02.01.1 · Find any page in the market | content author | US-01.03.1 | 2 |
-| 2 | US-02.01.2 · Create pages and folders from on-brand templates | content author | US-02.01.1, US-06.01.3 | 4 |
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-02.01.1** · Find any page in the market | content author | Authors find the right page in seconds, which saves time on every task across all markets. Fewer duplicate pages get created because existing ones are easy to find. | As a content author<br>I want to browse the folder tree and search the whole market<br>So that I quickly find the page I need to work on | US-01.03.1 | 2 |
+| 2 | **US-02.01.2** · Create pages and folders from on-brand templates | content author | Every new page starts on-brand and market-appropriate, reducing rework and brand-compliance findings in review. Folder permissions keep teams from cluttering areas they do not own. | As a content author<br>I want to create folders and new pages from a template allowed in my market, where I have Edit<br>So that the site structure stays tidy and every page starts on-brand | US-02.01.1, US-06.01.3 | 4 |
 
-*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*
+**Acceptance criteria** — the Background applies to every story of this feature
 
 ```gherkin
 Background:
   Given I am signed in to the "HSBC UK" market in "Production"
 ```
 
-#### US-02.01.1 · Find any page in the market
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-01.03.1 |
-| Build wave | 2 |
-
-**Business benefit**
-
-Authors find the right page in seconds, which saves time on every task across all markets. Fewer duplicate pages get created because existing ones are easy to find.
-
-**User story**
-
-> As a content author  
-> I want to browse the folder tree and search the whole market  
-> So that I quickly find the page I need to work on  
-
-**Acceptance criteria**
+<details><summary><b>US-02.01.1</b> · Find any page in the market</summary>
 
 ```gherkin
 Scenario: Browsing folders
@@ -528,29 +330,9 @@ Scenario: Long folders load in parts
   Then 50 are shown with "Show 50 more"
 ```
 
-#### US-02.01.2 · Create pages and folders from on-brand templates
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-02.01.1, US-06.01.3 |
-| Build wave | 4 |
-
-**Business benefit**
-
-Every new page starts on-brand and market-appropriate, reducing rework and brand-compliance findings in review. Folder permissions keep teams from cluttering areas they do not own.
-
-**User story**
-
-> As a content author  
-> I want to create folders and new pages from a template allowed in my market, where I have Edit  
-> So that the site structure stays tidy and every page starts on-brand  
-
-**Acceptance criteria**
+<details><summary><b>US-02.01.2</b> · Create pages and folders from on-brand templates</summary>
 
 ```gherkin
 Scenario: Creating a page
@@ -581,46 +363,26 @@ Scenario: Read-only folder
   And there is no "New page" or "New folder"
 ```
 
+</details>
+
 ### Feature: Organise pages (rename, move, copy, duplicate, lock, restore)
 Source: [`02-organise-pages.feature`](features/02-pages/02-organise-pages.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-02.02.1 · Know what an action will change before it happens | content author | — | 1 |
-| 2 | US-02.02.2 · Move and copy pages without breaking or overwriting anything | content author | US-02.02.1, US-02.01.2 | 5 |
-| 3 | US-02.02.3 · Lock a page while I work on it | content author | US-02.02.1 | 2 |
-| 4 | US-02.02.4 · Override someone else's lock 🛡 | site admin | US-02.02.3 | 3 |
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-02.02.1** · Know what an action will change before it happens | content author | Clear impact warnings prevent accidental changes to live pages and the customer complaints they cause. Showing only allowed actions also reduces support requests and permission errors. | As a content author<br>I want to see only the actions I may take and a confirmation that explains their impact<br>So that I never change pages by accident | — | 1 |
+| 2 | **US-02.02.2** · Move and copy pages without breaking or overwriting anything | content author | Reorganising the site no longer produces broken links that harm customer experience and search ranking. Colleagues' pages are never overwritten, avoiding lost work and rework. | As a content author<br>I want moves to update the links that point to a page and copies never to replace an existing page<br>So that reorganising the site never breaks links or someone else's work | US-02.02.1, US-02.01.2 | 5 |
+| 3 | **US-02.02.3** · Lock a page while I work on it | content author | Locks prevent conflicting edits on sensitive pages while they are being prepared. Reviews and publishing continue, so the lock never delays time-critical releases. | As a content author<br>I want a page I locked to be changeable only by me or a site admin<br>So that nobody edits, moves or deletes it while it is mine | US-02.02.1 | 2 |
+| 4 | **US-02.02.4** · Override someone else's lock 🛡 | site admin | Work is never blocked by an absent colleague, which protects deadlines for campaigns and regulatory updates. Keeping the override with site admins keeps it controlled and accountable. | As a site admin<br>I want to change or unlock a page that someone else locked<br>So that work is not blocked when the person who locked it is unavailable | US-02.02.3 | 3 |
 
-*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*
+**Acceptance criteria** — the Background applies to every story of this feature
 
 ```gherkin
 Background:
   Given I am signed in with Edit on the "Banking" folder
 ```
 
-#### US-02.02.1 · Know what an action will change before it happens
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | — |
-| Build wave | 1 |
-
-**Business benefit**
-
-Clear impact warnings prevent accidental changes to live pages and the customer complaints they cause. Showing only allowed actions also reduces support requests and permission errors.
-
-**User story**
-
-> As a content author  
-> I want to see only the actions I may take and a confirmation that explains their impact  
-> So that I never change pages by accident  
-
-**Acceptance criteria**
+<details><summary><b>US-02.02.1</b> · Know what an action will change before it happens</summary>
 
 ```gherkin
 Scenario Outline: Confirmation with impact
@@ -641,29 +403,9 @@ Scenario: Selection bar
   And without Edit on every selected item only Translate and Publish are offered
 ```
 
-#### US-02.02.2 · Move and copy pages without breaking or overwriting anything
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-02.02.1, US-02.01.2 |
-| Build wave | 5 |
-
-**Business benefit**
-
-Reorganising the site no longer produces broken links that harm customer experience and search ranking. Colleagues' pages are never overwritten, avoiding lost work and rework.
-
-**User story**
-
-> As a content author  
-> I want moves to update the links that point to a page and copies never to replace an existing page  
-> So that reorganising the site never breaks links or someone else's work  
-
-**Acceptance criteria**
+<details><summary><b>US-02.02.2</b> · Move and copy pages without breaking or overwriting anything</summary>
 
 ```gherkin
 Scenario: Pages that link here are updated
@@ -690,29 +432,9 @@ Scenario: Folders are not copied
   Then I see "Folders are not copied · pick pages"
 ```
 
-#### US-02.02.3 · Lock a page while I work on it
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-02.02.1 |
-| Build wave | 2 |
-
-**Business benefit**
-
-Locks prevent conflicting edits on sensitive pages while they are being prepared. Reviews and publishing continue, so the lock never delays time-critical releases.
-
-**User story**
-
-> As a content author  
-> I want a page I locked to be changeable only by me or a site admin  
-> So that nobody edits, moves or deletes it while it is mine  
-
-**Acceptance criteria**
+<details><summary><b>US-02.02.3</b> · Lock a page while I work on it</summary>
 
 ```gherkin
 Scenario: Someone else tries to edit a locked page
@@ -726,29 +448,9 @@ Scenario: Unlocking someone else's lock
   Then I see "Cash ISA is locked by Rachel Hughes"
 ```
 
-#### US-02.02.4 · Override someone else's lock 🛡
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | site admin |
-| Depends on | US-02.02.3 |
-| Build wave | 3 |
-
-**Business benefit**
-
-Work is never blocked by an absent colleague, which protects deadlines for campaigns and regulatory updates. Keeping the override with site admins keeps it controlled and accountable.
-
-**User story**
-
-> As a site admin  
-> I want to change or unlock a page that someone else locked  
-> So that work is not blocked when the person who locked it is unavailable  
-
-**Acceptance criteria**
+<details><summary><b>US-02.02.4</b> · Override someone else's lock</summary>
 
 ```gherkin
 Scenario: A site admin unlocks someone else's lock
@@ -758,44 +460,24 @@ Scenario: A site admin unlocks someone else's lock
   Then the page is unlocked and can be changed, moved or deleted again
 ```
 
+</details>
+
 ### Feature: Archive and delete pages
 Source: [`03-archive-and-delete.feature`](features/02-pages/03-archive-and-delete.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-02.03.1 · Archive pages instead of deleting them | content author | — | 1 |
-| 2 | US-02.03.2 · See everything affected before deleting permanently | content author | US-02.03.1, US-06.02.1, US-03.05.1 | 4 |
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-02.03.1** · Archive pages instead of deleting them | content author | Making archive the default removes the risk of permanently losing content that may be needed again or for record-keeping. Restoring is quick, saving the cost of rebuilding pages. | As a content author<br>I want to archive pages I no longer need and restore them later<br>So that nothing is lost by mistake | — | 1 |
+| 2 | **US-02.03.2** · See everything affected before deleting permanently | content author | Showing every affected link and file before deletion prevents broken customer journeys and orphaned documents. Permanent deletion becomes a deliberate, documented decision. | As a content author<br>I want to see links, linked content, files and pages inside before I delete for good<br>So that broken links are visible before they happen | US-02.03.1, US-06.02.1, US-03.05.1 | 4 |
 
-*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*
+**Acceptance criteria** — the Background applies to every story of this feature
 
 ```gherkin
 Background:
   Given I am signed in with Edit on the folder
 ```
 
-#### US-02.03.1 · Archive pages instead of deleting them
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | — |
-| Build wave | 1 |
-
-**Business benefit**
-
-Making archive the default removes the risk of permanently losing content that may be needed again or for record-keeping. Restoring is quick, saving the cost of rebuilding pages.
-
-**User story**
-
-> As a content author  
-> I want to archive pages I no longer need and restore them later  
-> So that nothing is lost by mistake  
-
-**Acceptance criteria**
+<details><summary><b>US-02.03.1</b> · Archive pages instead of deleting them</summary>
 
 ```gherkin
 Scenario: Delete always offers Archive first
@@ -819,29 +501,9 @@ Scenario: Locked pages cannot be archived by others
   Then I see that it is locked by them
 ```
 
-#### US-02.03.2 · See everything affected before deleting permanently
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-02.03.1, US-06.02.1, US-03.05.1 |
-| Build wave | 4 |
-
-**Business benefit**
-
-Showing every affected link and file before deletion prevents broken customer journeys and orphaned documents. Permanent deletion becomes a deliberate, documented decision.
-
-**User story**
-
-> As a content author  
-> I want to see links, linked content, files and pages inside before I delete for good  
-> So that broken links are visible before they happen  
-
-**Acceptance criteria**
+<details><summary><b>US-02.03.2</b> · See everything affected before deleting permanently</summary>
 
 ```gherkin
 Scenario: References are checked
@@ -859,6 +521,8 @@ Scenario: Deleting a folder deletes the pages inside
   And I must type "delete" to confirm
 ```
 
+</details>
+
 ---
 
 ## 03 · Page builder
@@ -866,15 +530,15 @@ Scenario: Deleting a folder deletes the pages inside
 ### Feature: Build a page from components
 Source: [`01-build-a-page.feature`](features/03-page-builder/01-build-a-page.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-03.01.1 · Add on-brand components from the library | content author | US-02.01.2 | 5 |
-| 2 | US-03.01.2 · Edit text where it is shown | content author | US-03.01.1 | 6 |
-| 3 | US-03.01.3 · Arrange and configure every component the same way | content author | US-03.01.1 | 6 |
-| 4 | US-03.01.4 · Never lose my work | content author | US-03.01.2 | 7 |
-| 5 | US-03.01.5 · Check the page on every device width | content author | US-03.01.1 | 6 |
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-03.01.1** · Add on-brand components from the library | content author | Pages are built only from approved components, so brand and compliance quality is built in rather than checked later. Authors produce pages without developer help, lowering cost and time to market. | As a content author<br>I want to find components in the library and add them where I need them<br>So that every page is built only from approved HSBC components | US-02.01.2 | 5 |
+| 2 | **US-03.01.2** · Edit text where it is shown | content author | Authors see exactly what customers will see, which reduces review rounds caused by layout surprises. Restricting link formats also blocks unsafe links from reaching customers. | As a content author<br>I want to type and format text directly on the page<br>So that I see the result as customers will while I write | US-03.01.1 | 6 |
+| 3 | **US-03.01.3** · Arrange and configure every component the same way | content author | One consistent way to configure all components shortens training for new authors. Locking components protects mandatory content such as disclaimers from accidental edits. | As a content author<br>I want the same toolbar on every component and a Configure panel with all its properties<br>So that I can move, protect and fine-tune any component without learning each one | US-03.01.1 | 6 |
+| 4 | **US-03.01.4** · Never lose my work | content author | Authors never redo work after a closed tab or a lost connection. Fewer lost edits also mean fewer errors slipping into reviewed pages. | As a content author<br>I want the page to save itself, to save on demand and to tell me when saving fails<br>So that no edit is ever lost | US-03.01.2 | 7 |
+| 5 | **US-03.01.5** · Check the page on every device width | content author | Problems on mobile and tablet are caught before review, when they are cheapest to fix. Customers get a consistent experience on every device, which protects trust and conversion. | As a content author<br>I want to preview the page at desktop, tablet and mobile width and full screen<br>So that it works for every customer before I send it for review | US-03.01.1 | 6 |
 
-*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*
+**Acceptance criteria** — the Background applies to every story of this feature
 
 ```gherkin
 Background:
@@ -882,29 +546,7 @@ Background:
   And the page is at "Build the page"
 ```
 
-#### US-03.01.1 · Add on-brand components from the library
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-02.01.2 |
-| Build wave | 5 |
-
-**Business benefit**
-
-Pages are built only from approved components, so brand and compliance quality is built in rather than checked later. Authors produce pages without developer help, lowering cost and time to market.
-
-**User story**
-
-> As a content author  
-> I want to find components in the library and add them where I need them  
-> So that every page is built only from approved HSBC components  
-
-**Acceptance criteria**
+<details><summary><b>US-03.01.1</b> · Add on-brand components from the library</summary>
 
 ```gherkin
 Scenario: Adding a component
@@ -922,29 +564,9 @@ Scenario: An empty page offers starter layouts
   Then I see "How do you want to start this page?" with 3 layouts
 ```
 
-#### US-03.01.2 · Edit text where it is shown
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-03.01.1 |
-| Build wave | 6 |
-
-**Business benefit**
-
-Authors see exactly what customers will see, which reduces review rounds caused by layout surprises. Restricting link formats also blocks unsafe links from reaching customers.
-
-**User story**
-
-> As a content author  
-> I want to type and format text directly on the page  
-> So that I see the result as customers will while I write  
-
-**Acceptance criteria**
+<details><summary><b>US-03.01.2</b> · Edit text where it is shown</summary>
 
 ```gherkin
 Scenario: Editing a heading in place
@@ -967,29 +589,9 @@ Scenario: Formatting
   And links must start with https, mailto, tel, / or #
 ```
 
-#### US-03.01.3 · Arrange and configure every component the same way
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-03.01.1 |
-| Build wave | 6 |
-
-**Business benefit**
-
-One consistent way to configure all components shortens training for new authors. Locking components protects mandatory content such as disclaimers from accidental edits.
-
-**User story**
-
-> As a content author  
-> I want the same toolbar on every component and a Configure panel with all its properties  
-> So that I can move, protect and fine-tune any component without learning each one  
-
-**Acceptance criteria**
+<details><summary><b>US-03.01.3</b> · Arrange and configure every component the same way</summary>
 
 ```gherkin
 Scenario: Component toolbar
@@ -1009,29 +611,9 @@ Scenario: Configure panel
   And Cancel puts back the values from when Configure opened
 ```
 
-#### US-03.01.4 · Never lose my work
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-03.01.2 |
-| Build wave | 7 |
-
-**Business benefit**
-
-Authors never redo work after a closed tab or a lost connection. Fewer lost edits also mean fewer errors slipping into reviewed pages.
-
-**User story**
-
-> As a content author  
-> I want the page to save itself, to save on demand and to tell me when saving fails  
-> So that no edit is ever lost  
-
-**Acceptance criteria**
+<details><summary><b>US-03.01.4</b> · Never lose my work</summary>
 
 ```gherkin
 Scenario: Autosave
@@ -1047,29 +629,9 @@ Scenario: Save failed
   Then I see "Not saved · Retry"
 ```
 
-#### US-03.01.5 · Check the page on every device width
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-03.01.1 |
-| Build wave | 6 |
-
-**Business benefit**
-
-Problems on mobile and tablet are caught before review, when they are cheapest to fix. Customers get a consistent experience on every device, which protects trust and conversion.
-
-**User story**
-
-> As a content author  
-> I want to preview the page at desktop, tablet and mobile width and full screen  
-> So that it works for every customer before I send it for review  
-
-**Acceptance criteria**
+<details><summary><b>US-03.01.5</b> · Check the page on every device width</summary>
 
 ```gherkin
 Scenario Outline: Device preview
@@ -1087,46 +649,26 @@ Scenario: Full-screen preview
   Then the page fills the screen and Esc goes back to editing
 ```
 
+</details>
+
 ### Feature: Design patterns
 Source: [`02-design-patterns.feature`](features/03-page-builder/02-design-patterns.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-03.02.1 · Reuse a section in one click | content author | US-03.01.1 | 6 |
-| 2 | US-03.02.2 · Save my own design pattern | content author | US-03.02.1, US-03.01.3 | 7 |
-| 3 | US-03.02.3 · Remove my patterns safely | content author | US-03.02.2 | 8 |
-| 4 | US-03.02.4 · Remove built-in design-system patterns 🛡 | site admin | US-03.02.3 | 9 |
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-03.02.1** · Reuse a section in one click | content author | Common sections look identical across pages, strengthening brand consistency for customers. Adding a whole section in one click saves authors significant build time. | As a content author<br>I want to pick a design pattern from its own library and add all its components at once<br>So that common sections look the same on every page | US-03.01.1 | 6 |
+| 2 | **US-03.02.2** · Save my own design pattern | content author | Proven sections are reused instead of rebuilt, spreading good practice across teams and markets. Market targeting stops a pattern from appearing where it does not fit local rules. | As a content author<br>I want to save components already on the page as a named pattern, for all or only some markets<br>So that I and my colleagues can reuse a section that works | US-03.02.1, US-03.01.3 | 7 |
+| 3 | **US-03.02.3** · Remove my patterns safely | content author | The pattern library stays tidy without risking pages that already use a pattern. Two-step removal prevents losing valuable shared work by mistake. | As a content author<br>I want to archive my own patterns first and delete them for good only on purpose<br>So that a pattern is never lost by mistake and pages that use it are not affected | US-03.02.2 | 8 |
+| 4 | **US-03.02.4** · Remove built-in design-system patterns 🛡 | site admin | Outdated design-system sections can be retired centrally, so new pages do not reuse superseded designs. Restricting this to site admins protects the shared library from accidental removal. | As a site admin<br>I want to remove built-in design-system patterns that ordinary authors cannot touch<br>So that the shared pattern library stays current | US-03.02.3 | 9 |
 
-*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*
+**Acceptance criteria** — the Background applies to every story of this feature
 
 ```gherkin
 Background:
   Given I am signed in with Edit on the page
 ```
 
-#### US-03.02.1 · Reuse a section in one click
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-03.01.1 |
-| Build wave | 6 |
-
-**Business benefit**
-
-Common sections look identical across pages, strengthening brand consistency for customers. Adding a whole section in one click saves authors significant build time.
-
-**User story**
-
-> As a content author  
-> I want to pick a design pattern from its own library and add all its components at once  
-> So that common sections look the same on every page  
-
-**Acceptance criteria**
+<details><summary><b>US-03.02.1</b> · Reuse a section in one click</summary>
 
 ```gherkin
 Scenario: Opening the pattern library
@@ -1140,29 +682,9 @@ Scenario: Adding a pattern
   And I see "Product introduction added · 3 components"
 ```
 
-#### US-03.02.2 · Save my own design pattern
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-03.02.1, US-03.01.3 |
-| Build wave | 7 |
-
-**Business benefit**
-
-Proven sections are reused instead of rebuilt, spreading good practice across teams and markets. Market targeting stops a pattern from appearing where it does not fit local rules.
-
-**User story**
-
-> As a content author  
-> I want to save components already on the page as a named pattern, for all or only some markets  
-> So that I and my colleagues can reuse a section that works  
-
-**Acceptance criteria**
+<details><summary><b>US-03.02.2</b> · Save my own design pattern</summary>
 
 ```gherkin
 Scenario: Creating a pattern
@@ -1195,29 +717,9 @@ Scenario: Changing the markets later
   Then I am warned "This market will no longer see it. Pages that already use it keep their components."
 ```
 
-#### US-03.02.3 · Remove my patterns safely
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-03.02.2 |
-| Build wave | 8 |
-
-**Business benefit**
-
-The pattern library stays tidy without risking pages that already use a pattern. Two-step removal prevents losing valuable shared work by mistake.
-
-**User story**
-
-> As a content author  
-> I want to archive my own patterns first and delete them for good only on purpose  
-> So that a pattern is never lost by mistake and pages that use it are not affected  
-
-**Acceptance criteria**
+<details><summary><b>US-03.02.3</b> · Remove my patterns safely</summary>
 
 ```gherkin
 Scenario: Archive and restore
@@ -1242,29 +744,9 @@ Scenario Outline: Who may remove a pattern
     | Product introduction  | content.author | there is no bin on it                                     |
 ```
 
-#### US-03.02.4 · Remove built-in design-system patterns 🛡
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | site admin |
-| Depends on | US-03.02.3 |
-| Build wave | 9 |
-
-**Business benefit**
-
-Outdated design-system sections can be retired centrally, so new pages do not reuse superseded designs. Restricting this to site admins protects the shared library from accidental removal.
-
-**User story**
-
-> As a site admin  
-> I want to remove built-in design-system patterns that ordinary authors cannot touch  
-> So that the shared pattern library stays current  
-
-**Acceptance criteria**
+<details><summary><b>US-03.02.4</b> · Remove built-in design-system patterns</summary>
 
 ```gherkin
 Scenario Outline: A site admin removes a design-system pattern
@@ -1277,37 +759,19 @@ Scenario Outline: A site admin removes a design-system pattern
     | Product introduction  | super.admin    | it is archived                                            |
 ```
 
+</details>
+
 ### Feature: Page insights and quality checklist
 Source: [`03-quality-and-insights.feature`](features/03-page-builder/03-quality-and-insights.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-03.03.1 · See and fix what blocks publishing | content author | US-03.01.2 | 7 |
-| 2 | US-03.03.2 · Check any element while previewing | content author | US-03.01.5, US-06.02.2 | 7 |
-
-#### US-03.03.1 · See and fix what blocks publishing
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-03.01.2 |
-| Build wave | 7 |
-
-**Business benefit**
-
-Automatic checks catch accessibility, compliance and SEO issues before review, reducing regulatory and reputational risk. Reviewers spend their time on substance rather than mechanical mistakes.
-
-**User story**
-
-> As a content author  
-> I want findings grouped by how serious they are, with one-click fixes and a way to find them on the page  
-> So that the page reaches review without mistakes a machine can find  
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-03.03.1** · See and fix what blocks publishing | content author | Automatic checks catch accessibility, compliance and SEO issues before review, reducing regulatory and reputational risk. Reviewers spend their time on substance rather than mechanical mistakes. | As a content author<br>I want findings grouped by how serious they are, with one-click fixes and a way to find them on the page<br>So that the page reaches review without mistakes a machine can find | US-03.01.2 | 7 |
+| 2 | **US-03.03.2** · Check any element while previewing | content author | Authors verify each element in the context customers see, catching issues earlier and more cheaply. A consistent checklist raises the baseline quality of every page. | As a content author<br>I want a quality checklist that follows my pointer in full-screen preview<br>So that I can check the whole page and each element as customers will see it | US-03.01.5, US-06.02.2 | 7 |
 
 **Acceptance criteria**
+
+<details><summary><b>US-03.03.1</b> · See and fix what blocks publishing</summary>
 
 ```gherkin
 Scenario: Verdict
@@ -1340,29 +804,9 @@ Scenario: Show on page
   Then the component is selected and scrolled into view
 ```
 
-#### US-03.03.2 · Check any element while previewing
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-03.01.5, US-06.02.2 |
-| Build wave | 7 |
-
-**Business benefit**
-
-Authors verify each element in the context customers see, catching issues earlier and more cheaply. A consistent checklist raises the baseline quality of every page.
-
-**User story**
-
-> As a content author  
-> I want a quality checklist that follows my pointer in full-screen preview  
-> So that I can check the whole page and each element as customers will see it  
-
-**Acceptance criteria**
+<details><summary><b>US-03.03.2</b> · Check any element while previewing</summary>
 
 ```gherkin
 Scenario: Whole page
@@ -1379,38 +823,20 @@ Scenario: Pinning
   Then the checklist stays on it until I click it again
 ```
 
+</details>
+
 ### Feature: AI assistant
 Source: [`04-ai-assistant.feature`](features/03-page-builder/04-ai-assistant.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-03.04.1 · Improve one component with AI | content author | US-03.01.3 | 7 |
-| 2 | US-03.04.2 · Let AI plan page-wide changes that I approve | content author | US-03.01.4 | 8 |
-| 3 | US-03.04.3 · Keep AI within page permissions | business owner | US-03.04.2 | 9 |
-
-#### US-03.04.1 · Improve one component with AI
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-03.01.3 |
-| Build wave | 7 |
-
-**Business benefit**
-
-AI speeds up copy improvements while the author keeps full control over every change. Showing before and after prevents unreviewed AI text from reaching customers.
-
-**User story**
-
-> As a content author  
-> I want AI to suggest changes to the selected component only, shown before and after  
-> So that I can accept or reject each suggestion knowing exactly what changes  
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-03.04.1** · Improve one component with AI | content author | AI speeds up copy improvements while the author keeps full control over every change. Showing before and after prevents unreviewed AI text from reaching customers. | As a content author<br>I want AI to suggest changes to the selected component only, shown before and after<br>So that I can accept or reject each suggestion knowing exactly what changes | US-03.01.3 | 7 |
+| 2 | **US-03.04.2** · Let AI plan page-wide changes that I approve | content author | Page-wide changes such as accessibility or SEO fixes take minutes instead of hours. Approval and undo for each change keep accountability with the author and limit the risk of AI errors. | As a content author<br>I want the page AI to show its plan first and change nothing until I run the changes I ticked<br>So that I work faster on whole pages and can undo anything | US-03.01.4 | 8 |
+| 3 | **US-03.04.3** · Keep AI within page permissions | business owner | AI cannot become a loophole around the bank's access controls, which protects content integrity. This gives risk and compliance teams confidence to approve AI use. | As a business owner<br>I want AI to refuse to plan changes for people who may only read a page<br>So that AI never becomes a way around permissions | US-03.04.2 | 9 |
 
 **Acceptance criteria**
+
+<details><summary><b>US-03.04.1</b> · Improve one component with AI</summary>
 
 ```gherkin
 Scenario: Before and after
@@ -1425,29 +851,9 @@ Scenario: Nothing to change
   Then I see "This block has no button."
 ```
 
-#### US-03.04.2 · Let AI plan page-wide changes that I approve
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-03.01.4 |
-| Build wave | 8 |
-
-**Business benefit**
-
-Page-wide changes such as accessibility or SEO fixes take minutes instead of hours. Approval and undo for each change keep accountability with the author and limit the risk of AI errors.
-
-**User story**
-
-> As a content author  
-> I want the page AI to show its plan first and change nothing until I run the changes I ticked  
-> So that I work faster on whole pages and can undo anything  
-
-**Acceptance criteria**
+<details><summary><b>US-03.04.2</b> · Let AI plan page-wide changes that I approve</summary>
 
 ```gherkin
 Scenario: Plan, run, review
@@ -1477,29 +883,9 @@ Scenario: The page already follows the patterns
   Then I see "Page already follows HSBC content patterns — nothing to change"
 ```
 
-#### US-03.04.3 · Keep AI within page permissions
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | business owner |
-| Depends on | US-03.04.2 |
-| Build wave | 9 |
-
-**Business benefit**
-
-AI cannot become a loophole around the bank's access controls, which protects content integrity. This gives risk and compliance teams confidence to approve AI use.
-
-**User story**
-
-> As a business owner  
-> I want AI to refuse to plan changes for people who may only read a page  
-> So that AI never becomes a way around permissions  
-
-**Acceptance criteria**
+<details><summary><b>US-03.04.3</b> · Keep AI within page permissions</summary>
 
 ```gherkin
 Scenario: Viewer
@@ -1508,44 +894,24 @@ Scenario: Viewer
   Then nothing is planned and I am told the page is read-only
 ```
 
+</details>
+
 ### Feature: Linked content (entities and tokens)
 Source: [`05-linked-content.feature`](features/03-page-builder/05-linked-content.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-03.05.1 · Show shared content from one place | content author | US-06.03.2 | 3 |
-| 2 | US-03.05.2 · Keep page text and linked content consistent | content author | US-03.05.1 | 4 |
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-03.05.1** · Show shared content from one place | content author | Rates and product details are maintained once and update everywhere, cutting maintenance effort. It removes the risk of customers seeing outdated or conflicting figures on different pages. | As a content author<br>I want to link an entity to the page and use its fields in text and component fields<br>So that a change to the content appears on every page that uses it | US-06.03.2 | 3 |
+| 2 | **US-03.05.2** · Keep page text and linked content consistent | content author | Broken or missing shared content is flagged before it reaches customers, protecting accuracy of regulated information. Authors can still detach content deliberately, with a clear trace. | As a content author<br>I want to detach a field on purpose and be warned about tokens and entities that do not match<br>So that the page never shows broken or missing shared content | US-03.05.1 | 4 |
 
-*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*
+**Acceptance criteria** — the Background applies to every story of this feature
 
 ```gherkin
 Background:
   Given the entity "ISA rates 2026" of the model "Rate" exists
 ```
 
-#### US-03.05.1 · Show shared content from one place
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-06.03.2 |
-| Build wave | 3 |
-
-**Business benefit**
-
-Rates and product details are maintained once and update everywhere, cutting maintenance effort. It removes the risk of customers seeing outdated or conflicting figures on different pages.
-
-**User story**
-
-> As a content author  
-> I want to link an entity to the page and use its fields in text and component fields  
-> So that a change to the content appears on every page that uses it  
-
-**Acceptance criteria**
+<details><summary><b>US-03.05.1</b> · Show shared content from one place</summary>
 
 ```gherkin
 Scenario: Linking an entity to the page
@@ -1566,29 +932,9 @@ Scenario: Typing a token
   Then the content picker opens and the token is inserted at the caret
 ```
 
-#### US-03.05.2 · Keep page text and linked content consistent
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-03.05.1 |
-| Build wave | 4 |
-
-**Business benefit**
-
-Broken or missing shared content is flagged before it reaches customers, protecting accuracy of regulated information. Authors can still detach content deliberately, with a clear trace.
-
-**User story**
-
-> As a content author  
-> I want to detach a field on purpose and be warned about tokens and entities that do not match  
-> So that the page never shows broken or missing shared content  
-
-**Acceptance criteria**
+<details><summary><b>US-03.05.2</b> · Keep page text and linked content consistent</summary>
 
 ```gherkin
 Scenario: Stop inheriting
@@ -1605,39 +951,21 @@ Scenario: An entity in use cannot be removed
   Then the entity shows "used 2× in the text" and has no remove button
 ```
 
+</details>
+
 ### Feature: Working together on a page (authors, Jira, versions)
 Source: [`06-collaboration.feature`](features/03-page-builder/06-collaboration.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-03.06.1 · Build a page together with other authors | content author | US-02.01.2 | 5 |
-| 2 | US-03.06.2 · Assign other people as authors 🛡 | site admin | US-03.06.1 | 6 |
-| 3 | US-03.06.3 · Link a page to its Jira ticket | content author | — | 1 |
-| 4 | US-03.06.4 · Go back to any earlier version | content author | US-03.01.4 | 8 |
-
-#### US-03.06.1 · Build a page together with other authors
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-02.01.2 |
-| Build wave | 5 |
-
-**Business benefit**
-
-Larger pages are delivered faster because several authors can share the work. Clear ownership means reviewers and managers always know who is responsible.
-
-**User story**
-
-> As a content author  
-> I want to join or leave the authors of a page while it is being built  
-> So that we can share the work and everyone sees who is responsible  
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-03.06.1** · Build a page together with other authors | content author | Larger pages are delivered faster because several authors can share the work. Clear ownership means reviewers and managers always know who is responsible. | As a content author<br>I want to join or leave the authors of a page while it is being built<br>So that we can share the work and everyone sees who is responsible | US-02.01.2 | 5 |
+| 2 | **US-03.06.2** · Assign other people as authors 🛡 | site admin | Managers can hand out work deliberately and keep delivery on schedule. Every assignment is logged and limited to people with Edit, keeping access controlled. | As a site admin<br>I want to add or remove other people as authors of a page<br>So that work is handed out deliberately and nobody is assigned behind their back | US-03.06.1 | 6 |
+| 3 | **US-03.06.3** · Link a page to its Jira ticket | content author | Every page change is traceable to the business request behind it, which supports audit and change management. Reviewers reach the context in one click, speeding up approval. | As a content author<br>I want to link the page to its Jira ticket and open it in one click<br>So that the work is traceable to the request behind it | — | 1 |
+| 4 | **US-03.06.4** · Go back to any earlier version | content author | Any mistake can be reversed quickly, limiting the impact of an incorrect change. A full version history supports audit and regulatory record-keeping. | As a content author<br>I want every save kept as a version that I can restore or comment on<br>So that any change can be reversed and discussed | US-03.01.4 | 8 |
 
 **Acceptance criteria**
+
+<details><summary><b>US-03.06.1</b> · Build a page together with other authors</summary>
 
 ```gherkin
 Scenario: Joining as an author
@@ -1662,29 +990,9 @@ Scenario: Co-authors in My tasks
   Then My tasks shows the second one under the Content author as "+ Name"
 ```
 
-#### US-03.06.2 · Assign other people as authors 🛡
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | site admin |
-| Depends on | US-03.06.1 |
-| Build wave | 6 |
-
-**Business benefit**
-
-Managers can hand out work deliberately and keep delivery on schedule. Every assignment is logged and limited to people with Edit, keeping access controlled.
-
-**User story**
-
-> As a site admin  
-> I want to add or remove other people as authors of a page  
-> So that work is handed out deliberately and nobody is assigned behind their back  
-
-**Acceptance criteria**
+<details><summary><b>US-03.06.2</b> · Assign other people as authors</summary>
 
 ```gherkin
 Scenario: A site admin adds an author
@@ -1703,29 +1011,9 @@ Scenario: Only site admins assign other people
   Then I see "Only a site admin can assign other people"
 ```
 
-#### US-03.06.3 · Link a page to its Jira ticket
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | — |
-| Build wave | 1 |
-
-**Business benefit**
-
-Every page change is traceable to the business request behind it, which supports audit and change management. Reviewers reach the context in one click, speeding up approval.
-
-**User story**
-
-> As a content author  
-> I want to link the page to its Jira ticket and open it in one click  
-> So that the work is traceable to the request behind it  
-
-**Acceptance criteria**
+<details><summary><b>US-03.06.3</b> · Link a page to its Jira ticket</summary>
 
 ```gherkin
 Scenario Outline: Linking a ticket
@@ -1743,29 +1031,9 @@ Scenario: Opening the ticket
   Then the ticket opens in a new tab
 ```
 
-#### US-03.06.4 · Go back to any earlier version
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-03.01.4 |
-| Build wave | 8 |
-
-**Business benefit**
-
-Any mistake can be reversed quickly, limiting the impact of an incorrect change. A full version history supports audit and regulatory record-keeping.
-
-**User story**
-
-> As a content author  
-> I want every save kept as a version that I can restore or comment on  
-> So that any change can be reversed and discussed  
-
-**Acceptance criteria**
+<details><summary><b>US-03.06.4</b> · Go back to any earlier version</summary>
 
 ```gherkin
 Scenario: Restoring a version
@@ -1779,6 +1047,8 @@ Scenario: Commenting on a version
   Then the comment says "About the version from …"
 ```
 
+</details>
+
 ---
 
 ## 04 · Review workflow
@@ -1786,15 +1056,15 @@ Scenario: Commenting on a version
 ### Feature: End-to-end journey of a page (who hands it to whom)
 Source: [`00-end-to-end-handoffs.feature`](features/04-review-workflow/00-end-to-end-handoffs.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-04.00.1 · Hand the page over step by step | content author | US-04.01.1, US-04.02.2, US-04.03.2, US-05.01.1 | 14 |
-| 2 | US-04.00.2 · Get the page back when someone asks for changes | content author | US-04.00.1 | 15 |
-| 3 | US-04.00.3 · Nobody approves their own work | bank | US-04.00.1 | 15 |
-| 4 | US-04.00.4 · Walk the whole flow as a site admin, on record 🛡 | site admin | US-04.00.1, US-04.00.3 | 16 |
-| 5 | US-04.00.5 · Ask for publishing and hear when the page is live ⏭ | content author | US-04.00.1 | 15 |
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-04.00.1** · Hand the page over step by step | content author | Every page passes through separate authoring, review, sign-off and publishing hands, which builds four-eyes control into the process itself. Clear hand-offs cut idle time between teams and shorten time to market. | As a content author<br>I want to request each next step instead of doing it myself<br>So that every page is checked by other people before customers see it | US-04.01.1, US-04.02.2, US-04.03.2, US-05.01.1 | 14 |
+| 2 | **US-04.00.2** · Get the page back when someone asks for changes | content author | Rework goes back to one accountable author instead of being patched by reviewers, which keeps responsibility clear. Restarting both reviews after changes means no unchecked edit can reach customers. | As a content author<br>I want any reviewer to send the page back to me with comments<br>So that I fix it once and the whole check starts again | US-04.00.1 | 15 |
+| 3 | **US-04.00.3** · Nobody approves their own work | bank | Segregation of duties is enforced by the system rather than by policy documents, which satisfies four-eyes compliance requirements. Auditors can rely on the platform instead of sampling manual evidence. | As the bank<br>I want different people for authoring, peer review and business review<br>So that the four-eyes principle holds on every page | US-04.00.1 | 15 |
+| 4 | **US-04.00.4** · Walk the whole flow as a site admin, on record 🛡 | site admin | Urgent regulatory or pricing changes can still go live when reviewers are unavailable, which reduces business risk. Every override is recorded as on behalf of a named person, so audit trails stay complete. | As a site admin<br>I want to perform any step for the person who should do it<br>So that I can demo the platform and unblock urgent pages | US-04.00.1, US-04.00.3 | 16 |
+| 5 | **US-04.00.5** · Ask for publishing and hear when the page is live ⏭ | content author | Planned launch dates reduce last-minute coordination between marketing and publishers. Authors learn when a page is live without chasing anyone, which saves time and avoids missed campaign starts. | As a content author<br>I want to request publishing at a date and be told when the page is live<br>So that I can plan launches without chasing the publisher | US-04.00.1 | 15 |
 
-*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*
+**Acceptance criteria** — the Background applies to every story of this feature
 
 ```gherkin
 Background:
@@ -1807,29 +1077,7 @@ Background:
   | super.admin    | site admin      | everything                          |
 ```
 
-#### US-04.00.1 · Hand the page over step by step
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-04.01.1, US-04.02.2, US-04.03.2, US-05.01.1 |
-| Build wave | 14 |
-
-**Business benefit**
-
-Every page passes through separate authoring, review, sign-off and publishing hands, which builds four-eyes control into the process itself. Clear hand-offs cut idle time between teams and shorten time to market.
-
-**User story**
-
-> As a content author  
-> I want to request each next step instead of doing it myself  
-> So that every page is checked by other people before customers see it  
-
-**Acceptance criteria**
+<details><summary><b>US-04.00.1</b> · Hand the page over step by step</summary>
 
 ```gherkin
 Scenario: The happy path, one person per step
@@ -1862,29 +1110,9 @@ Scenario Outline: What the author can do at each stage
     | Published                              | Edit to start a new version       | me                             |
 ```
 
-#### US-04.00.2 · Get the page back when someone asks for changes
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-04.00.1 |
-| Build wave | 15 |
-
-**Business benefit**
-
-Rework goes back to one accountable author instead of being patched by reviewers, which keeps responsibility clear. Restarting both reviews after changes means no unchecked edit can reach customers.
-
-**User story**
-
-> As a content author  
-> I want any reviewer to send the page back to me with comments  
-> So that I fix it once and the whole check starts again  
-
-**Acceptance criteria**
+<details><summary><b>US-04.00.2</b> · Get the page back when someone asks for changes</summary>
 
 ```gherkin
 Scenario Outline: Reauthor returns the page to the author
@@ -1900,29 +1128,9 @@ Scenario Outline: Reauthor returns the page to the author
     | david.clarke  | In business review |
 ```
 
-#### US-04.00.3 · Nobody approves their own work
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | bank |
-| Depends on | US-04.00.1 |
-| Build wave | 15 |
-
-**Business benefit**
-
-Segregation of duties is enforced by the system rather than by policy documents, which satisfies four-eyes compliance requirements. Auditors can rely on the platform instead of sampling manual evidence.
-
-**User story**
-
-> As the bank  
-> I want different people for authoring, peer review and business review  
-> So that the four-eyes principle holds on every page  
-
-**Acceptance criteria**
+<details><summary><b>US-04.00.3</b> · Nobody approves their own work</summary>
 
 ```gherkin
 Scenario Outline: Four-eyes checks
@@ -1942,29 +1150,9 @@ Scenario: An author without Publish cannot put the page live
   Then I see "Waiting for a publisher" instead of "Publish"
 ```
 
-#### US-04.00.4 · Walk the whole flow as a site admin, on record 🛡
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | site admin |
-| Depends on | US-04.00.1, US-04.00.3 |
-| Build wave | 16 |
-
-**Business benefit**
-
-Urgent regulatory or pricing changes can still go live when reviewers are unavailable, which reduces business risk. Every override is recorded as on behalf of a named person, so audit trails stay complete.
-
-**User story**
-
-> As a site admin  
-> I want to perform any step for the person who should do it  
-> So that I can demo the platform and unblock urgent pages  
-
-**Acceptance criteria**
+<details><summary><b>US-04.00.4</b> · Walk the whole flow as a site admin, on record</summary>
 
 ```gherkin
 Scenario: Walking every step alone
@@ -1982,29 +1170,9 @@ Scenario: Ordinary users never see actions for other people
   Then no button on the stepper or in My tasks lets me act for someone else
 ```
 
-#### US-04.00.5 · Ask for publishing and hear when the page is live ⏭
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-04.00.1 |
-| Build wave | 15 |
-
-**Business benefit**
-
-Planned launch dates reduce last-minute coordination between marketing and publishers. Authors learn when a page is live without chasing anyone, which saves time and avoids missed campaign starts.
-
-**User story**
-
-> As a content author  
-> I want to request publishing at a date and be told when the page is live  
-> So that I can plan launches without chasing the publisher  
-
-**Acceptance criteria**
+<details><summary><b>US-04.00.5</b> · Ask for publishing and hear when the page is live</summary>
 
 ```gherkin
 Scenario: Requesting publishing
@@ -2017,16 +1185,18 @@ Scenario: Live notification
   Then I get the notification "Cash ISA is live"
 ```
 
+</details>
+
 ### Feature: Send a page for the author's review
 Source: [`01-send-for-review.feature`](features/04-review-workflow/01-send-for-review.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-04.01.1 · Request a review from the shared Backlog | content author | US-03.01.4, US-01.03.1 | 8 |
-| 2 | US-04.01.2 · Check the page before handing it over | content author | US-04.01.1, US-03.03.1 | 9 |
-| 3 | US-04.01.3 · Keep the page stable while it is being reviewed | content author | US-04.01.1 | 9 |
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-04.01.1** · Request a review from the shared Backlog | content author | A shared Backlog lets the first free reviewer start, so pages do not queue behind one person's calendar. Due dates and audit entries make review turnaround measurable from day one. | As a content author<br>I want to send the page to a Backlog that every reviewer sees, with a note<br>So that the first free reviewer can take it and I don't have to chase one person | US-03.01.4, US-01.03.1 | 8 |
+| 2 | **US-04.01.2** · Check the page before handing it over | content author | Catching missing fields and quality problems before hand-off avoids wasted review cycles. Fewer round trips mean faster delivery and lower review cost. | As a content author<br>I want a last check of the page, with any problems Page insights found<br>So that I only send pages that are complete | US-04.01.1, US-03.03.1 | 9 |
+| 3 | **US-04.01.3** · Keep the page stable while it is being reviewed | content author | Reviewers approve exactly the version that will be published, which protects the integrity of the four-eyes check. It prevents silent changes after approval that could expose the bank to conduct risk. | As a content author<br>I want the page to be read-only during review, with a clear way to take it back<br>So that reviewers check exactly what I sent | US-04.01.1 | 9 |
 
-*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*
+**Acceptance criteria** — the Background applies to every story of this feature
 
 ```gherkin
 Background:
@@ -2034,29 +1204,7 @@ Background:
   And the page "Cash ISA" is at the "Build the page" stage
 ```
 
-#### US-04.01.1 · Request a review from the shared Backlog
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-03.01.4, US-01.03.1 |
-| Build wave | 8 |
-
-**Business benefit**
-
-A shared Backlog lets the first free reviewer start, so pages do not queue behind one person's calendar. Due dates and audit entries make review turnaround measurable from day one.
-
-**User story**
-
-> As a content author  
-> I want to send the page to a Backlog that every reviewer sees, with a note  
-> So that the first free reviewer can take it and I don't have to chase one person  
-
-**Acceptance criteria**
+<details><summary><b>US-04.01.1</b> · Request a review from the shared Backlog</summary>
 
 ```gherkin
 Scenario: Sending the page for review
@@ -2076,29 +1224,9 @@ Scenario: Nobody can review the folder
   And I am told "Ask a site admin to grant Review & approve on this folder"
 ```
 
-#### US-04.01.2 · Check the page before handing it over
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-04.01.1, US-03.03.1 |
-| Build wave | 9 |
-
-**Business benefit**
-
-Catching missing fields and quality problems before hand-off avoids wasted review cycles. Fewer round trips mean faster delivery and lower review cost.
-
-**User story**
-
-> As a content author  
-> I want a last check of the page, with any problems Page insights found  
-> So that I only send pages that are complete  
-
-**Acceptance criteria**
+<details><summary><b>US-04.01.2</b> · Check the page before handing it over</summary>
 
 ```gherkin
 Scenario: Leaving the preview asks whether the page looks right
@@ -2119,29 +1247,9 @@ Scenario: Required fields are missing
   And the first incomplete component opens in Configure
 ```
 
-#### US-04.01.3 · Keep the page stable while it is being reviewed
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-04.01.1 |
-| Build wave | 9 |
-
-**Business benefit**
-
-Reviewers approve exactly the version that will be published, which protects the integrity of the four-eyes check. It prevents silent changes after approval that could expose the bank to conduct risk.
-
-**User story**
-
-> As a content author  
-> I want the page to be read-only during review, with a clear way to take it back  
-> So that reviewers check exactly what I sent  
-
-**Acceptance criteria**
+<details><summary><b>US-04.01.3</b> · Keep the page stable while it is being reviewed</summary>
 
 ```gherkin
 Scenario: The page is read-only in review
@@ -2157,17 +1265,19 @@ Scenario: Taking the page back for editing
   Then the page is back at "Build the page"
 ```
 
+</details>
+
 ### Feature: Author's (peer) review
 Source: [`02-peer-review.feature`](features/04-review-workflow/02-peer-review.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-04.02.1 · Take a review from the Backlog, or give it back | peer reviewer | US-04.01.1 | 9 |
-| 2 | US-04.02.2 · Review the page and decide what happens next | peer reviewer | US-04.02.1 | 10 |
-| 3 | US-04.02.3 · Nudge a reviewer who is taking long | content author | US-04.02.1 | 10 |
-| 4 | US-04.02.4 · Steer reviews as a site admin 🛡 | site admin | US-04.02.1, US-04.02.2 | 11 |
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-04.02.1** · Take a review from the Backlog, or give it back | peer reviewer | Reviews start as soon as any reviewer is free, so pages do not wait for one person. Each review has one named owner, which makes delays visible. | As a peer reviewer<br>I want to assign a waiting page to myself and return it if I cannot do it<br>So that every review has exactly one owner and nothing gets stuck with me | US-04.01.1 | 9 |
+| 2 | **US-04.02.2** · Review the page and decide what happens next | peer reviewer | A single decision point moves the page on or back without extra meetings or e-mails. Only the assigned reviewer can approve, which keeps the peer check accountable and auditable. | As a peer reviewer<br>I want to finish my review with one decision: business review or back to the author<br>So that the page moves on without extra hand-offs | US-04.02.1 | 10 |
+| 3 | **US-04.02.3** · Nudge a reviewer who is taking long | content author | Rate-limited reminders keep pages moving without manual chasing or noisy escalation. Shorter waiting times bring content to market faster. | As a content author<br>I want to remind the reviewer, but not more often than every 15 minutes<br>So that my page keeps moving without spamming anyone | US-04.02.1 | 10 |
+| 4 | **US-04.02.4** · Steer reviews as a site admin 🛡 | site admin | Admins can rebalance workload and unblock stuck reviews, which protects launch dates. Every intervention is logged on behalf of the reviewer, so oversight never weakens the audit trail. | As a site admin<br>I want to reassign reviewers and act for them when needed<br>So that reviews never get stuck, and everyone can see that I stepped in | US-04.02.1, US-04.02.2 | 11 |
 
-*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*
+**Acceptance criteria** — the Background applies to every story of this feature
 
 ```gherkin
 Background:
@@ -2175,29 +1285,7 @@ Background:
   And "rachel.hughes" has "Review & approve" on the page
 ```
 
-#### US-04.02.1 · Take a review from the Backlog, or give it back
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | peer reviewer |
-| Depends on | US-04.01.1 |
-| Build wave | 9 |
-
-**Business benefit**
-
-Reviews start as soon as any reviewer is free, so pages do not wait for one person. Each review has one named owner, which makes delays visible.
-
-**User story**
-
-> As a peer reviewer  
-> I want to assign a waiting page to myself and return it if I cannot do it  
-> So that every review has exactly one owner and nothing gets stuck with me  
-
-**Acceptance criteria**
+<details><summary><b>US-04.02.1</b> · Take a review from the Backlog, or give it back</summary>
 
 ```gherkin
 Scenario: A reviewer assigns the page to themselves
@@ -2234,29 +1322,9 @@ Scenario: A started review cannot go back
   Then they see "The review has already started"
 ```
 
-#### US-04.02.2 · Review the page and decide what happens next
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | peer reviewer |
-| Depends on | US-04.02.1 |
-| Build wave | 10 |
-
-**Business benefit**
-
-A single decision point moves the page on or back without extra meetings or e-mails. Only the assigned reviewer can approve, which keeps the peer check accountable and auditable.
-
-**User story**
-
-> As a peer reviewer  
-> I want to finish my review with one decision: business review or back to the author  
-> So that the page moves on without extra hand-offs  
-
-**Acceptance criteria**
+<details><summary><b>US-04.02.2</b> · Review the page and decide what happens next</summary>
 
 ```gherkin
 Scenario: Starting the review
@@ -2288,29 +1356,9 @@ Scenario: Sending the page back to the author
   And the peer reviewer, the business reviewer and the review groups are cleared
 ```
 
-#### US-04.02.3 · Nudge a reviewer who is taking long
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-04.02.1 |
-| Build wave | 10 |
-
-**Business benefit**
-
-Rate-limited reminders keep pages moving without manual chasing or noisy escalation. Shorter waiting times bring content to market faster.
-
-**User story**
-
-> As a content author  
-> I want to remind the reviewer, but not more often than every 15 minutes  
-> So that my page keeps moving without spamming anyone  
-
-**Acceptance criteria**
+<details><summary><b>US-04.02.3</b> · Nudge a reviewer who is taking long</summary>
 
 ```gherkin
 Scenario: Sending a reminder
@@ -2324,29 +1372,9 @@ Scenario: Reminder rate limit
   Then I see "A reminder was sent a few minutes ago"
 ```
 
-#### US-04.02.4 · Steer reviews as a site admin 🛡
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | site admin |
-| Depends on | US-04.02.1, US-04.02.2 |
-| Build wave | 11 |
-
-**Business benefit**
-
-Admins can rebalance workload and unblock stuck reviews, which protects launch dates. Every intervention is logged on behalf of the reviewer, so oversight never weakens the audit trail.
-
-**User story**
-
-> As a site admin  
-> I want to reassign reviewers and act for them when needed  
-> So that reviews never get stuck, and everyone can see that I stepped in  
-
-**Acceptance criteria**
+<details><summary><b>US-04.02.4</b> · Steer reviews as a site admin</summary>
 
 ```gherkin
 Scenario: Reassigning the peer reviewer
@@ -2372,17 +1400,19 @@ Scenario: Marking it reviewed for the reviewer
   Then the audit line ends with "(on behalf of Rachel Hughes)"
 ```
 
+</details>
+
 ### Feature: Business review and sign-off
 Source: [`03-business-review.feature`](features/04-review-workflow/03-business-review.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-04.03.1 · Take the business review | business owner | US-04.02.2 | 11 |
-| 2 | US-04.03.2 · Sign off the page or send it back to the author | business owner | US-04.03.1 | 12 |
-| 3 | US-04.03.3 · Share the page with the right business reviewers | peer reviewer | US-04.03.1 | 12 |
-| 4 | US-04.03.4 · Sign off on behalf of the business reviewer as a site admin 🛡 | site admin | US-04.03.1, US-04.03.2 | 13 |
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-04.03.1** · Take the business review | business owner | Each business decision has one named owner, which gives clear accountability for customer-facing messages. Blocking the peer reviewer from also signing off enforces four-eyes separation. | As a business owner<br>I want to take a page that waits for business review<br>So that it is clear who decides on it | US-04.02.2 | 11 |
+| 2 | **US-04.03.2** · Sign off the page or send it back to the author | business owner | Nothing reaches customers without explicit business approval, which reduces conduct and mis-selling risk. Deciding on the page as customers see it lowers the chance of costly post-launch corrections. | As a business owner<br>I want to sign the page off or send it back to the author, also from full screen<br>So that I decide while looking at the page as customers will see it | US-04.03.1 | 12 |
+| 3 | **US-04.03.3** · Share the page with the right business reviewers | peer reviewer | Getting the right stakeholders in early avoids late rejections and repeated review rounds. External partners can contribute without new UCP licences, which keeps cost down. | As a peer reviewer<br>I want to share the page with a person, a review group or a link<br>So that the right business owners see it, even without a UCP account | US-04.03.1 | 12 |
+| 4 | **US-04.03.4** · Sign off on behalf of the business reviewer as a site admin 🛡 | site admin | Keeping the business reviewer fixed protects the integrity of the business decision. Recorded on-behalf sign-off still lets urgent pages move without breaking the audit trail. | As a site admin<br>I want people to stay fixed during the business review, but be able to sign off for the assignee<br>So that the business decision is not changed behind its back, and urgent pages can still move | US-04.03.1, US-04.03.2 | 13 |
 
-*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*
+**Acceptance criteria** — the Background applies to every story of this feature
 
 ```gherkin
 Background:
@@ -2390,29 +1420,7 @@ Background:
   And the page was sent to the business review
 ```
 
-#### US-04.03.1 · Take the business review
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | business owner |
-| Depends on | US-04.02.2 |
-| Build wave | 11 |
-
-**Business benefit**
-
-Each business decision has one named owner, which gives clear accountability for customer-facing messages. Blocking the peer reviewer from also signing off enforces four-eyes separation.
-
-**User story**
-
-> As a business owner  
-> I want to take a page that waits for business review  
-> So that it is clear who decides on it  
-
-**Acceptance criteria**
+<details><summary><b>US-04.03.1</b> · Take the business review</summary>
 
 ```gherkin
 Scenario: Waiting for a business reviewer
@@ -2431,29 +1439,9 @@ Scenario: The peer reviewer cannot also do the business review
   Then I see "You did the author's review · someone else does the business review"
 ```
 
-#### US-04.03.2 · Sign off the page or send it back to the author
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | business owner |
-| Depends on | US-04.03.1 |
-| Build wave | 12 |
-
-**Business benefit**
-
-Nothing reaches customers without explicit business approval, which reduces conduct and mis-selling risk. Deciding on the page as customers see it lowers the chance of costly post-launch corrections.
-
-**User story**
-
-> As a business owner  
-> I want to sign the page off or send it back to the author, also from full screen  
-> So that I decide while looking at the page as customers will see it  
-
-**Acceptance criteria**
+<details><summary><b>US-04.03.2</b> · Sign off the page or send it back to the author</summary>
 
 ```gherkin
 Scenario: Signing off
@@ -2480,29 +1468,9 @@ Scenario: Deciding in full screen
   Then a full-screen message says "Signed off" with my name and the time
 ```
 
-#### US-04.03.3 · Share the page with the right business reviewers
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | peer reviewer |
-| Depends on | US-04.03.1 |
-| Build wave | 12 |
-
-**Business benefit**
-
-Getting the right stakeholders in early avoids late rejections and repeated review rounds. External partners can contribute without new UCP licences, which keeps cost down.
-
-**User story**
-
-> As a peer reviewer  
-> I want to share the page with a person, a review group or a link  
-> So that the right business owners see it, even without a UCP account  
-
-**Acceptance criteria**
+<details><summary><b>US-04.03.3</b> · Share the page with the right business reviewers</summary>
 
 ```gherkin
 Scenario: Share with a review group
@@ -2526,29 +1494,9 @@ Scenario: Invalid e-mail
   Then I see "That e-mail address does not look right"
 ```
 
-#### US-04.03.4 · Sign off on behalf of the business reviewer as a site admin 🛡
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | site admin |
-| Depends on | US-04.03.1, US-04.03.2 |
-| Build wave | 13 |
-
-**Business benefit**
-
-Keeping the business reviewer fixed protects the integrity of the business decision. Recorded on-behalf sign-off still lets urgent pages move without breaking the audit trail.
-
-**User story**
-
-> As a site admin  
-> I want people to stay fixed during the business review, but be able to sign off for the assignee  
-> So that the business decision is not changed behind its back, and urgent pages can still move  
-
-**Acceptance criteria**
+<details><summary><b>US-04.03.4</b> · Sign off on behalf of the business reviewer as a site admin</summary>
 
 ```gherkin
 Scenario: No reassigning in business review
@@ -2562,15 +1510,17 @@ Scenario: Signing off on behalf
   And the audit line ends with "(on behalf of David Clarke)"
 ```
 
+</details>
+
 ### Feature: Review links for people without UCP access
 Source: [`04-review-links.feature`](features/04-review-workflow/04-review-links.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-04.04.1 · Read and comment through a link | guest reviewer | US-04.03.3 | 13 |
-| 2 | US-04.04.2 · Decide through the link, only if invited | guest reviewer who was invited | US-04.04.1 | 14 |
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-04.04.1** · Read and comment through a link | guest reviewer | Stakeholders without a UCP account can give feedback, which saves licence cost and onboarding effort. Feedback lands on the page itself, so nothing is lost in e-mail threads. | As a guest reviewer<br>I want to open a link, see the page full screen and comment on any part of it<br>So that I can give feedback without learning the CMS | US-04.03.3 | 13 |
+| 2 | **US-04.04.2** · Decide through the link, only if invited | guest reviewer who was invited | The business can approve without a UCP account, which speeds up sign-off for busy owners. Restricting decisions to invited addresses stops forwarded links from approving content, which limits fraud and compliance risk. | As a guest reviewer who was invited<br>I want to sign off or send the page back from the link<br>So that the business can decide without a UCP account, while a forwarded link cannot approve anything | US-04.04.1 | 14 |
 
-*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*
+**Acceptance criteria** — the Background applies to every story of this feature
 
 ```gherkin
 Background:
@@ -2578,29 +1528,7 @@ Background:
   And a review link was created for it
 ```
 
-#### US-04.04.1 · Read and comment through a link
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | guest reviewer |
-| Depends on | US-04.03.3 |
-| Build wave | 13 |
-
-**Business benefit**
-
-Stakeholders without a UCP account can give feedback, which saves licence cost and onboarding effort. Feedback lands on the page itself, so nothing is lost in e-mail threads.
-
-**User story**
-
-> As a guest reviewer  
-> I want to open a link, see the page full screen and comment on any part of it  
-> So that I can give feedback without learning the CMS  
-
-**Acceptance criteria**
+<details><summary><b>US-04.04.1</b> · Read and comment through a link</summary>
 
 ```gherkin
 Scenario: Opening a valid link
@@ -2630,29 +1558,9 @@ Scenario: Unknown link
   Then I see "This review link does not work"
 ```
 
-#### US-04.04.2 · Decide through the link, only if invited
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | guest reviewer who was invited |
-| Depends on | US-04.04.1 |
-| Build wave | 14 |
-
-**Business benefit**
-
-The business can approve without a UCP account, which speeds up sign-off for busy owners. Restricting decisions to invited addresses stops forwarded links from approving content, which limits fraud and compliance risk.
-
-**User story**
-
-> As a guest reviewer who was invited  
-> I want to sign off or send the page back from the link  
-> So that the business can decide without a UCP account, while a forwarded link cannot approve anything  
-
-**Acceptance criteria**
+<details><summary><b>US-04.04.2</b> · Decide through the link, only if invited</summary>
 
 ```gherkin
 Scenario Outline: Who may sign off through the link
@@ -2679,15 +1587,17 @@ Scenario: Reauthor through the link
   And a full-screen message says "Sent back to the author"
 ```
 
+</details>
+
 ### Feature: Comments on a page
 Source: [`05-comments.feature`](features/04-review-workflow/05-comments.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-04.05.1 · Comment on exactly what I mean | peer reviewer or business owner | US-04.02.2 | 11 |
-| 2 | US-04.05.2 · Work through the feedback | content author | US-04.05.1 | 12 |
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-04.05.1** · Comment on exactly what I mean | peer reviewer or business owner | Feedback pinned to the exact element removes ambiguity and reduces rework. Limiting who can comment keeps feedback relevant and the review record trustworthy. | As a peer reviewer or business owner<br>I want to click a text, picture or component and comment on it<br>So that the author knows exactly what to change | US-04.02.2 | 11 |
+| 2 | **US-04.05.2** · Work through the feedback | content author | Authors see at a glance what is still open, so no requested change is missed before sign-off. Resolved comments never leak onto the published page, which protects the customer experience. | As a content author<br>I want to jump to each comment's place, resolve it and undo by mistake<br>So that I see what is still open and the published page stays clean | US-04.05.1 | 12 |
 
-*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*
+**Acceptance criteria** — the Background applies to every story of this feature
 
 ```gherkin
 Background:
@@ -2695,29 +1605,7 @@ Background:
   And I am signed in as the reviewer
 ```
 
-#### US-04.05.1 · Comment on exactly what I mean
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | peer reviewer or business owner |
-| Depends on | US-04.02.2 |
-| Build wave | 11 |
-
-**Business benefit**
-
-Feedback pinned to the exact element removes ambiguity and reduces rework. Limiting who can comment keeps feedback relevant and the review record trustworthy.
-
-**User story**
-
-> As a peer reviewer or business owner  
-> I want to click a text, picture or component and comment on it  
-> So that the author knows exactly what to change  
-
-**Acceptance criteria**
+<details><summary><b>US-04.05.1</b> · Comment on exactly what I mean</summary>
 
 ```gherkin
 Scenario Outline: Picking a target
@@ -2750,29 +1638,9 @@ Scenario: Opening comments
   And "Review & feedback" next to "1:1" opens the page full screen with floating comments
 ```
 
-#### US-04.05.2 · Work through the feedback
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-04.05.1 |
-| Build wave | 12 |
-
-**Business benefit**
-
-Authors see at a glance what is still open, so no requested change is missed before sign-off. Resolved comments never leak onto the published page, which protects the customer experience.
-
-**User story**
-
-> As a content author  
-> I want to jump to each comment's place, resolve it and undo by mistake  
-> So that I see what is still open and the published page stays clean  
-
-**Acceptance criteria**
+<details><summary><b>US-04.05.2</b> · Work through the feedback</summary>
 
 ```gherkin
 Scenario: Components with open comments show a badge
@@ -2804,39 +1672,21 @@ Scenario: Deleting someone else's comment
   Then I see "You can only delete your own comments"
 ```
 
+</details>
+
 ### Feature: My tasks
 Source: [`06-my-tasks.feature`](features/04-review-workflow/06-my-tasks.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-04.06.1 · See what needs me, by stage | As anyone in the content team | US-04.01.1 | 9 |
-| 2 | US-04.06.2 · Follow my own pages as an author | content author | US-04.06.1 | 10 |
-| 3 | US-04.06.3 · Pick up and finish work as a reviewer or publisher | peer reviewer, business owner or publisher | US-04.06.1 | 10 |
-| 4 | US-04.06.4 · Oversee everything as a site admin 🛡 | site admin | US-04.06.1, US-04.06.3 | 11 |
-
-#### US-04.06.1 · See what needs me, by stage
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | As anyone in the content team |
-| Depends on | US-04.01.1 |
-| Build wave | 9 |
-
-**Business benefit**
-
-One prioritised work list reduces time lost looking for pending work across tools. Due dates and overdue markers make bottlenecks visible to the team and management.
-
-**User story**
-
-> As anyone in the content team  
-> I want every page in the workflow as one task in the right tab  
-> So that I know what to do next without thinking  
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-04.06.1** · See what needs me, by stage | As anyone in the content team | One prioritised work list reduces time lost looking for pending work across tools. Due dates and overdue markers make bottlenecks visible to the team and management. | As anyone in the content team<br>I want every page in the workflow as one task in the right tab<br>So that I know what to do next without thinking | US-04.01.1 | 9 |
+| 2 | **US-04.06.2** · Follow my own pages as an author | content author | Authors can track their pages without asking around, which reduces status meetings. Hiding review actions on their own work enforces four-eyes separation in the interface. | As a content author<br>I want to see where each of my pages is and who has it, without review buttons for my own work<br>So that I know whom to remind and when the page comes back to me | US-04.06.1 | 10 |
+| 3 | **US-04.06.3** · Pick up and finish work as a reviewer or publisher | peer reviewer, business owner or publisher | Taking and finishing work from one list shortens cycle time for every hand-off. Showing only the permitted action reduces errors and unauthorised steps. | As a peer reviewer, business owner or publisher<br>I want the action for my step right on the row<br>So that I can take and finish work from one list | US-04.06.1 | 10 |
+| 4 | **US-04.06.4** · Oversee everything as a site admin 🛡 | site admin | Admins can balance workload across reviewers, which protects delivery dates. Restricting reassignment once a page is ready to publish keeps late changes under control. | As a site admin<br>I want to see all tasks, split by who has them, and change the peer reviewer<br>So that I can balance work and unblock pages | US-04.06.1, US-04.06.3 | 11 |
 
 **Acceptance criteria**
+
+<details><summary><b>US-04.06.1</b> · See what needs me, by stage</summary>
 
 ```gherkin
 Scenario Outline: Task per stage
@@ -2867,29 +1717,9 @@ Scenario: Filters and markers
   And the header says "N assigned to you · M new"
 ```
 
-#### US-04.06.2 · Follow my own pages as an author
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-04.06.1 |
-| Build wave | 10 |
-
-**Business benefit**
-
-Authors can track their pages without asking around, which reduces status meetings. Hiding review actions on their own work enforces four-eyes separation in the interface.
-
-**User story**
-
-> As a content author  
-> I want to see where each of my pages is and who has it, without review buttons for my own work  
-> So that I know whom to remind and when the page comes back to me  
-
-**Acceptance criteria**
+<details><summary><b>US-04.06.2</b> · Follow my own pages as an author</summary>
 
 ```gherkin
 Scenario: My page waits for a reviewer
@@ -2908,29 +1738,9 @@ Scenario Outline: My actions on my own page
     | Published        | Open                    |
 ```
 
-#### US-04.06.3 · Pick up and finish work as a reviewer or publisher
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | peer reviewer, business owner or publisher |
-| Depends on | US-04.06.1 |
-| Build wave | 10 |
-
-**Business benefit**
-
-Taking and finishing work from one list shortens cycle time for every hand-off. Showing only the permitted action reduces errors and unauthorised steps.
-
-**User story**
-
-> As a peer reviewer, business owner or publisher  
-> I want the action for my step right on the row  
-> So that I can take and finish work from one list  
-
-**Acceptance criteria**
+<details><summary><b>US-04.06.3</b> · Pick up and finish work as a reviewer or publisher</summary>
 
 ```gherkin
 Scenario: The Backlog is a shared bucket
@@ -2952,29 +1762,9 @@ Scenario Outline: Row actions
     | Ready to publish          | a publisher           | Publish                       |
 ```
 
-#### US-04.06.4 · Oversee everything as a site admin 🛡
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | site admin |
-| Depends on | US-04.06.1, US-04.06.3 |
-| Build wave | 11 |
-
-**Business benefit**
-
-Admins can balance workload across reviewers, which protects delivery dates. Restricting reassignment once a page is ready to publish keeps late changes under control.
-
-**User story**
-
-> As a site admin  
-> I want to see all tasks, split by who has them, and change the peer reviewer  
-> So that I can balance work and unblock pages  
-
-**Acceptance criteria**
+<details><summary><b>US-04.06.4</b> · Oversee everything as a site admin</summary>
 
 ```gherkin
 Scenario: Admin view
@@ -2986,37 +1776,19 @@ Scenario: No reassigning at Ready to publish
   Then rows in "Ready to publish" have no pencil and no "Assign to anyone"
 ```
 
+</details>
+
 ### Feature: Notifications
 Source: [`07-notifications.feature`](features/04-review-workflow/07-notifications.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-04.07.1 · Be told when a page is handed to me | As anyone in the content team | US-04.06.1 | 10 |
-| 2 | US-04.07.2 · Act on a notification in one click | As anyone in the content team | US-04.07.1 | 11 |
-
-#### US-04.07.1 · Be told when a page is handed to me
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | As anyone in the content team |
-| Depends on | US-04.06.1 |
-| Build wave | 10 |
-
-**Business benefit**
-
-People learn immediately when it is their turn, which removes idle time between hand-offs. Faster hand-offs shorten time to market for every page.
-
-**User story**
-
-> As anyone in the content team  
-> I want a notification when it is my turn on a page  
-> So that I don't have to keep checking My tasks  
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-04.07.1** · Be told when a page is handed to me | As anyone in the content team | People learn immediately when it is their turn, which removes idle time between hand-offs. Faster hand-offs shorten time to market for every page. | As anyone in the content team<br>I want a notification when it is my turn on a page<br>So that I don't have to keep checking My tasks | US-04.06.1 | 10 |
+| 2 | **US-04.07.2** · Act on a notification in one click | As anyone in the content team | Overdue items stand out, so service levels and regulatory deadlines are met more reliably. One-click access cuts the time from notice to action. | As anyone in the content team<br>I want urgent items to stand out and to open the page from the notification<br>So that overdue work is handled first | US-04.07.1 | 11 |
 
 **Acceptance criteria**
+
+<details><summary><b>US-04.07.1</b> · Be told when a page is handed to me</summary>
 
 ```gherkin
 Scenario: The bell polls and shows unread items
@@ -3039,29 +1811,9 @@ Scenario Outline: What I am told
     | my draft has not been sent               | Your draft of Cash ISA is waiting to be sent for review               |
 ```
 
-#### US-04.07.2 · Act on a notification in one click
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | As anyone in the content team |
-| Depends on | US-04.07.1 |
-| Build wave | 11 |
-
-**Business benefit**
-
-Overdue items stand out, so service levels and regulatory deadlines are met more reliably. One-click access cuts the time from notice to action.
-
-**User story**
-
-> As anyone in the content team  
-> I want urgent items to stand out and to open the page from the notification  
-> So that overdue work is handled first  
-
-**Acceptance criteria**
+<details><summary><b>US-04.07.2</b> · Act on a notification in one click</summary>
 
 ```gherkin
 Scenario: Overdue work stands out
@@ -3073,6 +1825,8 @@ Scenario: Clicking a notification opens the page
   Then the page opens in the page builder
 ```
 
+</details>
+
 ---
 
 ## 05 · Publishing
@@ -3080,43 +1834,21 @@ Scenario: Clicking a notification opens the page
 ### Feature: Publish and schedule pages
 Source: [`01-publish-and-schedule.feature`](features/05-publishing/01-publish-and-schedule.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-05.01.1 · Publish a signed-off page now, together with its files | publisher | US-04.03.2, US-06.02.4 | 13 |
-| 2 | US-05.01.2 · Publish later at a chosen time | publisher | US-05.01.1 | 14 |
-| 3 | US-05.01.3 · Publish several pages in one go | publisher | US-05.01.1 | 14 |
-| 4 | US-05.01.4 · Hand a signed-off page over to the publisher | content author | US-05.01.1 | 14 |
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-05.01.1** · Publish a signed-off page now, together with its files | publisher | Approved pages reach customers in one controlled step instead of a chain of manual releases. Publishing the files with the page removes broken pictures and missing documents that damage customer trust. | As a publisher<br>I want to put a page that passed both reviews live in one step, together with the pictures and documents it uses<br>So that customers never see a page with missing pictures or documents | US-04.03.2, US-06.02.4 | 13 |
+| 2 | **US-05.01.2** · Publish later at a chosen time | publisher | Campaigns and rate changes go live at the agreed minute without anyone working out of hours. Fewer manual late-night releases also means fewer publishing mistakes and lower overtime cost. | As a publisher<br>I want to schedule a signed-off page to go live at a chosen time, and cancel that schedule if plans change<br>So that content goes live exactly when the campaign or rate change starts, without anyone being online | US-05.01.1 | 14 |
+| 3 | **US-05.01.3** · Publish several pages in one go | publisher | Related pages of a launch go live together, so customers never see half of a product release. Per-page results cut the time spent finding out what was held back and why. | As a publisher<br>I want to publish a selection of pages at once and see the result for each<br>So that a release of related pages goes live together and I know which ones were held back and why | US-05.01.1 | 14 |
+| 4 | **US-05.01.4** · Hand a signed-off page over to the publisher | content author | Keeping publishing with authorised publishers enforces separation of duties that auditors and regulators expect. Clear hand-over status reduces chasing between teams and shortens time to market. | As a content author<br>I want to see that my signed-off page is waiting for a publisher instead of publishing it myself<br>So that only people with Publish put content live, and I know who acts next until I am told the page is live | US-05.01.1 | 14 |
 
-*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*
+**Acceptance criteria** — the Background applies to every story of this feature
 
 ```gherkin
 Background:
   Given I am signed in as "jordan.mensah" with Publish on the folder
 ```
 
-#### US-05.01.1 · Publish a signed-off page now, together with its files
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | publisher |
-| Depends on | US-04.03.2, US-06.02.4 |
-| Build wave | 13 |
-
-**Business benefit**
-
-Approved pages reach customers in one controlled step instead of a chain of manual releases. Publishing the files with the page removes broken pictures and missing documents that damage customer trust.
-
-**User story**
-
-> As a publisher  
-> I want to put a page that passed both reviews live in one step, together with the pictures and documents it uses  
-> So that customers never see a page with missing pictures or documents  
-
-**Acceptance criteria**
+<details><summary><b>US-05.01.1</b> · Publish a signed-off page now, together with its files</summary>
 
 ```gherkin
 Scenario Outline: Pages that are not ready are skipped with a reason
@@ -3150,29 +1882,9 @@ Scenario: Publish now (step 2, "Choose when to publish")
   And confetti and "Published! Cash ISA is live" fill the screen
 ```
 
-#### US-05.01.2 · Publish later at a chosen time
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | publisher |
-| Depends on | US-05.01.1 |
-| Build wave | 14 |
-
-**Business benefit**
-
-Campaigns and rate changes go live at the agreed minute without anyone working out of hours. Fewer manual late-night releases also means fewer publishing mistakes and lower overtime cost.
-
-**User story**
-
-> As a publisher  
-> I want to schedule a signed-off page to go live at a chosen time, and cancel that schedule if plans change  
-> So that content goes live exactly when the campaign or rate change starts, without anyone being online  
-
-**Acceptance criteria**
+<details><summary><b>US-05.01.2</b> · Publish later at a chosen time</summary>
 
 ```gherkin
 Scenario: Schedule
@@ -3195,29 +1907,9 @@ Scenario: Cancelling a schedule
   Then the page is back at "Ready to publish"
 ```
 
-#### US-05.01.3 · Publish several pages in one go
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | publisher |
-| Depends on | US-05.01.1 |
-| Build wave | 14 |
-
-**Business benefit**
-
-Related pages of a launch go live together, so customers never see half of a product release. Per-page results cut the time spent finding out what was held back and why.
-
-**User story**
-
-> As a publisher  
-> I want to publish a selection of pages at once and see the result for each  
-> So that a release of related pages goes live together and I know which ones were held back and why  
-
-**Acceptance criteria**
+<details><summary><b>US-05.01.3</b> · Publish several pages in one go</summary>
 
 ```gherkin
 Scenario: Bulk publish from the page list
@@ -3227,29 +1919,9 @@ Scenario: Bulk publish from the page list
   And "Publishing results" shows a tick for each and the reason for the third
 ```
 
-#### US-05.01.4 · Hand a signed-off page over to the publisher
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-05.01.1 |
-| Build wave | 14 |
-
-**Business benefit**
-
-Keeping publishing with authorised publishers enforces separation of duties that auditors and regulators expect. Clear hand-over status reduces chasing between teams and shortens time to market.
-
-**User story**
-
-> As a content author  
-> I want to see that my signed-off page is waiting for a publisher instead of publishing it myself  
-> So that only people with Publish put content live, and I know who acts next until I am told the page is live  
-
-**Acceptance criteria**
+<details><summary><b>US-05.01.4</b> · Hand a signed-off page over to the publisher</summary>
 
 ```gherkin
 Scenario: No Publish permission
@@ -3257,44 +1929,24 @@ Scenario: No Publish permission
   Then a page at "Ready to publish" shows "Waiting for a publisher"
 ```
 
+</details>
+
 ### Feature: Compare an authoring version with the live page
 Source: [`02-compare-with-live.feature`](features/05-publishing/02-compare-with-live.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-05.02.1 · See what will change before publishing | publisher | US-05.01.1, US-03.06.4 | 14 |
-| 2 | US-05.02.2 · Check an older version against live | content author | US-05.02.1 | 15 |
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-05.02.1** · See what will change before publishing | publisher | Publishers catch unintended changes before customers see them, lowering the risk of wrong rates or terms going live. A clear list of differences makes sign-off faster and easier to evidence. | As a publisher<br>I want to see the authoring version next to the live page, with every difference listed<br>So that I know exactly what will change for customers when I publish | US-05.01.1, US-03.06.4 | 14 |
+| 2 | **US-05.02.2** · Check an older version against live | content author | The bank can quickly establish when a change was made and what customers were shown at the time. This supports complaint handling and regulatory enquiries without costly investigation. | As a content author<br>I want to compare any saved version of my page with the live page<br>So that I can find when a change was made and what customers still see | US-05.02.1 | 15 |
 
-*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*
+**Acceptance criteria** — the Background applies to every story of this feature
 
 ```gherkin
 Background:
   Given the page "Cash ISA" was published before and has been edited since
 ```
 
-#### US-05.02.1 · See what will change before publishing
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | publisher |
-| Depends on | US-05.01.1, US-03.06.4 |
-| Build wave | 14 |
-
-**Business benefit**
-
-Publishers catch unintended changes before customers see them, lowering the risk of wrong rates or terms going live. A clear list of differences makes sign-off faster and easier to evidence.
-
-**User story**
-
-> As a publisher  
-> I want to see the authoring version next to the live page, with every difference listed  
-> So that I know exactly what will change for customers when I publish  
-
-**Acceptance criteria**
+<details><summary><b>US-05.02.1</b> · See what will change before publishing</summary>
 
 ```gherkin
 Scenario: Compare is offered only for one page that has been live
@@ -3315,35 +1967,17 @@ Scenario: Jump to a difference
   Then it flashes on both sides
 ```
 
-#### US-05.02.2 · Check an older version against live
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-05.02.1 |
-| Build wave | 15 |
-
-**Business benefit**
-
-The bank can quickly establish when a change was made and what customers were shown at the time. This supports complaint handling and regulatory enquiries without costly investigation.
-
-**User story**
-
-> As a content author  
-> I want to compare any saved version of my page with the live page  
-> So that I can find when a change was made and what customers still see  
-
-**Acceptance criteria**
+<details><summary><b>US-05.02.2</b> · Check an older version against live</summary>
 
 ```gherkin
 Scenario: Pick an older authoring version
   When I choose a saved version from the authoring dropdown
   Then the left side shows that version and the differences are recalculated
 ```
+
+</details>
 
 ---
 
@@ -3352,35 +1986,15 @@ Scenario: Pick an older authoring version
 ### Feature: Page templates
 Source: [`01-templates.feature`](features/06-content-library/01-templates.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-06.01.1 · Build and maintain page templates 🛡 | site admin | — | 1 |
-| 2 | US-06.01.2 · Limit a template to some markets 🛡 | site admin | US-06.01.1 | 2 |
-| 3 | US-06.01.3 · Pick the right template for my market | content author | US-06.01.1, US-06.01.2 | 3 |
-
-#### US-06.01.1 · Build and maintain page templates 🛡
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | site admin |
-| Depends on | — |
-| Build wave | 1 |
-
-**Business benefit**
-
-Every page type starts from an approved structure with mandatory brand and navigation parts, so brand and compliance consistency is built in. New pages are created faster, cutting time to market.
-
-**User story**
-
-> As a site admin  
-> I want to create, edit, duplicate and delete templates the way I edit pages  
-> So that every new page of a type starts consistent, with the required HSBC parts in place  
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-06.01.1** · Build and maintain page templates 🛡 | site admin | Every page type starts from an approved structure with mandatory brand and navigation parts, so brand and compliance consistency is built in. New pages are created faster, cutting time to market. | As a site admin<br>I want to create, edit, duplicate and delete templates the way I edit pages<br>So that every new page of a type starts consistent, with the required HSBC parts in place | — | 1 |
+| 2 | **US-06.01.2** · Limit a template to some markets 🛡 | site admin | Market-specific layouts cannot be reused by markets they were not approved for, reducing local regulatory and brand risk. Central teams can share templates safely without extra manual checks. | As a site admin<br>I want to choose in which local markets a template can be used<br>So that local templates stay local | US-06.01.1 | 2 |
+| 3 | **US-06.01.3** · Pick the right template for my market | content author | Authors start from approved, market-appropriate templates instead of improvising layouts, which lowers rework and review effort. Read-only access protects templates from accidental change. | As a content author<br>I want to browse the template library and see what each template contains and where it can be used, without being able to change it<br>So that I start pages from an approved template that is allowed in my market | US-06.01.1, US-06.01.2 | 3 |
 
 **Acceptance criteria**
+
+<details><summary><b>US-06.01.1</b> · Build and maintain page templates</summary>
 
 ```gherkin
 Scenario: Editing a template
@@ -3397,29 +2011,9 @@ Scenario: New, duplicate and delete
   But the "Blank page" template cannot be duplicated or deleted
 ```
 
-#### US-06.01.2 · Limit a template to some markets 🛡
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | site admin |
-| Depends on | US-06.01.1 |
-| Build wave | 2 |
-
-**Business benefit**
-
-Market-specific layouts cannot be reused by markets they were not approved for, reducing local regulatory and brand risk. Central teams can share templates safely without extra manual checks.
-
-**User story**
-
-> As a site admin  
-> I want to choose in which local markets a template can be used  
-> So that local templates stay local  
-
-**Acceptance criteria**
+<details><summary><b>US-06.01.2</b> · Limit a template to some markets</summary>
 
 ```gherkin
 Scenario: Choosing markets
@@ -3428,29 +2022,9 @@ Scenario: Choosing markets
   And I am warned that the UK can no longer create pages from it
 ```
 
-#### US-06.01.3 · Pick the right template for my market
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-06.01.1, US-06.01.2 |
-| Build wave | 3 |
-
-**Business benefit**
-
-Authors start from approved, market-appropriate templates instead of improvising layouts, which lowers rework and review effort. Read-only access protects templates from accidental change.
-
-**User story**
-
-> As a content author  
-> I want to browse the template library and see what each template contains and where it can be used, without being able to change it  
-> So that I start pages from an approved template that is allowed in my market  
-
-**Acceptance criteria**
+<details><summary><b>US-06.01.3</b> · Pick the right template for my market</summary>
 
 ```gherkin
 Scenario: Read-only for everyone else
@@ -3467,39 +2041,21 @@ Scenario: A template for another market
   Then its card is dimmed and the button says "Not for UK"
 ```
 
+</details>
+
 ### Feature: Assets (images and documents)
 Source: [`02-assets.feature`](features/06-content-library/02-assets.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-06.02.1 · Upload and replace files safely | content author | — | 1 |
-| 2 | US-06.02.2 · Make files accessible | content author | US-06.02.1 | 2 |
-| 3 | US-06.02.3 · Find the right file | content author | US-06.02.1, US-06.02.2 | 3 |
-| 4 | US-06.02.4 · Approve files for live use | publisher | US-06.02.1 | 2 |
-
-#### US-06.02.1 · Upload and replace files safely
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | — |
-| Build wave | 1 |
-
-**Business benefit**
-
-Files can be updated without breaking live pages, protecting the customer experience and the bank's reputation. Automatic renaming prevents costly overwrites of approved material.
-
-**User story**
-
-> As a content author  
-> I want to upload and replace files without ever overwriting another file or deleting one that pages still use  
-> So that no live page breaks because of a change in the library  
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-06.02.1** · Upload and replace files safely | content author | Files can be updated without breaking live pages, protecting the customer experience and the bank's reputation. Automatic renaming prevents costly overwrites of approved material. | As a content author<br>I want to upload and replace files without ever overwriting another file or deleting one that pages still use<br>So that no live page breaks because of a change in the library | — | 1 |
+| 2 | **US-06.02.2** · Make files accessible | content author | Recording alt text and document accessibility details helps the bank meet its accessibility obligations and avoid legal risk. Customers using assistive technology get the same information as everyone else. | As a content author<br>I want to record alt text per language for images and the accessibility details of documents<br>So that every file on our pages can be used by customers with assistive technology | US-06.02.1 | 2 |
+| 3 | **US-06.02.3** · Find the right file | content author | Reusing approved files avoids duplicate purchases and repeated approvals, lowering cost. Smart views surface unused and inaccessible files so problems are fixed before audits find them. | As a content author<br>I want to browse files by folder and type and see which ones are unused or missing accessibility details<br>So that I reuse approved files and can clean up problems quickly | US-06.02.1, US-06.02.2 | 3 |
+| 4 | **US-06.02.4** · Approve files for live use | publisher | Only approved files can appear on live pages, reducing brand, legal and compliance risk. The publish record shows who approved each file and when, supporting audits. | As a publisher<br>I want to publish draft files and have pages refused while they still use a draft file<br>So that customers only ever see approved files | US-06.02.1 | 2 |
 
 **Acceptance criteria**
+
+<details><summary><b>US-06.02.1</b> · Upload and replace files safely</summary>
 
 ```gherkin
 Scenario: Uploading
@@ -3517,29 +2073,9 @@ Scenario: Deleting a used file
   Then I cannot delete it and I am told "Remove it from pages first"
 ```
 
-#### US-06.02.2 · Make files accessible
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-06.02.1 |
-| Build wave | 2 |
-
-**Business benefit**
-
-Recording alt text and document accessibility details helps the bank meet its accessibility obligations and avoid legal risk. Customers using assistive technology get the same information as everyone else.
-
-**User story**
-
-> As a content author  
-> I want to record alt text per language for images and the accessibility details of documents  
-> So that every file on our pages can be used by customers with assistive technology  
-
-**Acceptance criteria**
+<details><summary><b>US-06.02.2</b> · Make files accessible</summary>
 
 ```gherkin
 Scenario: Alt text per language
@@ -3552,29 +2088,9 @@ Scenario: Documents
   Then a PDF needs a title, a language and "Tagged PDF, checked"
 ```
 
-#### US-06.02.3 · Find the right file
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-06.02.1, US-06.02.2 |
-| Build wave | 3 |
-
-**Business benefit**
-
-Reusing approved files avoids duplicate purchases and repeated approvals, lowering cost. Smart views surface unused and inaccessible files so problems are fixed before audits find them.
-
-**User story**
-
-> As a content author  
-> I want to browse files by folder and type and see which ones are unused or missing accessibility details  
-> So that I reuse approved files and can clean up problems quickly  
-
-**Acceptance criteria**
+<details><summary><b>US-06.02.3</b> · Find the right file</summary>
 
 ```gherkin
 Scenario: Browsing
@@ -3591,29 +2107,9 @@ Scenario Outline: Smart views
     | Missing accessibility info   | images without alt text and untagged PDFs   |
 ```
 
-#### US-06.02.4 · Approve files for live use
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | publisher |
-| Depends on | US-06.02.1 |
-| Build wave | 2 |
-
-**Business benefit**
-
-Only approved files can appear on live pages, reducing brand, legal and compliance risk. The publish record shows who approved each file and when, supporting audits.
-
-**User story**
-
-> As a publisher  
-> I want to publish draft files and have pages refused while they still use a draft file  
-> So that customers only ever see approved files  
-
-**Acceptance criteria**
+<details><summary><b>US-06.02.4</b> · Approve files for live use</summary>
 
 ```gherkin
 Scenario: Publishing a file
@@ -3625,38 +2121,20 @@ Scenario: A page cannot go live with a draft file
   Then publishing a page that uses a draft file is refused until the file is published
 ```
 
+</details>
+
 ### Feature: Content models and content entities
 Source: [`03-models-and-entities.feature`](features/06-content-library/03-models-and-entities.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-06.03.1 · Define and evolve content models 🛡 | site admin | — | 1 |
-| 2 | US-06.03.2 · Create reusable content items from a model | content author | US-06.03.1 | 2 |
-| 3 | US-06.03.3 · Update a fact everywhere at once | content author | US-06.03.2, US-03.05.1 | 4 |
-
-#### US-06.03.1 · Define and evolve content models 🛡
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | site admin |
-| Depends on | — |
-| Build wave | 1 |
-
-**Business benefit**
-
-Structured, validated content types give every channel consistent data and reduce errors in key facts. Guarded breaking changes protect live content and avoid costly outages.
-
-**User story**
-
-> As a site admin  
-> I want to create content models with validated fields, publish them, and change them safely over time  
-> So that authors get well-structured content types and live content is not broken by a careless change  
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-06.03.1** · Define and evolve content models 🛡 | site admin | Structured, validated content types give every channel consistent data and reduce errors in key facts. Guarded breaking changes protect live content and avoid costly outages. | As a site admin<br>I want to create content models with validated fields, publish them, and change them safely over time<br>So that authors get well-structured content types and live content is not broken by a careless change | — | 1 |
+| 2 | **US-06.03.2** · Create reusable content items from a model | content author | Facts such as rates are entered once, so the bank avoids inconsistent figures that could mislead customers. Blocking deletion of items in use prevents broken pages. | As a content author<br>I want to fill in entities from published models, see the model as documentation, and be stopped from deleting entities in use<br>So that facts like rates are written once, correctly, and no page loses its content | US-06.03.1 | 2 |
+| 3 | **US-06.03.3** · Update a fact everywhere at once | content author | A rate change reaches every page and channel at the same moment, lowering conduct risk from outdated figures. It removes the cost of editing many pages by hand. | As a content author<br>I want publishing an entity to update every page that shows it<br>So that a changed rate is correct on all pages and channels at the same moment | US-06.03.2, US-03.05.1 | 4 |
 
 **Acceptance criteria**
+
+<details><summary><b>US-06.03.1</b> · Define and evolve content models</summary>
 
 ```gherkin
 Scenario: Creating a model
@@ -3686,29 +2164,9 @@ Scenario: Versions
   Then every change is kept as a version I can compare and restore into the draft
 ```
 
-#### US-06.03.2 · Create reusable content items from a model
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-06.03.1 |
-| Build wave | 2 |
-
-**Business benefit**
-
-Facts such as rates are entered once, so the bank avoids inconsistent figures that could mislead customers. Blocking deletion of items in use prevents broken pages.
-
-**User story**
-
-> As a content author  
-> I want to fill in entities from published models, see the model as documentation, and be stopped from deleting entities in use  
-> So that facts like rates are written once, correctly, and no page loses its content  
-
-**Acceptance criteria**
+<details><summary><b>US-06.03.2</b> · Create reusable content items from a model</summary>
 
 ```gherkin
 Scenario: Read-only for others
@@ -3733,29 +2191,9 @@ Scenario: Entities in use cannot be deleted
   Then I see "Used on 3 pages · Remove it from those pages first"
 ```
 
-#### US-06.03.3 · Update a fact everywhere at once
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-06.03.2, US-03.05.1 |
-| Build wave | 4 |
-
-**Business benefit**
-
-A rate change reaches every page and channel at the same moment, lowering conduct risk from outdated figures. It removes the cost of editing many pages by hand.
-
-**User story**
-
-> As a content author  
-> I want publishing an entity to update every page that shows it  
-> So that a changed rate is correct on all pages and channels at the same moment  
-
-**Acceptance criteria**
+<details><summary><b>US-06.03.3</b> · Update a fact everywhere at once</summary>
 
 ```gherkin
 Scenario: Publishing an entity updates the pages that use it
@@ -3764,6 +2202,8 @@ Scenario: Publishing an entity updates the pages that use it
   And the delivery API shows the new values on those pages
 ```
 
+</details>
+
 ---
 
 ## 07 · Translations
@@ -3771,41 +2211,19 @@ Scenario: Publishing an entity updates the pages that use it
 ### Feature: Translate pages
 Source: [`01-translate-pages.feature`](features/07-translations/01-translate-pages.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-07.01.1 · Create translated copies of pages in a few steps | content author | US-02.01.1 | 3 |
-| 2 | US-07.01.2 · Review every language version before it goes live | business owner | US-07.01.1, US-04.01.1 | 9 |
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-07.01.1** · Create translated copies of pages in a few steps | content author | Pages reach every language of a market far faster than copying them by hand, shortening time to market. Wider language coverage improves access for customers and supports local language requirements. | As a content author<br>I want to choose the languages, how the text is translated and where the copies go, then check and create them in one flow<br>So that I can offer pages in every language of my market without copying them by hand | US-02.01.1 | 3 |
+| 2 | **US-07.01.2** · Review every language version before it goes live | business owner | Translations get the same checks as originals, so no unverified wording about products or terms reaches customers. This keeps the bank compliant in every language it publishes. | As a business owner<br>I want every translated page to go through the same author's review and business review as the original<br>So that no unchecked translation reaches customers | US-07.01.1, US-04.01.1 | 9 |
 
-*Background — applies to every story of this feature (add it at the top of the acceptance criteria):*
+**Acceptance criteria** — the Background applies to every story of this feature
 
 ```gherkin
 Background:
   Given I selected "Cash ISA" and "Fixed rate bonds" in the UK market
 ```
 
-#### US-07.01.1 · Create translated copies of pages in a few steps
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-02.01.1 |
-| Build wave | 3 |
-
-**Business benefit**
-
-Pages reach every language of a market far faster than copying them by hand, shortening time to market. Wider language coverage improves access for customers and supports local language requirements.
-
-**User story**
-
-> As a content author  
-> I want to choose the languages, how the text is translated and where the copies go, then check and create them in one flow  
-> So that I can offer pages in every language of my market without copying them by hand  
-
-**Acceptance criteria**
+<details><summary><b>US-07.01.1</b> · Create translated copies of pages in a few steps</summary>
 
 ```gherkin
 Scenario: Four steps
@@ -3832,35 +2250,17 @@ Scenario: Check and create
   And it shows "Source: /banking/savings/fixed-rate-bonds" in the page list
 ```
 
-#### US-07.01.2 · Review every language version before it goes live
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | business owner |
-| Depends on | US-07.01.1, US-04.01.1 |
-| Build wave | 9 |
-
-**Business benefit**
-
-Translations get the same checks as originals, so no unverified wording about products or terms reaches customers. This keeps the bank compliant in every language it publishes.
-
-**User story**
-
-> As a business owner  
-> I want every translated page to go through the same author's review and business review as the original  
-> So that no unchecked translation reaches customers  
-
-**Acceptance criteria**
+<details><summary><b>US-07.01.2</b> · Review every language version before it goes live</summary>
 
 ```gherkin
 Scenario: Translations always go through the workflow
   Then every translated page is created at "Waiting for author's review assignment"
   And it needs the author's review and the business review before it can be published
 ```
+
+</details>
 
 ---
 
@@ -3869,35 +2269,15 @@ Scenario: Translations always go through the workflow
 ### Feature: Audit log and dashboard
 Source: [`01-audit-and-dashboard.feature`](features/08-governance/01-audit-and-dashboard.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-08.01.1 · Search and export a full audit trail 🛡 | site admin | US-01.03.1 | 2 |
-| 2 | US-08.01.2 · See my own activity | content author | US-08.01.1 | 3 |
-| 3 | US-08.01.3 · See what needs attention | content author | US-08.01.1, US-04.06.1 | 10 |
-
-#### US-08.01.1 · Search and export a full audit trail 🛡
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | site admin |
-| Depends on | US-01.03.1 |
-| Build wave | 2 |
-
-**Business benefit**
-
-The bank can answer auditors and regulators with complete evidence of who changed what and when. Fast search and CSV export cut the cost of compliance reviews.
-
-**User story**
-
-> As a site admin  
-> I want every change recorded with who, what, when and a request id, and to search and export everyone's events  
-> So that the bank can prove who did what to auditors and regulators  
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-08.01.1** · Search and export a full audit trail 🛡 | site admin | The bank can answer auditors and regulators with complete evidence of who changed what and when. Fast search and CSV export cut the cost of compliance reviews. | As a site admin<br>I want every change recorded with who, what, when and a request id, and to search and export everyone's events<br>So that the bank can prove who did what to auditors and regulators | US-01.03.1 | 2 |
+| 2 | **US-08.01.2** · See my own activity | content author | Staff can check their own work without seeing colleagues' activity, respecting need-to-know access. Fewer support requests to admins lowers operating cost. | As a content author<br>I want to see a log of my own actions only<br>So that I can check what I did without seeing other people's activity | US-08.01.1 | 3 |
+| 3 | **US-08.01.3** · See what needs attention | content author | Waiting reviews and failed publishes are spotted early, so content reaches customers on time. Managers get a quick view of throughput without manual reporting. | As a content author<br>I want a dashboard that summarises waiting reviews, how much of the site is live, failed publishes, my tasks and recent activity<br>So that I see at a glance where work stands and what to do next | US-08.01.1, US-04.06.1 | 10 |
 
 **Acceptance criteria**
+
+<details><summary><b>US-08.01.1</b> · Search and export a full audit trail</summary>
 
 ```gherkin
 Scenario: Audit entries
@@ -3911,29 +2291,9 @@ Scenario: Finding events
   And export the result to CSV
 ```
 
-#### US-08.01.2 · See my own activity
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-08.01.1 |
-| Build wave | 3 |
-
-**Business benefit**
-
-Staff can check their own work without seeing colleagues' activity, respecting need-to-know access. Fewer support requests to admins lowers operating cost.
-
-**User story**
-
-> As a content author  
-> I want to see a log of my own actions only  
-> So that I can check what I did without seeing other people's activity  
-
-**Acceptance criteria**
+<details><summary><b>US-08.01.2</b> · See my own activity</summary>
 
 ```gherkin
 Scenario: Admins see everyone, others see themselves
@@ -3942,29 +2302,9 @@ Scenario: Admins see everyone, others see themselves
   Then it is titled "My activity" and shows only my actions
 ```
 
-#### US-08.01.3 · See what needs attention
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | content author |
-| Depends on | US-08.01.1, US-04.06.1 |
-| Build wave | 10 |
-
-**Business benefit**
-
-Waiting reviews and failed publishes are spotted early, so content reaches customers on time. Managers get a quick view of throughput without manual reporting.
-
-**User story**
-
-> As a content author  
-> I want a dashboard that summarises waiting reviews, how much of the site is live, failed publishes, my tasks and recent activity  
-> So that I see at a glance where work stands and what to do next  
-
-**Acceptance criteria**
+<details><summary><b>US-08.01.3</b> · See what needs attention</summary>
 
 ```gherkin
 Scenario: Dashboard tiles
@@ -3980,6 +2320,8 @@ Scenario: Nothing waiting
   Then the tile says "Nothing waiting. Nice."
 ```
 
+</details>
+
 ---
 
 ## 09 · Delivery API
@@ -3987,35 +2329,15 @@ Scenario: Nothing waiting
 ### Feature: Content delivery API
 Source: [`01-delivery-api.feature`](features/09-delivery-api/01-delivery-api.feature)
 
-| # | Story | Persona | Depends on | Wave |
-|---|---|---|---|---|
-| 1 | US-09.01.1 · Get only approved content, and preview drafts separately | front-end developer | US-05.01.1 | 14 |
-| 2 | US-09.01.2 · Render pages straight from the JSON | front-end developer | US-09.01.1, US-03.05.1, US-06.02.1 | 15 |
-| 3 | US-09.01.3 · Explore and try the API in the CMS | front-end developer | US-09.01.1, US-09.01.2 | 16 |
-
-#### US-09.01.1 · Get only approved content, and preview drafts separately
-
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | front-end developer |
-| Depends on | US-05.01.1 |
-| Build wave | 14 |
-
-**Business benefit**
-
-Only approved content can reach customers through any channel, reducing the risk of leaking unreleased offers. Separate previews let teams test upcoming pages without affecting live sites.
-
-**User story**
-
-> As a front-end developer  
-> I want the public API to return only published pages, with a separate preview address for drafts  
-> So that customers only ever see approved content while I can still test upcoming pages  
+| # | Story | Persona | Business benefit | User story | Depends on | Wave |
+|---|---|---|---|---|---|---|
+| 1 | **US-09.01.1** · Get only approved content, and preview drafts separately | front-end developer | Only approved content can reach customers through any channel, reducing the risk of leaking unreleased offers. Separate previews let teams test upcoming pages without affecting live sites. | As a front-end developer<br>I want the public API to return only published pages, with a separate preview address for drafts<br>So that customers only ever see approved content while I can still test upcoming pages | US-05.01.1 | 14 |
+| 2 | **US-09.01.2** · Render pages straight from the JSON | front-end developer | All websites and apps show the same approved content from one source, cutting duplicate work across channels. Ready-to-use JSON and schemas shorten integration time and reduce rendering errors. | As a front-end developer<br>I want page JSON with resolved values, image renditions, form references and meta, plus a JSON Schema for each model<br>So that any channel can render the content without extra lookups or guesswork | US-09.01.1, US-03.05.1, US-06.02.1 | 15 |
+| 3 | **US-09.01.3** · Explore and try the API in the CMS | front-end developer | Developers integrate new channels faster without waiting for separate documentation. Self-service exploration lowers support effort and time to market. | As a front-end developer<br>I want a screen that shows each page's address and JSON, the model schemas and all endpoints, with "Copy URL" and "Try it"<br>So that I can integrate quickly without reading separate documentation | US-09.01.1, US-09.01.2 | 16 |
 
 **Acceptance criteria**
+
+<details><summary><b>US-09.01.1</b> · Get only approved content, and preview drafts separately</summary>
 
 ```gherkin
 Scenario: List of published pages
@@ -4031,29 +2353,9 @@ Scenario: Preview includes drafts
   Then I get the page JSON
 ```
 
-#### US-09.01.2 · Render pages straight from the JSON
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | front-end developer |
-| Depends on | US-09.01.1, US-03.05.1, US-06.02.1 |
-| Build wave | 15 |
-
-**Business benefit**
-
-All websites and apps show the same approved content from one source, cutting duplicate work across channels. Ready-to-use JSON and schemas shorten integration time and reduce rendering errors.
-
-**User story**
-
-> As a front-end developer  
-> I want page JSON with resolved values, image renditions, form references and meta, plus a JSON Schema for each model  
-> So that any channel can render the content without extra lookups or guesswork  
-
-**Acceptance criteria**
+<details><summary><b>US-09.01.2</b> · Render pages straight from the JSON</summary>
 
 ```gherkin
 Scenario: Page JSON
@@ -4067,29 +2369,9 @@ Scenario: Schemas
   Then I get a JSON Schema with the required fields and localised fields marked
 ```
 
-#### US-09.01.3 · Explore and try the API in the CMS
+</details>
 
-| Field | Value |
-|---|---|
-| Issue type | Story |
-| Story type | Functional |
-| Sprint | TBD |
-| Team | WPB Digital Browser: Tools |
-| Persona | front-end developer |
-| Depends on | US-09.01.1, US-09.01.2 |
-| Build wave | 16 |
-
-**Business benefit**
-
-Developers integrate new channels faster without waiting for separate documentation. Self-service exploration lowers support effort and time to market.
-
-**User story**
-
-> As a front-end developer  
-> I want a screen that shows each page's address and JSON, the model schemas and all endpoints, with "Copy URL" and "Try it"  
-> So that I can integrate quickly without reading separate documentation  
-
-**Acceptance criteria**
+<details><summary><b>US-09.01.3</b> · Explore and try the API in the CMS</summary>
 
 ```gherkin
 Scenario: API & delivery screen
@@ -4097,6 +2379,8 @@ Scenario: API & delivery screen
   Then I can pick a page and see its public or preview address, its JSON, "Copy URL" and "Try it"
   And see the JSON Schema of each model and a table of all endpoints
 ```
+
+</details>
 
 ---
 
