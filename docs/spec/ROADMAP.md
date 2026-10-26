@@ -65,7 +65,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-  S[Story from the spec<br/>US-xx.yy.n] --> D[Design: screen + copy<br/>Krug review]
+  S[Story from the spec<br/>US-xx.nn] --> D[Design: screen + copy<br/>Krug review]
   D --> I[Build: UI + API rule<br/>server enforces, UI hides]
   I --> T[Acceptance: the story's<br/>Gherkin scenarios as tests]
   T --> R[Demo on the hosted preview]

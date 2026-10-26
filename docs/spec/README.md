@@ -13,19 +13,18 @@ with the same HSBC components, the same four-eyes workflow and a full audit trai
 
 ```
 Product  ─ HSBC Unified Content Platform
- └─ Epic          (9)    a business capability, e.g. "Review workflow"
-     └─ Feature   (28)   one .feature file, e.g. "Business review and sign-off"
-         └─ User story (87)  Rule: US-<epic>.<feature>.<n> · title
-             │                As a <persona> / I want … / So that …
-             └─ Scenario (236) acceptance criteria (Given / When / Then)
+ └─ Epic        (9)    one .feature file = one Jira Epic, e.g. "Review workflow"
+     └─ Story   (87)   Rule: US-<epic>.<nn> · name = one Jira Story
+         │              As a <persona> / I want … / So that …
+         └─ Scenario (236) acceptance criteria (Given / When / Then)
 ```
 
 Every story has the same shape, in this order:
 
 ```gherkin
   # Business benefit: <two sentences: what the bank gains — time, risk, compliance, cost, trust>.
-  @admin @depends:US-03.01.2        ← optional tags: site-admin story, stories it needs first
-  Rule: US-03.01.4 · Never lose my work      ← ID (epic.feature.order) and name
+  @admin @depends:US-03.02        ← optional tags: site-admin story, stories it needs first
+  Rule: US-03.04 · Never lose my work      ← ID (epic.order) and name
     As a content author                       ← user story
     I want …
     So that …
@@ -33,14 +32,16 @@ Every story has the same shape, in this order:
     Scenario: …                               ← acceptance criteria
 ```
 
-Inside each feature, stories are listed **in build order** (the last number of the ID is that order).
-`@depends:` names every story that has to exist first, also across features. The whole picture —
+Inside each epic, stories are listed **in build order** (the last number of the ID is that order).
+`@depends:` names every story that has to exist first, also in other epics. In Gherkin the epic is
+written with the `Feature:` keyword; a Background that only some stories need sits inside those stories.
+Old three-part IDs (before the Epic → Story layout) map to the new ones in [tools/id-mapping.txt](tools/id-mapping.txt). The whole picture —
 benefits, dependencies and build waves for the product — is in **[STORY-MAP.md](STORY-MAP.md)**.
 
 Related requirements are merged into one story (one goal for one persona); a story is split only
 when the persona changes. Site-admin-only stories are tagged `@admin`, planned ones `@status:next`.
 
-Tags: `@epic:<name>` and `@status:done | next | later` on every feature, `@mock` where the
+Tags: `@epic:<name>` and `@status:done | next | later` on every epic, `@mock` where the
 prototype uses a stand-in (SSO, AI), `@admin` / `@status:next` on individual stories.
 
 ## 3. Who uses it (personas)
@@ -73,7 +74,7 @@ business review; only the assigned person decides; site admins may act, visibly 
 
 The author does **not** click through the flow. The author requests the next step, the page
 travels through other people, and it comes back to the author at the end (or earlier, with
-comments, through "Reauthor"). Full story: [00-end-to-end-handoffs.feature](features/04-review-workflow/00-end-to-end-handoffs.feature).
+comments, through "Reauthor"). Full story: [04-review-workflow.feature](features/04-review-workflow.feature) — stories US-04.22 to US-04.26.
 
 ```mermaid
 sequenceDiagram
@@ -115,19 +116,19 @@ sequenceDiagram
 demoed end to end and urgent pages can be unblocked. Each such step is written to the audit log
 as "on behalf of". Ordinary users never see buttons for someone else's step (stories tagged `@admin`).
 
-## 5. Epics and features
+## 5. Epics
 
-| # | Epic | Features (files) | What it covers |
+| # | Epic (file) | Stories | What it covers |
 |---|---|---|---|
-| 01 | [Access & navigation](features/01-access-and-navigation) | sign-in · markets & navigation · permissions | Who you are, where you are, what you may do |
-| 02 | [Pages](features/02-pages) | browse & create · organise · archive & delete | The site tree and safe page operations |
-| 03 | [Page builder](features/03-page-builder) | build a page · design patterns · quality & insights · AI assistant · linked content · collaboration | Making a page |
-| 04 | [Review workflow](features/04-review-workflow) | send for review · peer review · business review · review links · comments · My tasks · notifications | Four-eyes approval |
-| 05 | [Publishing](features/05-publishing) | publish & schedule · compare with live | Going live safely |
-| 06 | [Content library](features/06-content-library) | templates · assets · models & entities | Reusable building blocks and content |
-| 07 | [Translations](features/07-translations) | translate pages | Language versions through the same workflow |
-| 08 | [Governance](features/08-governance) | audit log & dashboard | Proof and overview |
-| 09 | [Delivery API](features/09-delivery-api) | delivery API | Content for every channel |
+| 01 | [Access & navigation](features/01-access-and-navigation.feature) | 9 | Who you are, where you are, what you may do |
+| 02 | [Pages](features/02-pages.feature) | 8 | The site tree and safe page operations |
+| 03 | [Page builder](features/03-page-builder.feature) | 20 | Making a page |
+| 04 | [Review workflow](features/04-review-workflow.feature) | 26 | Four-eyes approval |
+| 05 | [Publishing](features/05-publishing.feature) | 6 | Going live safely |
+| 06 | [Content library](features/06-content-library.feature) | 10 | Reusable building blocks and content |
+| 07 | [Translations](features/07-translations.feature) | 2 | Language versions through the same workflow |
+| 08 | [Governance](features/08-governance.feature) | 3 | Proof and overview |
+| 09 | [Delivery API](features/09-delivery-api.feature) | 3 | Content for every channel |
 
 ## 6. Glossary
 

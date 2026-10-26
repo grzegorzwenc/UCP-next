@@ -1,10 +1,10 @@
 @epic:delivery-api @status:done
-Feature: Content delivery API
-  Published content as JSON for HSBC websites and apps, so any channel can show the same approved content.
+Feature: Delivery API
+  Approved content as JSON for every HSBC website and app.
 
   # Business benefit: Only approved content can reach customers through any channel, reducing the risk of leaking unreleased offers. Separate previews let teams test upcoming pages without affecting live sites.
-  @depends:US-05.01.1
-  Rule: US-09.01.1 · Get only approved content, and preview drafts separately
+  @depends:US-05.01
+  Rule: US-09.01 · Get only approved content, and preview drafts separately
     As a front-end developer
     I want the public API to return only published pages, with a separate preview address for drafts
     So that customers only ever see approved content while I can still test upcoming pages
@@ -22,8 +22,8 @@ Feature: Content delivery API
       Then I get the page JSON
 
   # Business benefit: All websites and apps show the same approved content from one source, cutting duplicate work across channels. Ready-to-use JSON and schemas shorten integration time and reduce rendering errors.
-  @depends:US-09.01.1 @depends:US-03.05.1 @depends:US-06.02.1
-  Rule: US-09.01.2 · Render pages straight from the JSON
+  @depends:US-09.01 @depends:US-03.15 @depends:US-06.04
+  Rule: US-09.02 · Render pages straight from the JSON
     As a front-end developer
     I want page JSON with resolved values, image renditions, form references and meta, plus a JSON Schema for each model
     So that any channel can render the content without extra lookups or guesswork
@@ -39,8 +39,8 @@ Feature: Content delivery API
       Then I get a JSON Schema with the required fields and localised fields marked
 
   # Business benefit: Developers integrate new channels faster without waiting for separate documentation. Self-service exploration lowers support effort and time to market.
-  @depends:US-09.01.1 @depends:US-09.01.2
-  Rule: US-09.01.3 · Explore and try the API in the CMS
+  @depends:US-09.01 @depends:US-09.02
+  Rule: US-09.03 · Explore and try the API in the CMS
     As a front-end developer
     I want a screen that shows each page's address and JSON, the model schemas and all endpoints, with "Copy URL" and "Try it"
     So that I can integrate quickly without reading separate documentation
