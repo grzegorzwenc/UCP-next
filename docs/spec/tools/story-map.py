@@ -34,6 +34,23 @@ def stories_of(path):
                         deps=re.findall(r"@depends:(US-[\d.]+)", tags), admin="@admin" in tags, nxt="@status:next" in tags))
     return feat, bg, out
 
+
+def scenarios_html(ac):
+    """One block per scenario: "Scenario 1 · name" (numbered when there are several), then its steps on their own."""
+    chunks, cur = [], None
+    for line in ac.split("\n"):
+        m = re.match(r"\s*Scenario( Outline)?: (.+)", line)
+        if m: cur = [m.group(2).strip(), bool(m.group(1)), []]; chunks.append(cur)
+        elif cur is not None: cur[2].append(line)
+    out = []
+    for i, (name, outline, body) in enumerate(chunks, 1):
+        while body and not body[-1].strip(): body.pop()
+        steps = "\n".join(b[2:] if b.startswith("  ") else b for b in body if b.strip())
+        label = f"Scenario {i}" if len(chunks) > 1 else "Scenario"
+        kind = " <i>(outline: one run per row of the table)</i>" if outline else ""
+        out.append(f"<p><b>{label}</b> · {html.escape(name)}{kind}</p><pre lang=\"gherkin\">{html.escape(steps)}</pre>")
+    return "".join(out)
+
 feats = []
 for f in sorted(glob.glob("features/*/*.feature")):
     feat, bg, st = stories_of(f); feats.append((f, feat, bg, st))
@@ -69,7 +86,7 @@ for f, feat, bg, st in feats:
         us = "<br>".join(html.escape(x) for x in s["story"])
         n_sc = len(re.findall(r"^\s*Scenario", s["ac"], re.M))
         o += [f"<tr><td>{s['n']}</td><td><b>{s['id']}</b> · {html.escape(s['title'])}{mark}</td><td>{html.escape(s['persona'])}</td><td>{html.escape(s['ben'])}</td><td>{us}</td><td>{', '.join(s['deps']) or '—'}</td><td>{wave(s['id'])}</td></tr>",
-              f"<tr><td></td><td colspan=\"6\"><details><summary>Acceptance criteria · {n_sc} scenario{'s' if n_sc != 1 else ''}</summary><pre lang=\"gherkin\">{html.escape(s['ac'])}</pre></details></td></tr>"]
+              f"<tr><td></td><td colspan=\"6\"><details><summary>Acceptance criteria · {n_sc} scenario{'s' if n_sc != 1 else ''}</summary>{scenarios_html(s['ac'])}</details></td></tr>"]
     o += ["</table>"]
 o += ["", "---", "", "## Build waves (whole product)", "", "Stories in the same wave can be built in parallel once the earlier waves are done.", ""]
 for w in range(1, waves + 1):
