@@ -48,7 +48,7 @@ Notes
 
 ## How to read a story
 
-Each feature has one table: every row is one Jira Story with its **ID · name**, **persona**, **business benefit** and **user story**. Under the table, click a story to see its **acceptance criteria**. `Depends on` = create as "is blocked by" links. **Wave** = earliest build wave across the whole product (wave 1 needs nothing; a story can start once everything it depends on is done). 🛡 site-admin story · ⏭ planned, not built yet.
+Each feature has one table: every row is one Jira Story with its **ID · name**, **persona**, **business benefit** and **user story**. Right under each story, click **Acceptance criteria** to open its scenarios. `Depends on` = create as "is blocked by" links. **Wave** = earliest build wave across the whole product (wave 1 needs nothing; a story can start once everything it depends on is done). 🛡 site-admin story · ⏭ planned, not built yet.
 
 **87 stories · 28 features · 9 epics · 16 build waves.** Generated from the `.feature` files with `python3 tools/story-map.py` — edit the features, then regenerate.
 
@@ -71,86 +71,56 @@ Each feature has one table: every row is one Jira Story with its **ID · name**,
 ### Feature: Sign in and sign out
 Source: [`01-sign-in.feature`](features/01-access-and-navigation/01-sign-in.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-01.01.1** · Sign in with the company account | content author | Only identified staff can reach the CMS, which closes the door to anonymous changes on customer-facing pages. Every action is tied to a named person, giving auditors a reliable trail. | As a content author<br>I want to sign in with my company account and land where I was going<br>So that UCP knows who I am and only signed-in people reach the CMS | — | 1 |
-| 2 | **US-01.01.2** · Open a review link without an account | guest reviewer | External and occasional reviewers can sign off pages without the bank buying and managing extra CMS licences. Reviews happen sooner because nobody waits for an account to be created. | As a guest reviewer<br>I want to open a review link without signing in<br>So that I can give feedback on a page without a CMS account | US-04.04.1 | 14 |
-| 3 | **US-01.01.3** · Try the private demo as any person | business owner | Stakeholders can evaluate every role before the bank commits to a rollout, reducing the risk of a costly wrong choice. The demo stays private, so unfinished screens and sample data are never exposed publicly. | As a business owner<br>I want the hosted demo kept behind a password and to try it as any demo person<br>So that I can evaluate every role without exposing the demo to the public | US-01.01.1 | 2 |
-
-**Acceptance criteria**
-
-<details><summary><b>US-01.01.1</b> · Sign in with the company account</summary>
-
-```gherkin
-Scenario: Opening a screen without a session
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-01.01.1</b> · Sign in with the company account</td><td>content author</td><td>Only identified staff can reach the CMS, which closes the door to anonymous changes on customer-facing pages. Every action is tied to a named person, giving auditors a reliable trail.</td><td>As a content author<br>I want to sign in with my company account and land where I was going<br>So that UCP knows who I am and only signed-in people reach the CMS</td><td>—</td><td>1</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 5 scenarios</summary><pre lang="gherkin">Scenario: Opening a screen without a session
   Given I am not signed in
-  When I open "/uk/prod/pages"
-  Then I am sent to "/login?next=/uk/prod/pages"
+  When I open &quot;/uk/prod/pages&quot;
+  Then I am sent to &quot;/login?next=/uk/prod/pages&quot;
 
 Scenario: Sign in with company SSO
-  Given I am on "/login?next=/uk/prod/pages"
-  When I click "Sign in with company SSO" and choose "Super admin"
-  Then I am on "/uk/prod/pages"
-  And the audit log says "signed in (SSO stand-in)"
+  Given I am on &quot;/login?next=/uk/prod/pages&quot;
+  When I click &quot;Sign in with company SSO&quot; and choose &quot;Super admin&quot;
+  Then I am on &quot;/uk/prod/pages&quot;
+  And the audit log says &quot;signed in (SSO stand-in)&quot;
 
 Scenario: Only internal addresses are followed
-  Given the login link says "next=//evil.example"
+  Given the login link says &quot;next=//evil.example&quot;
   When I sign in
-  Then I am on "/uk/prod/dashboard"
+  Then I am on &quot;/uk/prod/dashboard&quot;
 
 Scenario: Sign out
-  When I open the account menu and click "Sign out"
+  When I open the account menu and click &quot;Sign out&quot;
   Then I am on the login screen
 
 Scenario: Session length
-  Then a session lasts 12 hours
-```
-
-</details>
-
-<details><summary><b>US-01.01.2</b> · Open a review link without an account</summary>
-
-```gherkin
-Scenario: Review links do not need a session
-  When I open a review link "/review/<token>"
-  Then the page opens without signing in
-```
-
-</details>
-
-<details><summary><b>US-01.01.3</b> · Try the private demo as any person</summary>
-
-```gherkin
-Scenario: The hosted demo is behind a password
+  Then a session lasts 12 hours</pre></details></td></tr>
+<tr><td>2</td><td><b>US-01.01.2</b> · Open a review link without an account</td><td>guest reviewer</td><td>External and occasional reviewers can sign off pages without the bank buying and managing extra CMS licences. Reviews happen sooner because nobody waits for an account to be created.</td><td>As a guest reviewer<br>I want to open a review link without signing in<br>So that I can give feedback on a page without a CMS account</td><td>US-04.04.1</td><td>14</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 1 scenario</summary><pre lang="gherkin">Scenario: Review links do not need a session
+  When I open a review link &quot;/review/&lt;token&gt;&quot;
+  Then the page opens without signing in</pre></details></td></tr>
+<tr><td>3</td><td><b>US-01.01.3</b> · Try the private demo as any person</td><td>business owner</td><td>Stakeholders can evaluate every role before the bank commits to a rollout, reducing the risk of a costly wrong choice. The demo stays private, so unfinished screens and sample data are never exposed publicly.</td><td>As a business owner<br>I want the hosted demo kept behind a password and to try it as any demo person<br>So that I can evaluate every role without exposing the demo to the public</td><td>US-01.01.1</td><td>2</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: The hosted demo is behind a password
   Given the demo password is configured
   When I open any address of the demo without it
   Then the browser asks for a user name and password
   And search engines are told not to index the demo
 
 Scenario: Demo accounts
-  When I open "/login?demo=1"
-  Then every demo person is listed with their role and team
-```
-
-</details>
+  When I open &quot;/login?demo=1&quot;
+  Then every demo person is listed with their role and team</pre></details></td></tr>
+</table>
 
 ### Feature: Markets, environments and navigation
 Source: [`02-markets-and-navigation.feature`](features/01-access-and-navigation/02-markets-and-navigation.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-01.02.1** · Switch between markets | content author | One platform serves every market, so the bank runs and pays for a single CMS instead of one per country. Authors working across markets make fewer wrong-market edits. | As a content author<br>I want to pick an instance and market and switch market without losing my place<br>So that I can work across several countries on one platform without confusion | — | 1 |
-| 2 | **US-01.02.2** · Always know which environment I am in | publisher | Constant visibility of the environment prevents accidental publication to customers, a costly and reputationally damaging incident. Teams can test freely in staging with confidence. | As a publisher<br>I want the environment and its consequences always visible<br>So that I never publish to customers by mistake | — | 1 |
-| 3 | **US-01.02.3** · Reach any screen quickly on any device | content author | Authors spend less time hunting through menus, which raises daily output at no extra cost. The same tool works on laptops and small screens, so work does not stall away from the desk. | As a content author<br>I want a command palette, a global search and a menu that fits my screen<br>So that every page and section is a couple of keystrokes away | — | 1 |
-
-**Acceptance criteria**
-
-<details><summary><b>US-01.02.1</b> · Switch between markets</summary>
-
-```gherkin
-Scenario Outline: Instances
-  When I choose the instance "<instance>"
-  Then the market list shows <markets>
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-01.02.1</b> · Switch between markets</td><td>content author</td><td>One platform serves every market, so the bank runs and pays for a single CMS instead of one per country. Authors working across markets make fewer wrong-market edits.</td><td>As a content author<br>I want to pick an instance and market and switch market without losing my place<br>So that I can work across several countries on one platform without confusion</td><td>—</td><td>1</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario Outline: Instances
+  When I choose the instance &quot;&lt;instance&gt;&quot;
+  Then the market list shows &lt;markets&gt;
 
   Examples:
     | instance | markets              |
@@ -160,64 +130,44 @@ Scenario Outline: Instances
 
 Scenario: Switching market keeps my place
   Given I am on Pages in the UK
-  When I switch to "HSBC France"
-  Then I am on Pages in France
-```
-
-</details>
-
-<details><summary><b>US-01.02.2</b> · Always know which environment I am in</summary>
-
-```gherkin
-Scenario Outline: Environment note
-  When I choose "<environment>"
-  Then the dashboard says "<note>"
+  When I switch to &quot;HSBC France&quot;
+  Then I am on Pages in France</pre></details></td></tr>
+<tr><td>2</td><td><b>US-01.02.2</b> · Always know which environment I am in</td><td>publisher</td><td>Constant visibility of the environment prevents accidental publication to customers, a costly and reputationally damaging incident. Teams can test freely in staging with confidence.</td><td>As a publisher<br>I want the environment and its consequences always visible<br>So that I never publish to customers by mistake</td><td>—</td><td>1</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 1 scenario</summary><pre lang="gherkin">Scenario Outline: Environment note
+  When I choose &quot;&lt;environment&gt;&quot;
+  Then the dashboard says &quot;&lt;note&gt;&quot;
 
   Examples:
     | environment | note                                              |
     | Production  | Publishing here goes live for customers.          |
-    | Staging     | Nothing in this environment reaches customers.    |
-```
-
-</details>
-
-<details><summary><b>US-01.02.3</b> · Reach any screen quickly on any device</summary>
-
-```gherkin
-Scenario: Command palette
+    | Staging     | Nothing in this environment reaches customers.    |</pre></details></td></tr>
+<tr><td>3</td><td><b>US-01.02.3</b> · Reach any screen quickly on any device</td><td>content author</td><td>Authors spend less time hunting through menus, which raises daily output at no extra cost. The same tool works on laptops and small screens, so work does not stall away from the desk.</td><td>As a content author<br>I want a command palette, a global search and a menu that fits my screen<br>So that every page and section is a couple of keystrokes away</td><td>—</td><td>1</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Command palette
   When I press ⌘ K
   Then I can find pages and go to any section
   And in the page builder I can ask AI or add a component from it
   And Tab stays inside the palette and Esc returns focus to where I was
 
 Scenario: Global search
-  When I type "isa" into the top search
+  When I type &quot;isa&quot; into the top search
   Then I see up to 8 pages, 5 assets, 4 people, 3 templates and 3 models
   And Enter opens the first result
 
 Scenario Outline: Side menu
-  Given my screen is <width>
-  Then the side menu is <behaviour>
+  Given my screen is &lt;width&gt;
+  Then the side menu is &lt;behaviour&gt;
 
   Examples:
     | width                 | behaviour                                   |
     | 1100 px or wider      | full, and I can collapse it to icons        |
     | 768 to 1099 px        | icons only                                  |
-    | narrower than 768 px  | hidden behind ☰ and opens as a drawer       |
-```
-
-</details>
+    | narrower than 768 px  | hidden behind ☰ and opens as a drawer       |</pre></details></td></tr>
+</table>
 
 ### Feature: Roles and permissions
 Source: [`03-permissions.feature`](features/01-access-and-navigation/03-permissions.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-01.03.1** · Give each role and workflow step the right permissions | business owner | Approval rights follow the bank's segregation-of-duties rules, which supports regulatory compliance. Sensible defaults also cut the admin effort of setting up each new person. | As a business owner<br>I want each role to come with sensible defaults and each workflow step to need its permission<br>So that only qualified people edit, approve and publish content | — | 1 |
-| 2 | **US-01.03.2** · Manage people and their permissions 🛡 | site admin | Access can be tailored per folder, so teams work independently without over-privileged accounts. Every grant is logged, which makes access reviews and audits straightforward. | As a site admin<br>I want to invite people and grant them permissions on the right folders<br>So that everyone has exactly the access their job needs | US-01.03.1 | 2 |
-| 3 | **US-01.03.3** · Only site admins can change access | business owner | Server-side enforcement closes a privilege-escalation risk that would otherwise undermine every other control. It gives security and audit teams evidence that access rules cannot be bypassed. | As a business owner<br>I want only site admins to change users and permissions, enforced on screen and on the server<br>So that nobody can grant themselves more than they should have | US-01.03.2 | 3 |
-
-**Acceptance criteria** — the Background applies to every story of this feature
+*Background — add it at the top of the acceptance criteria of every story in this feature:*
 
 ```gherkin
 Background:
@@ -225,12 +175,12 @@ Background:
   And they are granted on the whole site or on a top-level folder
 ```
 
-<details><summary><b>US-01.03.1</b> · Give each role and workflow step the right permissions</summary>
-
-```gherkin
-Scenario Outline: Role defaults
-  Given a person with the role "<role>" and no individual grants
-  Then they can <permissions>
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-01.03.1</b> · Give each role and workflow step the right permissions</td><td>business owner</td><td>Approval rights follow the bank&#x27;s segregation-of-duties rules, which supports regulatory compliance. Sensible defaults also cut the admin effort of setting up each new person.</td><td>As a business owner<br>I want each role to come with sensible defaults and each workflow step to need its permission<br>So that only qualified people edit, approve and publish content</td><td>—</td><td>1</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario Outline: Role defaults
+  Given a person with the role &quot;&lt;role&gt;&quot; and no individual grants
+  Then they can &lt;permissions&gt;
 
   Examples:
     | role       | permissions                              |
@@ -241,57 +191,43 @@ Scenario Outline: Role defaults
     | Viewer     | read                                     |
 
 Scenario Outline: Status changes
-  When someone moves a page to "<status>"
-  Then they need <permission>
+  When someone moves a page to &quot;&lt;status&gt;&quot;
+  Then they need &lt;permission&gt;
 
   Examples:
     | status                    | permission         |
     | Build the page (draft)    | Edit               |
     | Waiting for review        | Edit               |
-    | In author's review        | Review & approve   |
-    | Ready to publish          | Review & approve   |
-    | Scheduled / Published     | Publish            |
-```
-
-</details>
-
-<details><summary><b>US-01.03.2</b> · Manage people and their permissions</summary>
-
-```gherkin
-Scenario: Granting a permission
-  Given I am a site admin on "Users & roles"
-  When I click "Edit" on the "Banking" row for "anna.kowalczyk"
+    | In author&#x27;s review        | Review &amp; approve   |
+    | Ready to publish          | Review &amp; approve   |
+    | Scheduled / Published     | Publish            |</pre></details></td></tr>
+<tr><td>2</td><td><b>US-01.03.2</b> · Manage people and their permissions 🛡</td><td>site admin</td><td>Access can be tailored per folder, so teams work independently without over-privileged accounts. Every grant is logged, which makes access reviews and audits straightforward.</td><td>As a site admin<br>I want to invite people and grant them permissions on the right folders<br>So that everyone has exactly the access their job needs</td><td>US-01.03.1</td><td>2</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Granting a permission
+  Given I am a site admin on &quot;Users &amp; roles&quot;
+  When I click &quot;Edit&quot; on the &quot;Banking&quot; row for &quot;anna.kowalczyk&quot;
   Then she has Edit on Banking and also Read there
-  And the audit log says "gave Anna Kowalczyk Edit on Banking"
+  And the audit log says &quot;gave Anna Kowalczyk Edit on Banking&quot;
 
 Scenario: Inherited permissions
-  Given "rachel.hughes" has Review on the whole site
-  Then each folder row shows Review as "Inherited from whole site"
+  Given &quot;rachel.hughes&quot; has Review on the whole site
+  Then each folder row shows Review as &quot;Inherited from whole site&quot;
 
 Scenario: Inviting a person
-  When I invite "Sam Taylor" as an Author
-  Then the sign-in id is "sam.taylor"
-  And they get the Author permissions on the whole site
-```
-
-</details>
-
-<details><summary><b>US-01.03.3</b> · Only site admins can change access</summary>
-
-```gherkin
-Scenario: Non-admins see only themselves
-  Given I am signed in as "content.author"
-  When I open "Users & roles"
+  When I invite &quot;Sam Taylor&quot; as an Author
+  Then the sign-in id is &quot;sam.taylor&quot;
+  And they get the Author permissions on the whole site</pre></details></td></tr>
+<tr><td>3</td><td><b>US-01.03.3</b> · Only site admins can change access</td><td>business owner</td><td>Server-side enforcement closes a privilege-escalation risk that would otherwise undermine every other control. It gives security and audit teams evidence that access rules cannot be bypassed.</td><td>As a business owner<br>I want only site admins to change users and permissions, enforced on screen and on the server<br>So that nobody can grant themselves more than they should have</td><td>US-01.03.2</td><td>3</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: Non-admins see only themselves
+  Given I am signed in as &quot;content.author&quot;
+  When I open &quot;Users &amp; roles&quot;
   Then I see only my own profile
-  And "Only site admins can change users and permissions"
+  And &quot;Only site admins can change users and permissions&quot;
 
 Scenario: The server refuses changes from non-admins
   Given I am a viewer
   When I save components of a page or change a user
-  Then the answer is 403 with a request id
-```
-
-</details>
+  Then the answer is 403 with a request id</pre></details></td></tr>
+</table>
 
 ---
 
@@ -300,228 +236,175 @@ Scenario: The server refuses changes from non-admins
 ### Feature: Browse and create pages
 Source: [`01-browse-and-create.feature`](features/02-pages/01-browse-and-create.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-02.01.1** · Find any page in the market | content author | Authors find the right page in seconds, which saves time on every task across all markets. Fewer duplicate pages get created because existing ones are easy to find. | As a content author<br>I want to browse the folder tree and search the whole market<br>So that I quickly find the page I need to work on | US-01.03.1 | 2 |
-| 2 | **US-02.01.2** · Create pages and folders from on-brand templates | content author | Every new page starts on-brand and market-appropriate, reducing rework and brand-compliance findings in review. Folder permissions keep teams from cluttering areas they do not own. | As a content author<br>I want to create folders and new pages from a template allowed in my market, where I have Edit<br>So that the site structure stays tidy and every page starts on-brand | US-02.01.1, US-06.01.3 | 4 |
-
-**Acceptance criteria** — the Background applies to every story of this feature
+*Background — add it at the top of the acceptance criteria of every story in this feature:*
 
 ```gherkin
 Background:
   Given I am signed in to the "HSBC UK" market in "Production"
 ```
 
-<details><summary><b>US-02.01.1</b> · Find any page in the market</summary>
-
-```gherkin
-Scenario: Browsing folders
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-02.01.1</b> · Find any page in the market</td><td>content author</td><td>Authors find the right page in seconds, which saves time on every task across all markets. Fewer duplicate pages get created because existing ones are easy to find.</td><td>As a content author<br>I want to browse the folder tree and search the whole market<br>So that I quickly find the page I need to work on</td><td>US-01.03.1</td><td>2</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Browsing folders
   When I open Pages
   Then I see the folder tree on the left and the pages of the current folder in a table
   And the table shows Name, Status, URL, Template and Updated
-  And translated pages show their locale and a "Source:" link
+  And translated pages show their locale and a &quot;Source:&quot; link
 
 Scenario: Search across the market
-  When I type "isa" into "Find a page by title or URL"
+  When I type &quot;isa&quot; into &quot;Find a page by title or URL&quot;
   Then pages from every folder that match are listed
 
 Scenario: Long folders load in parts
   Given a folder has 120 pages
-  Then 50 are shown with "Show 50 more"
-```
-
-</details>
-
-<details><summary><b>US-02.01.2</b> · Create pages and folders from on-brand templates</summary>
-
-```gherkin
-Scenario: Creating a page
-  When I click "New page"
-  And I enter the title "Regular saver"
-  Then the URL name becomes "regular-saver"
-  When I choose the "Product page" template and click "Create and open"
-  Then the page builder opens with the template's components
-  And the masthead heading says "Regular saver"
+  Then 50 are shown with &quot;Show 50 more&quot;</pre></details></td></tr>
+<tr><td>2</td><td><b>US-02.01.2</b> · Create pages and folders from on-brand templates</td><td>content author</td><td>Every new page starts on-brand and market-appropriate, reducing rework and brand-compliance findings in review. Folder permissions keep teams from cluttering areas they do not own.</td><td>As a content author<br>I want to create folders and new pages from a template allowed in my market, where I have Edit<br>So that the site structure stays tidy and every page starts on-brand</td><td>US-02.01.1, US-06.01.3</td><td>4</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 5 scenarios</summary><pre lang="gherkin">Scenario: Creating a page
+  When I click &quot;New page&quot;
+  And I enter the title &quot;Regular saver&quot;
+  Then the URL name becomes &quot;regular-saver&quot;
+  When I choose the &quot;Product page&quot; template and click &quot;Create and open&quot;
+  Then the page builder opens with the template&#x27;s components
+  And the masthead heading says &quot;Regular saver&quot;
   And I am the first author of the page
 
 Scenario: Templates limited to other markets are not offered
-  Given the "Rates page" template is for Hong Kong only
-  When I click "New page" in the UK market
-  Then "Rates page" is not in the template list
+  Given the &quot;Rates page&quot; template is for Hong Kong only
+  When I click &quot;New page&quot; in the UK market
+  Then &quot;Rates page&quot; is not in the template list
 
 Scenario: Starting from the template library
-  When I click "Use template" on "Campaign landing"
-  Then the New page dialog opens with "Campaign landing" chosen
+  When I click &quot;Use template&quot; on &quot;Campaign landing&quot;
+  Then the New page dialog opens with &quot;Campaign landing&quot; chosen
 
 Scenario: Creating a folder
-  When I click "New folder" and enter "Insurance"
-  Then the folder "Insurance" appears in the tree
+  When I click &quot;New folder&quot; and enter &quot;Insurance&quot;
+  Then the folder &quot;Insurance&quot; appears in the tree
 
 Scenario: Read-only folder
-  Given I don't have Edit on "Borrowing"
-  Then the folder shows "Read-only in this folder"
-  And there is no "New page" or "New folder"
-```
-
-</details>
+  Given I don&#x27;t have Edit on &quot;Borrowing&quot;
+  Then the folder shows &quot;Read-only in this folder&quot;
+  And there is no &quot;New page&quot; or &quot;New folder&quot;</pre></details></td></tr>
+</table>
 
 ### Feature: Organise pages (rename, move, copy, duplicate, lock, restore)
 Source: [`02-organise-pages.feature`](features/02-pages/02-organise-pages.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-02.02.1** · Know what an action will change before it happens | content author | Clear impact warnings prevent accidental changes to live pages and the customer complaints they cause. Showing only allowed actions also reduces support requests and permission errors. | As a content author<br>I want to see only the actions I may take and a confirmation that explains their impact<br>So that I never change pages by accident | — | 1 |
-| 2 | **US-02.02.2** · Move and copy pages without breaking or overwriting anything | content author | Reorganising the site no longer produces broken links that harm customer experience and search ranking. Colleagues' pages are never overwritten, avoiding lost work and rework. | As a content author<br>I want moves to update the links that point to a page and copies never to replace an existing page<br>So that reorganising the site never breaks links or someone else's work | US-02.02.1, US-02.01.2 | 5 |
-| 3 | **US-02.02.3** · Lock a page while I work on it | content author | Locks prevent conflicting edits on sensitive pages while they are being prepared. Reviews and publishing continue, so the lock never delays time-critical releases. | As a content author<br>I want a page I locked to be changeable only by me or a site admin<br>So that nobody edits, moves or deletes it while it is mine | US-02.02.1 | 2 |
-| 4 | **US-02.02.4** · Override someone else's lock 🛡 | site admin | Work is never blocked by an absent colleague, which protects deadlines for campaigns and regulatory updates. Keeping the override with site admins keeps it controlled and accountable. | As a site admin<br>I want to change or unlock a page that someone else locked<br>So that work is not blocked when the person who locked it is unavailable | US-02.02.3 | 3 |
-
-**Acceptance criteria** — the Background applies to every story of this feature
+*Background — add it at the top of the acceptance criteria of every story in this feature:*
 
 ```gherkin
 Background:
   Given I am signed in with Edit on the "Banking" folder
 ```
 
-<details><summary><b>US-02.02.1</b> · Know what an action will change before it happens</summary>
-
-```gherkin
-Scenario Outline: Confirmation with impact
-  When I choose "<action>" for "Cash ISA"
-  Then a confirmation explains "<impact>"
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-02.02.1</b> · Know what an action will change before it happens</td><td>content author</td><td>Clear impact warnings prevent accidental changes to live pages and the customer complaints they cause. Showing only allowed actions also reduces support requests and permission errors.</td><td>As a content author<br>I want to see only the actions I may take and a confirmation that explains their impact<br>So that I never change pages by accident</td><td>—</td><td>1</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario Outline: Confirmation with impact
+  When I choose &quot;&lt;action&gt;&quot; for &quot;Cash ISA&quot;
+  Then a confirmation explains &quot;&lt;impact&gt;&quot;
 
   Examples:
     | action    | impact                                                                  |
     | Move      | the address changes and old bookmarks of live pages break               |
     | Copy      | copies are created as drafts with the same components                   |
-    | Duplicate | a copy called "Cash ISA (copy)" appears in the same folder as a draft   |
+    | Duplicate | a copy called &quot;Cash ISA (copy)&quot; appears in the same folder as a draft   |
     | Lock      | only you and site admins can change, move or delete it                  |
     | Restore   | each page goes back to its last saved version; the current one is kept  |
 
 Scenario: Selection bar
   When I tick several pages
   Then the bar offers Translate, Publish, Lock, Copy, Restore, Compare, Move, Archive and Delete with icons
-  And without Edit on every selected item only Translate and Publish are offered
-```
-
-</details>
-
-<details><summary><b>US-02.02.2</b> · Move and copy pages without breaking or overwriting anything</summary>
-
-```gherkin
-Scenario: Pages that link here are updated
-  Given 2 pages link to "Cash ISA"
-  When I move "Cash ISA" to "Savings"
+  And without Edit on every selected item only Translate and Publish are offered</pre></details></td></tr>
+<tr><td>2</td><td><b>US-02.02.2</b> · Move and copy pages without breaking or overwriting anything</td><td>content author</td><td>Reorganising the site no longer produces broken links that harm customer experience and search ranking. Colleagues&#x27; pages are never overwritten, avoiding lost work and rework.</td><td>As a content author<br>I want moves to update the links that point to a page and copies never to replace an existing page<br>So that reorganising the site never breaks links or someone else&#x27;s work</td><td>US-02.02.1, US-02.01.2</td><td>5</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 5 scenarios</summary><pre lang="gherkin">Scenario: Pages that link here are updated
+  Given 2 pages link to &quot;Cash ISA&quot;
+  When I move &quot;Cash ISA&quot; to &quot;Savings&quot;
   Then the confirmation lists the 2 pages
-  And "Update their links to the new address" is ticked
+  And &quot;Update their links to the new address&quot; is ticked
   And after moving, their links point to the new address
 
 Scenario: A folder cannot move into itself
-  When I move "Banking" into "Banking/Savings"
+  When I move &quot;Banking&quot; into &quot;Banking/Savings&quot;
   Then that destination is not offered
 
 Scenario: Moving to the same folder
   When I move pages to the folder they are already in
-  Then I see "They are already in that folder"
+  Then I see &quot;They are already in that folder&quot;
 
 Scenario: Copying into the same folder
-  When I copy "Cash ISA" into its own folder
-  Then the copy is called "cash-isa-copy" and titled "Cash ISA (copy)"
+  When I copy &quot;Cash ISA&quot; into its own folder
+  Then the copy is called &quot;cash-isa-copy&quot; and titled &quot;Cash ISA (copy)&quot;
 
 Scenario: Folders are not copied
   When I copy a selection that contains a folder
-  Then I see "Folders are not copied · pick pages"
-```
-
-</details>
-
-<details><summary><b>US-02.02.3</b> · Lock a page while I work on it</summary>
-
-```gherkin
-Scenario: Someone else tries to edit a locked page
-  Given "rachel.hughes" locked "Cash ISA"
+  Then I see &quot;Folders are not copied · pick pages&quot;</pre></details></td></tr>
+<tr><td>3</td><td><b>US-02.02.3</b> · Lock a page while I work on it</td><td>content author</td><td>Locks prevent conflicting edits on sensitive pages while they are being prepared. Reviews and publishing continue, so the lock never delays time-critical releases.</td><td>As a content author<br>I want a page I locked to be changeable only by me or a site admin<br>So that nobody edits, moves or deletes it while it is mine</td><td>US-02.02.1</td><td>2</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: Someone else tries to edit a locked page
+  Given &quot;rachel.hughes&quot; locked &quot;Cash ISA&quot;
   When I edit, move or delete it
-  Then I see "Locked by Rachel Hughes" and "Ask them or a site admin to unlock it in Pages"
+  Then I see &quot;Locked by Rachel Hughes&quot; and &quot;Ask them or a site admin to unlock it in Pages&quot;
   But reviews and publishing of the page still go on
 
-Scenario: Unlocking someone else's lock
-  When I try to unlock "Cash ISA" locked by "rachel.hughes"
-  Then I see "Cash ISA is locked by Rachel Hughes"
-```
-
-</details>
-
-<details><summary><b>US-02.02.4</b> · Override someone else's lock</summary>
-
-```gherkin
-Scenario: A site admin unlocks someone else's lock
-  Given "rachel.hughes" locked "Cash ISA"
+Scenario: Unlocking someone else&#x27;s lock
+  When I try to unlock &quot;Cash ISA&quot; locked by &quot;rachel.hughes&quot;
+  Then I see &quot;Cash ISA is locked by Rachel Hughes&quot;</pre></details></td></tr>
+<tr><td>4</td><td><b>US-02.02.4</b> · Override someone else&#x27;s lock 🛡</td><td>site admin</td><td>Work is never blocked by an absent colleague, which protects deadlines for campaigns and regulatory updates. Keeping the override with site admins keeps it controlled and accountable.</td><td>As a site admin<br>I want to change or unlock a page that someone else locked<br>So that work is not blocked when the person who locked it is unavailable</td><td>US-02.02.3</td><td>3</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 1 scenario</summary><pre lang="gherkin">Scenario: A site admin unlocks someone else&#x27;s lock
+  Given &quot;rachel.hughes&quot; locked &quot;Cash ISA&quot;
   And I am a site admin
-  When I unlock "Cash ISA" in Pages
-  Then the page is unlocked and can be changed, moved or deleted again
-```
-
-</details>
+  When I unlock &quot;Cash ISA&quot; in Pages
+  Then the page is unlocked and can be changed, moved or deleted again</pre></details></td></tr>
+</table>
 
 ### Feature: Archive and delete pages
 Source: [`03-archive-and-delete.feature`](features/02-pages/03-archive-and-delete.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-02.03.1** · Archive pages instead of deleting them | content author | Making archive the default removes the risk of permanently losing content that may be needed again or for record-keeping. Restoring is quick, saving the cost of rebuilding pages. | As a content author<br>I want to archive pages I no longer need and restore them later<br>So that nothing is lost by mistake | — | 1 |
-| 2 | **US-02.03.2** · See everything affected before deleting permanently | content author | Showing every affected link and file before deletion prevents broken customer journeys and orphaned documents. Permanent deletion becomes a deliberate, documented decision. | As a content author<br>I want to see links, linked content, files and pages inside before I delete for good<br>So that broken links are visible before they happen | US-02.03.1, US-06.02.1, US-03.05.1 | 4 |
-
-**Acceptance criteria** — the Background applies to every story of this feature
+*Background — add it at the top of the acceptance criteria of every story in this feature:*
 
 ```gherkin
 Background:
   Given I am signed in with Edit on the folder
 ```
 
-<details><summary><b>US-02.03.1</b> · Archive pages instead of deleting them</summary>
-
-```gherkin
-Scenario: Delete always offers Archive first
-  When I choose "Delete" for "Old offer"
-  Then I am asked "Archive “Old offer” instead of deleting?"
-  And "Archive" is the main button and "No, delete permanently…" the alternative
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-02.03.1</b> · Archive pages instead of deleting them</td><td>content author</td><td>Making archive the default removes the risk of permanently losing content that may be needed again or for record-keeping. Restoring is quick, saving the cost of rebuilding pages.</td><td>As a content author<br>I want to archive pages I no longer need and restore them later<br>So that nothing is lost by mistake</td><td>—</td><td>1</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 4 scenarios</summary><pre lang="gherkin">Scenario: Delete always offers Archive first
+  When I choose &quot;Delete&quot; for &quot;Old offer&quot;
+  Then I am asked &quot;Archive “Old offer” instead of deleting?&quot;
+  And &quot;Archive&quot; is the main button and &quot;No, delete permanently…&quot; the alternative
 
 Scenario: Archiving a page
-  When I archive "Old offer"
+  When I archive &quot;Old offer&quot;
   Then it leaves the page list, My tasks and search
   And if it was live it goes offline
-  And it appears in "Archive · 1" at the bottom of the folder with who archived it and when
+  And it appears in &quot;Archive · 1&quot; at the bottom of the folder with who archived it and when
 
 Scenario: Restoring from the archive
-  When I click "Restore" on "Old offer" in the archive
+  When I click &quot;Restore&quot; on &quot;Old offer&quot; in the archive
   Then it is back in the list as a draft
 
 Scenario: Locked pages cannot be archived by others
-  Given another person locked "Old offer"
+  Given another person locked &quot;Old offer&quot;
   When I archive it
-  Then I see that it is locked by them
-```
-
-</details>
-
-<details><summary><b>US-02.03.2</b> · See everything affected before deleting permanently</summary>
-
-```gherkin
-Scenario: References are checked
-  Given 3 pages link to "Old offer"
-  And it shows the entity "ISA rates 2026" that is also on 2 other pages
-  And it uses the file "offer.pdf" that no other page uses
-  When I choose "No, delete permanently…"
-  Then I see "3 pages link here" with the list of pages
-  And "Linked content" says the entity is not deleted and is also on 2 other pages
-  And "Files used only here" lets me tick "offer.pdf" to delete it too
+  Then I see that it is locked by them</pre></details></td></tr>
+<tr><td>2</td><td><b>US-02.03.2</b> · See everything affected before deleting permanently</td><td>content author</td><td>Showing every affected link and file before deletion prevents broken customer journeys and orphaned documents. Permanent deletion becomes a deliberate, documented decision.</td><td>As a content author<br>I want to see links, linked content, files and pages inside before I delete for good<br>So that broken links are visible before they happen</td><td>US-02.03.1, US-06.02.1, US-03.05.1</td><td>4</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: References are checked
+  Given 3 pages link to &quot;Old offer&quot;
+  And it shows the entity &quot;ISA rates 2026&quot; that is also on 2 other pages
+  And it uses the file &quot;offer.pdf&quot; that no other page uses
+  When I choose &quot;No, delete permanently…&quot;
+  Then I see &quot;3 pages link here&quot; with the list of pages
+  And &quot;Linked content&quot; says the entity is not deleted and is also on 2 other pages
+  And &quot;Files used only here&quot; lets me tick &quot;offer.pdf&quot; to delete it too
 
 Scenario: Deleting a folder deletes the pages inside
-  When I delete the folder "Campaigns 2025" with 4 pages, 1 of them live
-  Then I see "Everything inside is deleted too: 4 pages" and "1 live page goes offline"
-  And I must type "delete" to confirm
-```
-
-</details>
+  When I delete the folder &quot;Campaigns 2025&quot; with 4 pages, 1 of them live
+  Then I see &quot;Everything inside is deleted too: 4 pages&quot; and &quot;1 live page goes offline&quot;
+  And I must type &quot;delete&quot; to confirm</pre></details></td></tr>
+</table>
 
 ---
 
@@ -530,15 +413,7 @@ Scenario: Deleting a folder deletes the pages inside
 ### Feature: Build a page from components
 Source: [`01-build-a-page.feature`](features/03-page-builder/01-build-a-page.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-03.01.1** · Add on-brand components from the library | content author | Pages are built only from approved components, so brand and compliance quality is built in rather than checked later. Authors produce pages without developer help, lowering cost and time to market. | As a content author<br>I want to find components in the library and add them where I need them<br>So that every page is built only from approved HSBC components | US-02.01.2 | 5 |
-| 2 | **US-03.01.2** · Edit text where it is shown | content author | Authors see exactly what customers will see, which reduces review rounds caused by layout surprises. Restricting link formats also blocks unsafe links from reaching customers. | As a content author<br>I want to type and format text directly on the page<br>So that I see the result as customers will while I write | US-03.01.1 | 6 |
-| 3 | **US-03.01.3** · Arrange and configure every component the same way | content author | One consistent way to configure all components shortens training for new authors. Locking components protects mandatory content such as disclaimers from accidental edits. | As a content author<br>I want the same toolbar on every component and a Configure panel with all its properties<br>So that I can move, protect and fine-tune any component without learning each one | US-03.01.1 | 6 |
-| 4 | **US-03.01.4** · Never lose my work | content author | Authors never redo work after a closed tab or a lost connection. Fewer lost edits also mean fewer errors slipping into reviewed pages. | As a content author<br>I want the page to save itself, to save on demand and to tell me when saving fails<br>So that no edit is ever lost | US-03.01.2 | 7 |
-| 5 | **US-03.01.5** · Check the page on every device width | content author | Problems on mobile and tablet are caught before review, when they are cheapest to fix. Customers get a consistent experience on every device, which protects trust and conversion. | As a content author<br>I want to preview the page at desktop, tablet and mobile width and full screen<br>So that it works for every customer before I send it for review | US-03.01.1 | 6 |
-
-**Acceptance criteria** — the Background applies to every story of this feature
+*Background — add it at the top of the acceptance criteria of every story in this feature:*
 
 ```gherkin
 Background:
@@ -546,30 +421,24 @@ Background:
   And the page is at "Build the page"
 ```
 
-<details><summary><b>US-03.01.1</b> · Add on-brand components from the library</summary>
-
-```gherkin
-Scenario: Adding a component
-  Given the "Key facts" component is selected
-  When I click "Add" on "Rates table" in the component library
-  Then the rates table is added below "Key facts"
-  And I see "Rates table added · click ✎ Edit to fill it in"
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-03.01.1</b> · Add on-brand components from the library</td><td>content author</td><td>Pages are built only from approved components, so brand and compliance quality is built in rather than checked later. Authors produce pages without developer help, lowering cost and time to market.</td><td>As a content author<br>I want to find components in the library and add them where I need them<br>So that every page is built only from approved HSBC components</td><td>US-02.01.2</td><td>5</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Adding a component
+  Given the &quot;Key facts&quot; component is selected
+  When I click &quot;Add&quot; on &quot;Rates table&quot; in the component library
+  Then the rates table is added below &quot;Key facts&quot;
+  And I see &quot;Rates table added · click ✎ Edit to fill it in&quot;
 
 Scenario: Finding a component
-  When I type "faq" into "Find a component…"
-  Then only "FAQ" is listed
+  When I type &quot;faq&quot; into &quot;Find a component…&quot;
+  Then only &quot;FAQ&quot; is listed
 
 Scenario: An empty page offers starter layouts
   Given the page has no components
-  Then I see "How do you want to start this page?" with 3 layouts
-```
-
-</details>
-
-<details><summary><b>US-03.01.2</b> · Edit text where it is shown</summary>
-
-```gherkin
-Scenario: Editing a heading in place
+  Then I see &quot;How do you want to start this page?&quot; with 3 layouts</pre></details></td></tr>
+<tr><td>2</td><td><b>US-03.01.2</b> · Edit text where it is shown</td><td>content author</td><td>Authors see exactly what customers will see, which reduces review rounds caused by layout surprises. Restricting link formats also blocks unsafe links from reaching customers.</td><td>As a content author<br>I want to type and format text directly on the page<br>So that I see the result as customers will while I write</td><td>US-03.01.1</td><td>6</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 4 scenarios</summary><pre lang="gherkin">Scenario: Editing a heading in place
   When I click the masthead heading
   Then I can type straight away with the caret where I clicked
   When I press Enter
@@ -581,62 +450,44 @@ Scenario: Long text needs ⌘ Enter
 
 Scenario: Changing a button
   When I click a button that has a link
-  Then a "Button" box lets me change the label and the URL
+  Then a &quot;Button&quot; box lets me change the label and the URL
 
 Scenario: Formatting
   When I edit a paragraph
   Then I can make text bold, italic, underlined, a link, a bullet list or a numbered list
-  And links must start with https, mailto, tel, / or #
-```
-
-</details>
-
-<details><summary><b>US-03.01.3</b> · Arrange and configure every component the same way</summary>
-
-```gherkin
-Scenario: Component toolbar
+  And links must start with https, mailto, tel, / or #</pre></details></td></tr>
+<tr><td>3</td><td><b>US-03.01.3</b> · Arrange and configure every component the same way</td><td>content author</td><td>One consistent way to configure all components shortens training for new authors. Locking components protects mandatory content such as disclaimers from accidental edits.</td><td>As a content author<br>I want the same toolbar on every component and a Configure panel with all its properties<br>So that I can move, protect and fine-tune any component without learning each one</td><td>US-03.01.1</td><td>6</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Component toolbar
   When I select a component
-  Then I see "✎ Edit", "Pattern", "✨ AI", move up, move down, delete and "⋯ More"
-  And "⋯ More" offers Duplicate, Copy, Paste after, Hide, Lock, Version history and Delete
+  Then I see &quot;✎ Edit&quot;, &quot;Pattern&quot;, &quot;✨ AI&quot;, move up, move down, delete and &quot;⋯ More&quot;
+  And &quot;⋯ More&quot; offers Duplicate, Copy, Paste after, Hide, Lock, Version history and Delete
 
 Scenario: Locked component
-  Given the "Disclaimer" component is locked
+  Given the &quot;Disclaimer&quot; component is locked
   When I click its text
-  Then I see "This block is locked. Unlock it from ⋯ More."
+  Then I see &quot;This block is locked. Unlock it from ⋯ More.&quot;
 
 Scenario: Configure panel
   When I click a component
   Then Configure opens with Content, Layout, Behaviour and Metadata
-  And required fields are marked "required"
-  And Cancel puts back the values from when Configure opened
-```
-
-</details>
-
-<details><summary><b>US-03.01.4</b> · Never lose my work</summary>
-
-```gherkin
-Scenario: Autosave
+  And required fields are marked &quot;required&quot;
+  And Cancel puts back the values from when Configure opened</pre></details></td></tr>
+<tr><td>4</td><td><b>US-03.01.4</b> · Never lose my work</td><td>content author</td><td>Authors never redo work after a closed tab or a lost connection. Fewer lost edits also mean fewer errors slipping into reviewed pages.</td><td>As a content author<br>I want the page to save itself, to save on demand and to tell me when saving fails<br>So that no edit is ever lost</td><td>US-03.01.2</td><td>7</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Autosave
   When I stop typing for about a second
-  Then the page saves itself and shows "✓ Saved"
+  Then the page saves itself and shows &quot;✓ Saved&quot;
 
 Scenario: Save button and shortcut
-  Then a "Save" button sits next to "Preview" while there are unsaved changes
+  Then a &quot;Save&quot; button sits next to &quot;Preview&quot; while there are unsaved changes
   And ⌘ S saves at once
 
 Scenario: Save failed
   Given the server cannot be reached
-  Then I see "Not saved · Retry"
-```
-
-</details>
-
-<details><summary><b>US-03.01.5</b> · Check the page on every device width</summary>
-
-```gherkin
-Scenario Outline: Device preview
-  When I choose "<device>"
-  Then the page is drawn at <width> px and the label says "1:1 · <width> px"
+  Then I see &quot;Not saved · Retry&quot;</pre></details></td></tr>
+<tr><td>5</td><td><b>US-03.01.5</b> · Check the page on every device width</td><td>content author</td><td>Problems on mobile and tablet are caught before review, when they are cheapest to fix. Customers get a consistent experience on every device, which protects trust and conversion.</td><td>As a content author<br>I want to preview the page at desktop, tablet and mobile width and full screen<br>So that it works for every customer before I send it for review</td><td>US-03.01.1</td><td>6</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario Outline: Device preview
+  When I choose &quot;&lt;device&gt;&quot;
+  Then the page is drawn at &lt;width&gt; px and the label says &quot;1:1 · &lt;width&gt; px&quot;
 
   Examples:
     | device  | width |
@@ -645,143 +496,107 @@ Scenario Outline: Device preview
     | mobile  | 390   |
 
 Scenario: Full-screen preview
-  When I click "Preview" or press ⌘ ⇧ F
-  Then the page fills the screen and Esc goes back to editing
-```
-
-</details>
+  When I click &quot;Preview&quot; or press ⌘ ⇧ F
+  Then the page fills the screen and Esc goes back to editing</pre></details></td></tr>
+</table>
 
 ### Feature: Design patterns
 Source: [`02-design-patterns.feature`](features/03-page-builder/02-design-patterns.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-03.02.1** · Reuse a section in one click | content author | Common sections look identical across pages, strengthening brand consistency for customers. Adding a whole section in one click saves authors significant build time. | As a content author<br>I want to pick a design pattern from its own library and add all its components at once<br>So that common sections look the same on every page | US-03.01.1 | 6 |
-| 2 | **US-03.02.2** · Save my own design pattern | content author | Proven sections are reused instead of rebuilt, spreading good practice across teams and markets. Market targeting stops a pattern from appearing where it does not fit local rules. | As a content author<br>I want to save components already on the page as a named pattern, for all or only some markets<br>So that I and my colleagues can reuse a section that works | US-03.02.1, US-03.01.3 | 7 |
-| 3 | **US-03.02.3** · Remove my patterns safely | content author | The pattern library stays tidy without risking pages that already use a pattern. Two-step removal prevents losing valuable shared work by mistake. | As a content author<br>I want to archive my own patterns first and delete them for good only on purpose<br>So that a pattern is never lost by mistake and pages that use it are not affected | US-03.02.2 | 8 |
-| 4 | **US-03.02.4** · Remove built-in design-system patterns 🛡 | site admin | Outdated design-system sections can be retired centrally, so new pages do not reuse superseded designs. Restricting this to site admins protects the shared library from accidental removal. | As a site admin<br>I want to remove built-in design-system patterns that ordinary authors cannot touch<br>So that the shared pattern library stays current | US-03.02.3 | 9 |
-
-**Acceptance criteria** — the Background applies to every story of this feature
+*Background — add it at the top of the acceptance criteria of every story in this feature:*
 
 ```gherkin
 Background:
   Given I am signed in with Edit on the page
 ```
 
-<details><summary><b>US-03.02.1</b> · Reuse a section in one click</summary>
-
-```gherkin
-Scenario: Opening the pattern library
-  When I click the "Design patterns" tile in the left rail
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-03.02.1</b> · Reuse a section in one click</td><td>content author</td><td>Common sections look identical across pages, strengthening brand consistency for customers. Adding a whole section in one click saves authors significant build time.</td><td>As a content author<br>I want to pick a design pattern from its own library and add all its components at once<br>So that common sections look the same on every page</td><td>US-03.01.1</td><td>6</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: Opening the pattern library
+  When I click the &quot;Design patterns&quot; tile in the left rail
   Then I see the patterns with live thumbnails
-  And design-system patterns are labelled "Design system" and mine "Saved"
+  And design-system patterns are labelled &quot;Design system&quot; and mine &quot;Saved&quot;
 
 Scenario: Adding a pattern
-  When I click "Product introduction"
+  When I click &quot;Product introduction&quot;
   Then Masthead, Content master and Icon tiles are added below the selected component
-  And I see "Product introduction added · 3 components"
-```
-
-</details>
-
-<details><summary><b>US-03.02.2</b> · Save my own design pattern</summary>
-
-```gherkin
-Scenario: Creating a pattern
-  When I click "Create a design pattern"
-  And I click the "Content master" and "Icon tiles" components
+  And I see &quot;Product introduction added · 3 components&quot;</pre></details></td></tr>
+<tr><td>2</td><td><b>US-03.02.2</b> · Save my own design pattern</td><td>content author</td><td>Proven sections are reused instead of rebuilt, spreading good practice across teams and markets. Market targeting stops a pattern from appearing where it does not fit local rules.</td><td>As a content author<br>I want to save components already on the page as a named pattern, for all or only some markets<br>So that I and my colleagues can reuse a section that works</td><td>US-03.02.1, US-03.01.3</td><td>7</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 6 scenarios</summary><pre lang="gherkin">Scenario: Creating a pattern
+  When I click &quot;Create a design pattern&quot;
+  And I click the &quot;Content master&quot; and &quot;Icon tiles&quot; components
   Then they get the numbers 1 and 2
-  And the bar says "New design pattern · 2 components"
-  When I click "Name it and save…" and enter "Savings intro"
-  Then "Savings intro" is in the pattern library
+  And the bar says &quot;New design pattern · 2 components&quot;
+  When I click &quot;Name it and save…&quot; and enter &quot;Savings intro&quot;
+  Then &quot;Savings intro&quot; is in the pattern library
 
 Scenario: Starting from a component
-  When I click "Pattern" on the toolbar of a component
+  When I click &quot;Pattern&quot; on the toolbar of a component
   Then the new pattern starts with that component
 
 Scenario: A pattern needs two components
   Given I picked one component
-  Then "Name it and save…" is disabled and the bar says "pick at least one more"
+  Then &quot;Name it and save…&quot; is disabled and the bar says &quot;pick at least one more&quot;
 
 Scenario: Names are unique
-  When I save a pattern called "Product introduction"
-  Then I see "A pattern with this name already exists"
+  When I save a pattern called &quot;Product introduction&quot;
+  Then I see &quot;A pattern with this name already exists&quot;
 
 Scenario: UK-only pattern
-  When I save a pattern for "Only some local markets" with only "UK" ticked
+  When I save a pattern for &quot;Only some local markets&quot; with only &quot;UK&quot; ticked
   Then UK pages see it
   And Hong Kong pages do not
 
 Scenario: Changing the markets later
-  When I click "Markets" on my pattern and untick the current market
-  Then I am warned "This market will no longer see it. Pages that already use it keep their components."
-```
-
-</details>
-
-<details><summary><b>US-03.02.3</b> · Remove my patterns safely</summary>
-
-```gherkin
-Scenario: Archive and restore
-  When I click the bin on my pattern and choose "Archive"
-  Then it moves to "Archived · 1" and can be restored
+  When I click &quot;Markets&quot; on my pattern and untick the current market
+  Then I am warned &quot;This market will no longer see it. Pages that already use it keep their components.&quot;</pre></details></td></tr>
+<tr><td>3</td><td><b>US-03.02.3</b> · Remove my patterns safely</td><td>content author</td><td>The pattern library stays tidy without risking pages that already use a pattern. Two-step removal prevents losing valuable shared work by mistake.</td><td>As a content author<br>I want to archive my own patterns first and delete them for good only on purpose<br>So that a pattern is never lost by mistake and pages that use it are not affected</td><td>US-03.02.2</td><td>8</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Archive and restore
+  When I click the bin on my pattern and choose &quot;Archive&quot;
+  Then it moves to &quot;Archived · 1&quot; and can be restored
 
 Scenario: Delete for good
   Given my pattern is archived
-  When I click "Delete" and type "delete"
+  When I click &quot;Delete&quot; and type &quot;delete&quot;
   Then it is gone for good
   And pages that use it keep their components
 
 Scenario Outline: Who may remove a pattern
-  Given the pattern "<pattern>"
-  When "<who>" removes it
-  Then <outcome>
+  Given the pattern &quot;&lt;pattern&gt;&quot;
+  When &quot;&lt;who&gt;&quot; removes it
+  Then &lt;outcome&gt;
 
   Examples:
     | pattern               | who            | outcome                                                   |
     | saved by me           | me             | it is archived                                            |
     | saved by someone else | me             | there is no bin on it                                     |
-    | Product introduction  | content.author | there is no bin on it                                     |
-```
-
-</details>
-
-<details><summary><b>US-03.02.4</b> · Remove built-in design-system patterns</summary>
-
-```gherkin
-Scenario Outline: A site admin removes a design-system pattern
-  Given the pattern "<pattern>"
-  When "<who>" removes it
-  Then <outcome>
+    | Product introduction  | content.author | there is no bin on it                                     |</pre></details></td></tr>
+<tr><td>4</td><td><b>US-03.02.4</b> · Remove built-in design-system patterns 🛡</td><td>site admin</td><td>Outdated design-system sections can be retired centrally, so new pages do not reuse superseded designs. Restricting this to site admins protects the shared library from accidental removal.</td><td>As a site admin<br>I want to remove built-in design-system patterns that ordinary authors cannot touch<br>So that the shared pattern library stays current</td><td>US-03.02.3</td><td>9</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 1 scenario</summary><pre lang="gherkin">Scenario Outline: A site admin removes a design-system pattern
+  Given the pattern &quot;&lt;pattern&gt;&quot;
+  When &quot;&lt;who&gt;&quot; removes it
+  Then &lt;outcome&gt;
 
   Examples:
     | pattern               | who            | outcome                                                   |
-    | Product introduction  | super.admin    | it is archived                                            |
-```
-
-</details>
+    | Product introduction  | super.admin    | it is archived                                            |</pre></details></td></tr>
+</table>
 
 ### Feature: Page insights and quality checklist
 Source: [`03-quality-and-insights.feature`](features/03-page-builder/03-quality-and-insights.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-03.03.1** · See and fix what blocks publishing | content author | Automatic checks catch accessibility, compliance and SEO issues before review, reducing regulatory and reputational risk. Reviewers spend their time on substance rather than mechanical mistakes. | As a content author<br>I want findings grouped by how serious they are, with one-click fixes and a way to find them on the page<br>So that the page reaches review without mistakes a machine can find | US-03.01.2 | 7 |
-| 2 | **US-03.03.2** · Check any element while previewing | content author | Authors verify each element in the context customers see, catching issues earlier and more cheaply. A consistent checklist raises the baseline quality of every page. | As a content author<br>I want a quality checklist that follows my pointer in full-screen preview<br>So that I can check the whole page and each element as customers will see it | US-03.01.5, US-06.02.2 | 7 |
-
-**Acceptance criteria**
-
-<details><summary><b>US-03.03.1</b> · See and fix what blocks publishing</summary>
-
-```gherkin
-Scenario: Verdict
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-03.03.1</b> · See and fix what blocks publishing</td><td>content author</td><td>Automatic checks catch accessibility, compliance and SEO issues before review, reducing regulatory and reputational risk. Reviewers spend their time on substance rather than mechanical mistakes.</td><td>As a content author<br>I want findings grouped by how serious they are, with one-click fixes and a way to find them on the page<br>So that the page reaches review without mistakes a machine can find</td><td>US-03.01.2</td><td>7</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 4 scenarios</summary><pre lang="gherkin">Scenario: Verdict
   Given the page has 2 critical findings
-  Then Page insights says "2 things to fix before publishing"
-  And the findings are listed under "Must fix", "Should fix" and "Checks passed"
+  Then Page insights says &quot;2 things to fix before publishing&quot;
+  And the findings are listed under &quot;Must fix&quot;, &quot;Should fix&quot; and &quot;Checks passed&quot;
 
 Scenario Outline: Checks
-  Given <situation>
-  Then Page insights reports "<finding>" as <level>
+  Given &lt;situation&gt;
+  Then Page insights reports &quot;&lt;finding&gt;&quot; as &lt;level&gt;
 
   Examples:
     | situation                                         | finding                       | level    |
@@ -790,29 +605,23 @@ Scenario Outline: Checks
     | a token does not match a linked entity            | broken token                  | critical |
     | the page has rates but no disclaimer              | no disclaimer                 | critical |
     | a heading is longer than 60 characters            | long heading                  | warning  |
-    | a button says "Click here"                        | vague call to action          | warning  |
-    | the text says "guaranteed"                        | risky wording                 | warning  |
+    | a button says &quot;Click here&quot;                        | vague call to action          | warning  |
+    | the text says &quot;guaranteed&quot;                        | risky wording                 | warning  |
     | the meta description is missing                   | no description                | warning  |
 
 Scenario: One-click fixes
-  Given a button says "Learn more"
+  Given a button says &quot;Learn more&quot;
   When I click the fix
-  Then the button says "See the details" and I see "Fixed: …"
+  Then the button says &quot;See the details&quot; and I see &quot;Fixed: …&quot;
 
 Scenario: Show on page
-  When I click "Show on page" on a finding
-  Then the component is selected and scrolled into view
-```
-
-</details>
-
-<details><summary><b>US-03.03.2</b> · Check any element while previewing</summary>
-
-```gherkin
-Scenario: Whole page
+  When I click &quot;Show on page&quot; on a finding
+  Then the component is selected and scrolled into view</pre></details></td></tr>
+<tr><td>2</td><td><b>US-03.03.2</b> · Check any element while previewing</td><td>content author</td><td>Authors verify each element in the context customers see, catching issues earlier and more cheaply. A consistent checklist raises the baseline quality of every page.</td><td>As a content author<br>I want a quality checklist that follows my pointer in full-screen preview<br>So that I can check the whole page and each element as customers will see it</td><td>US-03.01.5, US-06.02.2</td><td>7</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Whole page
   Given I am in full-screen Preview of my draft
   And I am not pointing at anything
-  Then the floating "Quality checklist" shows title tag, meta description, canonical URL, page type, one masthead and required fields
+  Then the floating &quot;Quality checklist&quot; shows title tag, meta description, canonical URL, page type, one masthead and required fields
 
 Scenario: One element
   When I point at a heading
@@ -820,54 +629,38 @@ Scenario: One element
 
 Scenario: Pinning
   When I click a heading
-  Then the checklist stays on it until I click it again
-```
-
-</details>
+  Then the checklist stays on it until I click it again</pre></details></td></tr>
+</table>
 
 ### Feature: AI assistant
 Source: [`04-ai-assistant.feature`](features/03-page-builder/04-ai-assistant.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-03.04.1** · Improve one component with AI | content author | AI speeds up copy improvements while the author keeps full control over every change. Showing before and after prevents unreviewed AI text from reaching customers. | As a content author<br>I want AI to suggest changes to the selected component only, shown before and after<br>So that I can accept or reject each suggestion knowing exactly what changes | US-03.01.3 | 7 |
-| 2 | **US-03.04.2** · Let AI plan page-wide changes that I approve | content author | Page-wide changes such as accessibility or SEO fixes take minutes instead of hours. Approval and undo for each change keep accountability with the author and limit the risk of AI errors. | As a content author<br>I want the page AI to show its plan first and change nothing until I run the changes I ticked<br>So that I work faster on whole pages and can undo anything | US-03.01.4 | 8 |
-| 3 | **US-03.04.3** · Keep AI within page permissions | business owner | AI cannot become a loophole around the bank's access controls, which protects content integrity. This gives risk and compliance teams confidence to approve AI use. | As a business owner<br>I want AI to refuse to plan changes for people who may only read a page<br>So that AI never becomes a way around permissions | US-03.04.2 | 9 |
-
-**Acceptance criteria**
-
-<details><summary><b>US-03.04.1</b> · Improve one component with AI</summary>
-
-```gherkin
-Scenario: Before and after
-  Given the "Masthead" component is selected
-  When I click "✨ AI" and choose "Make this more concise"
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-03.04.1</b> · Improve one component with AI</td><td>content author</td><td>AI speeds up copy improvements while the author keeps full control over every change. Showing before and after prevents unreviewed AI text from reaching customers.</td><td>As a content author<br>I want AI to suggest changes to the selected component only, shown before and after<br>So that I can accept or reject each suggestion knowing exactly what changes</td><td>US-03.01.3</td><td>7</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: Before and after
+  Given the &quot;Masthead&quot; component is selected
+  When I click &quot;✨ AI&quot; and choose &quot;Make this more concise&quot;
   Then I see the old and the new text of each changed field
-  And I can "Apply" or "Discard"
+  And I can &quot;Apply&quot; or &quot;Discard&quot;
 
 Scenario: Nothing to change
   Given the component has no button
-  When I ask "Make the CTA more compelling"
-  Then I see "This block has no button."
-```
-
-</details>
-
-<details><summary><b>US-03.04.2</b> · Let AI plan page-wide changes that I approve</summary>
-
-```gherkin
-Scenario: Plan, run, review
-  When I ask the page AI "Make this page work better on mobile"
+  When I ask &quot;Make the CTA more compelling&quot;
+  Then I see &quot;This block has no button.&quot;</pre></details></td></tr>
+<tr><td>2</td><td><b>US-03.04.2</b> · Let AI plan page-wide changes that I approve</td><td>content author</td><td>Page-wide changes such as accessibility or SEO fixes take minutes instead of hours. Approval and undo for each change keep accountability with the author and limit the risk of AI errors.</td><td>As a content author<br>I want the page AI to show its plan first and change nothing until I run the changes I ticked<br>So that I work faster on whole pages and can undo anything</td><td>US-03.01.4</td><td>8</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Plan, run, review
+  When I ask the page AI &quot;Make this page work better on mobile&quot;
   Then I see the stages Understanding, Plan, Executing, Review and Done
   And every planned change has a checkbox, all ticked
-  When I untick one change and click "Run plan · 3 changes"
+  When I untick one change and click &quot;Run plan · 3 changes&quot;
   Then the 3 changes are applied one by one
-  And each change has Undo and Redo, and there is "Undo all"
-  And I see "Applied 3 of 4 changes · Save the page to keep them"
+  And each change has Undo and Redo, and there is &quot;Undo all&quot;
+  And I see &quot;Applied 3 of 4 changes · Save the page to keep them&quot;
 
 Scenario Outline: What the planner understands
-  When I ask "<prompt>"
-  Then the plan <does>
+  When I ask &quot;&lt;prompt&gt;&quot;
+  Then the plan &lt;does&gt;
 
   Examples:
     | prompt                         | does                                                            |
@@ -879,175 +672,125 @@ Scenario Outline: What the planner understands
     | Polish it                      | shortens long text and fixes vague buttons                      |
 
 Scenario: The page already follows the patterns
-  When I ask "Polish it" on a page with nothing to improve
-  Then I see "Page already follows HSBC content patterns — nothing to change"
-```
-
-</details>
-
-<details><summary><b>US-03.04.3</b> · Keep AI within page permissions</summary>
-
-```gherkin
-Scenario: Viewer
+  When I ask &quot;Polish it&quot; on a page with nothing to improve
+  Then I see &quot;Page already follows HSBC content patterns — nothing to change&quot;</pre></details></td></tr>
+<tr><td>3</td><td><b>US-03.04.3</b> · Keep AI within page permissions</td><td>business owner</td><td>AI cannot become a loophole around the bank&#x27;s access controls, which protects content integrity. This gives risk and compliance teams confidence to approve AI use.</td><td>As a business owner<br>I want AI to refuse to plan changes for people who may only read a page<br>So that AI never becomes a way around permissions</td><td>US-03.04.2</td><td>9</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 1 scenario</summary><pre lang="gherkin">Scenario: Viewer
   Given I have only Read on the page
   When I ask the page AI anything
-  Then nothing is planned and I am told the page is read-only
-```
-
-</details>
+  Then nothing is planned and I am told the page is read-only</pre></details></td></tr>
+</table>
 
 ### Feature: Linked content (entities and tokens)
 Source: [`05-linked-content.feature`](features/03-page-builder/05-linked-content.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-03.05.1** · Show shared content from one place | content author | Rates and product details are maintained once and update everywhere, cutting maintenance effort. It removes the risk of customers seeing outdated or conflicting figures on different pages. | As a content author<br>I want to link an entity to the page and use its fields in text and component fields<br>So that a change to the content appears on every page that uses it | US-06.03.2 | 3 |
-| 2 | **US-03.05.2** · Keep page text and linked content consistent | content author | Broken or missing shared content is flagged before it reaches customers, protecting accuracy of regulated information. Authors can still detach content deliberately, with a clear trace. | As a content author<br>I want to detach a field on purpose and be warned about tokens and entities that do not match<br>So that the page never shows broken or missing shared content | US-03.05.1 | 4 |
-
-**Acceptance criteria** — the Background applies to every story of this feature
+*Background — add it at the top of the acceptance criteria of every story in this feature:*
 
 ```gherkin
 Background:
   Given the entity "ISA rates 2026" of the model "Rate" exists
 ```
 
-<details><summary><b>US-03.05.1</b> · Show shared content from one place</summary>
-
-```gherkin
-Scenario: Linking an entity to the page
-  When I open "Entities" in the right rail and click "＋ Add entity"
-  And I choose "ISA rates 2026"
-  Then it is linked with the alias "rate"
-  And I see "Added ISA rates 2026 · use {{rate.title}} in text"
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-03.05.1</b> · Show shared content from one place</td><td>content author</td><td>Rates and product details are maintained once and update everywhere, cutting maintenance effort. It removes the risk of customers seeing outdated or conflicting figures on different pages.</td><td>As a content author<br>I want to link an entity to the page and use its fields in text and component fields<br>So that a change to the content appears on every page that uses it</td><td>US-06.03.2</td><td>3</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Linking an entity to the page
+  When I open &quot;Entities&quot; in the right rail and click &quot;＋ Add entity&quot;
+  And I choose &quot;ISA rates 2026&quot;
+  Then it is linked with the alias &quot;rate&quot;
+  And I see &quot;Added ISA rates 2026 · use {{rate.title}} in text&quot;
 
 Scenario: Choosing content for a field
-  When I click the content icon next to the "Heading" field
-  And I choose Folder, Entity "ISA rates 2026" and Field "aer"
-  And I click "Use this content"
-  Then the heading shows the value of "aer"
-  And the field says "⤓ From ISA rates 2026 · aer"
+  When I click the content icon next to the &quot;Heading&quot; field
+  And I choose Folder, Entity &quot;ISA rates 2026&quot; and Field &quot;aer&quot;
+  And I click &quot;Use this content&quot;
+  Then the heading shows the value of &quot;aer&quot;
+  And the field says &quot;⤓ From ISA rates 2026 · aer&quot;
 
 Scenario: Typing a token
-  When I type "{{" while editing a text
-  Then the content picker opens and the token is inserted at the caret
-```
-
-</details>
-
-<details><summary><b>US-03.05.2</b> · Keep page text and linked content consistent</summary>
-
-```gherkin
-Scenario: Stop inheriting
-  When I click "Stop inheriting" under a field
+  When I type &quot;{{&quot; while editing a text
+  Then the content picker opens and the token is inserted at the caret</pre></details></td></tr>
+<tr><td>2</td><td><b>US-03.05.2</b> · Keep page text and linked content consistent</td><td>content author</td><td>Broken or missing shared content is flagged before it reaches customers, protecting accuracy of regulated information. Authors can still detach content deliberately, with a clear trace.</td><td>As a content author<br>I want to detach a field on purpose and be warned about tokens and entities that do not match<br>So that the page never shows broken or missing shared content</td><td>US-03.05.1</td><td>4</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Stop inheriting
+  When I click &quot;Stop inheriting&quot; under a field
   Then the token is replaced by its current text
 
 Scenario: Tokens for entities that are not linked
-  Given the text contains "{{offer.title}}" but no entity "offer" is linked
-  Then Entities shows it under "Not linked yet" with a "Link" picker
+  Given the text contains &quot;{{offer.title}}&quot; but no entity &quot;offer&quot; is linked
+  Then Entities shows it under &quot;Not linked yet&quot; with a &quot;Link&quot; picker
   And Page insights reports a broken token
 
 Scenario: An entity in use cannot be removed
-  Given "{{rate.aer}}" is used 2 times in the text
-  Then the entity shows "used 2× in the text" and has no remove button
-```
-
-</details>
+  Given &quot;{{rate.aer}}&quot; is used 2 times in the text
+  Then the entity shows &quot;used 2× in the text&quot; and has no remove button</pre></details></td></tr>
+</table>
 
 ### Feature: Working together on a page (authors, Jira, versions)
 Source: [`06-collaboration.feature`](features/03-page-builder/06-collaboration.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-03.06.1** · Build a page together with other authors | content author | Larger pages are delivered faster because several authors can share the work. Clear ownership means reviewers and managers always know who is responsible. | As a content author<br>I want to join or leave the authors of a page while it is being built<br>So that we can share the work and everyone sees who is responsible | US-02.01.2 | 5 |
-| 2 | **US-03.06.2** · Assign other people as authors 🛡 | site admin | Managers can hand out work deliberately and keep delivery on schedule. Every assignment is logged and limited to people with Edit, keeping access controlled. | As a site admin<br>I want to add or remove other people as authors of a page<br>So that work is handed out deliberately and nobody is assigned behind their back | US-03.06.1 | 6 |
-| 3 | **US-03.06.3** · Link a page to its Jira ticket | content author | Every page change is traceable to the business request behind it, which supports audit and change management. Reviewers reach the context in one click, speeding up approval. | As a content author<br>I want to link the page to its Jira ticket and open it in one click<br>So that the work is traceable to the request behind it | — | 1 |
-| 4 | **US-03.06.4** · Go back to any earlier version | content author | Any mistake can be reversed quickly, limiting the impact of an incorrect change. A full version history supports audit and regulatory record-keeping. | As a content author<br>I want every save kept as a version that I can restore or comment on<br>So that any change can be reversed and discussed | US-03.01.4 | 8 |
-
-**Acceptance criteria**
-
-<details><summary><b>US-03.06.1</b> · Build a page together with other authors</summary>
-
-```gherkin
-Scenario: Joining as an author
-  Given "Super Admin" created the page and is its only author
-  And I am signed in as "jordan.mensah" with Edit
-  Then the hint says "Super Admin is building this page · Assign me to work on it with them"
-  When I click "Assign me"
-  Then the Authors chip shows "You + 1"
-  And the hint says "Building it together with Super Admin"
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-03.06.1</b> · Build a page together with other authors</td><td>content author</td><td>Larger pages are delivered faster because several authors can share the work. Clear ownership means reviewers and managers always know who is responsible.</td><td>As a content author<br>I want to join or leave the authors of a page while it is being built<br>So that we can share the work and everyone sees who is responsible</td><td>US-02.01.2</td><td>5</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 4 scenarios</summary><pre lang="gherkin">Scenario: Joining as an author
+  Given &quot;Super Admin&quot; created the page and is its only author
+  And I am signed in as &quot;jordan.mensah&quot; with Edit
+  Then the hint says &quot;Super Admin is building this page · Assign me to work on it with them&quot;
+  When I click &quot;Assign me&quot;
+  Then the Authors chip shows &quot;You + 1&quot;
+  And the hint says &quot;Building it together with Super Admin&quot;
 
 Scenario: Leaving
-  When I click "Leave" in the Authors list
+  When I click &quot;Leave&quot; in the Authors list
   Then I am no longer an author
 
 Scenario: Authors are fixed after the first stage
   Given the page was sent for review
   When anyone changes the authors
-  Then they see "Authors can only change while the page is at Build the page"
+  Then they see &quot;Authors can only change while the page is at Build the page&quot;
 
 Scenario: Co-authors in My tasks
   Given the page has 2 authors
-  Then My tasks shows the second one under the Content author as "+ Name"
-```
-
-</details>
-
-<details><summary><b>US-03.06.2</b> · Assign other people as authors</summary>
-
-```gherkin
-Scenario: A site admin adds an author
-  Given I am signed in as "super.admin"
-  When I choose "aisha.khan" in "Add a person…" in the Authors list and click "Add"
-  Then "aisha.khan" is an author of the page
-  And the audit log says "assigned Aisha Khan as an author of" the page
+  Then My tasks shows the second one under the Content author as &quot;+ Name&quot;</pre></details></td></tr>
+<tr><td>2</td><td><b>US-03.06.2</b> · Assign other people as authors 🛡</td><td>site admin</td><td>Managers can hand out work deliberately and keep delivery on schedule. Every assignment is logged and limited to people with Edit, keeping access controlled.</td><td>As a site admin<br>I want to add or remove other people as authors of a page<br>So that work is handed out deliberately and nobody is assigned behind their back</td><td>US-03.06.1</td><td>6</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: A site admin adds an author
+  Given I am signed in as &quot;super.admin&quot;
+  When I choose &quot;aisha.khan&quot; in &quot;Add a person…&quot; in the Authors list and click &quot;Add&quot;
+  Then &quot;aisha.khan&quot; is an author of the page
+  And the audit log says &quot;assigned Aisha Khan as an author of&quot; the page
 
 Scenario: The person must be able to edit
   When I add someone without Edit on the page
-  Then I see that they don't have Edit on this page
+  Then I see that they don&#x27;t have Edit on this page
 
 Scenario: Only site admins assign other people
   Given I am not a site admin
-  When I try to add "aisha.khan" as an author
-  Then I see "Only a site admin can assign other people"
-```
-
-</details>
-
-<details><summary><b>US-03.06.3</b> · Link a page to its Jira ticket</summary>
-
-```gherkin
-Scenario Outline: Linking a ticket
-  When I enter "<input>" into "Jira ticket" in Page settings and save
-  Then <outcome>
+  When I try to add &quot;aisha.khan&quot; as an author
+  Then I see &quot;Only a site admin can assign other people&quot;</pre></details></td></tr>
+<tr><td>3</td><td><b>US-03.06.3</b> · Link a page to its Jira ticket</td><td>content author</td><td>Every page change is traceable to the business request behind it, which supports audit and change management. Reviewers reach the context in one click, speeding up approval.</td><td>As a content author<br>I want to link the page to its Jira ticket and open it in one click<br>So that the work is traceable to the request behind it</td><td>—</td><td>1</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario Outline: Linking a ticket
+  When I enter &quot;&lt;input&gt;&quot; into &quot;Jira ticket&quot; in Page settings and save
+  Then &lt;outcome&gt;
 
   Examples:
     | input                                         | outcome                                                        |
-    | ucp-482                                       | the chip "UCP-482 ↗" links to https://hsbc.atlassian.net/browse/UCP-482 |
-    | https://jira.example.com/browse/MKT-7         | the chip "MKT-7 ↗" links to that address                       |
-    | not a link                                    | I see "Paste a Jira link (https://…) or a ticket key like UCP-123" |
+    | ucp-482                                       | the chip &quot;UCP-482 ↗&quot; links to https://hsbc.atlassian.net/browse/UCP-482 |
+    | https://jira.example.com/browse/MKT-7         | the chip &quot;MKT-7 ↗&quot; links to that address                       |
+    | not a link                                    | I see &quot;Paste a Jira link (https://…) or a ticket key like UCP-123&quot; |
 
 Scenario: Opening the ticket
   When I click the Jira chip next to the page title or in My tasks
-  Then the ticket opens in a new tab
-```
-
-</details>
-
-<details><summary><b>US-03.06.4</b> · Go back to any earlier version</summary>
-
-```gherkin
-Scenario: Restoring a version
-  When I open Version history and click "Restore" on an earlier version
-  And I confirm "Unsaved edits in the builder are replaced. A copy of the current page is kept as a new version."
+  Then the ticket opens in a new tab</pre></details></td></tr>
+<tr><td>4</td><td><b>US-03.06.4</b> · Go back to any earlier version</td><td>content author</td><td>Any mistake can be reversed quickly, limiting the impact of an incorrect change. A full version history supports audit and regulatory record-keeping.</td><td>As a content author<br>I want every save kept as a version that I can restore or comment on<br>So that any change can be reversed and discussed</td><td>US-03.01.4</td><td>8</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: Restoring a version
+  When I open Version history and click &quot;Restore&quot; on an earlier version
+  And I confirm &quot;Unsaved edits in the builder are replaced. A copy of the current page is kept as a new version.&quot;
   Then the page goes back to that version
   And the version before the restore is kept
 
 Scenario: Commenting on a version
-  When I click "Comment" on a version
-  Then the comment says "About the version from …"
-```
-
-</details>
+  When I click &quot;Comment&quot; on a version
+  Then the comment says &quot;About the version from …&quot;</pre></details></td></tr>
+</table>
 
 ---
 
@@ -1056,15 +799,7 @@ Scenario: Commenting on a version
 ### Feature: End-to-end journey of a page (who hands it to whom)
 Source: [`00-end-to-end-handoffs.feature`](features/04-review-workflow/00-end-to-end-handoffs.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-04.00.1** · Hand the page over step by step | content author | Every page passes through separate authoring, review, sign-off and publishing hands, which builds four-eyes control into the process itself. Clear hand-offs cut idle time between teams and shorten time to market. | As a content author<br>I want to request each next step instead of doing it myself<br>So that every page is checked by other people before customers see it | US-04.01.1, US-04.02.2, US-04.03.2, US-05.01.1 | 14 |
-| 2 | **US-04.00.2** · Get the page back when someone asks for changes | content author | Rework goes back to one accountable author instead of being patched by reviewers, which keeps responsibility clear. Restarting both reviews after changes means no unchecked edit can reach customers. | As a content author<br>I want any reviewer to send the page back to me with comments<br>So that I fix it once and the whole check starts again | US-04.00.1 | 15 |
-| 3 | **US-04.00.3** · Nobody approves their own work | bank | Segregation of duties is enforced by the system rather than by policy documents, which satisfies four-eyes compliance requirements. Auditors can rely on the platform instead of sampling manual evidence. | As the bank<br>I want different people for authoring, peer review and business review<br>So that the four-eyes principle holds on every page | US-04.00.1 | 15 |
-| 4 | **US-04.00.4** · Walk the whole flow as a site admin, on record 🛡 | site admin | Urgent regulatory or pricing changes can still go live when reviewers are unavailable, which reduces business risk. Every override is recorded as on behalf of a named person, so audit trails stay complete. | As a site admin<br>I want to perform any step for the person who should do it<br>So that I can demo the platform and unblock urgent pages | US-04.00.1, US-04.00.3 | 16 |
-| 5 | **US-04.00.5** · Ask for publishing and hear when the page is live ⏭ | content author | Planned launch dates reduce last-minute coordination between marketing and publishers. Authors learn when a page is live without chasing anyone, which saves time and avoids missed campaign starts. | As a content author<br>I want to request publishing at a date and be told when the page is live<br>So that I can plan launches without chasing the publisher | US-04.00.1 | 15 |
-
-**Acceptance criteria** — the Background applies to every story of this feature
+*Background — add it at the top of the acceptance criteria of every story in this feature:*
 
 ```gherkin
 Background:
@@ -1077,126 +812,94 @@ Background:
   | super.admin    | site admin      | everything                          |
 ```
 
-<details><summary><b>US-04.00.1</b> · Hand the page over step by step</summary>
-
-```gherkin
-Scenario: The happy path, one person per step
-  Given "content.author" built the page "Cash ISA"
-  When "content.author" sends it for review
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-04.00.1</b> · Hand the page over step by step</td><td>content author</td><td>Every page passes through separate authoring, review, sign-off and publishing hands, which builds four-eyes control into the process itself. Clear hand-offs cut idle time between teams and shorten time to market.</td><td>As a content author<br>I want to request each next step instead of doing it myself<br>So that every page is checked by other people before customers see it</td><td>US-04.01.1, US-04.02.2, US-04.03.2, US-05.01.1</td><td>14</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: The happy path, one person per step
+  Given &quot;content.author&quot; built the page &quot;Cash ISA&quot;
+  When &quot;content.author&quot; sends it for review
   Then it waits in the Backlog for any reviewer
-  When "rachel.hughes" takes it, reviews it and chooses "Send to business review"
+  When &quot;rachel.hughes&quot; takes it, reviews it and chooses &quot;Send to business review&quot;
   Then it waits for a business reviewer
-  When "david.clarke" takes it and signs it off
-  Then it is "Ready to publish"
-  When "jordan.mensah" publishes it
-  Then it is "Published"
-  And "content.author" sees "Cash ISA" under "Published" in My tasks
+  When &quot;david.clarke&quot; takes it and signs it off
+  Then it is &quot;Ready to publish&quot;
+  When &quot;jordan.mensah&quot; publishes it
+  Then it is &quot;Published&quot;
+  And &quot;content.author&quot; sees &quot;Cash ISA&quot; under &quot;Published&quot; in My tasks
 
 Scenario Outline: What the author can do at each stage
-  Given the page "Cash ISA" is at "<stage>"
-  And I am signed in as "content.author"
-  Then the next step for me is "<my action>"
-  And the step itself is done by "<who acts>"
+  Given the page &quot;Cash ISA&quot; is at &quot;&lt;stage&gt;&quot;
+  And I am signed in as &quot;content.author&quot;
+  Then the next step for me is &quot;&lt;my action&gt;&quot;
+  And the step itself is done by &quot;&lt;who acts&gt;&quot;
 
   Examples:
     | stage                                  | my action                         | who acts                       |
-    | Build the page                         | Send to author's review           | me                             |
-    | Waiting for author's review assignment | Wait · "Waiting for a reviewer"   | any reviewer except me         |
+    | Build the page                         | Send to author&#x27;s review           | me                             |
+    | Waiting for author&#x27;s review assignment | Wait · &quot;Waiting for a reviewer&quot;   | any reviewer except me         |
     | Assigned to reviewer                   | Remind                            | the assigned reviewer          |
-    | In author's review                     | Remind                            | the assigned reviewer          |
+    | In author&#x27;s review                     | Remind                            | the assigned reviewer          |
     | Waiting for business review assignment | Wait                              | a business owner               |
     | In business review                     | Remind                            | the business reviewer or group |
-    | Ready to publish                       | Wait · "Waiting for a publisher"  | a publisher                    |
-    | Published                              | Edit to start a new version       | me                             |
-```
-
-</details>
-
-<details><summary><b>US-04.00.2</b> · Get the page back when someone asks for changes</summary>
-
-```gherkin
-Scenario Outline: Reauthor returns the page to the author
-  Given "<reviewer>" is reviewing "Cash ISA" at "<stage>"
-  When they choose "Reauthor" with comments
-  Then the page is back at "Build the page" for "content.author"
+    | Ready to publish                       | Wait · &quot;Waiting for a publisher&quot;  | a publisher                    |
+    | Published                              | Edit to start a new version       | me                             |</pre></details></td></tr>
+<tr><td>2</td><td><b>US-04.00.2</b> · Get the page back when someone asks for changes</td><td>content author</td><td>Rework goes back to one accountable author instead of being patched by reviewers, which keeps responsibility clear. Restarting both reviews after changes means no unchecked edit can reach customers.</td><td>As a content author<br>I want any reviewer to send the page back to me with comments<br>So that I fix it once and the whole check starts again</td><td>US-04.00.1</td><td>15</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 1 scenario</summary><pre lang="gherkin">Scenario Outline: Reauthor returns the page to the author
+  Given &quot;&lt;reviewer&gt;&quot; is reviewing &quot;Cash ISA&quot; at &quot;&lt;stage&gt;&quot;
+  When they choose &quot;Reauthor&quot; with comments
+  Then the page is back at &quot;Build the page&quot; for &quot;content.author&quot;
   And the comments stay on the page
   And both reviews start over when it is sent again
 
   Examples:
     | reviewer      | stage              |
-    | rachel.hughes | In author's review |
-    | david.clarke  | In business review |
-```
-
-</details>
-
-<details><summary><b>US-04.00.3</b> · Nobody approves their own work</summary>
-
-```gherkin
-Scenario Outline: Four-eyes checks
-  Given "<person>" did "<earlier step>" on "Cash ISA"
-  When "<person>" tries to "<later step>"
-  Then they see "<message>"
+    | rachel.hughes | In author&#x27;s review |
+    | david.clarke  | In business review |</pre></details></td></tr>
+<tr><td>3</td><td><b>US-04.00.3</b> · Nobody approves their own work</td><td>bank</td><td>Segregation of duties is enforced by the system rather than by policy documents, which satisfies four-eyes compliance requirements. Auditors can rely on the platform instead of sampling manual evidence.</td><td>As the bank<br>I want different people for authoring, peer review and business review<br>So that the four-eyes principle holds on every page</td><td>US-04.00.1</td><td>15</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario Outline: Four-eyes checks
+  Given &quot;&lt;person&gt;&quot; did &quot;&lt;earlier step&gt;&quot; on &quot;Cash ISA&quot;
+  When &quot;&lt;person&gt;&quot; tries to &quot;&lt;later step&gt;&quot;
+  Then they see &quot;&lt;message&gt;&quot;
 
   Examples:
     | person         | earlier step      | later step                | message                                                              |
-    | content.author | write the page    | take the author's review  | You wrote this page, so someone else reviews it                      |
-    | rachel.hughes  | the peer review   | take the business review  | You did the author's review · someone else does the business review  |
+    | content.author | write the page    | take the author&#x27;s review  | You wrote this page, so someone else reviews it                      |
+    | rachel.hughes  | the peer review   | take the business review  | You did the author&#x27;s review · someone else does the business review  |
     | rachel.hughes  | the peer review   | sign it off               | Someone else must do the business review                             |
 
 Scenario: An author without Publish cannot put the page live
-  Given "Cash ISA" is "Ready to publish"
-  And I am signed in as "content.author"
-  Then I see "Waiting for a publisher" instead of "Publish"
-```
-
-</details>
-
-<details><summary><b>US-04.00.4</b> · Walk the whole flow as a site admin, on record</summary>
-
-```gherkin
-Scenario: Walking every step alone
-  Given I am signed in as "super.admin"
+  Given &quot;Cash ISA&quot; is &quot;Ready to publish&quot;
+  And I am signed in as &quot;content.author&quot;
+  Then I see &quot;Waiting for a publisher&quot; instead of &quot;Publish&quot;</pre></details></td></tr>
+<tr><td>4</td><td><b>US-04.00.4</b> · Walk the whole flow as a site admin, on record 🛡</td><td>site admin</td><td>Urgent regulatory or pricing changes can still go live when reviewers are unavailable, which reduces business risk. Every override is recorded as on behalf of a named person, so audit trails stay complete.</td><td>As a site admin<br>I want to perform any step for the person who should do it<br>So that I can demo the platform and unblock urgent pages</td><td>US-04.00.1, US-04.00.3</td><td>16</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Walking every step alone
+  Given I am signed in as &quot;super.admin&quot;
   Then every step on the stepper offers its action to me
   And I can take my own page from the Backlog
 
 Scenario: Acting on behalf is recorded
-  Given "rachel.hughes" is the assigned peer reviewer
-  When I click "Reviewed for Rachel Hughes"
-  Then the audit line ends with "(on behalf of Rachel Hughes)"
+  Given &quot;rachel.hughes&quot; is the assigned peer reviewer
+  When I click &quot;Reviewed for Rachel Hughes&quot;
+  Then the audit line ends with &quot;(on behalf of Rachel Hughes)&quot;
 
 Scenario: Ordinary users never see actions for other people
-  Given I am signed in as "content.author"
-  Then no button on the stepper or in My tasks lets me act for someone else
-```
-
-</details>
-
-<details><summary><b>US-04.00.5</b> · Ask for publishing and hear when the page is live</summary>
-
-```gherkin
-Scenario: Requesting publishing
-  Given "Cash ISA" is "Ready to publish"
-  When I click "Request publishing" and choose 1 November at 09:00
-  Then the publishers get a task "Publish Cash ISA on 1 Nov 09:00"
+  Given I am signed in as &quot;content.author&quot;
+  Then no button on the stepper or in My tasks lets me act for someone else</pre></details></td></tr>
+<tr><td>5</td><td><b>US-04.00.5</b> · Ask for publishing and hear when the page is live ⏭</td><td>content author</td><td>Planned launch dates reduce last-minute coordination between marketing and publishers. Authors learn when a page is live without chasing anyone, which saves time and avoids missed campaign starts.</td><td>As a content author<br>I want to request publishing at a date and be told when the page is live<br>So that I can plan launches without chasing the publisher</td><td>US-04.00.1</td><td>15</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: Requesting publishing
+  Given &quot;Cash ISA&quot; is &quot;Ready to publish&quot;
+  When I click &quot;Request publishing&quot; and choose 1 November at 09:00
+  Then the publishers get a task &quot;Publish Cash ISA on 1 Nov 09:00&quot;
 
 Scenario: Live notification
-  When the publisher publishes "Cash ISA"
-  Then I get the notification "Cash ISA is live"
-```
-
-</details>
+  When the publisher publishes &quot;Cash ISA&quot;
+  Then I get the notification &quot;Cash ISA is live&quot;</pre></details></td></tr>
+</table>
 
 ### Feature: Send a page for the author's review
 Source: [`01-send-for-review.feature`](features/04-review-workflow/01-send-for-review.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-04.01.1** · Request a review from the shared Backlog | content author | A shared Backlog lets the first free reviewer start, so pages do not queue behind one person's calendar. Due dates and audit entries make review turnaround measurable from day one. | As a content author<br>I want to send the page to a Backlog that every reviewer sees, with a note<br>So that the first free reviewer can take it and I don't have to chase one person | US-03.01.4, US-01.03.1 | 8 |
-| 2 | **US-04.01.2** · Check the page before handing it over | content author | Catching missing fields and quality problems before hand-off avoids wasted review cycles. Fewer round trips mean faster delivery and lower review cost. | As a content author<br>I want a last check of the page, with any problems Page insights found<br>So that I only send pages that are complete | US-04.01.1, US-03.03.1 | 9 |
-| 3 | **US-04.01.3** · Keep the page stable while it is being reviewed | content author | Reviewers approve exactly the version that will be published, which protects the integrity of the four-eyes check. It prevents silent changes after approval that could expose the bank to conduct risk. | As a content author<br>I want the page to be read-only during review, with a clear way to take it back<br>So that reviewers check exactly what I sent | US-04.01.1 | 9 |
-
-**Acceptance criteria** — the Background applies to every story of this feature
+*Background — add it at the top of the acceptance criteria of every story in this feature:*
 
 ```gherkin
 Background:
@@ -1204,80 +907,59 @@ Background:
   And the page "Cash ISA" is at the "Build the page" stage
 ```
 
-<details><summary><b>US-04.01.1</b> · Request a review from the shared Backlog</summary>
-
-```gherkin
-Scenario: Sending the page for review
-  When I click "Send to author's review"
-  And I add the note "Rates changed on 1 Oct" for the reviewer
-  And I click "Send to the Backlog"
-  Then the page status is "Waiting for author's review assignment"
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-04.01.1</b> · Request a review from the shared Backlog</td><td>content author</td><td>A shared Backlog lets the first free reviewer start, so pages do not queue behind one person&#x27;s calendar. Due dates and audit entries make review turnaround measurable from day one.</td><td>As a content author<br>I want to send the page to a Backlog that every reviewer sees, with a note<br>So that the first free reviewer can take it and I don&#x27;t have to chase one person</td><td>US-03.01.4, US-01.03.1</td><td>8</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: Sending the page for review
+  When I click &quot;Send to author&#x27;s review&quot;
+  And I add the note &quot;Rates changed on 1 Oct&quot; for the reviewer
+  And I click &quot;Send to the Backlog&quot;
+  Then the page status is &quot;Waiting for author&#x27;s review assignment&quot;
   And nobody is assigned to review it
   And the review is due in 3 days
-  And the audit log says "sent Cash ISA for review · open to all reviewers in the Backlog"
-  And I see "Sent for review · it is in the Backlog, any reviewer can take it"
+  And the audit log says &quot;sent Cash ISA for review · open to all reviewers in the Backlog&quot;
+  And I see &quot;Sent for review · it is in the Backlog, any reviewer can take it&quot;
 
 Scenario: Nobody can review the folder
-  Given no user has "Review & approve" on the folder of the page
+  Given no user has &quot;Review &amp; approve&quot; on the folder of the page
   When I send the page for review
-  Then I see "Nobody can review this page"
-  And I am told "Ask a site admin to grant Review & approve on this folder"
-```
-
-</details>
-
-<details><summary><b>US-04.01.2</b> · Check the page before handing it over</summary>
-
-```gherkin
-Scenario: Leaving the preview asks whether the page looks right
-  Given I am on the "Preview" step
+  Then I see &quot;Nobody can review this page&quot;
+  And I am told &quot;Ask a site admin to grant Review &amp; approve on this folder&quot;</pre></details></td></tr>
+<tr><td>2</td><td><b>US-04.01.2</b> · Check the page before handing it over</td><td>content author</td><td>Catching missing fields and quality problems before hand-off avoids wasted review cycles. Fewer round trips mean faster delivery and lower review cost.</td><td>As a content author<br>I want a last check of the page, with any problems Page insights found<br>So that I only send pages that are complete</td><td>US-04.01.1, US-03.03.1</td><td>9</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Leaving the preview asks whether the page looks right
+  Given I am on the &quot;Preview&quot; step
   When I leave the preview
-  Then I see the dialog "Does everything look right?"
-  And I can choose "No, keep editing" or "Yes, send for review"
+  Then I see the dialog &quot;Does everything look right?&quot;
+  And I can choose &quot;No, keep editing&quot; or &quot;Yes, send for review&quot;
 
 Scenario: Page insights warn about problems but do not block sending
   Given Page insights found 2 things to fix on the page
   When I leave the preview
-  Then the dialog says "Page insights found 2 things to fix. You can still send it"
+  Then the dialog says &quot;Page insights found 2 things to fix. You can still send it&quot;
 
 Scenario: Required fields are missing
   Given 3 required component fields are empty
-  When I click "Send to author's review"
-  Then I see "Fill in 3 required fields first"
-  And the first incomplete component opens in Configure
-```
-
-</details>
-
-<details><summary><b>US-04.01.3</b> · Keep the page stable while it is being reviewed</summary>
-
-```gherkin
-Scenario: The page is read-only in review
+  When I click &quot;Send to author&#x27;s review&quot;
+  Then I see &quot;Fill in 3 required fields first&quot;
+  And the first incomplete component opens in Configure</pre></details></td></tr>
+<tr><td>3</td><td><b>US-04.01.3</b> · Keep the page stable while it is being reviewed</td><td>content author</td><td>Reviewers approve exactly the version that will be published, which protects the integrity of the four-eyes check. It prevents silent changes after approval that could expose the bank to conduct risk.</td><td>As a content author<br>I want the page to be read-only during review, with a clear way to take it back<br>So that reviewers check exactly what I sent</td><td>US-04.01.1</td><td>9</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: The page is read-only in review
   Given the page was sent for review
   When I open it in the page builder
   Then the page is shown as a preview
-  And the component and AI panels say "Editing takes it out of the review queue"
+  And the component and AI panels say &quot;Editing takes it out of the review queue&quot;
 
 Scenario: Taking the page back for editing
   Given the page was sent for review
-  When I click "Edit the page"
-  And I confirm "Reopen this page for editing? It will leave the review queue."
-  Then the page is back at "Build the page"
-```
-
-</details>
+  When I click &quot;Edit the page&quot;
+  And I confirm &quot;Reopen this page for editing? It will leave the review queue.&quot;
+  Then the page is back at &quot;Build the page&quot;</pre></details></td></tr>
+</table>
 
 ### Feature: Author's (peer) review
 Source: [`02-peer-review.feature`](features/04-review-workflow/02-peer-review.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-04.02.1** · Take a review from the Backlog, or give it back | peer reviewer | Reviews start as soon as any reviewer is free, so pages do not wait for one person. Each review has one named owner, which makes delays visible. | As a peer reviewer<br>I want to assign a waiting page to myself and return it if I cannot do it<br>So that every review has exactly one owner and nothing gets stuck with me | US-04.01.1 | 9 |
-| 2 | **US-04.02.2** · Review the page and decide what happens next | peer reviewer | A single decision point moves the page on or back without extra meetings or e-mails. Only the assigned reviewer can approve, which keeps the peer check accountable and auditable. | As a peer reviewer<br>I want to finish my review with one decision: business review or back to the author<br>So that the page moves on without extra hand-offs | US-04.02.1 | 10 |
-| 3 | **US-04.02.3** · Nudge a reviewer who is taking long | content author | Rate-limited reminders keep pages moving without manual chasing or noisy escalation. Shorter waiting times bring content to market faster. | As a content author<br>I want to remind the reviewer, but not more often than every 15 minutes<br>So that my page keeps moving without spamming anyone | US-04.02.1 | 10 |
-| 4 | **US-04.02.4** · Steer reviews as a site admin 🛡 | site admin | Admins can rebalance workload and unblock stuck reviews, which protects launch dates. Every intervention is logged on behalf of the reviewer, so oversight never weakens the audit trail. | As a site admin<br>I want to reassign reviewers and act for them when needed<br>So that reviews never get stuck, and everyone can see that I stepped in | US-04.02.1, US-04.02.2 | 11 |
-
-**Acceptance criteria** — the Background applies to every story of this feature
+*Background — add it at the top of the acceptance criteria of every story in this feature:*
 
 ```gherkin
 Background:
@@ -1285,134 +967,107 @@ Background:
   And "rachel.hughes" has "Review & approve" on the page
 ```
 
-<details><summary><b>US-04.02.1</b> · Take a review from the Backlog, or give it back</summary>
-
-```gherkin
-Scenario: A reviewer assigns the page to themselves
-  Given I am signed in as "rachel.hughes"
-  When I click "Assign to me" on "Cash ISA" in the Backlog
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-04.02.1</b> · Take a review from the Backlog, or give it back</td><td>peer reviewer</td><td>Reviews start as soon as any reviewer is free, so pages do not wait for one person. Each review has one named owner, which makes delays visible.</td><td>As a peer reviewer<br>I want to assign a waiting page to myself and return it if I cannot do it<br>So that every review has exactly one owner and nothing gets stuck with me</td><td>US-04.01.1</td><td>9</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 5 scenarios</summary><pre lang="gherkin">Scenario: A reviewer assigns the page to themselves
+  Given I am signed in as &quot;rachel.hughes&quot;
+  When I click &quot;Assign to me&quot; on &quot;Cash ISA&quot; in the Backlog
   Then I am the peer reviewer of the page
-  And the stepper shows "Assigned to reviewer"
-  And I see "Cash ISA is yours · find it in Ready for review"
+  And the stepper shows &quot;Assigned to reviewer&quot;
+  And I see &quot;Cash ISA is yours · find it in Ready for review&quot;
 
 Scenario: Two reviewers try to take the same page
-  Given "aisha.khan" already took "Cash ISA"
-  When I try to take it as "rachel.hughes"
-  Then I see "Already assigned to Aisha Khan"
+  Given &quot;aisha.khan&quot; already took &quot;Cash ISA&quot;
+  When I try to take it as &quot;rachel.hughes&quot;
+  Then I see &quot;Already assigned to Aisha Khan&quot;
 
 Scenario: Someone without Review cannot take it
-  Given I am signed in as "tunde.boateng" who only has Read
-  Then the "Assign to me" button is disabled
-  And I see "Only reviewers can take it · you don't have Review & approve here"
+  Given I am signed in as &quot;tunde.boateng&quot; who only has Read
+  Then the &quot;Assign to me&quot; button is disabled
+  And I see &quot;Only reviewers can take it · you don&#x27;t have Review &amp; approve here&quot;
 
 Scenario Outline: Back to backlog before the review starts
-  Given "rachel.hughes" took "Cash ISA" but has not started the review
-  And I am signed in as "<who>"
-  When I click "Back to backlog"
-  Then <outcome>
+  Given &quot;rachel.hughes&quot; took &quot;Cash ISA&quot; but has not started the review
+  And I am signed in as &quot;&lt;who&gt;&quot;
+  When I click &quot;Back to backlog&quot;
+  Then &lt;outcome&gt;
 
   Examples:
     | who           | outcome                                                                            |
     | rachel.hughes | nobody is assigned and the page is in the Backlog again                           |
-    | aisha.khan    | I see "Only the assigned reviewer or a site admin can put it back in the Backlog" |
+    | aisha.khan    | I see &quot;Only the assigned reviewer or a site admin can put it back in the Backlog&quot; |
 
 Scenario: A started review cannot go back
-  Given the review of "Cash ISA" has started
-  When the reviewer clicks "Back to backlog"
-  Then they see "The review has already started"
-```
-
-</details>
-
-<details><summary><b>US-04.02.2</b> · Review the page and decide what happens next</summary>
-
-```gherkin
-Scenario: Starting the review
-  Given I am signed in as "rachel.hughes" and I am assigned to "Cash ISA"
-  When I click "Start review"
-  Then the page status is "In author's review"
+  Given the review of &quot;Cash ISA&quot; has started
+  When the reviewer clicks &quot;Back to backlog&quot;
+  Then they see &quot;The review has already started&quot;</pre></details></td></tr>
+<tr><td>2</td><td><b>US-04.02.2</b> · Review the page and decide what happens next</td><td>peer reviewer</td><td>A single decision point moves the page on or back without extra meetings or e-mails. Only the assigned reviewer can approve, which keeps the peer check accountable and auditable.</td><td>As a peer reviewer<br>I want to finish my review with one decision: business review or back to the author<br>So that the page moves on without extra hand-offs</td><td>US-04.02.1</td><td>10</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 5 scenarios</summary><pre lang="gherkin">Scenario: Starting the review
+  Given I am signed in as &quot;rachel.hughes&quot; and I am assigned to &quot;Cash ISA&quot;
+  When I click &quot;Start review&quot;
+  Then the page status is &quot;In author&#x27;s review&quot;
 
 Scenario: Only the assigned reviewer decides
-  Given "rachel.hughes" is assigned to "Cash ISA"
-  When "aisha.khan" marks it reviewed
-  Then she sees "Only the assigned reviewer can approve this page"
+  Given &quot;rachel.hughes&quot; is assigned to &quot;Cash ISA&quot;
+  When &quot;aisha.khan&quot; marks it reviewed
+  Then she sees &quot;Only the assigned reviewer can approve this page&quot;
 
 Scenario: Finishing the review opens a choice
-  Given the review of "Cash ISA" is in progress and I am the reviewer
-  When I click "Reviewed"
-  Then I see "Author's review done · what next?"
-  And I can choose "Send to business review" or "Reauthor"
+  Given the review of &quot;Cash ISA&quot; is in progress and I am the reviewer
+  When I click &quot;Reviewed&quot;
+  Then I see &quot;Author&#x27;s review done · what next?&quot;
+  And I can choose &quot;Send to business review&quot; or &quot;Reauthor&quot;
 
 Scenario: Sending to the business review
-  When I choose "Send to business review"
-  Then the page status is "In business review"
-  And the stepper shows "Waiting for business review assignment"
-  And the "Share for review" dialog opens as the next step
+  When I choose &quot;Send to business review&quot;
+  Then the page status is &quot;In business review&quot;
+  And the stepper shows &quot;Waiting for business review assignment&quot;
+  And the &quot;Share for review&quot; dialog opens as the next step
 
 Scenario: Sending the page back to the author
-  When I choose "Reauthor"
-  And I confirm "Send it back to the author?"
-  Then the page is back at "Build the page"
-  And the peer reviewer, the business reviewer and the review groups are cleared
-```
-
-</details>
-
-<details><summary><b>US-04.02.3</b> · Nudge a reviewer who is taking long</summary>
-
-```gherkin
-Scenario: Sending a reminder
-  Given I am signed in as "content.author" and the review is waiting
-  When I click "Remind"
-  Then the reviewer gets the notification "Reminder: Content Author is waiting for your review of Cash ISA"
+  When I choose &quot;Reauthor&quot;
+  And I confirm &quot;Send it back to the author?&quot;
+  Then the page is back at &quot;Build the page&quot;
+  And the peer reviewer, the business reviewer and the review groups are cleared</pre></details></td></tr>
+<tr><td>3</td><td><b>US-04.02.3</b> · Nudge a reviewer who is taking long</td><td>content author</td><td>Rate-limited reminders keep pages moving without manual chasing or noisy escalation. Shorter waiting times bring content to market faster.</td><td>As a content author<br>I want to remind the reviewer, but not more often than every 15 minutes<br>So that my page keeps moving without spamming anyone</td><td>US-04.02.1</td><td>10</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: Sending a reminder
+  Given I am signed in as &quot;content.author&quot; and the review is waiting
+  When I click &quot;Remind&quot;
+  Then the reviewer gets the notification &quot;Reminder: Content Author is waiting for your review of Cash ISA&quot;
 
 Scenario: Reminder rate limit
   Given a reminder was sent 5 minutes ago
-  When I click "Remind" again
-  Then I see "A reminder was sent a few minutes ago"
-```
-
-</details>
-
-<details><summary><b>US-04.02.4</b> · Steer reviews as a site admin</summary>
-
-```gherkin
-Scenario: Reassigning the peer reviewer
-  Given I am signed in as "super.admin"
+  When I click &quot;Remind&quot; again
+  Then I see &quot;A reminder was sent a few minutes ago&quot;</pre></details></td></tr>
+<tr><td>4</td><td><b>US-04.02.4</b> · Steer reviews as a site admin 🛡</td><td>site admin</td><td>Admins can rebalance workload and unblock stuck reviews, which protects launch dates. Every intervention is logged on behalf of the reviewer, so oversight never weakens the audit trail.</td><td>As a site admin<br>I want to reassign reviewers and act for them when needed<br>So that reviews never get stuck, and everyone can see that I stepped in</td><td>US-04.02.1, US-04.02.2</td><td>11</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 4 scenarios</summary><pre lang="gherkin">Scenario: Reassigning the peer reviewer
+  Given I am signed in as &quot;super.admin&quot;
   When I click the pencil next to the peer reviewer in My tasks
-  And I choose "aisha.khan"
-  Then "aisha.khan" is the peer reviewer
-  And the audit log says "reassigned the review of Cash ISA from Rachel Hughes to Aisha Khan"
+  And I choose &quot;aisha.khan&quot;
+  Then &quot;aisha.khan&quot; is the peer reviewer
+  And the audit log says &quot;reassigned the review of Cash ISA from Rachel Hughes to Aisha Khan&quot;
 
 Scenario: Assigning automatically
-  When I choose "Assign automatically"
+  When I choose &quot;Assign automatically&quot;
   Then the reviewer with the fewest open reviews is assigned
   But never the person who sent the page
 
 Scenario: Putting any review back in the Backlog
-  Given "rachel.hughes" took "Cash ISA" but has not started the review
-  When I click "Back to backlog" as "super.admin"
+  Given &quot;rachel.hughes&quot; took &quot;Cash ISA&quot; but has not started the review
+  When I click &quot;Back to backlog&quot; as &quot;super.admin&quot;
   Then nobody is assigned and the page is in the Backlog again
 
 Scenario: Marking it reviewed for the reviewer
-  Given "rachel.hughes" is the reviewer
-  When I click "Reviewed for Rachel Hughes" as "super.admin"
-  Then the audit line ends with "(on behalf of Rachel Hughes)"
-```
-
-</details>
+  Given &quot;rachel.hughes&quot; is the reviewer
+  When I click &quot;Reviewed for Rachel Hughes&quot; as &quot;super.admin&quot;
+  Then the audit line ends with &quot;(on behalf of Rachel Hughes)&quot;</pre></details></td></tr>
+</table>
 
 ### Feature: Business review and sign-off
 Source: [`03-business-review.feature`](features/04-review-workflow/03-business-review.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-04.03.1** · Take the business review | business owner | Each business decision has one named owner, which gives clear accountability for customer-facing messages. Blocking the peer reviewer from also signing off enforces four-eyes separation. | As a business owner<br>I want to take a page that waits for business review<br>So that it is clear who decides on it | US-04.02.2 | 11 |
-| 2 | **US-04.03.2** · Sign off the page or send it back to the author | business owner | Nothing reaches customers without explicit business approval, which reduces conduct and mis-selling risk. Deciding on the page as customers see it lowers the chance of costly post-launch corrections. | As a business owner<br>I want to sign the page off or send it back to the author, also from full screen<br>So that I decide while looking at the page as customers will see it | US-04.03.1 | 12 |
-| 3 | **US-04.03.3** · Share the page with the right business reviewers | peer reviewer | Getting the right stakeholders in early avoids late rejections and repeated review rounds. External partners can contribute without new UCP licences, which keeps cost down. | As a peer reviewer<br>I want to share the page with a person, a review group or a link<br>So that the right business owners see it, even without a UCP account | US-04.03.1 | 12 |
-| 4 | **US-04.03.4** · Sign off on behalf of the business reviewer as a site admin 🛡 | site admin | Keeping the business reviewer fixed protects the integrity of the business decision. Recorded on-behalf sign-off still lets urgent pages move without breaking the audit trail. | As a site admin<br>I want people to stay fixed during the business review, but be able to sign off for the assignee<br>So that the business decision is not changed behind its back, and urgent pages can still move | US-04.03.1, US-04.03.2 | 13 |
-
-**Acceptance criteria** — the Background applies to every story of this feature
+*Background — add it at the top of the acceptance criteria of every story in this feature:*
 
 ```gherkin
 Background:
@@ -1420,107 +1075,82 @@ Background:
   And the page was sent to the business review
 ```
 
-<details><summary><b>US-04.03.1</b> · Take the business review</summary>
-
-```gherkin
-Scenario: Waiting for a business reviewer
-  Then the stepper shows "Waiting for business review assignment"
-  And My tasks lists the page under "Ready for business review"
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-04.03.1</b> · Take the business review</td><td>business owner</td><td>Each business decision has one named owner, which gives clear accountability for customer-facing messages. Blocking the peer reviewer from also signing off enforces four-eyes separation.</td><td>As a business owner<br>I want to take a page that waits for business review<br>So that it is clear who decides on it</td><td>US-04.02.2</td><td>11</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Waiting for a business reviewer
+  Then the stepper shows &quot;Waiting for business review assignment&quot;
+  And My tasks lists the page under &quot;Ready for business review&quot;
 
 Scenario: A business owner takes it
-  Given I am signed in as "david.clarke" with Review on the page
-  When I click "Assign to me"
+  Given I am signed in as &quot;david.clarke&quot; with Review on the page
+  When I click &quot;Assign to me&quot;
   Then I am the business reviewer
-  And the stepper shows "In business review"
+  And the stepper shows &quot;In business review&quot;
 
 Scenario: The peer reviewer cannot also do the business review
-  Given I am signed in as "rachel.hughes"
+  Given I am signed in as &quot;rachel.hughes&quot;
   When I try to take the business review
-  Then I see "You did the author's review · someone else does the business review"
-```
-
-</details>
-
-<details><summary><b>US-04.03.2</b> · Sign off the page or send it back to the author</summary>
-
-```gherkin
-Scenario: Signing off
+  Then I see &quot;You did the author&#x27;s review · someone else does the business review&quot;</pre></details></td></tr>
+<tr><td>2</td><td><b>US-04.03.2</b> · Sign off the page or send it back to the author</td><td>business owner</td><td>Nothing reaches customers without explicit business approval, which reduces conduct and mis-selling risk. Deciding on the page as customers see it lowers the chance of costly post-launch corrections.</td><td>As a business owner<br>I want to sign the page off or send it back to the author, also from full screen<br>So that I decide while looking at the page as customers will see it</td><td>US-04.03.1</td><td>12</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 4 scenarios</summary><pre lang="gherkin">Scenario: Signing off
   Given I am the assigned business reviewer
-  When I click "Sign off"
-  Then the page status is "Ready to publish"
-  And the publishers see it under "Ready to publish" in My tasks
-  And the author sees it under "Ready to publish" with "Waiting for a publisher"
+  When I click &quot;Sign off&quot;
+  Then the page status is &quot;Ready to publish&quot;
+  And the publishers see it under &quot;Ready to publish&quot; in My tasks
+  And the author sees it under &quot;Ready to publish&quot; with &quot;Waiting for a publisher&quot;
 
 Scenario: Someone else tries to sign off
-  Given "david.clarke" is the business reviewer
-  When "maria.santos" signs it off
-  Then she sees "Only the assigned business reviewer can sign this page off"
+  Given &quot;david.clarke&quot; is the business reviewer
+  When &quot;maria.santos&quot; signs it off
+  Then she sees &quot;Only the assigned business reviewer can sign this page off&quot;
 
 Scenario: Sending it back
-  When I click "Reauthor" and confirm
-  Then the page is back at "Build the page"
+  When I click &quot;Reauthor&quot; and confirm
+  Then the page is back at &quot;Build the page&quot;
   And both reviews start over
 
 Scenario: Deciding in full screen
-  Given I opened "Review & feedback" in full screen
-  When I choose "Sign off" in the "Decision" section
-  And I confirm "Yes, sign off"
-  Then a full-screen message says "Signed off" with my name and the time
-```
-
-</details>
-
-<details><summary><b>US-04.03.3</b> · Share the page with the right business reviewers</summary>
-
-```gherkin
-Scenario: Share with a review group
-  Given the "Share for review" dialog is open
-  When I give the "Savings & Mortgages board" group access
+  Given I opened &quot;Review &amp; feedback&quot; in full screen
+  When I choose &quot;Sign off&quot; in the &quot;Decision&quot; section
+  And I confirm &quot;Yes, sign off&quot;
+  Then a full-screen message says &quot;Signed off&quot; with my name and the time</pre></details></td></tr>
+<tr><td>3</td><td><b>US-04.03.3</b> · Share the page with the right business reviewers</td><td>peer reviewer</td><td>Getting the right stakeholders in early avoids late rejections and repeated review rounds. External partners can contribute without new UCP licences, which keeps cost down.</td><td>As a peer reviewer<br>I want to share the page with a person, a review group or a link<br>So that the right business owners see it, even without a UCP account</td><td>US-04.03.1</td><td>12</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 4 scenarios</summary><pre lang="gherkin">Scenario: Share with a review group
+  Given the &quot;Share for review&quot; dialog is open
+  When I give the &quot;Savings &amp; Mortgages board&quot; group access
   Then the members of the group see the page in My tasks
-  And I see "Savings & Mortgages board (3 people) now has access"
+  And I see &quot;Savings &amp; Mortgages board (3 people) now has access&quot;
   And the group is shown as a chip and cannot be added twice
 
 Scenario: Share by e-mail with a UCP user
-  When I send the review link to "maria.santos@hsbc.com"
+  When I send the review link to &quot;maria.santos@hsbc.com&quot;
   Then Maria Santos is assigned as the business reviewer
   And my mail app opens with the link
 
 Scenario: Share by e-mail with someone outside UCP
-  When I send the review link to "partner@example.com"
-  Then I see "partner@example.com can comment through the link"
+  When I send the review link to &quot;partner@example.com&quot;
+  Then I see &quot;partner@example.com can comment through the link&quot;
 
 Scenario: Invalid e-mail
-  When I send the review link to "not-an-email"
-  Then I see "That e-mail address does not look right"
-```
-
-</details>
-
-<details><summary><b>US-04.03.4</b> · Sign off on behalf of the business reviewer as a site admin</summary>
-
-```gherkin
-Scenario: No reassigning in business review
-  Given I am signed in as "super.admin"
+  When I send the review link to &quot;not-an-email&quot;
+  Then I see &quot;That e-mail address does not look right&quot;</pre></details></td></tr>
+<tr><td>4</td><td><b>US-04.03.4</b> · Sign off on behalf of the business reviewer as a site admin 🛡</td><td>site admin</td><td>Keeping the business reviewer fixed protects the integrity of the business decision. Recorded on-behalf sign-off still lets urgent pages move without breaking the audit trail.</td><td>As a site admin<br>I want people to stay fixed during the business review, but be able to sign off for the assignee<br>So that the business decision is not changed behind its back, and urgent pages can still move</td><td>US-04.03.1, US-04.03.2</td><td>13</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: No reassigning in business review
+  Given I am signed in as &quot;super.admin&quot;
   Then there is no pencil next to the business reviewer in My tasks
 
 Scenario: Signing off on behalf
-  Given "david.clarke" is the business reviewer
-  When I click "Sign off for David Clarke"
-  Then I see "Signed off as site admin · ready to publish"
-  And the audit line ends with "(on behalf of David Clarke)"
-```
-
-</details>
+  Given &quot;david.clarke&quot; is the business reviewer
+  When I click &quot;Sign off for David Clarke&quot;
+  Then I see &quot;Signed off as site admin · ready to publish&quot;
+  And the audit line ends with &quot;(on behalf of David Clarke)&quot;</pre></details></td></tr>
+</table>
 
 ### Feature: Review links for people without UCP access
 Source: [`04-review-links.feature`](features/04-review-workflow/04-review-links.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-04.04.1** · Read and comment through a link | guest reviewer | Stakeholders without a UCP account can give feedback, which saves licence cost and onboarding effort. Feedback lands on the page itself, so nothing is lost in e-mail threads. | As a guest reviewer<br>I want to open a link, see the page full screen and comment on any part of it<br>So that I can give feedback without learning the CMS | US-04.03.3 | 13 |
-| 2 | **US-04.04.2** · Decide through the link, only if invited | guest reviewer who was invited | The business can approve without a UCP account, which speeds up sign-off for busy owners. Restricting decisions to invited addresses stops forwarded links from approving content, which limits fraud and compliance risk. | As a guest reviewer who was invited<br>I want to sign off or send the page back from the link<br>So that the business can decide without a UCP account, while a forwarded link cannot approve anything | US-04.04.1 | 14 |
-
-**Acceptance criteria** — the Background applies to every story of this feature
+*Background — add it at the top of the acceptance criteria of every story in this feature:*
 
 ```gherkin
 Background:
@@ -1528,76 +1158,63 @@ Background:
   And a review link was created for it
 ```
 
-<details><summary><b>US-04.04.1</b> · Read and comment through a link</summary>
-
-```gherkin
-Scenario: Opening a valid link
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-04.04.1</b> · Read and comment through a link</td><td>guest reviewer</td><td>Stakeholders without a UCP account can give feedback, which saves licence cost and onboarding effort. Feedback lands on the page itself, so nothing is lost in e-mail threads.</td><td>As a guest reviewer<br>I want to open a link, see the page full screen and comment on any part of it<br>So that I can give feedback without learning the CMS</td><td>US-04.03.3</td><td>13</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 5 scenarios</summary><pre lang="gherkin">Scenario: Opening a valid link
   When I open the review link
   Then I see the page full screen with a floating Comments panel
   And search engines are told not to index it
 
 Scenario: Commenting on a part of the page
   When I click a heading on the page
-  And I write "Is this rate still correct?"
+  And I write &quot;Is this rate still correct?&quot;
   And I enter my name and e-mail
   Then the comment is saved against that heading
-  And it is marked "During the business review"
+  And it is marked &quot;During the business review&quot;
 
 Scenario: Commenting without a name
   When I post a comment without my name or e-mail
-  Then I see "Add your name and e-mail so the team knows who commented"
+  Then I see &quot;Add your name and e-mail so the team knows who commented&quot;
 
 Scenario: The stage is over
-  Given the page has moved on to "Ready to publish"
+  Given the page has moved on to &quot;Ready to publish&quot;
   When I open the review link
-  Then I see "This business review is finished. You can still read the page and the comments."
+  Then I see &quot;This business review is finished. You can still read the page and the comments.&quot;
   And I cannot comment or decide
 
 Scenario: Unknown link
   When I open a review link with an unknown token
-  Then I see "This review link does not work"
-```
-
-</details>
-
-<details><summary><b>US-04.04.2</b> · Decide through the link, only if invited</summary>
-
-```gherkin
-Scenario Outline: Who may sign off through the link
-  Given the link was <sent>
-  When a guest using "<email>" signs off
-  Then <outcome>
+  Then I see &quot;This review link does not work&quot;</pre></details></td></tr>
+<tr><td>2</td><td><b>US-04.04.2</b> · Decide through the link, only if invited</td><td>guest reviewer who was invited</td><td>The business can approve without a UCP account, which speeds up sign-off for busy owners. Restricting decisions to invited addresses stops forwarded links from approving content, which limits fraud and compliance risk.</td><td>As a guest reviewer who was invited<br>I want to sign off or send the page back from the link<br>So that the business can decide without a UCP account, while a forwarded link cannot approve anything</td><td>US-04.04.1</td><td>14</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario Outline: Who may sign off through the link
+  Given the link was &lt;sent&gt;
+  When a guest using &quot;&lt;email&gt;&quot; signs off
+  Then &lt;outcome&gt;
 
   Examples:
     | sent                            | email                 | outcome                                                                          |
-    | to "partner@example.com"        | partner@example.com   | the page is "Ready to publish" and approved by "guest:partner@example.com"      |
-    | to "partner@example.com"        | other@example.com     | they see "This link was sent to partner@example.com. Use that e-mail to decide." |
-    | to the "Business owners" group  | david.clarke@hsbc.com | the page is "Ready to publish"                                                   |
-    | as a plain copied link          | anyone@example.com    | they see "Signing off is for the people the review was sent to."                |
+    | to &quot;partner@example.com&quot;        | partner@example.com   | the page is &quot;Ready to publish&quot; and approved by &quot;guest:partner@example.com&quot;      |
+    | to &quot;partner@example.com&quot;        | other@example.com     | they see &quot;This link was sent to partner@example.com. Use that e-mail to decide.&quot; |
+    | to the &quot;Business owners&quot; group  | david.clarke@hsbc.com | the page is &quot;Ready to publish&quot;                                                   |
+    | as a plain copied link          | anyone@example.com    | they see &quot;Signing off is for the people the review was sent to.&quot;                |
 
 Scenario: A business reviewer is already assigned
-  Given "david.clarke" is the assigned business reviewer
+  Given &quot;david.clarke&quot; is the assigned business reviewer
   When another invited person tries to decide
-  Then they see "David Clarke decides on this page."
+  Then they see &quot;David Clarke decides on this page.&quot;
 
 Scenario: Reauthor through the link
-  When the invited reviewer chooses "Reauthor" with a note
-  Then the page is back at "Build the page"
+  When the invited reviewer chooses &quot;Reauthor&quot; with a note
+  Then the page is back at &quot;Build the page&quot;
   And the note is added as a comment
-  And a full-screen message says "Sent back to the author"
-```
-
-</details>
+  And a full-screen message says &quot;Sent back to the author&quot;</pre></details></td></tr>
+</table>
 
 ### Feature: Comments on a page
 Source: [`05-comments.feature`](features/04-review-workflow/05-comments.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-04.05.1** · Comment on exactly what I mean | peer reviewer or business owner | Feedback pinned to the exact element removes ambiguity and reduces rework. Limiting who can comment keeps feedback relevant and the review record trustworthy. | As a peer reviewer or business owner<br>I want to click a text, picture or component and comment on it<br>So that the author knows exactly what to change | US-04.02.2 | 11 |
-| 2 | **US-04.05.2** · Work through the feedback | content author | Authors see at a glance what is still open, so no requested change is missed before sign-off. Resolved comments never leak onto the published page, which protects the customer experience. | As a content author<br>I want to jump to each comment's place, resolve it and undo by mistake<br>So that I see what is still open and the published page stays clean | US-04.05.1 | 12 |
-
-**Acceptance criteria** — the Background applies to every story of this feature
+*Background — add it at the top of the acceptance criteria of every story in this feature:*
 
 ```gherkin
 Background:
@@ -1605,12 +1222,12 @@ Background:
   And I am signed in as the reviewer
 ```
 
-<details><summary><b>US-04.05.1</b> · Comment on exactly what I mean</summary>
-
-```gherkin
-Scenario Outline: Picking a target
-  When I click <target> on the page
-  Then the comment box shows "<label>"
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-04.05.1</b> · Comment on exactly what I mean</td><td>peer reviewer or business owner</td><td>Feedback pinned to the exact element removes ambiguity and reduces rework. Limiting who can comment keeps feedback relevant and the review record trustworthy.</td><td>As a peer reviewer or business owner<br>I want to click a text, picture or component and comment on it<br>So that the author knows exactly what to change</td><td>US-04.02.2</td><td>11</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 4 scenarios</summary><pre lang="gherkin">Scenario Outline: Picking a target
+  When I click &lt;target&gt; on the page
+  Then the comment box shows &quot;&lt;label&gt;&quot;
 
   Examples:
     | target                     | label                          |
@@ -1619,8 +1236,8 @@ Scenario Outline: Picking a target
     | empty space in a component | Key facts                      |
 
 Scenario Outline: Invalid comments
-  When I post "<text>"
-  Then I see "<message>"
+  When I post &quot;&lt;text&gt;&quot;
+  Then I see &quot;&lt;message&gt;&quot;
 
   Examples:
     | text                     | message                              |
@@ -1630,22 +1247,16 @@ Scenario Outline: Invalid comments
 Scenario: Only people working on the page can comment in UCP
   Given I am signed in as a viewer
   When I post a comment
-  Then I see "Only people who edit or review this page can comment"
+  Then I see &quot;Only people who edit or review this page can comment&quot;
 
 Scenario: Opening comments
   When I click the Comments icon in the right rail
   Then the Comments panel opens with the number of open comments
-  And "Review & feedback" next to "1:1" opens the page full screen with floating comments
-```
-
-</details>
-
-<details><summary><b>US-04.05.2</b> · Work through the feedback</summary>
-
-```gherkin
-Scenario: Components with open comments show a badge
-  Given the "Key facts" component has 2 open comments
-  Then the component shows a badge with "2"
+  And &quot;Review &amp; feedback&quot; next to &quot;1:1&quot; opens the page full screen with floating comments</pre></details></td></tr>
+<tr><td>2</td><td><b>US-04.05.2</b> · Work through the feedback</td><td>content author</td><td>Authors see at a glance what is still open, so no requested change is missed before sign-off. Resolved comments never leak onto the published page, which protects the customer experience.</td><td>As a content author<br>I want to jump to each comment&#x27;s place, resolve it and undo by mistake<br>So that I see what is still open and the published page stays clean</td><td>US-04.05.1</td><td>12</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 6 scenarios</summary><pre lang="gherkin">Scenario: Components with open comments show a badge
+  Given the &quot;Key facts&quot; component has 2 open comments
+  Then the component shows a badge with &quot;2&quot;
 
 Scenario: Jumping to what a comment is about
   When I click the chip of a comment
@@ -1654,50 +1265,39 @@ Scenario: Jumping to what a comment is about
 Scenario: The part was removed
   Given the commented text was deleted from the page
   When I click the chip of the comment
-  Then I see "That part is not on the page any more"
+  Then I see &quot;That part is not on the page any more&quot;
 
 Scenario: Resolving with undo
   When I resolve a comment
-  Then it moves to "Resolved · not shown on the page"
+  Then it moves to &quot;Resolved · not shown on the page&quot;
   And its marker disappears from the page
-  And I can click "Undo" for 6 seconds
+  And I can click &quot;Undo&quot; for 6 seconds
 
 Scenario: Pinning
   When I pin a comment
   Then it stays at the top of the list
 
-Scenario: Deleting someone else's comment
+Scenario: Deleting someone else&#x27;s comment
   Given I am not a site admin
   When I delete a comment written by someone else
-  Then I see "You can only delete your own comments"
-```
-
-</details>
+  Then I see &quot;You can only delete your own comments&quot;</pre></details></td></tr>
+</table>
 
 ### Feature: My tasks
 Source: [`06-my-tasks.feature`](features/04-review-workflow/06-my-tasks.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-04.06.1** · See what needs me, by stage | As anyone in the content team | One prioritised work list reduces time lost looking for pending work across tools. Due dates and overdue markers make bottlenecks visible to the team and management. | As anyone in the content team<br>I want every page in the workflow as one task in the right tab<br>So that I know what to do next without thinking | US-04.01.1 | 9 |
-| 2 | **US-04.06.2** · Follow my own pages as an author | content author | Authors can track their pages without asking around, which reduces status meetings. Hiding review actions on their own work enforces four-eyes separation in the interface. | As a content author<br>I want to see where each of my pages is and who has it, without review buttons for my own work<br>So that I know whom to remind and when the page comes back to me | US-04.06.1 | 10 |
-| 3 | **US-04.06.3** · Pick up and finish work as a reviewer or publisher | peer reviewer, business owner or publisher | Taking and finishing work from one list shortens cycle time for every hand-off. Showing only the permitted action reduces errors and unauthorised steps. | As a peer reviewer, business owner or publisher<br>I want the action for my step right on the row<br>So that I can take and finish work from one list | US-04.06.1 | 10 |
-| 4 | **US-04.06.4** · Oversee everything as a site admin 🛡 | site admin | Admins can balance workload across reviewers, which protects delivery dates. Restricting reassignment once a page is ready to publish keeps late changes under control. | As a site admin<br>I want to see all tasks, split by who has them, and change the peer reviewer<br>So that I can balance work and unblock pages | US-04.06.1, US-04.06.3 | 11 |
-
-**Acceptance criteria**
-
-<details><summary><b>US-04.06.1</b> · See what needs me, by stage</summary>
-
-```gherkin
-Scenario Outline: Task per stage
-  Given a page with status "<status>"
-  Then My tasks shows it in "<tab>" with the text "<text>"
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-04.06.1</b> · See what needs me, by stage</td><td>As anyone in the content team</td><td>One prioritised work list reduces time lost looking for pending work across tools. Due dates and overdue markers make bottlenecks visible to the team and management.</td><td>As anyone in the content team<br>I want every page in the workflow as one task in the right tab<br>So that I know what to do next without thinking</td><td>US-04.01.1</td><td>9</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario Outline: Task per stage
+  Given a page with status &quot;&lt;status&gt;&quot;
+  Then My tasks shows it in &quot;&lt;tab&gt;&quot; with the text &quot;&lt;text&gt;&quot;
 
   Examples:
     | status    | tab                       | text                                              |
-    | review    | Backlog                   | Waiting for author's review assignment · start it |
-    | inreview  | In review                 | In author's review · finish and mark reviewed     |
-    | reviewed  | Reviewed                  | Author's review done · send to business review    |
+    | review    | Backlog                   | Waiting for author&#x27;s review assignment · start it |
+    | inreview  | In review                 | In author&#x27;s review · finish and mark reviewed     |
+    | reviewed  | Reviewed                  | Author&#x27;s review done · send to business review    |
     | bizreview | Ready for business review | Business review · sign off before publishing      |
     | approved  | Ready to publish          | Business review done · ready to publish           |
     | scheduled | Ready to publish          | Check scheduled publish                           |
@@ -1705,52 +1305,40 @@ Scenario Outline: Task per stage
 
 Scenario: People and dates on every row
   Then each row shows the Content author, the Peer reviewer and the Business reviewer with full name and e-mail
-  And co-authors are listed under the Content author as "+ Name"
+  And co-authors are listed under the Content author as &quot;+ Name&quot;
   And a Jira chip is shown next to the title when the page has a ticket
-  And the due date shows "N days overdue", "Due today", "Due tomorrow" or the date
+  And the due date shows &quot;N days overdue&quot;, &quot;Due today&quot;, &quot;Due tomorrow&quot; or the date
 
 Scenario: Filters and markers
   Then I can search by page or person
-  And I can tick "Only assigned to me"
+  And I can tick &quot;Only assigned to me&quot;
   And I can sort by newest or by due date
   And new tasks have a red dot until I have seen them
-  And the header says "N assigned to you · M new"
-```
-
-</details>
-
-<details><summary><b>US-04.06.2</b> · Follow my own pages as an author</summary>
-
-```gherkin
-Scenario: My page waits for a reviewer
-  Given I sent "Cash ISA" for review
-  Then "Cash ISA" is not in my Backlog
-  And it is under "Ready for review" with "Waiting for a reviewer to take it"
+  And the header says &quot;N assigned to you · M new&quot;</pre></details></td></tr>
+<tr><td>2</td><td><b>US-04.06.2</b> · Follow my own pages as an author</td><td>content author</td><td>Authors can track their pages without asking around, which reduces status meetings. Hiding review actions on their own work enforces four-eyes separation in the interface.</td><td>As a content author<br>I want to see where each of my pages is and who has it, without review buttons for my own work<br>So that I know whom to remind and when the page comes back to me</td><td>US-04.06.1</td><td>10</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: My page waits for a reviewer
+  Given I sent &quot;Cash ISA&quot; for review
+  Then &quot;Cash ISA&quot; is not in my Backlog
+  And it is under &quot;Ready for review&quot; with &quot;Waiting for a reviewer to take it&quot;
 
 Scenario Outline: My actions on my own page
-  Given my page is in "<tab>"
-  Then I see "<actions>"
+  Given my page is in &quot;&lt;tab&gt;&quot;
+  Then I see &quot;&lt;actions&gt;&quot;
 
   Examples:
     | tab              | actions                 |
     | In review        | Remind                  |
     | Ready to publish | Waiting for a publisher |
-    | Published        | Open                    |
-```
-
-</details>
-
-<details><summary><b>US-04.06.3</b> · Pick up and finish work as a reviewer or publisher</summary>
-
-```gherkin
-Scenario: The Backlog is a shared bucket
+    | Published        | Open                    |</pre></details></td></tr>
+<tr><td>3</td><td><b>US-04.06.3</b> · Pick up and finish work as a reviewer or publisher</td><td>peer reviewer, business owner or publisher</td><td>Taking and finishing work from one list shortens cycle time for every hand-off. Showing only the permitted action reduces errors and unauthorised steps.</td><td>As a peer reviewer, business owner or publisher<br>I want the action for my step right on the row<br>So that I can take and finish work from one list</td><td>US-04.06.1</td><td>10</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: The Backlog is a shared bucket
   Given I am signed in as a reviewer
-  Then each Backlog row has "Assign to me" instead of "Open"
+  Then each Backlog row has &quot;Assign to me&quot; instead of &quot;Open&quot;
 
 Scenario Outline: Row actions
-  Given a task in "<tab>"
-  And I am "<who>"
-  Then I see "<actions>"
+  Given a task in &quot;&lt;tab&gt;&quot;
+  And I am &quot;&lt;who&gt;&quot;
+  Then I see &quot;&lt;actions&gt;&quot;
 
   Examples:
     | tab                       | who                   | actions                       |
@@ -1759,73 +1347,50 @@ Scenario Outline: Row actions
     | In review                 | the assigned reviewer | Reviewed                      |
     | Ready for business review | a business owner      | Assign to me                  |
     | Business review           | the business reviewer | Reauthor, Sign off            |
-    | Ready to publish          | a publisher           | Publish                       |
-```
-
-</details>
-
-<details><summary><b>US-04.06.4</b> · Oversee everything as a site admin</summary>
-
-```gherkin
-Scenario: Admin view
-  Given I am signed in as "super.admin"
-  Then tasks are split into "Assigned to me" and "Assigned to others"
+    | Ready to publish          | a publisher           | Publish                       |</pre></details></td></tr>
+<tr><td>4</td><td><b>US-04.06.4</b> · Oversee everything as a site admin 🛡</td><td>site admin</td><td>Admins can balance workload across reviewers, which protects delivery dates. Restricting reassignment once a page is ready to publish keeps late changes under control.</td><td>As a site admin<br>I want to see all tasks, split by who has them, and change the peer reviewer<br>So that I can balance work and unblock pages</td><td>US-04.06.1, US-04.06.3</td><td>11</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: Admin view
+  Given I am signed in as &quot;super.admin&quot;
+  Then tasks are split into &quot;Assigned to me&quot; and &quot;Assigned to others&quot;
   And a pencil next to the Peer reviewer lets me change the person while the page is in review
 
 Scenario: No reassigning at Ready to publish
-  Then rows in "Ready to publish" have no pencil and no "Assign to anyone"
-```
-
-</details>
+  Then rows in &quot;Ready to publish&quot; have no pencil and no &quot;Assign to anyone&quot;</pre></details></td></tr>
+</table>
 
 ### Feature: Notifications
 Source: [`07-notifications.feature`](features/04-review-workflow/07-notifications.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-04.07.1** · Be told when a page is handed to me | As anyone in the content team | People learn immediately when it is their turn, which removes idle time between hand-offs. Faster hand-offs shorten time to market for every page. | As anyone in the content team<br>I want a notification when it is my turn on a page<br>So that I don't have to keep checking My tasks | US-04.06.1 | 10 |
-| 2 | **US-04.07.2** · Act on a notification in one click | As anyone in the content team | Overdue items stand out, so service levels and regulatory deadlines are met more reliably. One-click access cuts the time from notice to action. | As anyone in the content team<br>I want urgent items to stand out and to open the page from the notification<br>So that overdue work is handled first | US-04.07.1 | 11 |
-
-**Acceptance criteria**
-
-<details><summary><b>US-04.07.1</b> · Be told when a page is handed to me</summary>
-
-```gherkin
-Scenario: The bell polls and shows unread items
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-04.07.1</b> · Be told when a page is handed to me</td><td>As anyone in the content team</td><td>People learn immediately when it is their turn, which removes idle time between hand-offs. Faster hand-offs shorten time to market for every page.</td><td>As anyone in the content team<br>I want a notification when it is my turn on a page<br>So that I don&#x27;t have to keep checking My tasks</td><td>US-04.06.1</td><td>10</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: The bell polls and shows unread items
   Given I am signed in
   Then the bell checks for news every 60 seconds
   And shows a badge with the number of unread items
-  And "Mark all as read" clears the badge
+  And &quot;Mark all as read&quot; clears the badge
 
 Scenario Outline: What I am told
-  Given <event>
-  Then my bell shows "<message>"
+  Given &lt;event&gt;
+  Then my bell shows &quot;&lt;message&gt;&quot;
 
   Examples:
     | event                                    | message                                                                |
     | the author reminds me about a review     | Reminder: Content Author is waiting for your review of Cash ISA       |
     | I was assigned a review                  | Super Admin assigned you to review Cash ISA                           |
-    | the author's review of my page is done   | finished the author's review of Cash ISA · send it to business review |
+    | the author&#x27;s review of my page is done   | finished the author&#x27;s review of Cash ISA · send it to business review |
     | the page reached business review         | sent to business review: Cash ISA · business sign-off needed          |
     | the business signed off a page I publish | finished the business review of Cash ISA · ready to publish           |
-    | my draft has not been sent               | Your draft of Cash ISA is waiting to be sent for review               |
-```
-
-</details>
-
-<details><summary><b>US-04.07.2</b> · Act on a notification in one click</summary>
-
-```gherkin
-Scenario: Overdue work stands out
+    | my draft has not been sent               | Your draft of Cash ISA is waiting to be sent for review               |</pre></details></td></tr>
+<tr><td>2</td><td><b>US-04.07.2</b> · Act on a notification in one click</td><td>As anyone in the content team</td><td>Overdue items stand out, so service levels and regulatory deadlines are met more reliably. One-click access cuts the time from notice to action.</td><td>As anyone in the content team<br>I want urgent items to stand out and to open the page from the notification<br>So that overdue work is handled first</td><td>US-04.07.1</td><td>11</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: Overdue work stands out
   Given a review assigned to me is overdue
   Then its notification is marked critical
 
 Scenario: Clicking a notification opens the page
-  When I click a notification about "Cash ISA"
-  Then the page opens in the page builder
-```
-
-</details>
+  When I click a notification about &quot;Cash ISA&quot;
+  Then the page opens in the page builder</pre></details></td></tr>
+</table>
 
 ---
 
@@ -1834,150 +1399,110 @@ Scenario: Clicking a notification opens the page
 ### Feature: Publish and schedule pages
 Source: [`01-publish-and-schedule.feature`](features/05-publishing/01-publish-and-schedule.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-05.01.1** · Publish a signed-off page now, together with its files | publisher | Approved pages reach customers in one controlled step instead of a chain of manual releases. Publishing the files with the page removes broken pictures and missing documents that damage customer trust. | As a publisher<br>I want to put a page that passed both reviews live in one step, together with the pictures and documents it uses<br>So that customers never see a page with missing pictures or documents | US-04.03.2, US-06.02.4 | 13 |
-| 2 | **US-05.01.2** · Publish later at a chosen time | publisher | Campaigns and rate changes go live at the agreed minute without anyone working out of hours. Fewer manual late-night releases also means fewer publishing mistakes and lower overtime cost. | As a publisher<br>I want to schedule a signed-off page to go live at a chosen time, and cancel that schedule if plans change<br>So that content goes live exactly when the campaign or rate change starts, without anyone being online | US-05.01.1 | 14 |
-| 3 | **US-05.01.3** · Publish several pages in one go | publisher | Related pages of a launch go live together, so customers never see half of a product release. Per-page results cut the time spent finding out what was held back and why. | As a publisher<br>I want to publish a selection of pages at once and see the result for each<br>So that a release of related pages goes live together and I know which ones were held back and why | US-05.01.1 | 14 |
-| 4 | **US-05.01.4** · Hand a signed-off page over to the publisher | content author | Keeping publishing with authorised publishers enforces separation of duties that auditors and regulators expect. Clear hand-over status reduces chasing between teams and shortens time to market. | As a content author<br>I want to see that my signed-off page is waiting for a publisher instead of publishing it myself<br>So that only people with Publish put content live, and I know who acts next until I am told the page is live | US-05.01.1 | 14 |
-
-**Acceptance criteria** — the Background applies to every story of this feature
+*Background — add it at the top of the acceptance criteria of every story in this feature:*
 
 ```gherkin
 Background:
   Given I am signed in as "jordan.mensah" with Publish on the folder
 ```
 
-<details><summary><b>US-05.01.1</b> · Publish a signed-off page now, together with its files</summary>
-
-```gherkin
-Scenario Outline: Pages that are not ready are skipped with a reason
-  Given the page "Cash ISA" has status "<status>"
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-05.01.1</b> · Publish a signed-off page now, together with its files</td><td>publisher</td><td>Approved pages reach customers in one controlled step instead of a chain of manual releases. Publishing the files with the page removes broken pictures and missing documents that damage customer trust.</td><td>As a publisher<br>I want to put a page that passed both reviews live in one step, together with the pictures and documents it uses<br>So that customers never see a page with missing pictures or documents</td><td>US-04.03.2, US-06.02.4</td><td>13</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 4 scenarios</summary><pre lang="gherkin">Scenario Outline: Pages that are not ready are skipped with a reason
+  Given the page &quot;Cash ISA&quot; has status &quot;&lt;status&gt;&quot;
   When I open the Publish dialog for it
-  Then it is listed as skipped with "<reason>"
+  Then it is listed as skipped with &quot;&lt;reason&gt;&quot;
 
   Examples:
     | status    | reason                     |
-    | review    | Still in author's review   |
+    | review    | Still in author&#x27;s review   |
     | reviewed  | Business review comes next |
     | bizreview | Still in business review   |
     | draft     | Needs review first         |
     | published | Already live               |
 
-Scenario: The dialog lists the files on the page (step 1, "Images and files")
-  Given "Cash ISA" uses the picture "hero-isa.jpg" and the PDF "isa-terms.pdf" that are not published
+Scenario: The dialog lists the files on the page (step 1, &quot;Images and files&quot;)
+  Given &quot;Cash ISA&quot; uses the picture &quot;hero-isa.jpg&quot; and the PDF &quot;isa-terms.pdf&quot; that are not published
   When I open the Publish dialog
-  Then step "Images and files" lists both files with their status
+  Then step &quot;Images and files&quot; lists both files with their status
   And both are ticked to be published with the page
 
 Scenario: Leaving a draft file behind blocks the page
-  When I untick "isa-terms.pdf"
-  Then I see "isa-terms.pdf stays unpublished, so the page cannot go live yet"
-  And the server refuses the page with "Uses 1 file that is not published yet"
+  When I untick &quot;isa-terms.pdf&quot;
+  Then I see &quot;isa-terms.pdf stays unpublished, so the page cannot go live yet&quot;
+  And the server refuses the page with &quot;Uses 1 file that is not published yet&quot;
 
-Scenario: Publish now (step 2, "Choose when to publish")
-  When I choose "Publish now" and confirm
-  Then the page status is "Published"
+Scenario: Publish now (step 2, &quot;Choose when to publish&quot;)
+  When I choose &quot;Publish now&quot; and confirm
+  Then the page status is &quot;Published&quot;
   And a live copy of the page is kept for comparisons
-  And confetti and "Published! Cash ISA is live" fill the screen
-```
-
-</details>
-
-<details><summary><b>US-05.01.2</b> · Publish later at a chosen time</summary>
-
-```gherkin
-Scenario: Schedule
-  When I choose "Schedule" for tomorrow at 09:00
-  Then the page status is "Scheduled"
-  And the audit log says "scheduled Cash ISA for" that date
+  And confetti and &quot;Published! Cash ISA is live&quot; fill the screen</pre></details></td></tr>
+<tr><td>2</td><td><b>US-05.01.2</b> · Publish later at a chosen time</td><td>publisher</td><td>Campaigns and rate changes go live at the agreed minute without anyone working out of hours. Fewer manual late-night releases also means fewer publishing mistakes and lower overtime cost.</td><td>As a publisher<br>I want to schedule a signed-off page to go live at a chosen time, and cancel that schedule if plans change<br>So that content goes live exactly when the campaign or rate change starts, without anyone being online</td><td>US-05.01.1</td><td>14</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 4 scenarios</summary><pre lang="gherkin">Scenario: Schedule
+  When I choose &quot;Schedule&quot; for tomorrow at 09:00
+  Then the page status is &quot;Scheduled&quot;
+  And the audit log says &quot;scheduled Cash ISA for&quot; that date
 
 Scenario: Too soon to schedule
   When I schedule the page for 2 minutes from now
-  Then I see "Pick a time at least 5 minutes from now"
+  Then I see &quot;Pick a time at least 5 minutes from now&quot;
 
 Scenario: A scheduled page goes live on its own
-  Given "Cash ISA" is scheduled for a time that has passed
+  Given &quot;Cash ISA&quot; is scheduled for a time that has passed
   When anyone opens a CMS screen
-  Then the page is published by "system"
+  Then the page is published by &quot;system&quot;
 
 Scenario: Cancelling a schedule
-  Given "Cash ISA" is scheduled
-  When I click "Cancel schedule"
-  Then the page is back at "Ready to publish"
-```
-
-</details>
-
-<details><summary><b>US-05.01.3</b> · Publish several pages in one go</summary>
-
-```gherkin
-Scenario: Bulk publish from the page list
+  Given &quot;Cash ISA&quot; is scheduled
+  When I click &quot;Cancel schedule&quot;
+  Then the page is back at &quot;Ready to publish&quot;</pre></details></td></tr>
+<tr><td>3</td><td><b>US-05.01.3</b> · Publish several pages in one go</td><td>publisher</td><td>Related pages of a launch go live together, so customers never see half of a product release. Per-page results cut the time spent finding out what was held back and why.</td><td>As a publisher<br>I want to publish a selection of pages at once and see the result for each<br>So that a release of related pages goes live together and I know which ones were held back and why</td><td>US-05.01.1</td><td>14</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 1 scenario</summary><pre lang="gherkin">Scenario: Bulk publish from the page list
   Given I selected 3 pages in Pages and 1 of them is still in review
-  When I click "Publish" in the selection bar and publish now
+  When I click &quot;Publish&quot; in the selection bar and publish now
   Then the 2 ready pages go live
-  And "Publishing results" shows a tick for each and the reason for the third
-```
-
-</details>
-
-<details><summary><b>US-05.01.4</b> · Hand a signed-off page over to the publisher</summary>
-
-```gherkin
-Scenario: No Publish permission
-  Given I am signed in as "content.author"
-  Then a page at "Ready to publish" shows "Waiting for a publisher"
-```
-
-</details>
+  And &quot;Publishing results&quot; shows a tick for each and the reason for the third</pre></details></td></tr>
+<tr><td>4</td><td><b>US-05.01.4</b> · Hand a signed-off page over to the publisher</td><td>content author</td><td>Keeping publishing with authorised publishers enforces separation of duties that auditors and regulators expect. Clear hand-over status reduces chasing between teams and shortens time to market.</td><td>As a content author<br>I want to see that my signed-off page is waiting for a publisher instead of publishing it myself<br>So that only people with Publish put content live, and I know who acts next until I am told the page is live</td><td>US-05.01.1</td><td>14</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 1 scenario</summary><pre lang="gherkin">Scenario: No Publish permission
+  Given I am signed in as &quot;content.author&quot;
+  Then a page at &quot;Ready to publish&quot; shows &quot;Waiting for a publisher&quot;</pre></details></td></tr>
+</table>
 
 ### Feature: Compare an authoring version with the live page
 Source: [`02-compare-with-live.feature`](features/05-publishing/02-compare-with-live.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-05.02.1** · See what will change before publishing | publisher | Publishers catch unintended changes before customers see them, lowering the risk of wrong rates or terms going live. A clear list of differences makes sign-off faster and easier to evidence. | As a publisher<br>I want to see the authoring version next to the live page, with every difference listed<br>So that I know exactly what will change for customers when I publish | US-05.01.1, US-03.06.4 | 14 |
-| 2 | **US-05.02.2** · Check an older version against live | content author | The bank can quickly establish when a change was made and what customers were shown at the time. This supports complaint handling and regulatory enquiries without costly investigation. | As a content author<br>I want to compare any saved version of my page with the live page<br>So that I can find when a change was made and what customers still see | US-05.02.1 | 15 |
-
-**Acceptance criteria** — the Background applies to every story of this feature
+*Background — add it at the top of the acceptance criteria of every story in this feature:*
 
 ```gherkin
 Background:
   Given the page "Cash ISA" was published before and has been edited since
 ```
 
-<details><summary><b>US-05.02.1</b> · See what will change before publishing</summary>
-
-```gherkin
-Scenario: Compare is offered only for one page that has been live
-  When I select "Cash ISA" alone in Pages
-  Then the "Compare" button is enabled
-  But it is disabled with "Not published yet · nothing to compare" for a page that was never live
-  And it asks to "Pick one page to compare" when several pages are selected
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-05.02.1</b> · See what will change before publishing</td><td>publisher</td><td>Publishers catch unintended changes before customers see them, lowering the risk of wrong rates or terms going live. A clear list of differences makes sign-off faster and easier to evidence.</td><td>As a publisher<br>I want to see the authoring version next to the live page, with every difference listed<br>So that I know exactly what will change for customers when I publish</td><td>US-05.01.1, US-03.06.4</td><td>14</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Compare is offered only for one page that has been live
+  When I select &quot;Cash ISA&quot; alone in Pages
+  Then the &quot;Compare&quot; button is enabled
+  But it is disabled with &quot;Not published yet · nothing to compare&quot; for a page that was never live
+  And it asks to &quot;Pick one page to compare&quot; when several pages are selected
 
 Scenario: Side by side with the differences
-  When I click "Compare"
+  When I click &quot;Compare&quot;
   Then I see the authoring version on the left and the live page on the right
   And both sides scroll together
-  And the sidebar lists each component as "Added", "Removed", "Changed" or "Moved"
+  And the sidebar lists each component as &quot;Added&quot;, &quot;Removed&quot;, &quot;Changed&quot; or &quot;Moved&quot;
   And a changed page title is listed too
 
 Scenario: Jump to a difference
   When I click a difference in the sidebar
-  Then it flashes on both sides
-```
-
-</details>
-
-<details><summary><b>US-05.02.2</b> · Check an older version against live</summary>
-
-```gherkin
-Scenario: Pick an older authoring version
+  Then it flashes on both sides</pre></details></td></tr>
+<tr><td>2</td><td><b>US-05.02.2</b> · Check an older version against live</td><td>content author</td><td>The bank can quickly establish when a change was made and what customers were shown at the time. This supports complaint handling and regulatory enquiries without costly investigation.</td><td>As a content author<br>I want to compare any saved version of my page with the live page<br>So that I can find when a change was made and what customers still see</td><td>US-05.02.1</td><td>15</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 1 scenario</summary><pre lang="gherkin">Scenario: Pick an older authoring version
   When I choose a saved version from the authoring dropdown
-  Then the left side shows that version and the differences are recalculated
-```
-
-</details>
+  Then the left side shows that version and the differences are recalculated</pre></details></td></tr>
+</table>
 
 ---
 
@@ -1986,165 +1511,106 @@ Scenario: Pick an older authoring version
 ### Feature: Page templates
 Source: [`01-templates.feature`](features/06-content-library/01-templates.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-06.01.1** · Build and maintain page templates 🛡 | site admin | Every page type starts from an approved structure with mandatory brand and navigation parts, so brand and compliance consistency is built in. New pages are created faster, cutting time to market. | As a site admin<br>I want to create, edit, duplicate and delete templates the way I edit pages<br>So that every new page of a type starts consistent, with the required HSBC parts in place | — | 1 |
-| 2 | **US-06.01.2** · Limit a template to some markets 🛡 | site admin | Market-specific layouts cannot be reused by markets they were not approved for, reducing local regulatory and brand risk. Central teams can share templates safely without extra manual checks. | As a site admin<br>I want to choose in which local markets a template can be used<br>So that local templates stay local | US-06.01.1 | 2 |
-| 3 | **US-06.01.3** · Pick the right template for my market | content author | Authors start from approved, market-appropriate templates instead of improvising layouts, which lowers rework and review effort. Read-only access protects templates from accidental change. | As a content author<br>I want to browse the template library and see what each template contains and where it can be used, without being able to change it<br>So that I start pages from an approved template that is allowed in my market | US-06.01.1, US-06.01.2 | 3 |
-
-**Acceptance criteria**
-
-<details><summary><b>US-06.01.1</b> · Build and maintain page templates</summary>
-
-```gherkin
-Scenario: Editing a template
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-06.01.1</b> · Build and maintain page templates 🛡</td><td>site admin</td><td>Every page type starts from an approved structure with mandatory brand and navigation parts, so brand and compliance consistency is built in. New pages are created faster, cutting time to market.</td><td>As a site admin<br>I want to create, edit, duplicate and delete templates the way I edit pages<br>So that every new page of a type starts consistent, with the required HSBC parts in place</td><td>—</td><td>1</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Editing a template
   Given I am a site admin
   When I add, move or remove components in the template editor
   Then the template saves itself
   And the HSBC menu, breadcrumb and footer cannot be removed
 
 Scenario: Existing pages are not changed
-  Then the settings say "Changing the template does not change pages already created with it."
+  Then the settings say &quot;Changing the template does not change pages already created with it.&quot;
 
 Scenario: New, duplicate and delete
-  Then I can create a template with a unique name, duplicate it as "(copy)" and delete it
-  But the "Blank page" template cannot be duplicated or deleted
-```
-
-</details>
-
-<details><summary><b>US-06.01.2</b> · Limit a template to some markets</summary>
-
-```gherkin
-Scenario: Choosing markets
-  When I choose "Only some local markets" and tick "Hong Kong" in Template settings
+  Then I can create a template with a unique name, duplicate it as &quot;(copy)&quot; and delete it
+  But the &quot;Blank page&quot; template cannot be duplicated or deleted</pre></details></td></tr>
+<tr><td>2</td><td><b>US-06.01.2</b> · Limit a template to some markets 🛡</td><td>site admin</td><td>Market-specific layouts cannot be reused by markets they were not approved for, reducing local regulatory and brand risk. Central teams can share templates safely without extra manual checks.</td><td>As a site admin<br>I want to choose in which local markets a template can be used<br>So that local templates stay local</td><td>US-06.01.1</td><td>2</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 1 scenario</summary><pre lang="gherkin">Scenario: Choosing markets
+  When I choose &quot;Only some local markets&quot; and tick &quot;Hong Kong&quot; in Template settings
   Then only Hong Kong can create pages from it
-  And I am warned that the UK can no longer create pages from it
-```
-
-</details>
-
-<details><summary><b>US-06.01.3</b> · Pick the right template for my market</summary>
-
-```gherkin
-Scenario: Read-only for everyone else
-  Given I am signed in as "content.author"
-  Then the template library says "Read-only · ask a site admin to change templates"
-  And "Edit" buttons read "View"
+  And I am warned that the UK can no longer create pages from it</pre></details></td></tr>
+<tr><td>3</td><td><b>US-06.01.3</b> · Pick the right template for my market</td><td>content author</td><td>Authors start from approved, market-appropriate templates instead of improvising layouts, which lowers rework and review effort. Read-only access protects templates from accidental change.</td><td>As a content author<br>I want to browse the template library and see what each template contains and where it can be used, without being able to change it<br>So that I start pages from an approved template that is allowed in my market</td><td>US-06.01.1, US-06.01.2</td><td>3</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Read-only for everyone else
+  Given I am signed in as &quot;content.author&quot;
+  Then the template library says &quot;Read-only · ask a site admin to change templates&quot;
+  And &quot;Edit&quot; buttons read &quot;View&quot;
 
 Scenario: Template cards
-  Then each card shows a thumbnail, the number of blocks, the folder, the markets and "used by N pages"
+  Then each card shows a thumbnail, the number of blocks, the folder, the markets and &quot;used by N pages&quot;
 
 Scenario: A template for another market
-  Given "Rates page" is for Hong Kong only
+  Given &quot;Rates page&quot; is for Hong Kong only
   When I open the library in the UK
-  Then its card is dimmed and the button says "Not for UK"
-```
-
-</details>
+  Then its card is dimmed and the button says &quot;Not for UK&quot;</pre></details></td></tr>
+</table>
 
 ### Feature: Assets (images and documents)
 Source: [`02-assets.feature`](features/06-content-library/02-assets.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-06.02.1** · Upload and replace files safely | content author | Files can be updated without breaking live pages, protecting the customer experience and the bank's reputation. Automatic renaming prevents costly overwrites of approved material. | As a content author<br>I want to upload and replace files without ever overwriting another file or deleting one that pages still use<br>So that no live page breaks because of a change in the library | — | 1 |
-| 2 | **US-06.02.2** · Make files accessible | content author | Recording alt text and document accessibility details helps the bank meet its accessibility obligations and avoid legal risk. Customers using assistive technology get the same information as everyone else. | As a content author<br>I want to record alt text per language for images and the accessibility details of documents<br>So that every file on our pages can be used by customers with assistive technology | US-06.02.1 | 2 |
-| 3 | **US-06.02.3** · Find the right file | content author | Reusing approved files avoids duplicate purchases and repeated approvals, lowering cost. Smart views surface unused and inaccessible files so problems are fixed before audits find them. | As a content author<br>I want to browse files by folder and type and see which ones are unused or missing accessibility details<br>So that I reuse approved files and can clean up problems quickly | US-06.02.1, US-06.02.2 | 3 |
-| 4 | **US-06.02.4** · Approve files for live use | publisher | Only approved files can appear on live pages, reducing brand, legal and compliance risk. The publish record shows who approved each file and when, supporting audits. | As a publisher<br>I want to publish draft files and have pages refused while they still use a draft file<br>So that customers only ever see approved files | US-06.02.1 | 2 |
-
-**Acceptance criteria**
-
-<details><summary><b>US-06.02.1</b> · Upload and replace files safely</summary>
-
-```gherkin
-Scenario: Uploading
-  When I drop "hero.jpg" into "Campaigns"
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-06.02.1</b> · Upload and replace files safely</td><td>content author</td><td>Files can be updated without breaking live pages, protecting the customer experience and the bank&#x27;s reputation. Automatic renaming prevents costly overwrites of approved material.</td><td>As a content author<br>I want to upload and replace files without ever overwriting another file or deleting one that pages still use<br>So that no live page breaks because of a change in the library</td><td>—</td><td>1</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: Uploading
+  When I drop &quot;hero.jpg&quot; into &quot;Campaigns&quot;
   Then it is uploaded as a draft
-  And a second "hero.jpg" becomes "hero-2.jpg"
+  And a second &quot;hero.jpg&quot; becomes &quot;hero-2.jpg&quot;
 
 Scenario: Replacing keeps pages working
-  When I replace "hero.jpg" with a new file
+  When I replace &quot;hero.jpg&quot; with a new file
   Then pages that use it show the new file
   And its alt text is kept
 
 Scenario: Deleting a used file
-  Given "hero.jpg" is used on 2 pages
-  Then I cannot delete it and I am told "Remove it from pages first"
-```
-
-</details>
-
-<details><summary><b>US-06.02.2</b> · Make files accessible</summary>
-
-```gherkin
-Scenario: Alt text per language
+  Given &quot;hero.jpg&quot; is used on 2 pages
+  Then I cannot delete it and I am told &quot;Remove it from pages first&quot;</pre></details></td></tr>
+<tr><td>2</td><td><b>US-06.02.2</b> · Make files accessible</td><td>content author</td><td>Recording alt text and document accessibility details helps the bank meet its accessibility obligations and avoid legal risk. Customers using assistive technology get the same information as everyone else.</td><td>As a content author<br>I want to record alt text per language for images and the accessibility details of documents<br>So that every file on our pages can be used by customers with assistive technology</td><td>US-06.02.1</td><td>2</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: Alt text per language
   When I open the accessibility panel of an image
   Then I enter alt text for every language of the market, the first one required
-  And instead of alt text I can mark it "Decorative only"
-  And I am told not to start with "image of" and to keep it under 150 characters
+  And instead of alt text I can mark it &quot;Decorative only&quot;
+  And I am told not to start with &quot;image of&quot; and to keep it under 150 characters
 
 Scenario: Documents
-  Then a PDF needs a title, a language and "Tagged PDF, checked"
-```
-
-</details>
-
-<details><summary><b>US-06.02.3</b> · Find the right file</summary>
-
-```gherkin
-Scenario: Browsing
+  Then a PDF needs a title, a language and &quot;Tagged PDF, checked&quot;</pre></details></td></tr>
+<tr><td>3</td><td><b>US-06.02.3</b> · Find the right file</td><td>content author</td><td>Reusing approved files avoids duplicate purchases and repeated approvals, lowering cost. Smart views surface unused and inaccessible files so problems are fixed before audits find them.</td><td>As a content author<br>I want to browse files by folder and type and see which ones are unused or missing accessibility details<br>So that I reuse approved files and can clean up problems quickly</td><td>US-06.02.1, US-06.02.2</td><td>3</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: Browsing
   When I open Assets
   Then I see folders with counts, a grid or list, and filters for Images, Documents and Icons
 
 Scenario Outline: Smart views
-  When I open "<view>"
-  Then I see <what>
+  When I open &quot;&lt;view&gt;&quot;
+  Then I see &lt;what&gt;
 
   Examples:
     | view                         | what                                        |
     | Not used on any page         | files no page uses                          |
-    | Missing accessibility info   | images without alt text and untagged PDFs   |
-```
-
-</details>
-
-<details><summary><b>US-06.02.4</b> · Approve files for live use</summary>
-
-```gherkin
-Scenario: Publishing a file
+    | Missing accessibility info   | images without alt text and untagged PDFs   |</pre></details></td></tr>
+<tr><td>4</td><td><b>US-06.02.4</b> · Approve files for live use</td><td>publisher</td><td>Only approved files can appear on live pages, reducing brand, legal and compliance risk. The publish record shows who approved each file and when, supporting audits.</td><td>As a publisher<br>I want to publish draft files and have pages refused while they still use a draft file<br>So that customers only ever see approved files</td><td>US-06.02.1</td><td>2</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: Publishing a file
   Given I have Publish
-  When I click "Publish" on a draft file
-  Then it shows "Published" with who and when
+  When I click &quot;Publish&quot; on a draft file
+  Then it shows &quot;Published&quot; with who and when
 
 Scenario: A page cannot go live with a draft file
-  Then publishing a page that uses a draft file is refused until the file is published
-```
-
-</details>
+  Then publishing a page that uses a draft file is refused until the file is published</pre></details></td></tr>
+</table>
 
 ### Feature: Content models and content entities
 Source: [`03-models-and-entities.feature`](features/06-content-library/03-models-and-entities.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-06.03.1** · Define and evolve content models 🛡 | site admin | Structured, validated content types give every channel consistent data and reduce errors in key facts. Guarded breaking changes protect live content and avoid costly outages. | As a site admin<br>I want to create content models with validated fields, publish them, and change them safely over time<br>So that authors get well-structured content types and live content is not broken by a careless change | — | 1 |
-| 2 | **US-06.03.2** · Create reusable content items from a model | content author | Facts such as rates are entered once, so the bank avoids inconsistent figures that could mislead customers. Blocking deletion of items in use prevents broken pages. | As a content author<br>I want to fill in entities from published models, see the model as documentation, and be stopped from deleting entities in use<br>So that facts like rates are written once, correctly, and no page loses its content | US-06.03.1 | 2 |
-| 3 | **US-06.03.3** · Update a fact everywhere at once | content author | A rate change reaches every page and channel at the same moment, lowering conduct risk from outdated figures. It removes the cost of editing many pages by hand. | As a content author<br>I want publishing an entity to update every page that shows it<br>So that a changed rate is correct on all pages and channels at the same moment | US-06.03.2, US-03.05.1 | 4 |
-
-**Acceptance criteria**
-
-<details><summary><b>US-06.03.1</b> · Define and evolve content models</summary>
-
-```gherkin
-Scenario: Creating a model
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-06.03.1</b> · Define and evolve content models 🛡</td><td>site admin</td><td>Structured, validated content types give every channel consistent data and reduce errors in key facts. Guarded breaking changes protect live content and avoid costly outages.</td><td>As a site admin<br>I want to create content models with validated fields, publish them, and change them safely over time<br>So that authors get well-structured content types and live content is not broken by a careless change</td><td>—</td><td>1</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 4 scenarios</summary><pre lang="gherkin">Scenario: Creating a model
   Given I am a site admin
-  When I create the model "Savings product" in 3 steps: information, fields and review
-  Then its id is "savings-product"
-  And I can "Save as draft" or "Save & publish"
+  When I create the model &quot;Savings product&quot; in 3 steps: information, fields and review
+  Then its id is &quot;savings-product&quot;
+  And I can &quot;Save as draft&quot; or &quot;Save &amp; publish&quot;
 
 Scenario Outline: Field validation
-  When I add a field with <problem>
+  When I add a field with &lt;problem&gt;
   Then I see an error
 
   Examples:
@@ -2158,51 +1624,37 @@ Scenario Outline: Field validation
 Scenario: Breaking changes need confirmation
   Given the model is published
   When I remove a field, change a type or make a field required and publish
-  Then I must tick "I understand the impact"
+  Then I must tick &quot;I understand the impact&quot;
 
 Scenario: Versions
-  Then every change is kept as a version I can compare and restore into the draft
-```
-
-</details>
-
-<details><summary><b>US-06.03.2</b> · Create reusable content items from a model</summary>
-
-```gherkin
-Scenario: Read-only for others
+  Then every change is kept as a version I can compare and restore into the draft</pre></details></td></tr>
+<tr><td>2</td><td><b>US-06.03.2</b> · Create reusable content items from a model</td><td>content author</td><td>Facts such as rates are entered once, so the bank avoids inconsistent figures that could mislead customers. Blocking deletion of items in use prevents broken pages.</td><td>As a content author<br>I want to fill in entities from published models, see the model as documentation, and be stopped from deleting entities in use<br>So that facts like rates are written once, correctly, and no page loses its content</td><td>US-06.03.1</td><td>2</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 5 scenarios</summary><pre lang="gherkin">Scenario: Read-only for others
   Given I am not a site admin
-  Then content models show "Read-only · documentation view"
+  Then content models show &quot;Read-only · documentation view&quot;
 
 Scenario: Creating an entity
   Given I have Edit on the market
-  When I create an entity of the published model "Rate" called "ISA rates 2026"
-  Then a form built from the model's fields opens
+  When I create an entity of the published model &quot;Rate&quot; called &quot;ISA rates 2026&quot;
+  Then a form built from the model&#x27;s fields opens
 
 Scenario: Draft models cannot be used
-  Then a model that is still a draft is disabled with "Publish the model first"
+  Then a model that is still a draft is disabled with &quot;Publish the model first&quot;
 
 Scenario: Validation
   When I save with 2 invalid fields
-  Then I see "Fix 2 fields before saving"
+  Then I see &quot;Fix 2 fields before saving&quot;
 
 Scenario: Entities in use cannot be deleted
-  Given "ISA rates 2026" is used on 3 pages
+  Given &quot;ISA rates 2026&quot; is used on 3 pages
   When I delete it
-  Then I see "Used on 3 pages · Remove it from those pages first"
-```
-
-</details>
-
-<details><summary><b>US-06.03.3</b> · Update a fact everywhere at once</summary>
-
-```gherkin
-Scenario: Publishing an entity updates the pages that use it
-  When I publish "ISA rates 2026"
+  Then I see &quot;Used on 3 pages · Remove it from those pages first&quot;</pre></details></td></tr>
+<tr><td>3</td><td><b>US-06.03.3</b> · Update a fact everywhere at once</td><td>content author</td><td>A rate change reaches every page and channel at the same moment, lowering conduct risk from outdated figures. It removes the cost of editing many pages by hand.</td><td>As a content author<br>I want publishing an entity to update every page that shows it<br>So that a changed rate is correct on all pages and channels at the same moment</td><td>US-06.03.2, US-03.05.1</td><td>4</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 1 scenario</summary><pre lang="gherkin">Scenario: Publishing an entity updates the pages that use it
+  When I publish &quot;ISA rates 2026&quot;
   Then the audit log says it updates the pages that show it
-  And the delivery API shows the new values on those pages
-```
-
-</details>
+  And the delivery API shows the new values on those pages</pre></details></td></tr>
+</table>
 
 ---
 
@@ -2211,56 +1663,43 @@ Scenario: Publishing an entity updates the pages that use it
 ### Feature: Translate pages
 Source: [`01-translate-pages.feature`](features/07-translations/01-translate-pages.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-07.01.1** · Create translated copies of pages in a few steps | content author | Pages reach every language of a market far faster than copying them by hand, shortening time to market. Wider language coverage improves access for customers and supports local language requirements. | As a content author<br>I want to choose the languages, how the text is translated and where the copies go, then check and create them in one flow<br>So that I can offer pages in every language of my market without copying them by hand | US-02.01.1 | 3 |
-| 2 | **US-07.01.2** · Review every language version before it goes live | business owner | Translations get the same checks as originals, so no unverified wording about products or terms reaches customers. This keeps the bank compliant in every language it publishes. | As a business owner<br>I want every translated page to go through the same author's review and business review as the original<br>So that no unchecked translation reaches customers | US-07.01.1, US-04.01.1 | 9 |
-
-**Acceptance criteria** — the Background applies to every story of this feature
+*Background — add it at the top of the acceptance criteria of every story in this feature:*
 
 ```gherkin
 Background:
   Given I selected "Cash ISA" and "Fixed rate bonds" in the UK market
 ```
 
-<details><summary><b>US-07.01.1</b> · Create translated copies of pages in a few steps</summary>
-
-```gherkin
-Scenario: Four steps
-  When I click "Translate"
-  Then I go through "Languages", "How", "Where" and "Check"
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-07.01.1</b> · Create translated copies of pages in a few steps</td><td>content author</td><td>Pages reach every language of a market far faster than copying them by hand, shortening time to market. Wider language coverage improves access for customers and supports local language requirements.</td><td>As a content author<br>I want to choose the languages, how the text is translated and where the copies go, then check and create them in one flow<br>So that I can offer pages in every language of my market without copying them by hand</td><td>US-02.01.1</td><td>3</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 5 scenarios</summary><pre lang="gherkin">Scenario: Four steps
+  When I click &quot;Translate&quot;
+  Then I go through &quot;Languages&quot;, &quot;How&quot;, &quot;Where&quot; and &quot;Check&quot;
 
 Scenario: Languages
-  Then the market's own languages are shown first, then other markets' languages
-  And I see "1 language × 2 pages = 2 translations" when I pick Welsh
-  And a language every selected page already has is disabled with "already translated"
+  Then the market&#x27;s own languages are shown first, then other markets&#x27; languages
+  And I see &quot;1 language × 2 pages = 2 translations&quot; when I pick Welsh
+  And a language every selected page already has is disabled with &quot;already translated&quot;
 
 Scenario: How
-  Then I can choose "AI draft now" or "Send to the translation vendor"
+  Then I can choose &quot;AI draft now&quot; or &quot;Send to the translation vendor&quot;
 
 Scenario: Where
-  Then I can put each translation next to its source page as "cy-cash-isa"
+  Then I can put each translation next to its source page as &quot;cy-cash-isa&quot;
   And I can instead put all of them into one folder
 
 Scenario: Check and create
-  Given "cy-cash-isa" already exists
-  Then the check step marks it "already exists · skipped"
-  When I click "Create 1 translation"
+  Given &quot;cy-cash-isa&quot; already exists
+  Then the check step marks it &quot;already exists · skipped&quot;
+  When I click &quot;Create 1 translation&quot;
   Then the new page waits in the review Backlog
-  And it shows "Source: /banking/savings/fixed-rate-bonds" in the page list
-```
-
-</details>
-
-<details><summary><b>US-07.01.2</b> · Review every language version before it goes live</summary>
-
-```gherkin
-Scenario: Translations always go through the workflow
-  Then every translated page is created at "Waiting for author's review assignment"
-  And it needs the author's review and the business review before it can be published
-```
-
-</details>
+  And it shows &quot;Source: /banking/savings/fixed-rate-bonds&quot; in the page list</pre></details></td></tr>
+<tr><td>2</td><td><b>US-07.01.2</b> · Review every language version before it goes live</td><td>business owner</td><td>Translations get the same checks as originals, so no unverified wording about products or terms reaches customers. This keeps the bank compliant in every language it publishes.</td><td>As a business owner<br>I want every translated page to go through the same author&#x27;s review and business review as the original<br>So that no unchecked translation reaches customers</td><td>US-07.01.1, US-04.01.1</td><td>9</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 1 scenario</summary><pre lang="gherkin">Scenario: Translations always go through the workflow
+  Then every translated page is created at &quot;Waiting for author&#x27;s review assignment&quot;
+  And it needs the author&#x27;s review and the business review before it can be published</pre></details></td></tr>
+</table>
 
 ---
 
@@ -2269,18 +1708,10 @@ Scenario: Translations always go through the workflow
 ### Feature: Audit log and dashboard
 Source: [`01-audit-and-dashboard.feature`](features/08-governance/01-audit-and-dashboard.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-08.01.1** · Search and export a full audit trail 🛡 | site admin | The bank can answer auditors and regulators with complete evidence of who changed what and when. Fast search and CSV export cut the cost of compliance reviews. | As a site admin<br>I want every change recorded with who, what, when and a request id, and to search and export everyone's events<br>So that the bank can prove who did what to auditors and regulators | US-01.03.1 | 2 |
-| 2 | **US-08.01.2** · See my own activity | content author | Staff can check their own work without seeing colleagues' activity, respecting need-to-know access. Fewer support requests to admins lowers operating cost. | As a content author<br>I want to see a log of my own actions only<br>So that I can check what I did without seeing other people's activity | US-08.01.1 | 3 |
-| 3 | **US-08.01.3** · See what needs attention | content author | Waiting reviews and failed publishes are spotted early, so content reaches customers on time. Managers get a quick view of throughput without manual reporting. | As a content author<br>I want a dashboard that summarises waiting reviews, how much of the site is live, failed publishes, my tasks and recent activity<br>So that I see at a glance where work stands and what to do next | US-08.01.1, US-04.06.1 | 10 |
-
-**Acceptance criteria**
-
-<details><summary><b>US-08.01.1</b> · Search and export a full audit trail</summary>
-
-```gherkin
-Scenario: Audit entries
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-08.01.1</b> · Search and export a full audit trail 🛡</td><td>site admin</td><td>The bank can answer auditors and regulators with complete evidence of who changed what and when. Fast search and CSV export cut the cost of compliance reviews.</td><td>As a site admin<br>I want every change recorded with who, what, when and a request id, and to search and export everyone&#x27;s events<br>So that the bank can prove who did what to auditors and regulators</td><td>US-01.03.1</td><td>2</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: Audit entries
   When anyone saves, sends for review, reviews, signs off, publishes, archives, deletes or changes permissions
   Then the audit log gets a line with the person, the action, the page and a request id
 
@@ -2288,39 +1719,25 @@ Scenario: Finding events
   Then I can filter by Content, Publishing, Permissions or System
   And search by person, page, action or request id
   And choose All time, Today or Last 2 days
-  And export the result to CSV
-```
-
-</details>
-
-<details><summary><b>US-08.01.2</b> · See my own activity</summary>
-
-```gherkin
-Scenario: Admins see everyone, others see themselves
+  And export the result to CSV</pre></details></td></tr>
+<tr><td>2</td><td><b>US-08.01.2</b> · See my own activity</td><td>content author</td><td>Staff can check their own work without seeing colleagues&#x27; activity, respecting need-to-know access. Fewer support requests to admins lowers operating cost.</td><td>As a content author<br>I want to see a log of my own actions only<br>So that I can check what I did without seeing other people&#x27;s activity</td><td>US-08.01.1</td><td>3</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 1 scenario</summary><pre lang="gherkin">Scenario: Admins see everyone, others see themselves
   Given I am not a site admin
   When I open the audit log
-  Then it is titled "My activity" and shows only my actions
-```
-
-</details>
-
-<details><summary><b>US-08.01.3</b> · See what needs attention</summary>
-
-```gherkin
-Scenario: Dashboard tiles
+  Then it is titled &quot;My activity&quot; and shows only my actions</pre></details></td></tr>
+<tr><td>3</td><td><b>US-08.01.3</b> · See what needs attention</td><td>content author</td><td>Waiting reviews and failed publishes are spotted early, so content reaches customers on time. Managers get a quick view of throughput without manual reporting.</td><td>As a content author<br>I want a dashboard that summarises waiting reviews, how much of the site is live, failed publishes, my tasks and recent activity<br>So that I see at a glance where work stands and what to do next</td><td>US-08.01.1, US-04.06.1</td><td>10</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: Dashboard tiles
   When I open the dashboard
   Then I see how many pages wait for review and how old the oldest is
   And the share of the site that is live
-  And failed publishes as "N failed · A publish failed and needs action"
+  And failed publishes as &quot;N failed · A publish failed and needs action&quot;
   And my top 5 tasks with overdue ones in red
   And the latest 5 activity lines
 
 Scenario: Nothing waiting
   Given no page waits for review
-  Then the tile says "Nothing waiting. Nice."
-```
-
-</details>
+  Then the tile says &quot;Nothing waiting. Nice.&quot;</pre></details></td></tr>
+</table>
 
 ---
 
@@ -2329,58 +1746,36 @@ Scenario: Nothing waiting
 ### Feature: Content delivery API
 Source: [`01-delivery-api.feature`](features/09-delivery-api/01-delivery-api.feature)
 
-| # | Story | Persona | Business benefit | User story | Depends on | Wave |
-|---|---|---|---|---|---|---|
-| 1 | **US-09.01.1** · Get only approved content, and preview drafts separately | front-end developer | Only approved content can reach customers through any channel, reducing the risk of leaking unreleased offers. Separate previews let teams test upcoming pages without affecting live sites. | As a front-end developer<br>I want the public API to return only published pages, with a separate preview address for drafts<br>So that customers only ever see approved content while I can still test upcoming pages | US-05.01.1 | 14 |
-| 2 | **US-09.01.2** · Render pages straight from the JSON | front-end developer | All websites and apps show the same approved content from one source, cutting duplicate work across channels. Ready-to-use JSON and schemas shorten integration time and reduce rendering errors. | As a front-end developer<br>I want page JSON with resolved values, image renditions, form references and meta, plus a JSON Schema for each model<br>So that any channel can render the content without extra lookups or guesswork | US-09.01.1, US-03.05.1, US-06.02.1 | 15 |
-| 3 | **US-09.01.3** · Explore and try the API in the CMS | front-end developer | Developers integrate new channels faster without waiting for separate documentation. Self-service exploration lowers support effort and time to market. | As a front-end developer<br>I want a screen that shows each page's address and JSON, the model schemas and all endpoints, with "Copy URL" and "Try it"<br>So that I can integrate quickly without reading separate documentation | US-09.01.1, US-09.01.2 | 16 |
-
-**Acceptance criteria**
-
-<details><summary><b>US-09.01.1</b> · Get only approved content, and preview drafts separately</summary>
-
-```gherkin
-Scenario: List of published pages
-  When I call "GET /api/delivery/v1/pages?market=uk"
+<table>
+<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
+<tr><td>1</td><td><b>US-09.01.1</b> · Get only approved content, and preview drafts separately</td><td>front-end developer</td><td>Only approved content can reach customers through any channel, reducing the risk of leaking unreleased offers. Separate previews let teams test upcoming pages without affecting live sites.</td><td>As a front-end developer<br>I want the public API to return only published pages, with a separate preview address for drafts<br>So that customers only ever see approved content while I can still test upcoming pages</td><td>US-05.01.1</td><td>14</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 3 scenarios</summary><pre lang="gherkin">Scenario: List of published pages
+  When I call &quot;GET /api/delivery/v1/pages?market=uk&quot;
   Then I get only published pages with route, title, template, updatedAt and a link
 
 Scenario: A draft page is not public
-  When I call "GET /api/delivery/v1/pages/banking/new-offer" for a page that is not published
-  Then I get 404 "Not published" pointing to the preview address
+  When I call &quot;GET /api/delivery/v1/pages/banking/new-offer&quot; for a page that is not published
+  Then I get 404 &quot;Not published&quot; pointing to the preview address
 
 Scenario: Preview includes drafts
-  When I call "GET /api/delivery/v1/preview/pages/banking/new-offer"
-  Then I get the page JSON
-```
-
-</details>
-
-<details><summary><b>US-09.01.2</b> · Render pages straight from the JSON</summary>
-
-```gherkin
-Scenario: Page JSON
+  When I call &quot;GET /api/delivery/v1/preview/pages/banking/new-offer&quot;
+  Then I get the page JSON</pre></details></td></tr>
+<tr><td>2</td><td><b>US-09.01.2</b> · Render pages straight from the JSON</td><td>front-end developer</td><td>All websites and apps show the same approved content from one source, cutting duplicate work across channels. Ready-to-use JSON and schemas shorten integration time and reduce rendering errors.</td><td>As a front-end developer<br>I want page JSON with resolved values, image renditions, form references and meta, plus a JSON Schema for each model<br>So that any channel can render the content without extra lookups or guesswork</td><td>US-09.01.1, US-03.05.1, US-06.02.1</td><td>15</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 2 scenarios</summary><pre lang="gherkin">Scenario: Page JSON
   Then tokens are replaced with published entity values
   And images come with original, hero and card rendition addresses
   And forms come as an embed reference with their version
   And meta has the canonical address of the page
 
 Scenario: Schemas
-  When I call "GET /api/delivery/v1/models/rate"
-  Then I get a JSON Schema with the required fields and localised fields marked
-```
-
-</details>
-
-<details><summary><b>US-09.01.3</b> · Explore and try the API in the CMS</summary>
-
-```gherkin
-Scenario: API & delivery screen
-  When I open "API & delivery"
-  Then I can pick a page and see its public or preview address, its JSON, "Copy URL" and "Try it"
-  And see the JSON Schema of each model and a table of all endpoints
-```
-
-</details>
+  When I call &quot;GET /api/delivery/v1/models/rate&quot;
+  Then I get a JSON Schema with the required fields and localised fields marked</pre></details></td></tr>
+<tr><td>3</td><td><b>US-09.01.3</b> · Explore and try the API in the CMS</td><td>front-end developer</td><td>Developers integrate new channels faster without waiting for separate documentation. Self-service exploration lowers support effort and time to market.</td><td>As a front-end developer<br>I want a screen that shows each page&#x27;s address and JSON, the model schemas and all endpoints, with &quot;Copy URL&quot; and &quot;Try it&quot;<br>So that I can integrate quickly without reading separate documentation</td><td>US-09.01.1, US-09.01.2</td><td>16</td></tr>
+<tr><td></td><td colspan="6"><details><summary>Acceptance criteria · 1 scenario</summary><pre lang="gherkin">Scenario: API &amp; delivery screen
+  When I open &quot;API &amp; delivery&quot;
+  Then I can pick a page and see its public or preview address, its JSON, &quot;Copy URL&quot; and &quot;Try it&quot;
+  And see the JSON Schema of each model and a table of all endpoints</pre></details></td></tr>
+</table>
 
 ---
 

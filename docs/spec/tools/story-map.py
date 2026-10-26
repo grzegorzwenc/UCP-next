@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Builds docs/spec/STORY-MAP.md from the .feature files (they stay the source of truth).
 Run from docs/spec:  python3 tools/story-map.py"""
-import glob, os, re
+import glob, html, os, re
 
 EPIC = {"01": "Access & navigation", "02": "Pages", "03": "Page builder", "04": "Review workflow", "05": "Publishing",
         "06": "Content library", "07": "Translations", "08": "Governance", "09": "Delivery API"}
@@ -47,7 +47,7 @@ waves = max(wave(s["id"]) for s in allst)
 o = ["# Story map", "", open("tools/jira-notes.md").read().rstrip(), "",
      "## How to read a story", "",
      "Each feature has one table: every row is one Jira Story with its **ID · name**, **persona**, **business benefit** and **user story**. "
-     "Under the table, click a story to see its **acceptance criteria**. `Depends on` = create as \"is blocked by\" links. "
+     "Right under each story, click **Acceptance criteria** to open its scenarios. `Depends on` = create as \"is blocked by\" links. "
      "**Wave** = earliest build wave across the whole product (wave 1 needs nothing; a story can start once everything it depends on is done). "
      "🛡 site-admin story · ⏭ planned, not built yet.", "",
      f"**{len(allst)} stories · {len(feats)} features · 9 epics · {waves} build waves.** "
@@ -60,17 +60,17 @@ for f, feat, bg, st in feats:
     if not st: continue
     if st[0]["ep"] != cur:
         cur = st[0]["ep"]; o += ["", "---", "", f"## {cur} · {EPIC[cur]}"]
-    o += ["", f"### Feature: {feat}", f"Source: [`{os.path.basename(f)}`]({f})", "",
-          "| # | Story | Persona | Business benefit | User story | Depends on | Wave |", "|---|---|---|---|---|---|---|"]
+    o += ["", f"### Feature: {feat}", f"Source: [`{os.path.basename(f)}`]({f})", ""]
+    if bg:
+        o += ["*Background — add it at the top of the acceptance criteria of every story in this feature:*", "", "```gherkin", "Background:"] + ["  " + b for b in bg] + ["```", ""]
+    o += ["<table>", "<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>"]
     for s in st:
         mark = (" 🛡" if s["admin"] else "") + (" ⏭" if s["nxt"] else "")
-        us = "<br>".join(x.replace("|", "\\|") for x in s["story"])
-        o.append(f"| {s['n']} | **{s['id']}** · {s['title']}{mark} | {s['persona']} | {s['ben']} | {us} | {', '.join(s['deps']) or '—'} | {wave(s['id'])} |")
-    o += ["", "**Acceptance criteria**" + (" — the Background applies to every story of this feature" if bg else "")]
-    if bg:
-        o += ["", "```gherkin", "Background:"] + ["  " + b for b in bg] + ["```"]
-    for s in st:
-        o += ["", f"<details><summary><b>{s['id']}</b> · {s['title']}</summary>", "", "```gherkin", s["ac"], "```", "", "</details>"]
+        us = "<br>".join(html.escape(x) for x in s["story"])
+        n_sc = len(re.findall(r"^\s*Scenario", s["ac"], re.M))
+        o += [f"<tr><td>{s['n']}</td><td><b>{s['id']}</b> · {html.escape(s['title'])}{mark}</td><td>{html.escape(s['persona'])}</td><td>{html.escape(s['ben'])}</td><td>{us}</td><td>{', '.join(s['deps']) or '—'}</td><td>{wave(s['id'])}</td></tr>",
+              f"<tr><td></td><td colspan=\"6\"><details><summary>Acceptance criteria · {n_sc} scenario{'s' if n_sc != 1 else ''}</summary><pre lang=\"gherkin\">{html.escape(s['ac'])}</pre></details></td></tr>"]
+    o += ["</table>"]
 o += ["", "---", "", "## Build waves (whole product)", "", "Stories in the same wave can be built in parallel once the earlier waves are done.", ""]
 for w in range(1, waves + 1):
     o += [f"**Wave {w}** — " + " · ".join(f"{s['id']} {s['title']}" for s in allst if wave(s["id"]) == w), ""]
