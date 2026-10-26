@@ -1,5 +1,6 @@
+# Business benefit: Templates, assets, models and shared content are defined once and reused everywhere, so facts like rates are correct on every page and brand rules are applied by default. Accessibility data on every file supports inclusive design and regulatory accessibility duties.
 @epic:content-library @status:done
-Feature: Content library
+Feature: EP-06 · Content library
   Reusable building blocks and content: page templates, assets with accessibility data, content models and entities.
 
   # Business benefit: Every page type starts from an approved structure with mandatory brand and navigation parts, so brand and compliance consistency is built in. New pages are created faster, cutting time to market.

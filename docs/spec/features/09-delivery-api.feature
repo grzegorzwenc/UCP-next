@@ -1,5 +1,6 @@
+# Business benefit: Every website and app reads the same approved content from one API, so the bank stops duplicating content per channel. Clear contracts and schemas let development teams integrate quickly and with fewer defects.
 @epic:delivery-api @status:done
-Feature: Delivery API
+Feature: EP-09 · Delivery API
   Approved content as JSON for every HSBC website and app.
 
   # Business benefit: Only approved content can reach customers through any channel, reducing the risk of leaking unreleased offers. Separate previews let teams test upcoming pages without affecting live sites.

@@ -28,6 +28,8 @@ def scenarios_html(ac):
 def epic_of(path):
     L = open(path).read().rstrip("\n").split("\n")
     name = next(l.split("Feature:", 1)[1].strip() for l in L if l.startswith("Feature:"))
+    eid, name = name.split(" · ", 1)
+    eben = next((l.replace("# Business benefit:", "").strip() for l in L if l.startswith("# Business benefit:")), "")
     fi = next(i for i, l in enumerate(L) if l.startswith("Feature:"))
     desc = L[fi + 1].strip()
     starts = [i for i, l in enumerate(L) if STORY.match(l)]
@@ -54,7 +56,7 @@ def epic_of(path):
                         persona=re.sub(r"^As (an?|the) ", "", story[0]), ac=ac, bg=bg, notes=notes,
                         deps=re.findall(r"@depends:(US-[\d.]+)", tags), admin="@admin" in tags, nxt="@status:next" in tags,
                         mock="@mock" in tags))
-    return name, desc, out
+    return (eid, name, eben), desc, out
 
 
 epics = [(f, *epic_of(f)) for f in sorted(glob.glob("features/*.feature"))]
@@ -64,11 +66,11 @@ def wave(i):
     if i not in memo: memo[i] = 1 + max([wave(d) for d in by[i]["deps"]] + [0])
     return memo[i]
 waves = max(wave(s["id"]) for s in allst)
-anchor = lambda ep, name: f"#epic-{ep}--" + re.sub(r"[^a-z0-9 -]", "", name.lower()).replace(" ", "-")
+anchor = lambda eid, name: "#" + re.sub(r"[^a-z0-9 -]", "", f"{eid} {name}".lower()).replace(" ", "-")
 
 o = ["# Story map", "", open("tools/jira-notes.md").read().rstrip(), "",
      "## How to read it", "",
-     "**Epic → Story**, exactly as in Jira. Each epic has one table; every row is one Jira Story with its **ID · name**, "
+     "**Epic → Story**, exactly as in Jira. Each epic starts with its own card (name, business benefit, scope, a description ready to paste), then one table of its stories; every row is one Jira Story with its **ID · name**, "
      "**persona**, **business benefit** and **user story**. Right under each story, click **Acceptance criteria** to open its scenarios. "
      "`Depends on` = create as \"is blocked by\" links. **Wave** = earliest build wave across the whole product "
      "(wave 1 needs nothing; a story can start once everything it depends on is done). "
@@ -76,10 +78,16 @@ o = ["# Story map", "", open("tools/jira-notes.md").read().rstrip(), "",
      f"**{len(epics)} epics · {len(allst)} stories · {waves} build waves.** "
      "Generated from the `.feature` files with `python3 tools/story-map.py` — edit the features, then regenerate.", "",
      "| Epic | Stories | Source |", "|---|---|---|"]
-for f, name, desc, st in epics:
-    o.append(f"| [Epic {st[0]['ep']} · {name}]({anchor(st[0]['ep'], name)}) | {len(st)} | [`{os.path.basename(f)}`]({f}) |")
-for f, name, desc, st in epics:
-    o += ["", "---", "", f"## Epic {st[0]['ep']} · {name}", "", desc, "", f"Source: [`{os.path.basename(f)}`]({f})", "",
+for f, (eid, name, eben), desc, st in epics:
+    o.append(f"| [{eid} · {name}]({anchor(eid, name)}) | {len(st)} | [`{os.path.basename(f)}`]({f}) |")
+for f, (eid, name, eben), desc, st in epics:
+    o += ["", "---", "", f"## {eid} · {name}", "",
+          "| Epic field | Value |", "|---|---|", "| Issue type | Epic |", f"| Epic name / Summary | {eid} · {name} |",
+          "| Team | WPB Digital Browser: Tools |", f"| Business benefit | {eben} |", f"| Scope | {desc} |",
+          f"| Stories | {len(st)} · {st[0]['id']} to {st[-1]['id']} |", "",
+          "<details><summary>Epic description to paste into Jira</summary>", "", "```text", "Business benefit", eben, "", "Scope", desc, "",
+          "Stories", *[f"{x['id']} · {x['title']}" for x in st], "```", "", "</details>", "",
+          f"Source: [`{os.path.basename(f)}`]({f})", "", "**Stories**", "",
           "<table>", "<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>"]
     for s in st:
         mark = (" 🛡" if s["admin"] else "") + (" ⏭" if s["nxt"] else "") + (" 🧪" if s["mock"] else "")

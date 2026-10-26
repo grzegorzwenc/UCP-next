@@ -1,5 +1,6 @@
+# Business benefit: Every change is recorded with who, what and when, giving the bank evidence for auditors and regulators on demand. A shared dashboard shows bottlenecks early, so managers act before deadlines are missed.
 @epic:governance @status:done
-Feature: Governance
+Feature: EP-08 · Governance
   Proof and overview: the audit trail of every change and the dashboard of what needs attention.
 
   # Business benefit: The bank can answer auditors and regulators with complete evidence of who changed what and when. Fast search and CSV export cut the cost of compliance reviews.

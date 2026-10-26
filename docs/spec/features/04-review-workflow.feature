@@ -1,5 +1,6 @@
+# Business benefit: Every page is checked by separate people for content and for business sign-off before it goes live, which builds the four-eyes control regulators expect into the tool itself. Clear hand-offs, tasks and reminders remove idle time between teams and make delays visible.
 @epic:review-workflow @status:done
-Feature: Review workflow
+Feature: EP-04 · Review workflow
   The four-eyes approval chain: the author hands the page to a peer reviewer, then to the business, with comments, review links, My tasks and notifications.
 
   # Business benefit: A shared Backlog lets the first free reviewer start, so pages do not queue behind one person's calendar. Due dates and audit entries make review turnaround measurable from day one.

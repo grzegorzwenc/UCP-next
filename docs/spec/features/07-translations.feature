@@ -1,5 +1,6 @@
+# Business benefit: Language versions are produced in minutes instead of being rebuilt by hand, so local markets launch at the same time as the original. Every translation goes through the same review, so speed never bypasses compliance.
 @epic:translations @status:done
-Feature: Translations
+Feature: EP-07 · Translations
   Language versions of pages, created in a few steps and approved through the same workflow.
 
   # Business benefit: Pages reach every language of a market far faster than copying them by hand, shortening time to market. Wider language coverage improves access for customers and supports local language requirements.

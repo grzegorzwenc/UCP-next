@@ -4,6 +4,19 @@
 
 The hierarchy is **Epic → Story**: create the 9 epics first (issue type Epic, same Team and Sprint), then the stories under them.
 
+### Epics
+
+Create the 9 epics first. Each epic section below has a card with the values and a description ready to paste.
+
+| Jira field | Value |
+|---|---|
+| Issue type | **Epic** |
+| Epic name / Summary | Epic ID and name, e.g. `EP-03 · Page builder` |
+| Team | **WPB Digital Browser: Tools** |
+| Description | **Business benefit** (two sentences), **Scope**, and the list of its stories |
+
+### Stories
+
 Use these settings for **every** story in this map:
 
 | Jira field | Value |
@@ -12,7 +25,7 @@ Use these settings for **every** story in this map:
 | Story type | **Functional** |
 | Sprint | **TBD** |
 | Team | **WPB Digital Browser: Tools** |
-| Epic Link | The epic the story sits under, e.g. `Epic 03 · Page builder` (create the 9 epics first) |
+| Epic Link | The epic the story sits under, e.g. `EP-03 · Page builder` |
 | Summary | Story ID and name, e.g. `US-03.04 · Never lose my work` |
 | Description | Three parts, in this order: **Business benefit** (the two sentences), **User story** (As a / I want / So that), **Acceptance criteria** (the scenarios) |
 | Acceptance criteria | **Only** the acceptance criteria (the Given / When / Then scenarios of the story) |
@@ -51,29 +64,61 @@ Notes
 
 ## How to read it
 
-**Epic → Story**, exactly as in Jira. Each epic has one table; every row is one Jira Story with its **ID · name**, **persona**, **business benefit** and **user story**. Right under each story, click **Acceptance criteria** to open its scenarios. `Depends on` = create as "is blocked by" links. **Wave** = earliest build wave across the whole product (wave 1 needs nothing; a story can start once everything it depends on is done). 🛡 site-admin story · ⏭ planned, not built yet · 🧪 runs on a stand-in today (mock).
+**Epic → Story**, exactly as in Jira. Each epic starts with its own card (name, business benefit, scope, a description ready to paste), then one table of its stories; every row is one Jira Story with its **ID · name**, **persona**, **business benefit** and **user story**. Right under each story, click **Acceptance criteria** to open its scenarios. `Depends on` = create as "is blocked by" links. **Wave** = earliest build wave across the whole product (wave 1 needs nothing; a story can start once everything it depends on is done). 🛡 site-admin story · ⏭ planned, not built yet · 🧪 runs on a stand-in today (mock).
 
 **9 epics · 87 stories · 16 build waves.** Generated from the `.feature` files with `python3 tools/story-map.py` — edit the features, then regenerate.
 
 | Epic | Stories | Source |
 |---|---|---|
-| [Epic 01 · Access & navigation](#epic-01--access--navigation) | 9 | [`01-access-and-navigation.feature`](features/01-access-and-navigation.feature) |
-| [Epic 02 · Pages](#epic-02--pages) | 8 | [`02-pages.feature`](features/02-pages.feature) |
-| [Epic 03 · Page builder](#epic-03--page-builder) | 20 | [`03-page-builder.feature`](features/03-page-builder.feature) |
-| [Epic 04 · Review workflow](#epic-04--review-workflow) | 26 | [`04-review-workflow.feature`](features/04-review-workflow.feature) |
-| [Epic 05 · Publishing](#epic-05--publishing) | 6 | [`05-publishing.feature`](features/05-publishing.feature) |
-| [Epic 06 · Content library](#epic-06--content-library) | 10 | [`06-content-library.feature`](features/06-content-library.feature) |
-| [Epic 07 · Translations](#epic-07--translations) | 2 | [`07-translations.feature`](features/07-translations.feature) |
-| [Epic 08 · Governance](#epic-08--governance) | 3 | [`08-governance.feature`](features/08-governance.feature) |
-| [Epic 09 · Delivery API](#epic-09--delivery-api) | 3 | [`09-delivery-api.feature`](features/09-delivery-api.feature) |
+| [EP-01 · Access & navigation](#ep-01-access--navigation) | 9 | [`01-access-and-navigation.feature`](features/01-access-and-navigation.feature) |
+| [EP-02 · Pages](#ep-02-pages) | 8 | [`02-pages.feature`](features/02-pages.feature) |
+| [EP-03 · Page builder](#ep-03-page-builder) | 20 | [`03-page-builder.feature`](features/03-page-builder.feature) |
+| [EP-04 · Review workflow](#ep-04-review-workflow) | 26 | [`04-review-workflow.feature`](features/04-review-workflow.feature) |
+| [EP-05 · Publishing](#ep-05-publishing) | 6 | [`05-publishing.feature`](features/05-publishing.feature) |
+| [EP-06 · Content library](#ep-06-content-library) | 10 | [`06-content-library.feature`](features/06-content-library.feature) |
+| [EP-07 · Translations](#ep-07-translations) | 2 | [`07-translations.feature`](features/07-translations.feature) |
+| [EP-08 · Governance](#ep-08-governance) | 3 | [`08-governance.feature`](features/08-governance.feature) |
+| [EP-09 · Delivery API](#ep-09-delivery-api) | 3 | [`09-delivery-api.feature`](features/09-delivery-api.feature) |
 
 ---
 
-## Epic 01 · Access & navigation
+## EP-01 · Access & navigation
 
+| Epic field | Value |
+|---|---|
+| Issue type | Epic |
+| Epic name / Summary | EP-01 · Access & navigation |
+| Team | WPB Digital Browser: Tools |
+| Business benefit | Only identified staff with the right permissions can change customer-facing content, which closes the door to anonymous or unauthorised changes. One platform for every market and environment replaces separate country tools and cuts licence and support cost. |
+| Scope | Who you are, where you are and what you may do: sign-in, markets and environments, navigation, roles and permissions. |
+| Stories | 9 · US-01.01 to US-01.09 |
+
+<details><summary>Epic description to paste into Jira</summary>
+
+```text
+Business benefit
+Only identified staff with the right permissions can change customer-facing content, which closes the door to anonymous or unauthorised changes. One platform for every market and environment replaces separate country tools and cuts licence and support cost.
+
+Scope
 Who you are, where you are and what you may do: sign-in, markets and environments, navigation, roles and permissions.
 
+Stories
+US-01.01 · Sign in with the company account
+US-01.02 · Open a review link without an account
+US-01.03 · Try the private demo as any person
+US-01.04 · Switch between markets
+US-01.05 · Always know which environment I am in
+US-01.06 · Reach any screen quickly on any device
+US-01.07 · Give each role and workflow step the right permissions
+US-01.08 · Manage people and their permissions
+US-01.09 · Only site admins can change access
+```
+
+</details>
+
 Source: [`01-access-and-navigation.feature`](features/01-access-and-navigation.feature)
+
+**Stories**
 
 <table>
 <tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
@@ -166,11 +211,42 @@ Then the answer is 403 with a request id</pre></details></td></tr>
 
 ---
 
-## Epic 02 · Pages
+## EP-02 · Pages
 
+| Epic field | Value |
+|---|---|
+| Issue type | Epic |
+| Epic name / Summary | EP-02 · Pages |
+| Team | WPB Digital Browser: Tools |
+| Business benefit | Pages are found, created and reorganised without broken links, lost work or accidental deletions, which protects customers from dead ends. Archive-before-delete and impact warnings remove a whole class of costly publishing incidents. |
+| Scope | The site tree and safe page operations: find, create, organise, lock, archive and delete pages without breaking anything. |
+| Stories | 8 · US-02.01 to US-02.08 |
+
+<details><summary>Epic description to paste into Jira</summary>
+
+```text
+Business benefit
+Pages are found, created and reorganised without broken links, lost work or accidental deletions, which protects customers from dead ends. Archive-before-delete and impact warnings remove a whole class of costly publishing incidents.
+
+Scope
 The site tree and safe page operations: find, create, organise, lock, archive and delete pages without breaking anything.
 
+Stories
+US-02.01 · Find any page in the market
+US-02.02 · Create pages and folders from on-brand templates
+US-02.03 · Know what an action will change before it happens
+US-02.04 · Move and copy pages without breaking or overwriting anything
+US-02.05 · Lock a page while I work on it
+US-02.06 · Override someone else's lock
+US-02.07 · Archive pages instead of deleting them
+US-02.08 · See everything affected before deleting permanently
+```
+
+</details>
+
 Source: [`02-pages.feature`](features/02-pages.feature)
+
+**Stories**
 
 <table>
 <tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
@@ -252,11 +328,54 @@ And I must type &quot;delete&quot; to confirm</pre></details></td></tr>
 
 ---
 
-## Epic 03 · Page builder
+## EP-03 · Page builder
 
+| Epic field | Value |
+|---|---|
+| Issue type | Epic |
+| Epic name / Summary | EP-03 · Page builder |
+| Team | WPB Digital Browser: Tools |
+| Business benefit | Authors build on-brand, compliant pages themselves from approved components, without developers, which shortens time to market for every campaign and rate change. Built-in quality checks and reusable patterns catch errors early and keep every market looking like HSBC. |
+| Scope | Making a page: HSBC components, in-place editing, design patterns, quality checks, AI help, linked content and working together. |
+| Stories | 20 · US-03.01 to US-03.20 |
+
+<details><summary>Epic description to paste into Jira</summary>
+
+```text
+Business benefit
+Authors build on-brand, compliant pages themselves from approved components, without developers, which shortens time to market for every campaign and rate change. Built-in quality checks and reusable patterns catch errors early and keep every market looking like HSBC.
+
+Scope
 Making a page: HSBC components, in-place editing, design patterns, quality checks, AI help, linked content and working together.
 
+Stories
+US-03.01 · Add on-brand components from the library
+US-03.02 · Edit text where it is shown
+US-03.03 · Arrange and configure every component the same way
+US-03.04 · Never lose my work
+US-03.05 · Check the page on every device width
+US-03.06 · Reuse a section in one click
+US-03.07 · Save my own design pattern
+US-03.08 · Remove my patterns safely
+US-03.09 · Remove built-in design-system patterns
+US-03.10 · See and fix what blocks publishing
+US-03.11 · Check any element while previewing
+US-03.12 · Improve one component with AI
+US-03.13 · Let AI plan page-wide changes that I approve
+US-03.14 · Keep AI within page permissions
+US-03.15 · Show shared content from one place
+US-03.16 · Keep page text and linked content consistent
+US-03.17 · Build a page together with other authors
+US-03.18 · Assign other people as authors
+US-03.19 · Link a page to its Jira ticket
+US-03.20 · Go back to any earlier version
+```
+
+</details>
+
 Source: [`03-page-builder.feature`](features/03-page-builder.feature)
+
+**Stories**
 
 <table>
 <tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
@@ -450,11 +569,60 @@ Then the comment says &quot;About the version from …&quot;</pre></details></td
 
 ---
 
-## Epic 04 · Review workflow
+## EP-04 · Review workflow
 
+| Epic field | Value |
+|---|---|
+| Issue type | Epic |
+| Epic name / Summary | EP-04 · Review workflow |
+| Team | WPB Digital Browser: Tools |
+| Business benefit | Every page is checked by separate people for content and for business sign-off before it goes live, which builds the four-eyes control regulators expect into the tool itself. Clear hand-offs, tasks and reminders remove idle time between teams and make delays visible. |
+| Scope | The four-eyes approval chain: the author hands the page to a peer reviewer, then to the business, with comments, review links, My tasks and notifications. |
+| Stories | 26 · US-04.01 to US-04.26 |
+
+<details><summary>Epic description to paste into Jira</summary>
+
+```text
+Business benefit
+Every page is checked by separate people for content and for business sign-off before it goes live, which builds the four-eyes control regulators expect into the tool itself. Clear hand-offs, tasks and reminders remove idle time between teams and make delays visible.
+
+Scope
 The four-eyes approval chain: the author hands the page to a peer reviewer, then to the business, with comments, review links, My tasks and notifications.
 
+Stories
+US-04.01 · Request a review from the shared Backlog
+US-04.02 · Check the page before handing it over
+US-04.03 · Keep the page stable while it is being reviewed
+US-04.04 · Take a review from the Backlog, or give it back
+US-04.05 · Review the page and decide what happens next
+US-04.06 · Nudge a reviewer who is taking long
+US-04.07 · Steer reviews as a site admin
+US-04.08 · Take the business review
+US-04.09 · Sign off the page or send it back to the author
+US-04.10 · Share the page with the right business reviewers
+US-04.11 · Sign off on behalf of the business reviewer as a site admin
+US-04.12 · Read and comment through a link
+US-04.13 · Decide through the link, only if invited
+US-04.14 · Comment on exactly what I mean
+US-04.15 · Work through the feedback
+US-04.16 · See what needs me, by stage
+US-04.17 · Follow my own pages as an author
+US-04.18 · Pick up and finish work as a reviewer or publisher
+US-04.19 · Oversee everything as a site admin
+US-04.20 · Be told when a page is handed to me
+US-04.21 · Act on a notification in one click
+US-04.22 · Hand the page over step by step
+US-04.23 · Get the page back when someone asks for changes
+US-04.24 · Nobody approves their own work
+US-04.25 · Walk the whole flow as a site admin, on record
+US-04.26 · Ask for publishing and hear when the page is live
+```
+
+</details>
+
 Source: [`04-review-workflow.feature`](features/04-review-workflow.feature)
+
+**Stories**
 
 <table>
 <tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
@@ -804,11 +972,40 @@ Then I get the notification &quot;Cash ISA is live&quot;</pre></details></td></t
 
 ---
 
-## Epic 05 · Publishing
+## EP-05 · Publishing
 
+| Epic field | Value |
+|---|---|
+| Issue type | Epic |
+| Epic name / Summary | EP-05 · Publishing |
+| Team | WPB Digital Browser: Tools |
+| Business benefit | Only signed-off pages go live, together with every image and document they need, so customers never see half-finished or broken content. Scheduled releases go live at the agreed minute without out-of-hours work. |
+| Scope | Going live safely: publish now or on schedule together with the files a page uses, and compare drafts with what customers see. |
+| Stories | 6 · US-05.01 to US-05.06 |
+
+<details><summary>Epic description to paste into Jira</summary>
+
+```text
+Business benefit
+Only signed-off pages go live, together with every image and document they need, so customers never see half-finished or broken content. Scheduled releases go live at the agreed minute without out-of-hours work.
+
+Scope
 Going live safely: publish now or on schedule together with the files a page uses, and compare drafts with what customers see.
 
+Stories
+US-05.01 · Publish a signed-off page now, together with its files
+US-05.02 · Publish later at a chosen time
+US-05.03 · Publish several pages in one go
+US-05.04 · Hand a signed-off page over to the publisher
+US-05.05 · See what will change before publishing
+US-05.06 · Check an older version against live
+```
+
+</details>
+
 Source: [`05-publishing.feature`](features/05-publishing.feature)
+
+**Stories**
 
 <table>
 <tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
@@ -865,11 +1062,44 @@ Then the left side shows that version and the differences are recalculated</pre>
 
 ---
 
-## Epic 06 · Content library
+## EP-06 · Content library
 
+| Epic field | Value |
+|---|---|
+| Issue type | Epic |
+| Epic name / Summary | EP-06 · Content library |
+| Team | WPB Digital Browser: Tools |
+| Business benefit | Templates, assets, models and shared content are defined once and reused everywhere, so facts like rates are correct on every page and brand rules are applied by default. Accessibility data on every file supports inclusive design and regulatory accessibility duties. |
+| Scope | Reusable building blocks and content: page templates, assets with accessibility data, content models and entities. |
+| Stories | 10 · US-06.01 to US-06.10 |
+
+<details><summary>Epic description to paste into Jira</summary>
+
+```text
+Business benefit
+Templates, assets, models and shared content are defined once and reused everywhere, so facts like rates are correct on every page and brand rules are applied by default. Accessibility data on every file supports inclusive design and regulatory accessibility duties.
+
+Scope
 Reusable building blocks and content: page templates, assets with accessibility data, content models and entities.
 
+Stories
+US-06.01 · Build and maintain page templates
+US-06.02 · Limit a template to some markets
+US-06.03 · Pick the right template for my market
+US-06.04 · Upload and replace files safely
+US-06.05 · Make files accessible
+US-06.06 · Find the right file
+US-06.07 · Approve files for live use
+US-06.08 · Define and evolve content models
+US-06.09 · Create reusable content items from a model
+US-06.10 · Update a fact everywhere at once
+```
+
+</details>
+
 Source: [`06-content-library.feature`](features/06-content-library.feature)
+
+**Stories**
 
 <table>
 <tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
@@ -944,11 +1174,36 @@ And the delivery API shows the new values on those pages</pre></details></td></t
 
 ---
 
-## Epic 07 · Translations
+## EP-07 · Translations
 
+| Epic field | Value |
+|---|---|
+| Issue type | Epic |
+| Epic name / Summary | EP-07 · Translations |
+| Team | WPB Digital Browser: Tools |
+| Business benefit | Language versions are produced in minutes instead of being rebuilt by hand, so local markets launch at the same time as the original. Every translation goes through the same review, so speed never bypasses compliance. |
+| Scope | Language versions of pages, created in a few steps and approved through the same workflow. |
+| Stories | 2 · US-07.01 to US-07.02 |
+
+<details><summary>Epic description to paste into Jira</summary>
+
+```text
+Business benefit
+Language versions are produced in minutes instead of being rebuilt by hand, so local markets launch at the same time as the original. Every translation goes through the same review, so speed never bypasses compliance.
+
+Scope
 Language versions of pages, created in a few steps and approved through the same workflow.
 
+Stories
+US-07.01 · Create translated copies of pages in a few steps
+US-07.02 · Review every language version before it goes live
+```
+
+</details>
+
 Source: [`07-translations.feature`](features/07-translations.feature)
+
+**Stories**
 
 <table>
 <tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
@@ -969,11 +1224,37 @@ And it needs the author&#x27;s review and the business review before it can be p
 
 ---
 
-## Epic 08 · Governance
+## EP-08 · Governance
 
+| Epic field | Value |
+|---|---|
+| Issue type | Epic |
+| Epic name / Summary | EP-08 · Governance |
+| Team | WPB Digital Browser: Tools |
+| Business benefit | Every change is recorded with who, what and when, giving the bank evidence for auditors and regulators on demand. A shared dashboard shows bottlenecks early, so managers act before deadlines are missed. |
+| Scope | Proof and overview: the audit trail of every change and the dashboard of what needs attention. |
+| Stories | 3 · US-08.01 to US-08.03 |
+
+<details><summary>Epic description to paste into Jira</summary>
+
+```text
+Business benefit
+Every change is recorded with who, what and when, giving the bank evidence for auditors and regulators on demand. A shared dashboard shows bottlenecks early, so managers act before deadlines are missed.
+
+Scope
 Proof and overview: the audit trail of every change and the dashboard of what needs attention.
 
+Stories
+US-08.01 · Search and export a full audit trail
+US-08.02 · See my own activity
+US-08.03 · See what needs attention
+```
+
+</details>
+
 Source: [`08-governance.feature`](features/08-governance.feature)
+
+**Stories**
 
 <table>
 <tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>
@@ -999,11 +1280,37 @@ Then the tile says &quot;Nothing waiting. Nice.&quot;</pre></details></td></tr>
 
 ---
 
-## Epic 09 · Delivery API
+## EP-09 · Delivery API
 
+| Epic field | Value |
+|---|---|
+| Issue type | Epic |
+| Epic name / Summary | EP-09 · Delivery API |
+| Team | WPB Digital Browser: Tools |
+| Business benefit | Every website and app reads the same approved content from one API, so the bank stops duplicating content per channel. Clear contracts and schemas let development teams integrate quickly and with fewer defects. |
+| Scope | Approved content as JSON for every HSBC website and app. |
+| Stories | 3 · US-09.01 to US-09.03 |
+
+<details><summary>Epic description to paste into Jira</summary>
+
+```text
+Business benefit
+Every website and app reads the same approved content from one API, so the bank stops duplicating content per channel. Clear contracts and schemas let development teams integrate quickly and with fewer defects.
+
+Scope
 Approved content as JSON for every HSBC website and app.
 
+Stories
+US-09.01 · Get only approved content, and preview drafts separately
+US-09.02 · Render pages straight from the JSON
+US-09.03 · Explore and try the API in the CMS
+```
+
+</details>
+
 Source: [`09-delivery-api.feature`](features/09-delivery-api.feature)
+
+**Stories**
 
 <table>
 <tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>

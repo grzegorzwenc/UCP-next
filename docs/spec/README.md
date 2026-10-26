@@ -13,7 +13,7 @@ with the same HSBC components, the same four-eyes workflow and a full audit trai
 
 ```
 Product  ─ HSBC Unified Content Platform
- └─ Epic        (9)    one .feature file = one Jira Epic, e.g. "Review workflow"
+ └─ Epic        (9)    EP-<nn> · name, one .feature file = one Jira Epic, e.g. "EP-04 · Review workflow"
      └─ Story   (87)   Rule: US-<epic>.<nn> · name = one Jira Story
          │              As a <persona> / I want … / So that …
          └─ Scenario (236) acceptance criteria (Given / When / Then)
@@ -34,7 +34,7 @@ Every story has the same shape, in this order:
 
 Inside each epic, stories are listed **in build order** (the last number of the ID is that order).
 `@depends:` names every story that has to exist first, also in other epics. In Gherkin the epic is
-written with the `Feature:` keyword; a Background that only some stories need sits inside those stories.
+written with the `Feature:` keyword (`Feature: EP-03 · Page builder`) and has its own `# Business benefit:` above it; a Background that only some stories need sits inside those stories.
 Old three-part IDs (before the Epic → Story layout) map to the new ones in [tools/id-mapping.txt](tools/id-mapping.txt). The whole picture —
 benefits, dependencies and build waves for the product — is in **[STORY-MAP.md](STORY-MAP.md)**.
 
@@ -120,15 +120,15 @@ as "on behalf of". Ordinary users never see buttons for someone else's step (sto
 
 | # | Epic (file) | Stories | What it covers |
 |---|---|---|---|
-| 01 | [Access & navigation](features/01-access-and-navigation.feature) | 9 | Who you are, where you are, what you may do |
-| 02 | [Pages](features/02-pages.feature) | 8 | The site tree and safe page operations |
-| 03 | [Page builder](features/03-page-builder.feature) | 20 | Making a page |
-| 04 | [Review workflow](features/04-review-workflow.feature) | 26 | Four-eyes approval |
-| 05 | [Publishing](features/05-publishing.feature) | 6 | Going live safely |
-| 06 | [Content library](features/06-content-library.feature) | 10 | Reusable building blocks and content |
-| 07 | [Translations](features/07-translations.feature) | 2 | Language versions through the same workflow |
-| 08 | [Governance](features/08-governance.feature) | 3 | Proof and overview |
-| 09 | [Delivery API](features/09-delivery-api.feature) | 3 | Content for every channel |
+| EP-01 | [Access & navigation](features/01-access-and-navigation.feature) | 9 | Who you are, where you are, what you may do |
+| EP-02 | [Pages](features/02-pages.feature) | 8 | The site tree and safe page operations |
+| EP-03 | [Page builder](features/03-page-builder.feature) | 20 | Making a page |
+| EP-04 | [Review workflow](features/04-review-workflow.feature) | 26 | Four-eyes approval |
+| EP-05 | [Publishing](features/05-publishing.feature) | 6 | Going live safely |
+| EP-06 | [Content library](features/06-content-library.feature) | 10 | Reusable building blocks and content |
+| EP-07 | [Translations](features/07-translations.feature) | 2 | Language versions through the same workflow |
+| EP-08 | [Governance](features/08-governance.feature) | 3 | Proof and overview |
+| EP-09 | [Delivery API](features/09-delivery-api.feature) | 3 | Content for every channel |
 
 ## 6. Glossary
 

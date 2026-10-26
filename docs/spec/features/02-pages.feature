@@ -1,5 +1,6 @@
+# Business benefit: Pages are found, created and reorganised without broken links, lost work or accidental deletions, which protects customers from dead ends. Archive-before-delete and impact warnings remove a whole class of costly publishing incidents.
 @epic:pages @status:done
-Feature: Pages
+Feature: EP-02 · Pages
   The site tree and safe page operations: find, create, organise, lock, archive and delete pages without breaking anything.
 
   # Business benefit: Authors find the right page in seconds, which saves time on every task across all markets. Fewer duplicate pages get created because existing ones are easy to find.

@@ -1,5 +1,6 @@
+# Business benefit: Authors build on-brand, compliant pages themselves from approved components, without developers, which shortens time to market for every campaign and rate change. Built-in quality checks and reusable patterns catch errors early and keep every market looking like HSBC.
 @epic:page-builder @status:done
-Feature: Page builder
+Feature: EP-03 · Page builder
   Making a page: HSBC components, in-place editing, design patterns, quality checks, AI help, linked content and working together.
 
   # Business benefit: Pages are built only from approved components, so brand and compliance quality is built in rather than checked later. Authors produce pages without developer help, lowering cost and time to market.

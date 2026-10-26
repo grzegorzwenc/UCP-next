@@ -2,6 +2,19 @@
 
 The hierarchy is **Epic → Story**: create the 9 epics first (issue type Epic, same Team and Sprint), then the stories under them.
 
+### Epics
+
+Create the 9 epics first. Each epic section below has a card with the values and a description ready to paste.
+
+| Jira field | Value |
+|---|---|
+| Issue type | **Epic** |
+| Epic name / Summary | Epic ID and name, e.g. `EP-03 · Page builder` |
+| Team | **WPB Digital Browser: Tools** |
+| Description | **Business benefit** (two sentences), **Scope**, and the list of its stories |
+
+### Stories
+
 Use these settings for **every** story in this map:
 
 | Jira field | Value |
@@ -10,7 +23,7 @@ Use these settings for **every** story in this map:
 | Story type | **Functional** |
 | Sprint | **TBD** |
 | Team | **WPB Digital Browser: Tools** |
-| Epic Link | The epic the story sits under, e.g. `Epic 03 · Page builder` (create the 9 epics first) |
+| Epic Link | The epic the story sits under, e.g. `EP-03 · Page builder` |
 | Summary | Story ID and name, e.g. `US-03.04 · Never lose my work` |
 | Description | Three parts, in this order: **Business benefit** (the two sentences), **User story** (As a / I want / So that), **Acceptance criteria** (the scenarios) |
 | Acceptance criteria | **Only** the acceptance criteria (the Given / When / Then scenarios of the story) |

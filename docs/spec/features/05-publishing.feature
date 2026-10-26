@@ -1,5 +1,6 @@
+# Business benefit: Only signed-off pages go live, together with every image and document they need, so customers never see half-finished or broken content. Scheduled releases go live at the agreed minute without out-of-hours work.
 @epic:publishing @status:done
-Feature: Publishing
+Feature: EP-05 · Publishing
   Going live safely: publish now or on schedule together with the files a page uses, and compare drafts with what customers see.
 
   # Business benefit: Approved pages reach customers in one controlled step instead of a chain of manual releases. Publishing the files with the page removes broken pictures and missing documents that damage customer trust.

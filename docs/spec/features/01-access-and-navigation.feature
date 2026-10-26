@@ -1,5 +1,6 @@
+# Business benefit: Only identified staff with the right permissions can change customer-facing content, which closes the door to anonymous or unauthorised changes. One platform for every market and environment replaces separate country tools and cuts licence and support cost.
 @epic:access-and-navigation @status:done
-Feature: Access & navigation
+Feature: EP-01 · Access & navigation
   Who you are, where you are and what you may do: sign-in, markets and environments, navigation, roles and permissions.
 
   # Business benefit: Only identified staff can reach the CMS, which closes the door to anonymous changes on customer-facing pages. Every action is tied to a named person, giving auditors a reliable trail.
