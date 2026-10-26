@@ -8,36 +8,36 @@
 
 **Stories (26):**
 
-1. [US-04.01 · Request a review from the shared Backlog](#us-0401--request-a-review-from-the-shared-backlog)
-2. [US-04.02 · Check the page before handing it over](#us-0402--check-the-page-before-handing-it-over)
-3. [US-04.03 · Keep the page stable while it is being reviewed](#us-0403--keep-the-page-stable-while-it-is-being-reviewed)
-4. [US-04.04 · Take a review from the Backlog, or give it back](#us-0404--take-a-review-from-the-backlog-or-give-it-back)
-5. [US-04.05 · Review the page and decide what happens next](#us-0405--review-the-page-and-decide-what-happens-next)
-6. [US-04.06 · Nudge a reviewer who is taking long](#us-0406--nudge-a-reviewer-who-is-taking-long)
-7. [US-04.07 · Steer reviews as a site admin](#us-0407--steer-reviews-as-a-site-admin)
-8. [US-04.08 · Take the business review](#us-0408--take-the-business-review)
-9. [US-04.09 · Sign off the page or send it back to the author](#us-0409--sign-off-the-page-or-send-it-back-to-the-author)
-10. [US-04.10 · Share the page with the right business reviewers](#us-0410--share-the-page-with-the-right-business-reviewers)
-11. [US-04.11 · Sign off on behalf of the business reviewer as a site admin](#us-0411--sign-off-on-behalf-of-the-business-reviewer-as-a-site-admin)
-12. [US-04.12 · Read and comment through a link](#us-0412--read-and-comment-through-a-link)
-13. [US-04.13 · Decide through the link, only if invited](#us-0413--decide-through-the-link-only-if-invited)
-14. [US-04.14 · Comment on exactly what I mean](#us-0414--comment-on-exactly-what-i-mean)
-15. [US-04.15 · Work through the feedback](#us-0415--work-through-the-feedback)
-16. [US-04.16 · See what needs me, by stage](#us-0416--see-what-needs-me-by-stage)
-17. [US-04.17 · Follow my own pages as an author](#us-0417--follow-my-own-pages-as-an-author)
-18. [US-04.18 · Pick up and finish work as a reviewer or publisher](#us-0418--pick-up-and-finish-work-as-a-reviewer-or-publisher)
-19. [US-04.19 · Oversee everything as a site admin](#us-0419--oversee-everything-as-a-site-admin)
-20. [US-04.20 · Be told when a page is handed to me](#us-0420--be-told-when-a-page-is-handed-to-me)
-21. [US-04.21 · Act on a notification in one click](#us-0421--act-on-a-notification-in-one-click)
-22. [US-04.22 · Hand the page over step by step](#us-0422--hand-the-page-over-step-by-step)
-23. [US-04.23 · Get the page back when someone asks for changes](#us-0423--get-the-page-back-when-someone-asks-for-changes)
-24. [US-04.24 · Nobody approves their own work](#us-0424--nobody-approves-their-own-work)
-25. [US-04.25 · Walk the whole flow as a site admin, on record](#us-0425--walk-the-whole-flow-as-a-site-admin-on-record)
-26. [US-04.26 · Ask for publishing and hear when the page is live](#us-0426--ask-for-publishing-and-hear-when-the-page-is-live)
+1. [US-04.01 · Send for review: put the page in the shared review Backlog with a note and due date](#us-0401--send-for-review-put-the-page-in-the-shared-review-backlog-with-a-note-and-due-date)
+2. [US-04.02 · Pre-send check: 'Does everything look right?' with insights and required-field check](#us-0402--pre-send-check-does-everything-look-right-with-insights-and-required-field-check)
+3. [US-04.03 · Read-only in review: lock editing during review and reopen as a draft on purpose](#us-0403--read-only-in-review-lock-editing-during-review-and-reopen-as-a-draft-on-purpose)
+4. [US-04.04 · Backlog claim: reviewer assigns a review to themselves or puts it back](#us-0404--backlog-claim-reviewer-assigns-a-review-to-themselves-or-puts-it-back)
+5. [US-04.05 · Peer review decision: mark Reviewed, then send to business review or Reauthor](#us-0405--peer-review-decision-mark-reviewed-then-send-to-business-review-or-reauthor)
+6. [US-04.06 · Review reminders: author reminds the reviewer, at most every 15 minutes](#us-0406--review-reminders-author-reminds-the-reviewer-at-most-every-15-minutes)
+7. [US-04.07 · Review admin: site admin reassigns the peer reviewer or acts on their behalf](#us-0407--review-admin-site-admin-reassigns-the-peer-reviewer-or-acts-on-their-behalf)
+8. [US-04.08 · Business review claim: business owner takes a page waiting for business review](#us-0408--business-review-claim-business-owner-takes-a-page-waiting-for-business-review)
+9. [US-04.09 · Business sign-off: sign off or Reauthor, also from full screen](#us-0409--business-sign-off-sign-off-or-reauthor-also-from-full-screen)
+10. [US-04.10 · Share for business review: give access to a person, a review group or a link](#us-0410--share-for-business-review-give-access-to-a-person-a-review-group-or-a-link)
+11. [US-04.11 · Business review admin: fixed reviewers, site admin can sign off on behalf](#us-0411--business-review-admin-fixed-reviewers-site-admin-can-sign-off-on-behalf)
+12. [US-04.12 · Guest review link: read the page and comment without a UCP account](#us-0412--guest-review-link-read-the-page-and-comment-without-a-ucp-account)
+13. [US-04.13 · Guest decision: invited guests sign off or Reauthor through the link](#us-0413--guest-decision-invited-guests-sign-off-or-reauthor-through-the-link)
+14. [US-04.14 · Targeted comments: comment on a specific text, image or component](#us-0414--targeted-comments-comment-on-a-specific-text-image-or-component)
+15. [US-04.15 · Comment handling: jump to the commented part, resolve with undo, pin, delete own](#us-0415--comment-handling-jump-to-the-commented-part-resolve-with-undo-pin-delete-own)
+16. [US-04.16 · My tasks: one task per page in stage tabs with people and due dates](#us-0416--my-tasks-one-task-per-page-in-stage-tabs-with-people-and-due-dates)
+17. [US-04.17 · My tasks (author): follow my own pages and who has them](#us-0417--my-tasks-author-follow-my-own-pages-and-who-has-them)
+18. [US-04.18 · My tasks (reviewer / publisher): the next action for my step on each row](#us-0418--my-tasks-reviewer--publisher-the-next-action-for-my-step-on-each-row)
+19. [US-04.19 · My tasks (admin): all tasks, split by assignee, with reviewer reassign](#us-0419--my-tasks-admin-all-tasks-split-by-assignee-with-reviewer-reassign)
+20. [US-04.20 · Notifications: bell alerts when a page is handed to me](#us-0420--notifications-bell-alerts-when-a-page-is-handed-to-me)
+21. [US-04.21 · Notification actions: overdue items highlighted, click opens the page](#us-0421--notification-actions-overdue-items-highlighted-click-opens-the-page)
+22. [US-04.22 · End-to-end hand-off: author → peer reviewer → business → publisher, one person per step](#us-0422--end-to-end-hand-off-author--peer-reviewer--business--publisher-one-person-per-step)
+23. [US-04.23 · Reauthor loop: any reviewer sends the page back to the author with comments](#us-0423--reauthor-loop-any-reviewer-sends-the-page-back-to-the-author-with-comments)
+24. [US-04.24 · Four-eyes rule: author, peer reviewer and business reviewer must be different people](#us-0424--four-eyes-rule-author-peer-reviewer-and-business-reviewer-must-be-different-people)
+25. [US-04.25 · Admin walk-through: site admin performs any step, recorded as 'on behalf of'](#us-0425--admin-walk-through-site-admin-performs-any-step-recorded-as-on-behalf-of)
+26. [US-04.26 · Publish request: author asks for a publish date and is told when the page is live](#us-0426--publish-request-author-asks-for-a-publish-date-and-is-told-when-the-page-is-live)
 
 ---
 
-## US-04.01 · Request a review from the shared Backlog
+## US-04.01 · Send for review: put the page in the shared review Backlog with a note and due date
 
 **Business benefit:** A shared Backlog lets the first free reviewer start, so pages do not queue behind one person's calendar. Due dates and audit entries make review turnaround measurable from day one.
 
@@ -83,7 +83,7 @@ And I am told "Ask a site admin to grant Review & approve on this folder"
 
 ---
 
-## US-04.02 · Check the page before handing it over
+## US-04.02 · Pre-send check: 'Does everything look right?' with insights and required-field check
 
 **Business benefit:** Catching missing fields and quality problems before hand-off avoids wasted review cycles. Fewer round trips mean faster delivery and lower review cost.
 
@@ -133,7 +133,7 @@ And the first incomplete component opens in Configure
 
 ---
 
-## US-04.03 · Keep the page stable while it is being reviewed
+## US-04.03 · Read-only in review: lock editing during review and reopen as a draft on purpose
 
 **Business benefit:** Reviewers approve exactly the version that will be published, which protects the integrity of the four-eyes check. It prevents silent changes after approval that could expose the bank to conduct risk.
 
@@ -175,7 +175,7 @@ Then the page is back at "Build the page"
 
 ---
 
-## US-04.04 · Take a review from the Backlog, or give it back
+## US-04.04 · Backlog claim: reviewer assigns a review to themselves or puts it back
 
 **Business benefit:** Reviews start as soon as any reviewer is free, so pages do not wait for one person. Each review has one named owner, which makes delays visible.
 
@@ -247,7 +247,7 @@ Then they see "The review has already started"
 
 ---
 
-## US-04.05 · Review the page and decide what happens next
+## US-04.05 · Peer review decision: mark Reviewed, then send to business review or Reauthor
 
 **Business benefit:** A single decision point moves the page on or back without extra meetings or e-mails. Only the assigned reviewer can approve, which keeps the peer check accountable and auditable.
 
@@ -314,7 +314,7 @@ And the peer reviewer, the business reviewer and the review groups are cleared
 
 ---
 
-## US-04.06 · Nudge a reviewer who is taking long
+## US-04.06 · Review reminders: author reminds the reviewer, at most every 15 minutes
 
 **Business benefit:** Rate-limited reminders keep pages moving without manual chasing or noisy escalation. Shorter waiting times bring content to market faster.
 
@@ -354,7 +354,7 @@ Then I see "A reminder was sent a few minutes ago"
 
 ---
 
-## US-04.07 · Steer reviews as a site admin
+## US-04.07 · Review admin: site admin reassigns the peer reviewer or acts on their behalf
 
 **Business benefit:** Admins can rebalance workload and unblock stuck reviews, which protects launch dates. Every intervention is logged on behalf of the reviewer, so oversight never weakens the audit trail.
 
@@ -412,7 +412,7 @@ Then the audit line ends with "(on behalf of Rachel Hughes)"
 
 ---
 
-## US-04.08 · Take the business review
+## US-04.08 · Business review claim: business owner takes a page waiting for business review
 
 **Business benefit:** Each business decision has one named owner, which gives clear accountability for customer-facing messages. Blocking the peer reviewer from also signing off enforces four-eyes separation.
 
@@ -460,7 +460,7 @@ Then I see "You did the author's review · someone else does the business review
 
 ---
 
-## US-04.09 · Sign off the page or send it back to the author
+## US-04.09 · Business sign-off: sign off or Reauthor, also from full screen
 
 **Business benefit:** Nothing reaches customers without explicit business approval, which reduces conduct and mis-selling risk. Deciding on the page as customers see it lowers the chance of costly post-launch corrections.
 
@@ -519,7 +519,7 @@ Then a full-screen message says "Signed off" with my name and the time
 
 ---
 
-## US-04.10 · Share the page with the right business reviewers
+## US-04.10 · Share for business review: give access to a person, a review group or a link
 
 **Business benefit:** Getting the right stakeholders in early avoids late rejections and repeated review rounds. External partners can contribute without new UCP licences, which keeps cost down.
 
@@ -575,7 +575,7 @@ Then I see "That e-mail address does not look right"
 
 ---
 
-## US-04.11 · Sign off on behalf of the business reviewer as a site admin
+## US-04.11 · Business review admin: fixed reviewers, site admin can sign off on behalf
 
 **Business benefit:** Keeping the business reviewer fixed protects the integrity of the business decision. Recorded on-behalf sign-off still lets urgent pages move without breaking the audit trail.
 
@@ -615,7 +615,7 @@ And the audit line ends with "(on behalf of David Clarke)"
 
 ---
 
-## US-04.12 · Read and comment through a link
+## US-04.12 · Guest review link: read the page and comment without a UCP account
 
 **Business benefit:** Stakeholders without a UCP account can give feedback, which saves licence cost and onboarding effort. Feedback lands on the page itself, so nothing is lost in e-mail threads.
 
@@ -680,7 +680,7 @@ Then I see "This review link does not work"
 
 ---
 
-## US-04.13 · Decide through the link, only if invited
+## US-04.13 · Guest decision: invited guests sign off or Reauthor through the link
 
 **Business benefit:** The business can approve without a UCP account, which speeds up sign-off for busy owners. Restricting decisions to invited addresses stops forwarded links from approving content, which limits fraud and compliance risk.
 
@@ -736,7 +736,7 @@ And a full-screen message says "Sent back to the author"
 
 ---
 
-## US-04.14 · Comment on exactly what I mean
+## US-04.14 · Targeted comments: comment on a specific text, image or component
 
 **Business benefit:** Feedback pinned to the exact element removes ambiguity and reduces rework. Limiting who can comment keeps feedback relevant and the review record trustworthy.
 
@@ -801,7 +801,7 @@ And "Review & feedback" next to "1:1" opens the page full screen with floating c
 
 ---
 
-## US-04.15 · Work through the feedback
+## US-04.15 · Comment handling: jump to the commented part, resolve with undo, pin, delete own
 
 **Business benefit:** Authors see at a glance what is still open, so no requested change is missed before sign-off. Resolved comments never leak onto the published page, which protects the customer experience.
 
@@ -871,7 +871,7 @@ Then I see "You can only delete your own comments"
 
 ---
 
-## US-04.16 · See what needs me, by stage
+## US-04.16 · My tasks: one task per page in stage tabs with people and due dates
 
 **Business benefit:** One prioritised work list reduces time lost looking for pending work across tools. Due dates and overdue markers make bottlenecks visible to the team and management.
 
@@ -924,7 +924,7 @@ And the header says "N assigned to you · M new"
 
 ---
 
-## US-04.17 · Follow my own pages as an author
+## US-04.17 · My tasks (author): follow my own pages and who has them
 
 **Business benefit:** Authors can track their pages without asking around, which reduces status meetings. Hiding review actions on their own work enforces four-eyes separation in the interface.
 
@@ -962,7 +962,7 @@ Examples:
 
 ---
 
-## US-04.18 · Pick up and finish work as a reviewer or publisher
+## US-04.18 · My tasks (reviewer / publisher): the next action for my step on each row
 
 **Business benefit:** Taking and finishing work from one list shortens cycle time for every hand-off. Showing only the permitted action reduces errors and unauthorised steps.
 
@@ -1003,7 +1003,7 @@ Examples:
 
 ---
 
-## US-04.19 · Oversee everything as a site admin
+## US-04.19 · My tasks (admin): all tasks, split by assignee, with reviewer reassign
 
 **Business benefit:** Admins can balance workload across reviewers, which protects delivery dates. Restricting reassignment once a page is ready to publish keeps late changes under control.
 
@@ -1034,7 +1034,7 @@ Then rows in "Ready to publish" have no pencil and no "Assign to anyone"
 
 ---
 
-## US-04.20 · Be told when a page is handed to me
+## US-04.20 · Notifications: bell alerts when a page is handed to me
 
 **Business benefit:** People learn immediately when it is their turn, which removes idle time between hand-offs. Faster hand-offs shorten time to market for every page.
 
@@ -1076,7 +1076,7 @@ Examples:
 
 ---
 
-## US-04.21 · Act on a notification in one click
+## US-04.21 · Notification actions: overdue items highlighted, click opens the page
 
 **Business benefit:** Overdue items stand out, so service levels and regulatory deadlines are met more reliably. One-click access cuts the time from notice to action.
 
@@ -1107,7 +1107,7 @@ Then the page opens in the page builder
 
 ---
 
-## US-04.22 · Hand the page over step by step
+## US-04.22 · End-to-end hand-off: author → peer reviewer → business → publisher, one person per step
 
 **Business benefit:** Every page passes through separate authoring, review, sign-off and publishing hands, which builds four-eyes control into the process itself. Clear hand-offs cut idle time between teams and shorten time to market.
 
@@ -1171,7 +1171,7 @@ Examples:
 
 ---
 
-## US-04.23 · Get the page back when someone asks for changes
+## US-04.23 · Reauthor loop: any reviewer sends the page back to the author with comments
 
 **Business benefit:** Rework goes back to one accountable author instead of being patched by reviewers, which keeps responsibility clear. Restarting both reviews after changes means no unchecked edit can reach customers.
 
@@ -1215,7 +1215,7 @@ Examples:
 
 ---
 
-## US-04.24 · Nobody approves their own work
+## US-04.24 · Four-eyes rule: author, peer reviewer and business reviewer must be different people
 
 **Business benefit:** Segregation of duties is enforced by the system rather than by policy documents, which satisfies four-eyes compliance requirements. Auditors can rely on the platform instead of sampling manual evidence.
 
@@ -1266,7 +1266,7 @@ Then I see "Waiting for a publisher" instead of "Publish"
 
 ---
 
-## US-04.25 · Walk the whole flow as a site admin, on record
+## US-04.25 · Admin walk-through: site admin performs any step, recorded as 'on behalf of'
 
 **Business benefit:** Urgent regulatory or pricing changes can still go live when reviewers are unavailable, which reduces business risk. Every override is recorded as on behalf of a named person, so audit trails stay complete.
 
@@ -1318,7 +1318,7 @@ Then no button on the stepper or in My tasks lets me act for someone else
 
 ---
 
-## US-04.26 · Ask for publishing and hear when the page is live
+## US-04.26 · Publish request: author asks for a publish date and is told when the page is live
 
 **Business benefit:** Planned launch dates reduce last-minute coordination between marketing and publishers. Authors learn when a page is live without chasing anyone, which saves time and avoids missed campaign starts.
 

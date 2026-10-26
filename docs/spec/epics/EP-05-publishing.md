@@ -8,16 +8,16 @@
 
 **Stories (6):**
 
-1. [US-05.01 · Publish a signed-off page now, together with its files](#us-0501--publish-a-signed-off-page-now-together-with-its-files)
-2. [US-05.02 · Publish later at a chosen time](#us-0502--publish-later-at-a-chosen-time)
-3. [US-05.03 · Publish several pages in one go](#us-0503--publish-several-pages-in-one-go)
-4. [US-05.04 · Hand a signed-off page over to the publisher](#us-0504--hand-a-signed-off-page-over-to-the-publisher)
-5. [US-05.05 · See what will change before publishing](#us-0505--see-what-will-change-before-publishing)
-6. [US-05.06 · Check an older version against live](#us-0506--check-an-older-version-against-live)
+1. [US-05.01 · Publish now: put a signed-off page live together with its unpublished files](#us-0501--publish-now-put-a-signed-off-page-live-together-with-its-unpublished-files)
+2. [US-05.02 · Scheduled publish: go live at a chosen date and time, with cancel](#us-0502--scheduled-publish-go-live-at-a-chosen-date-and-time-with-cancel)
+3. [US-05.03 · Bulk publish: publish several pages at once with a result per page](#us-0503--bulk-publish-publish-several-pages-at-once-with-a-result-per-page)
+4. [US-05.04 · Waiting for publisher: author sees the hand-over to a publisher at Ready to publish](#us-0504--waiting-for-publisher-author-sees-the-hand-over-to-a-publisher-at-ready-to-publish)
+5. [US-05.05 · Compare with live: side-by-side draft vs live page with a list of differences](#us-0505--compare-with-live-side-by-side-draft-vs-live-page-with-a-list-of-differences)
+6. [US-05.06 · Compare older version: compare any saved version with the live page](#us-0506--compare-older-version-compare-any-saved-version-with-the-live-page)
 
 ---
 
-## US-05.01 · Publish a signed-off page now, together with its files
+## US-05.01 · Publish now: put a signed-off page live together with its unpublished files
 
 **Business benefit:** Approved pages reach customers in one controlled step instead of a chain of manual releases. Publishing the files with the page removes broken pictures and missing documents that damage customer trust.
 
@@ -82,7 +82,7 @@ And confetti and "Published! Cash ISA is live" fill the screen
 
 ---
 
-## US-05.02 · Publish later at a chosen time
+## US-05.02 · Scheduled publish: go live at a chosen date and time, with cancel
 
 **Business benefit:** Campaigns and rate changes go live at the agreed minute without anyone working out of hours. Fewer manual late-night releases also means fewer publishing mistakes and lower overtime cost.
 
@@ -136,7 +136,7 @@ Then the page is back at "Ready to publish"
 
 ---
 
-## US-05.03 · Publish several pages in one go
+## US-05.03 · Bulk publish: publish several pages at once with a result per page
 
 **Business benefit:** Related pages of a launch go live together, so customers never see half of a product release. Per-page results cut the time spent finding out what was held back and why.
 
@@ -168,7 +168,7 @@ And "Publishing results" shows a tick for each and the reason for the third
 
 ---
 
-## US-05.04 · Hand a signed-off page over to the publisher
+## US-05.04 · Waiting for publisher: author sees the hand-over to a publisher at Ready to publish
 
 **Business benefit:** Keeping publishing with authorised publishers enforces separation of duties that auditors and regulators expect. Clear hand-over status reduces chasing between teams and shortens time to market.
 
@@ -198,7 +198,7 @@ Then a page at "Ready to publish" shows "Waiting for a publisher"
 
 ---
 
-## US-05.05 · See what will change before publishing
+## US-05.05 · Compare with live: side-by-side draft vs live page with a list of differences
 
 **Business benefit:** Publishers catch unintended changes before customers see them, lowering the risk of wrong rates or terms going live. A clear list of differences makes sign-off faster and easier to evidence.
 
@@ -247,7 +247,7 @@ Then it flashes on both sides
 
 ---
 
-## US-05.06 · Check an older version against live
+## US-05.06 · Compare older version: compare any saved version with the live page
 
 **Business benefit:** The bank can quickly establish when a change was made and what customers were shown at the time. This supports complaint handling and regulatory enquiries without costly investigation.
 

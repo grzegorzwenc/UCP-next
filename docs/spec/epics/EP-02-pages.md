@@ -8,18 +8,18 @@
 
 **Stories (8):**
 
-1. [US-02.01 · Find any page in the market](#us-0201--find-any-page-in-the-market)
-2. [US-02.02 · Create pages and folders from on-brand templates](#us-0202--create-pages-and-folders-from-on-brand-templates)
-3. [US-02.03 · Know what an action will change before it happens](#us-0203--know-what-an-action-will-change-before-it-happens)
-4. [US-02.04 · Move and copy pages without breaking or overwriting anything](#us-0204--move-and-copy-pages-without-breaking-or-overwriting-anything)
-5. [US-02.05 · Lock a page while I work on it](#us-0205--lock-a-page-while-i-work-on-it)
-6. [US-02.06 · Override someone else's lock](#us-0206--override-someone-elses-lock)
-7. [US-02.07 · Archive pages instead of deleting them](#us-0207--archive-pages-instead-of-deleting-them)
-8. [US-02.08 · See everything affected before deleting permanently](#us-0208--see-everything-affected-before-deleting-permanently)
+1. [US-02.01 · Pages list: browse the folder tree and search all pages of the market](#us-0201--pages-list-browse-the-folder-tree-and-search-all-pages-of-the-market)
+2. [US-02.02 · New page / new folder: create from a market-approved template](#us-0202--new-page--new-folder-create-from-a-market-approved-template)
+3. [US-02.03 · Page actions: show only permitted actions and confirm each with its impact](#us-0203--page-actions-show-only-permitted-actions-and-confirm-each-with-its-impact)
+4. [US-02.04 · Move & copy pages: relink referring pages and never overwrite an existing page](#us-0204--move--copy-pages-relink-referring-pages-and-never-overwrite-an-existing-page)
+5. [US-02.05 · Page lock: lock a page so only I or a site admin can change, move or delete it](#us-0205--page-lock-lock-a-page-so-only-i-or-a-site-admin-can-change-move-or-delete-it)
+6. [US-02.06 · Page lock override: site admin unlocks or changes a page locked by someone else](#us-0206--page-lock-override-site-admin-unlocks-or-changes-a-page-locked-by-someone-else)
+7. [US-02.07 · Archive pages: take pages offline and out of lists, with restore](#us-0207--archive-pages-take-pages-offline-and-out-of-lists-with-restore)
+8. [US-02.08 · Permanent delete: show linking pages, linked content, files and folder contents before deleting](#us-0208--permanent-delete-show-linking-pages-linked-content-files-and-folder-contents-before-deleting)
 
 ---
 
-## US-02.01 · Find any page in the market
+## US-02.01 · Pages list: browse the folder tree and search all pages of the market
 
 **Business benefit:** Authors find the right page in seconds, which saves time on every task across all markets. Fewer duplicate pages get created because existing ones are easy to find.
 
@@ -65,7 +65,7 @@ Then 50 are shown with "Show 50 more"
 
 ---
 
-## US-02.02 · Create pages and folders from on-brand templates
+## US-02.02 · New page / new folder: create from a market-approved template
 
 **Business benefit:** Every new page starts on-brand and market-appropriate, reducing rework and brand-compliance findings in review. Folder permissions keep teams from cluttering areas they do not own.
 
@@ -130,7 +130,7 @@ And there is no "New page" or "New folder"
 
 ---
 
-## US-02.03 · Know what an action will change before it happens
+## US-02.03 · Page actions: show only permitted actions and confirm each with its impact
 
 **Business benefit:** Clear impact warnings prevent accidental changes to live pages and the customer complaints they cause. Showing only allowed actions also reduces support requests and permission errors.
 
@@ -176,7 +176,7 @@ And without Edit on every selected item only Translate and Publish are offered
 
 ---
 
-## US-02.04 · Move and copy pages without breaking or overwriting anything
+## US-02.04 · Move & copy pages: relink referring pages and never overwrite an existing page
 
 **Business benefit:** Reorganising the site no longer produces broken links that harm customer experience and search ranking. Colleagues' pages are never overwritten, avoiding lost work and rework.
 
@@ -237,7 +237,7 @@ Then I see "Folders are not copied · pick pages"
 
 ---
 
-## US-02.05 · Lock a page while I work on it
+## US-02.05 · Page lock: lock a page so only I or a site admin can change, move or delete it
 
 **Business benefit:** Locks prevent conflicting edits on sensitive pages while they are being prepared. Reviews and publishing continue, so the lock never delays time-critical releases.
 
@@ -276,7 +276,7 @@ Then I see "Cash ISA is locked by Rachel Hughes"
 
 ---
 
-## US-02.06 · Override someone else's lock
+## US-02.06 · Page lock override: site admin unlocks or changes a page locked by someone else
 
 **Business benefit:** Work is never blocked by an absent colleague, which protects deadlines for campaigns and regulatory updates. Keeping the override with site admins keeps it controlled and accountable.
 
@@ -308,7 +308,7 @@ Then the page is unlocked and can be changed, moved or deleted again
 
 ---
 
-## US-02.07 · Archive pages instead of deleting them
+## US-02.07 · Archive pages: take pages offline and out of lists, with restore
 
 **Business benefit:** Making archive the default removes the risk of permanently losing content that may be needed again or for record-keeping. Restoring is quick, saving the cost of rebuilding pages.
 
@@ -363,7 +363,7 @@ Then I see that it is locked by them
 
 ---
 
-## US-02.08 · See everything affected before deleting permanently
+## US-02.08 · Permanent delete: show linking pages, linked content, files and folder contents before deleting
 
 **Business benefit:** Showing every affected link and file before deletion prevents broken customer journeys and orphaned documents. Permanent deletion becomes a deliberate, documented decision.
 

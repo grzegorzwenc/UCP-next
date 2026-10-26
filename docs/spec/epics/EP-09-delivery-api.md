@@ -8,13 +8,13 @@
 
 **Stories (3):**
 
-1. [US-09.01 · Get only approved content, and preview drafts separately](#us-0901--get-only-approved-content-and-preview-drafts-separately)
-2. [US-09.02 · Render pages straight from the JSON](#us-0902--render-pages-straight-from-the-json)
-3. [US-09.03 · Explore and try the API in the CMS](#us-0903--explore-and-try-the-api-in-the-cms)
+1. [US-09.01 · Delivery API: public published pages only, separate preview endpoint for drafts](#us-0901--delivery-api-public-published-pages-only-separate-preview-endpoint-for-drafts)
+2. [US-09.02 · Page JSON: resolved tokens, image renditions, form references, SEO meta and model schemas](#us-0902--page-json-resolved-tokens-image-renditions-form-references-seo-meta-and-model-schemas)
+3. [US-09.03 · API explorer: page URLs, JSON, model schemas and endpoint list inside the CMS](#us-0903--api-explorer-page-urls-json-model-schemas-and-endpoint-list-inside-the-cms)
 
 ---
 
-## US-09.01 · Get only approved content, and preview drafts separately
+## US-09.01 · Delivery API: public published pages only, separate preview endpoint for drafts
 
 **Business benefit:** Only approved content can reach customers through any channel, reducing the risk of leaking unreleased offers. Separate previews let teams test upcoming pages without affecting live sites.
 
@@ -52,7 +52,7 @@ Then I get the page JSON
 
 ---
 
-## US-09.02 · Render pages straight from the JSON
+## US-09.02 · Page JSON: resolved tokens, image renditions, form references, SEO meta and model schemas
 
 **Business benefit:** All websites and apps show the same approved content from one source, cutting duplicate work across channels. Ready-to-use JSON and schemas shorten integration time and reduce rendering errors.
 
@@ -85,7 +85,7 @@ Then I get a JSON Schema with the required fields and localised fields marked
 
 ---
 
-## US-09.03 · Explore and try the API in the CMS
+## US-09.03 · API explorer: page URLs, JSON, model schemas and endpoint list inside the CMS
 
 **Business benefit:** Developers integrate new channels faster without waiting for separate documentation. Self-service exploration lowers support effort and time to market.
 

@@ -8,13 +8,13 @@
 
 **Stories (3):**
 
-1. [US-08.01 · Search and export a full audit trail](#us-0801--search-and-export-a-full-audit-trail)
-2. [US-08.02 · See my own activity](#us-0802--see-my-own-activity)
-3. [US-08.03 · See what needs attention](#us-0803--see-what-needs-attention)
+1. [US-08.01 · Audit log (admin): every change with who, when and request ID, searchable and exportable](#us-0801--audit-log-admin-every-change-with-who-when-and-request-id-searchable-and-exportable)
+2. [US-08.02 · My activity: non-admins see only their own audit entries](#us-0802--my-activity-non-admins-see-only-their-own-audit-entries)
+3. [US-08.03 · Dashboard: waiting reviews, live share, failed publishes, my tasks and recent activity](#us-0803--dashboard-waiting-reviews-live-share-failed-publishes-my-tasks-and-recent-activity)
 
 ---
 
-## US-08.01 · Search and export a full audit trail
+## US-08.01 · Audit log (admin): every change with who, when and request ID, searchable and exportable
 
 **Business benefit:** The bank can answer auditors and regulators with complete evidence of who changed what and when. Fast search and CSV export cut the cost of compliance reviews.
 
@@ -47,7 +47,7 @@ And export the result to CSV
 
 ---
 
-## US-08.02 · See my own activity
+## US-08.02 · My activity: non-admins see only their own audit entries
 
 **Business benefit:** Staff can check their own work without seeing colleagues' activity, respecting need-to-know access. Fewer support requests to admins lowers operating cost.
 
@@ -72,7 +72,7 @@ Then it is titled "My activity" and shows only my actions
 
 ---
 
-## US-08.03 · See what needs attention
+## US-08.03 · Dashboard: waiting reviews, live share, failed publishes, my tasks and recent activity
 
 **Business benefit:** Waiting reviews and failed publishes are spotted early, so content reaches customers on time. Managers get a quick view of throughput without manual reporting.
 

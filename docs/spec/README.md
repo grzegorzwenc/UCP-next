@@ -27,14 +27,15 @@ Every epic page reads top to bottom:
 # EP-03 · Page builder
 Epic · Business benefit · Scope · list of stories
 
-## US-03.04 · Never lose my work          ← one Jira Story (ID = epic.order)
+## US-03.04 · Saving: autosave, Save button, ⌘S and a 'not saved' warning   ← one Jira Story
 Business benefit                           two sentences: what the bank gains
 User story                                 As a … / I want … / So that …
 Persona · Depends on                       stories that must exist first ("is blocked by")
 Acceptance criteria                        Scenario 1, Scenario 2, … (Given / When / Then)
 ```
 
-Stories inside an epic are listed **in build order**. Related requirements are merged into one story
+Story names follow one pattern — **Area: what it does** (e.g. `Saving: autosave, Save button, ⌘S and a 'not saved' warning`) —
+so a Jira list is readable on its own. Stories inside an epic are listed **in build order**. Related requirements are merged into one story
 (one goal for one persona); a story is split only when the persona changes.
 
 ## 3. Who uses it (personas)
@@ -145,7 +146,7 @@ Copy everything from the epic pages; nothing has to be invented.
 | Sprint | **TBD** |
 | Team | **WPB Digital Browser: Tools** |
 | Epic Link | the epic the story is under, e.g. `EP-03 · Page builder` |
-| Summary | story ID and name, e.g. `US-03.04 · Never lose my work` |
+| Summary | story ID and name, e.g. `US-03.04 · Saving: autosave, Save button, ⌘S and a 'not saved' warning` |
 | Description | **Business benefit**, then **User story**, then **Acceptance criteria** |
 | Acceptance criteria | **only** the acceptance criteria (Background, if any, and Scenario 1, 2, …) |
 

@@ -8,20 +8,20 @@
 
 **Stories (10):**
 
-1. [US-06.01 · Build and maintain page templates](#us-0601--build-and-maintain-page-templates)
-2. [US-06.02 · Limit a template to some markets](#us-0602--limit-a-template-to-some-markets)
-3. [US-06.03 · Pick the right template for my market](#us-0603--pick-the-right-template-for-my-market)
-4. [US-06.04 · Upload and replace files safely](#us-0604--upload-and-replace-files-safely)
-5. [US-06.05 · Make files accessible](#us-0605--make-files-accessible)
-6. [US-06.06 · Find the right file](#us-0606--find-the-right-file)
-7. [US-06.07 · Approve files for live use](#us-0607--approve-files-for-live-use)
-8. [US-06.08 · Define and evolve content models](#us-0608--define-and-evolve-content-models)
-9. [US-06.09 · Create reusable content items from a model](#us-0609--create-reusable-content-items-from-a-model)
-10. [US-06.10 · Update a fact everywhere at once](#us-0610--update-a-fact-everywhere-at-once)
+1. [US-06.01 · Templates (admin): create, edit, duplicate and delete page templates](#us-0601--templates-admin-create-edit-duplicate-and-delete-page-templates)
+2. [US-06.02 · Template markets (admin): limit a template to selected local markets](#us-0602--template-markets-admin-limit-a-template-to-selected-local-markets)
+3. [US-06.03 · Template library: browse templates and see contents and allowed markets](#us-0603--template-library-browse-templates-and-see-contents-and-allowed-markets)
+4. [US-06.04 · Asset upload: upload and replace files without overwriting or breaking pages](#us-0604--asset-upload-upload-and-replace-files-without-overwriting-or-breaking-pages)
+5. [US-06.05 · Asset accessibility: alt text per language and document accessibility details](#us-0605--asset-accessibility-alt-text-per-language-and-document-accessibility-details)
+6. [US-06.06 · Asset library: browse by folder and type, find unused files and missing alt text](#us-0606--asset-library-browse-by-folder-and-type-find-unused-files-and-missing-alt-text)
+7. [US-06.07 · Asset publishing: publish files and block pages that still use draft files](#us-0607--asset-publishing-publish-files-and-block-pages-that-still-use-draft-files)
+8. [US-06.08 · Content models (admin): define fields, publish and change models safely with versions](#us-0608--content-models-admin-define-fields-publish-and-change-models-safely-with-versions)
+9. [US-06.09 · Content entities: create and edit content items from published models](#us-0609--content-entities-create-and-edit-content-items-from-published-models)
+10. [US-06.10 · Entity publishing: one publish updates every page that shows the entity](#us-0610--entity-publishing-one-publish-updates-every-page-that-shows-the-entity)
 
 ---
 
-## US-06.01 · Build and maintain page templates
+## US-06.01 · Templates (admin): create, edit, duplicate and delete page templates
 
 **Business benefit:** Every page type starts from an approved structure with mandatory brand and navigation parts, so brand and compliance consistency is built in. New pages are created faster, cutting time to market.
 
@@ -60,7 +60,7 @@ But the "Blank page" template cannot be duplicated or deleted
 
 ---
 
-## US-06.02 · Limit a template to some markets
+## US-06.02 · Template markets (admin): limit a template to selected local markets
 
 **Business benefit:** Market-specific layouts cannot be reused by markets they were not approved for, reducing local regulatory and brand risk. Central teams can share templates safely without extra manual checks.
 
@@ -85,7 +85,7 @@ And I am warned that the UK can no longer create pages from it
 
 ---
 
-## US-06.03 · Pick the right template for my market
+## US-06.03 · Template library: browse templates and see contents and allowed markets
 
 **Business benefit:** Authors start from approved, market-appropriate templates instead of improvising layouts, which lowers rework and review effort. Read-only access protects templates from accidental change.
 
@@ -124,7 +124,7 @@ Then its card is dimmed and the button says "Not for UK"
 
 ---
 
-## US-06.04 · Upload and replace files safely
+## US-06.04 · Asset upload: upload and replace files without overwriting or breaking pages
 
 **Business benefit:** Files can be updated without breaking live pages, protecting the customer experience and the bank's reputation. Automatic renaming prevents costly overwrites of approved material.
 
@@ -164,7 +164,7 @@ Then I cannot delete it and I am told "Remove it from pages first"
 
 ---
 
-## US-06.05 · Make files accessible
+## US-06.05 · Asset accessibility: alt text per language and document accessibility details
 
 **Business benefit:** Recording alt text and document accessibility details helps the bank meet its accessibility obligations and avoid legal risk. Customers using assistive technology get the same information as everyone else.
 
@@ -196,7 +196,7 @@ Then a PDF needs a title, a language and "Tagged PDF, checked"
 
 ---
 
-## US-06.06 · Find the right file
+## US-06.06 · Asset library: browse by folder and type, find unused files and missing alt text
 
 **Business benefit:** Reusing approved files avoids duplicate purchases and repeated approvals, lowering cost. Smart views surface unused and inaccessible files so problems are fixed before audits find them.
 
@@ -232,7 +232,7 @@ Examples:
 
 ---
 
-## US-06.07 · Approve files for live use
+## US-06.07 · Asset publishing: publish files and block pages that still use draft files
 
 **Business benefit:** Only approved files can appear on live pages, reducing brand, legal and compliance risk. The publish record shows who approved each file and when, supporting audits.
 
@@ -263,7 +263,7 @@ Then publishing a page that uses a draft file is refused until the file is publi
 
 ---
 
-## US-06.08 · Define and evolve content models
+## US-06.08 · Content models (admin): define fields, publish and change models safely with versions
 
 **Business benefit:** Structured, validated content types give every channel consistent data and reduce errors in key facts. Guarded breaking changes protect live content and avoid costly outages.
 
@@ -318,7 +318,7 @@ Then every change is kept as a version I can compare and restore into the draft
 
 ---
 
-## US-06.09 · Create reusable content items from a model
+## US-06.09 · Content entities: create and edit content items from published models
 
 **Business benefit:** Facts such as rates are entered once, so the bank avoids inconsistent figures that could mislead customers. Blocking deletion of items in use prevents broken pages.
 
@@ -371,7 +371,7 @@ Then I see "Used on 3 pages · Remove it from those pages first"
 
 ---
 
-## US-06.10 · Update a fact everywhere at once
+## US-06.10 · Entity publishing: one publish updates every page that shows the entity
 
 **Business benefit:** A rate change reaches every page and channel at the same moment, lowering conduct risk from outdated figures. It removes the cost of editing many pages by hand.
 

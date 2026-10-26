@@ -8,12 +8,12 @@
 
 **Stories (2):**
 
-1. [US-07.01 · Create translated copies of pages in a few steps](#us-0701--create-translated-copies-of-pages-in-a-few-steps)
-2. [US-07.02 · Review every language version before it goes live](#us-0702--review-every-language-version-before-it-goes-live)
+1. [US-07.01 · Translate pages: 4-step flow (languages, how, where, check) to create language copies](#us-0701--translate-pages-4-step-flow-languages-how-where-check-to-create-language-copies)
+2. [US-07.02 · Translation review: every translated page goes through both reviews before going live](#us-0702--translation-review-every-translated-page-goes-through-both-reviews-before-going-live)
 
 ---
 
-## US-07.01 · Create translated copies of pages in a few steps
+## US-07.01 · Translate pages: 4-step flow (languages, how, where, check) to create language copies
 
 **Business benefit:** Pages reach every language of a market far faster than copying them by hand, shortening time to market. Wider language coverage improves access for customers and supports local language requirements.
 
@@ -74,7 +74,7 @@ And it shows "Source: /banking/savings/fixed-rate-bonds" in the page list
 
 ---
 
-## US-07.02 · Review every language version before it goes live
+## US-07.02 · Translation review: every translated page goes through both reviews before going live
 
 **Business benefit:** Translations get the same checks as originals, so no unverified wording about products or terms reaches customers. This keeps the bank compliant in every language it publishes.
 

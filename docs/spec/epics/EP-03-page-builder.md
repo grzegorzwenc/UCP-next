@@ -8,30 +8,30 @@
 
 **Stories (20):**
 
-1. [US-03.01 · Add on-brand components from the library](#us-0301--add-on-brand-components-from-the-library)
-2. [US-03.02 · Edit text where it is shown](#us-0302--edit-text-where-it-is-shown)
-3. [US-03.03 · Arrange and configure every component the same way](#us-0303--arrange-and-configure-every-component-the-same-way)
-4. [US-03.04 · Never lose my work](#us-0304--never-lose-my-work)
-5. [US-03.05 · Check the page on every device width](#us-0305--check-the-page-on-every-device-width)
-6. [US-03.06 · Reuse a section in one click](#us-0306--reuse-a-section-in-one-click)
-7. [US-03.07 · Save my own design pattern](#us-0307--save-my-own-design-pattern)
-8. [US-03.08 · Remove my patterns safely](#us-0308--remove-my-patterns-safely)
-9. [US-03.09 · Remove built-in design-system patterns](#us-0309--remove-built-in-design-system-patterns)
-10. [US-03.10 · See and fix what blocks publishing](#us-0310--see-and-fix-what-blocks-publishing)
-11. [US-03.11 · Check any element while previewing](#us-0311--check-any-element-while-previewing)
-12. [US-03.12 · Improve one component with AI](#us-0312--improve-one-component-with-ai)
-13. [US-03.13 · Let AI plan page-wide changes that I approve](#us-0313--let-ai-plan-page-wide-changes-that-i-approve)
-14. [US-03.14 · Keep AI within page permissions](#us-0314--keep-ai-within-page-permissions)
-15. [US-03.15 · Show shared content from one place](#us-0315--show-shared-content-from-one-place)
-16. [US-03.16 · Keep page text and linked content consistent](#us-0316--keep-page-text-and-linked-content-consistent)
-17. [US-03.17 · Build a page together with other authors](#us-0317--build-a-page-together-with-other-authors)
-18. [US-03.18 · Assign other people as authors](#us-0318--assign-other-people-as-authors)
-19. [US-03.19 · Link a page to its Jira ticket](#us-0319--link-a-page-to-its-jira-ticket)
-20. [US-03.20 · Go back to any earlier version](#us-0320--go-back-to-any-earlier-version)
+1. [US-03.01 · Component library: find HSBC components and add them below the selected one](#us-0301--component-library-find-hsbc-components-and-add-them-below-the-selected-one)
+2. [US-03.02 · Inline editing: type and format text directly on the page](#us-0302--inline-editing-type-and-format-text-directly-on-the-page)
+3. [US-03.03 · Component toolbar & Configure panel: move, lock, hide and set every property the same way](#us-0303--component-toolbar--configure-panel-move-lock-hide-and-set-every-property-the-same-way)
+4. [US-03.04 · Saving: autosave, Save button, ⌘S and a 'not saved' warning](#us-0304--saving-autosave-save-button-s-and-a-not-saved-warning)
+5. [US-03.05 · Device preview: desktop, tablet, mobile widths and full-screen preview](#us-0305--device-preview-desktop-tablet-mobile-widths-and-full-screen-preview)
+6. [US-03.06 · Design patterns library: add a saved group of components in one click](#us-0306--design-patterns-library-add-a-saved-group-of-components-in-one-click)
+7. [US-03.07 · Create design pattern: save selected components as a named pattern for all or some markets](#us-0307--create-design-pattern-save-selected-components-as-a-named-pattern-for-all-or-some-markets)
+8. [US-03.08 · Remove design pattern: archive first, permanent delete only on purpose](#us-0308--remove-design-pattern-archive-first-permanent-delete-only-on-purpose)
+9. [US-03.09 · Design-system patterns: site admin archives or deletes built-in patterns](#us-0309--design-system-patterns-site-admin-archives-or-deletes-built-in-patterns)
+10. [US-03.10 · Page insights: content, accessibility, compliance and SEO findings with one-click fixes](#us-0310--page-insights-content-accessibility-compliance-and-seo-findings-with-one-click-fixes)
+11. [US-03.11 · Quality checklist: floating checks per element in the author's full-screen preview](#us-0311--quality-checklist-floating-checks-per-element-in-the-authors-full-screen-preview)
+12. [US-03.12 · Component AI: suggest changes to one component with before/after and Apply](#us-0312--component-ai-suggest-changes-to-one-component-with-beforeafter-and-apply)
+13. [US-03.13 · Page AI: plan page-wide changes, run only the ticked ones, undo any](#us-0313--page-ai-plan-page-wide-changes-run-only-the-ticked-ones-undo-any)
+14. [US-03.14 · AI permissions: no AI changes for users who can only read the page](#us-0314--ai-permissions-no-ai-changes-for-users-who-can-only-read-the-page)
+15. [US-03.15 · Linked content: link an entity and use its fields as {{tokens}} in the page](#us-0315--linked-content-link-an-entity-and-use-its-fields-as-tokens-in-the-page)
+16. [US-03.16 · Linked content checks: stop inheriting, flag unlinked tokens, protect entities in use](#us-0316--linked-content-checks-stop-inheriting-flag-unlinked-tokens-protect-entities-in-use)
+17. [US-03.17 · Co-authors: join or leave the authors of a page at Build the page](#us-0317--co-authors-join-or-leave-the-authors-of-a-page-at-build-the-page)
+18. [US-03.18 · Co-authors (admin): site admin adds or removes other people as authors](#us-0318--co-authors-admin-site-admin-adds-or-removes-other-people-as-authors)
+19. [US-03.19 · Jira link: attach a Jira ticket to a page and open it from the builder and My tasks](#us-0319--jira-link-attach-a-jira-ticket-to-a-page-and-open-it-from-the-builder-and-my-tasks)
+20. [US-03.20 · Version history: restore or comment on any saved version](#us-0320--version-history-restore-or-comment-on-any-saved-version)
 
 ---
 
-## US-03.01 · Add on-brand components from the library
+## US-03.01 · Component library: find HSBC components and add them below the selected one
 
 **Business benefit:** Pages are built only from approved components, so brand and compliance quality is built in rather than checked later. Authors produce pages without developer help, lowering cost and time to market.
 
@@ -78,7 +78,7 @@ Then I see "How do you want to start this page?" with 3 layouts
 
 ---
 
-## US-03.02 · Edit text where it is shown
+## US-03.02 · Inline editing: type and format text directly on the page
 
 **Business benefit:** Authors see exactly what customers will see, which reduces review rounds caused by layout surprises. Restricting link formats also blocks unsafe links from reaching customers.
 
@@ -133,7 +133,7 @@ And links must start with https, mailto, tel, / or #
 
 ---
 
-## US-03.03 · Arrange and configure every component the same way
+## US-03.03 · Component toolbar & Configure panel: move, lock, hide and set every property the same way
 
 **Business benefit:** One consistent way to configure all components shortens training for new authors. Locking components protects mandatory content such as disclaimers from accidental edits.
 
@@ -182,7 +182,7 @@ And Cancel puts back the values from when Configure opened
 
 ---
 
-## US-03.04 · Never lose my work
+## US-03.04 · Saving: autosave, Save button, ⌘S and a 'not saved' warning
 
 **Business benefit:** Authors never redo work after a closed tab or a lost connection. Fewer lost edits also mean fewer errors slipping into reviewed pages.
 
@@ -227,7 +227,7 @@ Then I see "Not saved · Retry"
 
 ---
 
-## US-03.05 · Check the page on every device width
+## US-03.05 · Device preview: desktop, tablet, mobile widths and full-screen preview
 
 **Business benefit:** Problems on mobile and tablet are caught before review, when they are cheapest to fix. Customers get a consistent experience on every device, which protects trust and conversion.
 
@@ -271,7 +271,7 @@ Then the page fills the screen and Esc goes back to editing
 
 ---
 
-## US-03.06 · Reuse a section in one click
+## US-03.06 · Design patterns library: add a saved group of components in one click
 
 **Business benefit:** Common sections look identical across pages, strengthening brand consistency for customers. Adding a whole section in one click saves authors significant build time.
 
@@ -310,7 +310,7 @@ And I see "Product introduction added · 3 components"
 
 ---
 
-## US-03.07 · Save my own design pattern
+## US-03.07 · Create design pattern: save selected components as a named pattern for all or some markets
 
 **Business benefit:** Proven sections are reused instead of rebuilt, spreading good practice across teams and markets. Market targeting stops a pattern from appearing where it does not fit local rules.
 
@@ -380,7 +380,7 @@ Then I am warned "This market will no longer see it. Pages that already use it k
 
 ---
 
-## US-03.08 · Remove my patterns safely
+## US-03.08 · Remove design pattern: archive first, permanent delete only on purpose
 
 **Business benefit:** The pattern library stays tidy without risking pages that already use a pattern. Two-step removal prevents losing valuable shared work by mistake.
 
@@ -433,7 +433,7 @@ Examples:
 
 ---
 
-## US-03.09 · Remove built-in design-system patterns
+## US-03.09 · Design-system patterns: site admin archives or deletes built-in patterns
 
 **Business benefit:** Outdated design-system sections can be retired centrally, so new pages do not reuse superseded designs. Restricting this to site admins protects the shared library from accidental removal.
 
@@ -468,7 +468,7 @@ Examples:
 
 ---
 
-## US-03.10 · See and fix what blocks publishing
+## US-03.10 · Page insights: content, accessibility, compliance and SEO findings with one-click fixes
 
 **Business benefit:** Automatic checks catch accessibility, compliance and SEO issues before review, reducing regulatory and reputational risk. Reviewers spend their time on substance rather than mechanical mistakes.
 
@@ -526,7 +526,7 @@ Then the component is selected and scrolled into view
 
 ---
 
-## US-03.11 · Check any element while previewing
+## US-03.11 · Quality checklist: floating checks per element in the author's full-screen preview
 
 **Business benefit:** Authors verify each element in the context customers see, catching issues earlier and more cheaply. A consistent checklist raises the baseline quality of every page.
 
@@ -565,7 +565,7 @@ Then the checklist stays on it until I click it again
 
 ---
 
-## US-03.12 · Improve one component with AI
+## US-03.12 · Component AI: suggest changes to one component with before/after and Apply
 
 **Business benefit:** AI speeds up copy improvements while the author keeps full control over every change. Showing before and after prevents unreviewed AI text from reaching customers.
 
@@ -600,7 +600,7 @@ Then I see "This block has no button."
 
 ---
 
-## US-03.13 · Let AI plan page-wide changes that I approve
+## US-03.13 · Page AI: plan page-wide changes, run only the ticked ones, undo any
 
 **Business benefit:** Page-wide changes such as accessibility or SEO fixes take minutes instead of hours. Approval and undo for each change keep accountability with the author and limit the risk of AI errors.
 
@@ -653,7 +653,7 @@ Then I see "Page already follows HSBC content patterns — nothing to change"
 
 ---
 
-## US-03.14 · Keep AI within page permissions
+## US-03.14 · AI permissions: no AI changes for users who can only read the page
 
 **Business benefit:** AI cannot become a loophole around the bank's access controls, which protects content integrity. This gives risk and compliance teams confidence to approve AI use.
 
@@ -679,7 +679,7 @@ Then nothing is planned and I am told the page is read-only
 
 ---
 
-## US-03.15 · Show shared content from one place
+## US-03.15 · Linked content: link an entity and use its fields as {{tokens}} in the page
 
 **Business benefit:** Rates and product details are maintained once and update everywhere, cutting maintenance effort. It removes the risk of customers seeing outdated or conflicting figures on different pages.
 
@@ -728,7 +728,7 @@ Then the content picker opens and the token is inserted at the caret
 
 ---
 
-## US-03.16 · Keep page text and linked content consistent
+## US-03.16 · Linked content checks: stop inheriting, flag unlinked tokens, protect entities in use
 
 **Business benefit:** Broken or missing shared content is flagged before it reaches customers, protecting accuracy of regulated information. Authors can still detach content deliberately, with a clear trace.
 
@@ -773,7 +773,7 @@ Then the entity shows "used 2× in the text" and has no remove button
 
 ---
 
-## US-03.17 · Build a page together with other authors
+## US-03.17 · Co-authors: join or leave the authors of a page at Build the page
 
 **Business benefit:** Larger pages are delivered faster because several authors can share the work. Clear ownership means reviewers and managers always know who is responsible.
 
@@ -823,7 +823,7 @@ Then My tasks shows the second one under the Content author as "+ Name"
 
 ---
 
-## US-03.18 · Assign other people as authors
+## US-03.18 · Co-authors (admin): site admin adds or removes other people as authors
 
 **Business benefit:** Managers can hand out work deliberately and keep delivery on schedule. Every assignment is logged and limited to people with Edit, keeping access controlled.
 
@@ -864,7 +864,7 @@ Then I see "Only a site admin can assign other people"
 
 ---
 
-## US-03.19 · Link a page to its Jira ticket
+## US-03.19 · Jira link: attach a Jira ticket to a page and open it from the builder and My tasks
 
 **Business benefit:** Every page change is traceable to the business request behind it, which supports audit and change management. Reviewers reach the context in one click, speeding up approval.
 
@@ -901,7 +901,7 @@ Then the ticket opens in a new tab
 
 ---
 
-## US-03.20 · Go back to any earlier version
+## US-03.20 · Version history: restore or comment on any saved version
 
 **Business benefit:** Any mistake can be reversed quickly, limiting the impact of an incorrect change. A full version history supports audit and regulatory record-keeping.
 

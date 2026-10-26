@@ -8,19 +8,19 @@
 
 **Stories (9):**
 
-1. [US-01.01 · Sign in with the company account](#us-0101--sign-in-with-the-company-account)
-2. [US-01.02 · Open a review link without an account](#us-0102--open-a-review-link-without-an-account)
-3. [US-01.03 · Try the private demo as any person](#us-0103--try-the-private-demo-as-any-person)
-4. [US-01.04 · Switch between markets](#us-0104--switch-between-markets)
-5. [US-01.05 · Always know which environment I am in](#us-0105--always-know-which-environment-i-am-in)
-6. [US-01.06 · Reach any screen quickly on any device](#us-0106--reach-any-screen-quickly-on-any-device)
-7. [US-01.07 · Give each role and workflow step the right permissions](#us-0107--give-each-role-and-workflow-step-the-right-permissions)
-8. [US-01.08 · Manage people and their permissions](#us-0108--manage-people-and-their-permissions)
-9. [US-01.09 · Only site admins can change access](#us-0109--only-site-admins-can-change-access)
+1. [US-01.01 · Sign-in: company SSO login with return to the requested page](#us-0101--sign-in-company-sso-login-with-return-to-the-requested-page)
+2. [US-01.02 · Review links: open a shared review page without a UCP login](#us-0102--review-links-open-a-shared-review-page-without-a-ucp-login)
+3. [US-01.03 · Hosted demo: password gate and sign-in as any demo persona](#us-0103--hosted-demo-password-gate-and-sign-in-as-any-demo-persona)
+4. [US-01.04 · Market switcher: change instance and market without losing the current screen](#us-0104--market-switcher-change-instance-and-market-without-losing-the-current-screen)
+5. [US-01.05 · Environment indicator: always show dev / test / stage / prod and whether it reaches customers](#us-0105--environment-indicator-always-show-dev--test--stage--prod-and-whether-it-reaches-customers)
+6. [US-01.06 · Navigation: command palette (⌘K), global search and responsive side menu](#us-0106--navigation-command-palette-k-global-search-and-responsive-side-menu)
+7. [US-01.07 · Permissions model: role defaults and the permission each workflow step needs](#us-0107--permissions-model-role-defaults-and-the-permission-each-workflow-step-needs)
+8. [US-01.08 · Users & roles: invite people and grant permissions per folder (site admin)](#us-0108--users--roles-invite-people-and-grant-permissions-per-folder-site-admin)
+9. [US-01.09 · Access control: only site admins can change users and permissions, enforced by the server](#us-0109--access-control-only-site-admins-can-change-users-and-permissions-enforced-by-the-server)
 
 ---
 
-## US-01.01 · Sign in with the company account
+## US-01.01 · Sign-in: company SSO login with return to the requested page
 
 **Business benefit:** Only identified staff can reach the CMS, which closes the door to anonymous changes on customer-facing pages. Every action is tied to a named person, giving auditors a reliable trail.
 
@@ -76,7 +76,7 @@ Then a session lasts 12 hours
 
 ---
 
-## US-01.02 · Open a review link without an account
+## US-01.02 · Review links: open a shared review page without a UCP login
 
 **Business benefit:** External and occasional reviewers can sign off pages without the bank buying and managing extra CMS licences. Reviews happen sooner because nobody waits for an account to be created.
 
@@ -101,7 +101,7 @@ Then the page opens without signing in
 
 ---
 
-## US-01.03 · Try the private demo as any person
+## US-01.03 · Hosted demo: password gate and sign-in as any demo persona
 
 **Business benefit:** Stakeholders can evaluate every role before the bank commits to a rollout, reducing the risk of a costly wrong choice. The demo stays private, so unfinished screens and sample data are never exposed publicly.
 
@@ -135,7 +135,7 @@ Then every demo person is listed with their role and team
 
 ---
 
-## US-01.04 · Switch between markets
+## US-01.04 · Market switcher: change instance and market without losing the current screen
 
 **Business benefit:** One platform serves every market, so the bank runs and pays for a single CMS instead of one per country. Authors working across markets make fewer wrong-market edits.
 
@@ -173,7 +173,7 @@ Then I am on Pages in France
 
 ---
 
-## US-01.05 · Always know which environment I am in
+## US-01.05 · Environment indicator: always show dev / test / stage / prod and whether it reaches customers
 
 **Business benefit:** Constant visibility of the environment prevents accidental publication to customers, a costly and reputationally damaging incident. Teams can test freely in staging with confidence.
 
@@ -202,7 +202,7 @@ Examples:
 
 ---
 
-## US-01.06 · Reach any screen quickly on any device
+## US-01.06 · Navigation: command palette (⌘K), global search and responsive side menu
 
 **Business benefit:** Authors spend less time hunting through menus, which raises daily output at no extra cost. The same tool works on laptops and small screens, so work does not stall away from the desk.
 
@@ -249,7 +249,7 @@ Examples:
 
 ---
 
-## US-01.07 · Give each role and workflow step the right permissions
+## US-01.07 · Permissions model: role defaults and the permission each workflow step needs
 
 **Business benefit:** Approval rights follow the bank's segregation-of-duties rules, which supports regulatory compliance. Sensible defaults also cut the admin effort of setting up each new person.
 
@@ -303,7 +303,7 @@ Examples:
 
 ---
 
-## US-01.08 · Manage people and their permissions
+## US-01.08 · Users & roles: invite people and grant permissions per folder (site admin)
 
 **Business benefit:** Access can be tailored per folder, so teams work independently without over-privileged accounts. Every grant is logged, which makes access reviews and audits straightforward.
 
@@ -351,7 +351,7 @@ And they get the Author permissions on the whole site
 
 ---
 
-## US-01.09 · Only site admins can change access
+## US-01.09 · Access control: only site admins can change users and permissions, enforced by the server
 
 **Business benefit:** Server-side enforcement closes a privilege-escalation risk that would otherwise undermine every other control. It gives security and audit teams evidence that access rules cannot be bypassed.
 
