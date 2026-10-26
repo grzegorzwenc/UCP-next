@@ -59,14 +59,14 @@ def epic_of(path):
     return (eid, name, eben), desc, out
 
 
-epics = [(f, *epic_of(f)) for f in sorted(glob.glob("epics/*.feature"))]
+epics = [(f, *epic_of(f)) for f in sorted(glob.glob("epics/gherkin/*.feature"))]
 allst = [s for *_, st in epics for s in st]; by = {s["id"]: s for s in allst}
 memo = {}
 def wave(i):
     if i not in memo: memo[i] = 1 + max([wave(d) for d in by[i]["deps"]] + [0])
     return memo[i]
 waves = max(wave(s["id"]) for s in allst)
-anchor = lambda eid, name: "#" + re.sub(r"[^a-z0-9 -]", "", f"{eid} {name}".lower()).replace(" ", "-")
+anchor = lambda eid, name: "#" + re.sub(r"[^a-z0-9 -]", "", f"{eid} · {name}".lower()).replace(" ", "-")
 
 o = ["# Story map", "", open("tools/jira-notes.md").read().rstrip(), "",
      "## How to read it", "",
@@ -77,9 +77,9 @@ o = ["# Story map", "", open("tools/jira-notes.md").read().rstrip(), "",
      "🛡 site-admin story · ⏭ planned, not built yet · 🧪 runs on a stand-in today (mock).", "",
      f"**{len(epics)} epics · {len(allst)} stories · {waves} build waves.** "
      "Generated from the `.feature` files with `python3 tools/story-map.py` — edit the epic files, then regenerate.", "",
-     "| Epic | Stories | Source |", "|---|---|---|"]
+     "| Epic | Stories | Epic page |", "|---|---|---|"]
 for f, (eid, name, eben), desc, st in epics:
-    o.append(f"| [{eid} · {name}]({anchor(eid, name)}) | {len(st)} | [`{os.path.basename(f)}`]({f}) |")
+    o.append(f"| [{eid} · {name}]({anchor(eid, name)}) | {len(st)} | [`{eid}-{os.path.basename(f)[3:-8]}.md`](epics/{eid}-{os.path.basename(f)[3:-8]}.md) |")
 for f, (eid, name, eben), desc, st in epics:
     o += ["", "---", "", f"## {eid} · {name}", "",
           "| Epic field | Value |", "|---|---|", "| Issue type | Epic |", f"| Epic name / Summary | {eid} · {name} |",
@@ -87,7 +87,7 @@ for f, (eid, name, eben), desc, st in epics:
           f"| Stories | {len(st)} · {st[0]['id']} to {st[-1]['id']} |", "",
           "<details><summary>Epic description to paste into Jira</summary>", "", "```text", "Business benefit", eben, "", "Scope", desc, "",
           "Stories", *[f"{x['id']} · {x['title']}" for x in st], "```", "", "</details>", "",
-          f"Source: [`{os.path.basename(f)}`]({f})", "", "**Stories**", "",
+          f"Read the epic: [`{eid}-{os.path.basename(f)[3:-8]}.md`](epics/{eid}-{os.path.basename(f)[3:-8]}.md) · Gherkin source: [`{os.path.basename(f)}`]({f})", "", "**Stories**", "",
           "<table>", "<tr><th>#</th><th>Story</th><th>Persona</th><th>Business benefit</th><th>User story</th><th>Depends on</th><th>Wave</th></tr>"]
     for s in st:
         mark = (" 🛡" if s["admin"] else "") + (" ⏭" if s["nxt"] else "") + (" 🧪" if s["mock"] else "")
@@ -104,3 +104,58 @@ for w in range(1, waves + 1):
     o += [f"**Wave {w}** — " + " · ".join(f"{s['id']} {s['title']}" for s in allst if wave(s["id"]) == w), ""]
 open("STORY-MAP.md", "w").write("\n".join(o))
 print(f"{len(epics)} epics, {len(allst)} stories, {waves} waves")
+
+
+# ---- one readable page per epic (epics/EP-nn-name.md) + epics/README.md as the index ----
+def steps_md(ac):
+    """Scenario 1 · name, then its steps in a gherkin block; numbered only when there are several."""
+    chunks, cur = [], None
+    for line in ac.split("\n"):
+        m = re.match(r"\s*Scenario( Outline)?: (.+)", line)
+        if m:
+            cur = [m.group(2).strip(), bool(m.group(1)), []]; chunks.append(cur)
+        elif cur is not None:
+            cur[2].append(line)
+    out = []
+    for i, (name, outline, body) in enumerate(chunks, 1):
+        steps = "\n".join(b[2:] if b.startswith("  ") else b for b in body).strip("\n")
+        label = f"Scenario {i}" if len(chunks) > 1 else "Scenario"
+        out += [f"**{label} · {name}**" + (" *(one run per row of the table)*" if outline else ""), "", "```gherkin", steps, "```", ""]
+    return out
+
+index = ["# Epics", "",
+         "Each page below is one Jira **Epic** with its **Stories**. Open an epic to read, in this order: the epic name, "
+         "its business benefit and scope, then every story with its business benefit, user story and numbered scenarios.", "",
+         "| Epic | Business benefit | Stories |", "|---|---|---|"]
+for f, (eid, name, eben), desc, st in epics:
+    slug = os.path.basename(f)[3:-8]
+    md = f"{eid}-{slug}.md"
+    p = [f"# {eid} · {name}", "",
+         "| | |", "|---|---|",
+         f"| **Epic** | {eid} · {name} |", f"| **Business benefit** | {eben} |", f"| **Scope** | {desc} |",
+         f"| **Stories** | {len(st)} |", "| **Jira** | Issue type Epic · Team WPB Digital Browser: Tools |", "",
+         "## Stories in this epic", "", "| # | Story | Persona | Depends on |", "|---|---|---|---|"]
+    for s in st:
+        mark = (" 🛡" if s["admin"] else "") + (" ⏭" if s["nxt"] else "") + (" 🧪" if s["mock"] else "")
+        a = re.sub(r"[^a-z0-9 -]", "", f"{s['id']} · {s['title']}".lower()).replace(" ", "-")
+        p.append(f"| {s['n']} | [{s['id']} · {s['title']}](#{a}){mark} | {s['persona']} | {', '.join(s['deps']) or '—'} |")
+    p += ["", "🛡 site-admin story · ⏭ planned, not built yet · 🧪 runs on a stand-in today (mock)", ""]
+    for s in st:
+        mark = (" 🛡" if s["admin"] else "") + (" ⏭" if s["nxt"] else "") + (" 🧪" if s["mock"] else "")
+        p += ["---", "", f"## {s['id']} · {s['title']}", "", *([f"*{mark.strip()}*", ""] if mark else []),
+              "| | |", "|---|---|",
+              f"| **Story** | {s['id']} · {s['title']} |", f"| **Business benefit** | {s['ben']} |",
+              f"| **Persona** | {s['persona']} |", f"| **Depends on** | {', '.join(s['deps']) or '—'} |",
+              "| **Jira** | Issue type Story · Story type Functional · Sprint TBD · Team WPB Digital Browser: Tools |", "",
+              "**User story**", "", *[f"> {x}  " for x in s["story"] + s["notes"]], "",
+              "**Acceptance criteria**", ""]
+        if s["bg"]:
+            p += ["**Background** · applies to every scenario below", "", "```gherkin", "\n".join(s["bg"]), "```", ""]
+        p += steps_md(s["ac"])
+    p += ["---", "", f"Source (Gherkin): [`gherkin/{os.path.basename(f)}`](gherkin/{os.path.basename(f)}) · "
+          "Generated with `python3 tools/story-map.py` — edit the Gherkin file, then regenerate."]
+    open(f"epics/{md}", "w").write("\n".join(p) + "\n")
+    index.append(f"| [{eid} · {name}]({md}) | {eben} | {len(st)} |")
+index += ["", "Sources: the Gherkin files in [`gherkin/`](gherkin/) — the pages here are generated from them."]
+open("epics/README.md", "w").write("\n".join(index) + "\n")
+print("epic pages written")

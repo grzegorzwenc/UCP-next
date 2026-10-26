@@ -56,6 +56,6 @@ Scenario: …
 ```
 
 Notes
-- Copy the acceptance criteria exactly from the epic file (linked under each epic below), including the story's Background if it has one; `Scenario Outline` tables go in as they are.
+- Copy the acceptance criteria exactly from the epic page (linked under each epic below), including the story's Background if it has one; `Scenario Outline` tables go in as they are.
 - Create the stories in the order of this map; record each `Depends on` as an issue link "is blocked by" to the story it names.
-- Keep the story ID at the start of the Summary, so Jira tickets and the epic files can always be matched.
+- Keep the story ID at the start of the Summary, so Jira tickets and the epic pages can always be matched.

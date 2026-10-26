@@ -58,9 +58,9 @@ Scenario: …
 ```
 
 Notes
-- Copy the acceptance criteria exactly from the epic file (linked under each epic below), including the story's Background if it has one; `Scenario Outline` tables go in as they are.
+- Copy the acceptance criteria exactly from the epic page (linked under each epic below), including the story's Background if it has one; `Scenario Outline` tables go in as they are.
 - Create the stories in the order of this map; record each `Depends on` as an issue link "is blocked by" to the story it names.
-- Keep the story ID at the start of the Summary, so Jira tickets and the epic files can always be matched.
+- Keep the story ID at the start of the Summary, so Jira tickets and the epic pages can always be matched.
 
 ## How to read it
 
@@ -68,17 +68,17 @@ Notes
 
 **9 epics · 87 stories · 16 build waves.** Generated from the `.feature` files with `python3 tools/story-map.py` — edit the epic files, then regenerate.
 
-| Epic | Stories | Source |
+| Epic | Stories | Epic page |
 |---|---|---|
-| [EP-01 · Access & navigation](#ep-01-access--navigation) | 9 | [`01-access-and-navigation.feature`](epics/01-access-and-navigation.feature) |
-| [EP-02 · Pages](#ep-02-pages) | 8 | [`02-pages.feature`](epics/02-pages.feature) |
-| [EP-03 · Page builder](#ep-03-page-builder) | 20 | [`03-page-builder.feature`](epics/03-page-builder.feature) |
-| [EP-04 · Review workflow](#ep-04-review-workflow) | 26 | [`04-review-workflow.feature`](epics/04-review-workflow.feature) |
-| [EP-05 · Publishing](#ep-05-publishing) | 6 | [`05-publishing.feature`](epics/05-publishing.feature) |
-| [EP-06 · Content library](#ep-06-content-library) | 10 | [`06-content-library.feature`](epics/06-content-library.feature) |
-| [EP-07 · Translations](#ep-07-translations) | 2 | [`07-translations.feature`](epics/07-translations.feature) |
-| [EP-08 · Governance](#ep-08-governance) | 3 | [`08-governance.feature`](epics/08-governance.feature) |
-| [EP-09 · Delivery API](#ep-09-delivery-api) | 3 | [`09-delivery-api.feature`](epics/09-delivery-api.feature) |
+| [EP-01 · Access & navigation](#ep-01--access--navigation) | 9 | [`EP-01-access-and-navigation.md`](epics/EP-01-access-and-navigation.md) |
+| [EP-02 · Pages](#ep-02--pages) | 8 | [`EP-02-pages.md`](epics/EP-02-pages.md) |
+| [EP-03 · Page builder](#ep-03--page-builder) | 20 | [`EP-03-page-builder.md`](epics/EP-03-page-builder.md) |
+| [EP-04 · Review workflow](#ep-04--review-workflow) | 26 | [`EP-04-review-workflow.md`](epics/EP-04-review-workflow.md) |
+| [EP-05 · Publishing](#ep-05--publishing) | 6 | [`EP-05-publishing.md`](epics/EP-05-publishing.md) |
+| [EP-06 · Content library](#ep-06--content-library) | 10 | [`EP-06-content-library.md`](epics/EP-06-content-library.md) |
+| [EP-07 · Translations](#ep-07--translations) | 2 | [`EP-07-translations.md`](epics/EP-07-translations.md) |
+| [EP-08 · Governance](#ep-08--governance) | 3 | [`EP-08-governance.md`](epics/EP-08-governance.md) |
+| [EP-09 · Delivery API](#ep-09--delivery-api) | 3 | [`EP-09-delivery-api.md`](epics/EP-09-delivery-api.md) |
 
 ---
 
@@ -116,7 +116,7 @@ US-01.09 · Only site admins can change access
 
 </details>
 
-Source: [`01-access-and-navigation.feature`](epics/01-access-and-navigation.feature)
+Read the epic: [`EP-01-access-and-navigation.md`](epics/EP-01-access-and-navigation.md) · Gherkin source: [`01-access-and-navigation.feature`](epics/gherkin/01-access-and-navigation.feature)
 
 **Stories**
 
@@ -244,7 +244,7 @@ US-02.08 · See everything affected before deleting permanently
 
 </details>
 
-Source: [`02-pages.feature`](epics/02-pages.feature)
+Read the epic: [`EP-02-pages.md`](epics/EP-02-pages.md) · Gherkin source: [`02-pages.feature`](epics/gherkin/02-pages.feature)
 
 **Stories**
 
@@ -373,7 +373,7 @@ US-03.20 · Go back to any earlier version
 
 </details>
 
-Source: [`03-page-builder.feature`](epics/03-page-builder.feature)
+Read the epic: [`EP-03-page-builder.md`](epics/EP-03-page-builder.md) · Gherkin source: [`03-page-builder.feature`](epics/gherkin/03-page-builder.feature)
 
 **Stories**
 
@@ -620,7 +620,7 @@ US-04.26 · Ask for publishing and hear when the page is live
 
 </details>
 
-Source: [`04-review-workflow.feature`](epics/04-review-workflow.feature)
+Read the epic: [`EP-04-review-workflow.md`](epics/EP-04-review-workflow.md) · Gherkin source: [`04-review-workflow.feature`](epics/gherkin/04-review-workflow.feature)
 
 **Stories**
 
@@ -1003,7 +1003,7 @@ US-05.06 · Check an older version against live
 
 </details>
 
-Source: [`05-publishing.feature`](epics/05-publishing.feature)
+Read the epic: [`EP-05-publishing.md`](epics/EP-05-publishing.md) · Gherkin source: [`05-publishing.feature`](epics/gherkin/05-publishing.feature)
 
 **Stories**
 
@@ -1097,7 +1097,7 @@ US-06.10 · Update a fact everywhere at once
 
 </details>
 
-Source: [`06-content-library.feature`](epics/06-content-library.feature)
+Read the epic: [`EP-06-content-library.md`](epics/EP-06-content-library.md) · Gherkin source: [`06-content-library.feature`](epics/gherkin/06-content-library.feature)
 
 **Stories**
 
@@ -1201,7 +1201,7 @@ US-07.02 · Review every language version before it goes live
 
 </details>
 
-Source: [`07-translations.feature`](epics/07-translations.feature)
+Read the epic: [`EP-07-translations.md`](epics/EP-07-translations.md) · Gherkin source: [`07-translations.feature`](epics/gherkin/07-translations.feature)
 
 **Stories**
 
@@ -1252,7 +1252,7 @@ US-08.03 · See what needs attention
 
 </details>
 
-Source: [`08-governance.feature`](epics/08-governance.feature)
+Read the epic: [`EP-08-governance.md`](epics/EP-08-governance.md) · Gherkin source: [`08-governance.feature`](epics/gherkin/08-governance.feature)
 
 **Stories**
 
@@ -1308,7 +1308,7 @@ US-09.03 · Explore and try the API in the CMS
 
 </details>
 
-Source: [`09-delivery-api.feature`](epics/09-delivery-api.feature)
+Read the epic: [`EP-09-delivery-api.md`](epics/EP-09-delivery-api.md) · Gherkin source: [`09-delivery-api.feature`](epics/gherkin/09-delivery-api.feature)
 
 **Stories**
 

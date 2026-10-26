@@ -13,7 +13,7 @@ with the same HSBC components, the same four-eyes workflow and a full audit trai
 
 ```
 Product  ─ HSBC Unified Content Platform
- └─ Epic        (9)    EP-<nn> · name, one file in epics/ = one Jira Epic, e.g. "EP-04 · Review workflow"
+ └─ Epic        (9)    EP-<nn> · name, one page in epics/ = one Jira Epic, e.g. "EP-04 · Review workflow"
      └─ Story   (87)   Rule: US-<epic>.<nn> · name = one Jira Story
          │              As a <persona> / I want … / So that …
          └─ Scenario (236) acceptance criteria (Given / When / Then)
@@ -33,8 +33,8 @@ Every story has the same shape, in this order:
 ```
 
 Inside each epic, stories are listed **in build order** (the last number of the ID is that order).
-`@depends:` names every story that has to exist first, also in other epics. Epic files live in `epics/`.
-They keep the `.feature` extension and the `Feature:` keyword only because Gherkin tools require them — in this
+`@depends:` names every story that has to exist first, also in other epics. Readable epic pages are in [`epics/`](epics/) (one `EP-nn-….md` per epic);
+the Gherkin sources they are generated from are in `epics/gherkin/`. The sources keep the `.feature` extension and the `Feature:` keyword only because Gherkin tools require them — in this
 project that line always names an epic (`Feature: EP-03 · Page builder`), with the epic's `# Business benefit:`
 above it. A Background that only some stories need sits inside those stories.
 Old three-part IDs (before the Epic → Story layout) map to the new ones in [tools/id-mapping.txt](tools/id-mapping.txt). The whole picture —
@@ -76,7 +76,7 @@ business review; only the assigned person decides; site admins may act, visibly 
 
 The author does **not** click through the flow. The author requests the next step, the page
 travels through other people, and it comes back to the author at the end (or earlier, with
-comments, through "Reauthor"). Full story: [04-review-workflow.feature](epics/04-review-workflow.feature) — stories US-04.22 to US-04.26.
+comments, through "Reauthor"). Full story: [EP-04 · Review workflow](epics/EP-04-review-workflow.md) — stories US-04.22 to US-04.26.
 
 ```mermaid
 sequenceDiagram
@@ -122,15 +122,15 @@ as "on behalf of". Ordinary users never see buttons for someone else's step (sto
 
 | # | Epic (file) | Stories | What it covers |
 |---|---|---|---|
-| EP-01 | [Access & navigation](epics/01-access-and-navigation.feature) | 9 | Who you are, where you are, what you may do |
-| EP-02 | [Pages](epics/02-pages.feature) | 8 | The site tree and safe page operations |
-| EP-03 | [Page builder](epics/03-page-builder.feature) | 20 | Making a page |
-| EP-04 | [Review workflow](epics/04-review-workflow.feature) | 26 | Four-eyes approval |
-| EP-05 | [Publishing](epics/05-publishing.feature) | 6 | Going live safely |
-| EP-06 | [Content library](epics/06-content-library.feature) | 10 | Reusable building blocks and content |
-| EP-07 | [Translations](epics/07-translations.feature) | 2 | Language versions through the same workflow |
-| EP-08 | [Governance](epics/08-governance.feature) | 3 | Proof and overview |
-| EP-09 | [Delivery API](epics/09-delivery-api.feature) | 3 | Content for every channel |
+| EP-01 | [Access & navigation](epics/EP-01-access-and-navigation.md) | 9 | Who you are, where you are, what you may do |
+| EP-02 | [Pages](epics/EP-02-pages.md) | 8 | The site tree and safe page operations |
+| EP-03 | [Page builder](epics/EP-03-page-builder.md) | 20 | Making a page |
+| EP-04 | [Review workflow](epics/EP-04-review-workflow.md) | 26 | Four-eyes approval |
+| EP-05 | [Publishing](epics/EP-05-publishing.md) | 6 | Going live safely |
+| EP-06 | [Content library](epics/EP-06-content-library.md) | 10 | Reusable building blocks and content |
+| EP-07 | [Translations](epics/EP-07-translations.md) | 2 | Language versions through the same workflow |
+| EP-08 | [Governance](epics/EP-08-governance.md) | 3 | Proof and overview |
+| EP-09 | [Delivery API](epics/EP-09-delivery-api.md) | 3 | Content for every channel |
 
 ## 6. Glossary
 
