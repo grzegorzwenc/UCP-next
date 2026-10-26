@@ -5,6 +5,7 @@ Feature: Organise pages (rename, move, copy, duplicate, lock, restore)
   Background:
     Given I am signed in with Edit on the "Banking" folder
 
+  # Business benefit: Clear impact warnings prevent accidental changes to live pages and the customer complaints they cause. Showing only allowed actions also reduces support requests and permission errors.
   Rule: US-02.02.1 · Know what an action will change before it happens
     As a content author
     I want to see only the actions I may take and a confirmation that explains their impact
@@ -27,6 +28,8 @@ Feature: Organise pages (rename, move, copy, duplicate, lock, restore)
       Then the bar offers Translate, Publish, Lock, Copy, Restore, Compare, Move, Archive and Delete with icons
       And without Edit on every selected item only Translate and Publish are offered
 
+  # Business benefit: Reorganising the site no longer produces broken links that harm customer experience and search ranking. Colleagues' pages are never overwritten, avoiding lost work and rework.
+  @depends:US-02.02.1 @depends:US-02.01.2
   Rule: US-02.02.2 · Move and copy pages without breaking or overwriting anything
     As a content author
     I want moves to update the links that point to a page and copies never to replace an existing page
@@ -55,6 +58,8 @@ Feature: Organise pages (rename, move, copy, duplicate, lock, restore)
       When I copy a selection that contains a folder
       Then I see "Folders are not copied · pick pages"
 
+  # Business benefit: Locks prevent conflicting edits on sensitive pages while they are being prepared. Reviews and publishing continue, so the lock never delays time-critical releases.
+  @depends:US-02.02.1
   Rule: US-02.02.3 · Lock a page while I work on it
     As a content author
     I want a page I locked to be changeable only by me or a site admin
@@ -70,7 +75,8 @@ Feature: Organise pages (rename, move, copy, duplicate, lock, restore)
       When I try to unlock "Cash ISA" locked by "rachel.hughes"
       Then I see "Cash ISA is locked by Rachel Hughes"
 
-  @admin
+  # Business benefit: Work is never blocked by an absent colleague, which protects deadlines for campaigns and regulatory updates. Keeping the override with site admins keeps it controlled and accountable.
+  @admin @depends:US-02.02.3
   Rule: US-02.02.4 · Override someone else's lock
     As a site admin
     I want to change or unlock a page that someone else locked

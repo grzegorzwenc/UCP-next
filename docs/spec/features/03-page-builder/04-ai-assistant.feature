@@ -5,6 +5,8 @@ Feature: AI assistant
   Note: the prototype uses a deterministic offline planner (lib/ai/planner.ts, lib/ai/mock.ts).
   Free-form prompts and translation need the real AI service (UCP_AI_URL).
 
+  # Business benefit: AI speeds up copy improvements while the author keeps full control over every change. Showing before and after prevents unreviewed AI text from reaching customers.
+  @depends:US-03.01.3
   Rule: US-03.04.1 · Improve one component with AI
     As a content author
     I want AI to suggest changes to the selected component only, shown before and after
@@ -21,6 +23,8 @@ Feature: AI assistant
       When I ask "Make the CTA more compelling"
       Then I see "This block has no button."
 
+  # Business benefit: Page-wide changes such as accessibility or SEO fixes take minutes instead of hours. Approval and undo for each change keep accountability with the author and limit the risk of AI errors.
+  @depends:US-03.01.4
   Rule: US-03.04.2 · Let AI plan page-wide changes that I approve
     As a content author
     I want the page AI to show its plan first and change nothing until I run the changes I ticked
@@ -52,7 +56,9 @@ Feature: AI assistant
       When I ask "Polish it" on a page with nothing to improve
       Then I see "Page already follows HSBC content patterns — nothing to change"
 
-  Rule: US-03.04.3 · AI respects page permissions
+  # Business benefit: AI cannot become a loophole around the bank's access controls, which protects content integrity. This gives risk and compliance teams confidence to approve AI use.
+  @depends:US-03.04.2
+  Rule: US-03.04.3 · Keep AI within page permissions
     As a business owner
     I want AI to refuse to plan changes for people who may only read a page
     So that AI never becomes a way around permissions

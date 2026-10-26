@@ -5,6 +5,7 @@ Feature: Archive and delete pages
   Background:
     Given I am signed in with Edit on the folder
 
+  # Business benefit: Making archive the default removes the risk of permanently losing content that may be needed again or for record-keeping. Restoring is quick, saving the cost of rebuilding pages.
   Rule: US-02.03.1 · Archive pages instead of deleting them
     As a content author
     I want to archive pages I no longer need and restore them later
@@ -30,6 +31,8 @@ Feature: Archive and delete pages
       When I archive it
       Then I see that it is locked by them
 
+  # Business benefit: Showing every affected link and file before deletion prevents broken customer journeys and orphaned documents. Permanent deletion becomes a deliberate, documented decision.
+  @depends:US-02.03.1 @depends:US-06.02.1 @depends:US-03.05.1
   Rule: US-02.03.2 · See everything affected before deleting permanently
     As a content author
     I want to see links, linked content, files and pages inside before I delete for good

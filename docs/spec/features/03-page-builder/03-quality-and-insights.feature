@@ -2,6 +2,8 @@
 Feature: Page insights and quality checklist
   The page is checked automatically for content, accessibility, compliance and search problems, so reviewers spend their time on substance.
 
+  # Business benefit: Automatic checks catch accessibility, compliance and SEO issues before review, reducing regulatory and reputational risk. Reviewers spend their time on substance rather than mechanical mistakes.
+  @depends:US-03.01.2
   Rule: US-03.03.1 · See and fix what blocks publishing
     As a content author
     I want findings grouped by how serious they are, with one-click fixes and a way to find them on the page
@@ -36,6 +38,8 @@ Feature: Page insights and quality checklist
       When I click "Show on page" on a finding
       Then the component is selected and scrolled into view
 
+  # Business benefit: Authors verify each element in the context customers see, catching issues earlier and more cheaply. A consistent checklist raises the baseline quality of every page.
+  @depends:US-03.01.5 @depends:US-06.02.2
   Rule: US-03.03.2 · Check any element while previewing
     As a content author
     I want a quality checklist that follows my pointer in full-screen preview

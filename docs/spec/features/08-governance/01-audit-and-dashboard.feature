@@ -2,8 +2,9 @@
 Feature: Audit log and dashboard
   A record of every change and a summary of where work stands, so the bank can prove who did what and the team sees what needs attention.
 
-  @admin
-  Rule: US-08.01.1 · Prove who did what
+  # Business benefit: The bank can answer auditors and regulators with complete evidence of who changed what and when. Fast search and CSV export cut the cost of compliance reviews.
+  @admin @depends:US-01.03.1
+  Rule: US-08.01.1 · Search and export a full audit trail
     As a site admin
     I want every change recorded with who, what, when and a request id, and to search and export everyone's events
     So that the bank can prove who did what to auditors and regulators
@@ -18,6 +19,8 @@ Feature: Audit log and dashboard
       And choose All time, Today or Last 2 days
       And export the result to CSV
 
+  # Business benefit: Staff can check their own work without seeing colleagues' activity, respecting need-to-know access. Fewer support requests to admins lowers operating cost.
+  @depends:US-08.01.1
   Rule: US-08.01.2 · See my own activity
     As a content author
     I want to see a log of my own actions only
@@ -28,6 +31,8 @@ Feature: Audit log and dashboard
       When I open the audit log
       Then it is titled "My activity" and shows only my actions
 
+  # Business benefit: Waiting reviews and failed publishes are spotted early, so content reaches customers on time. Managers get a quick view of throughput without manual reporting.
+  @depends:US-08.01.1 @depends:US-04.06.1
   Rule: US-08.01.3 · See what needs attention
     As a content author
     I want a dashboard that summarises waiting reviews, how much of the site is live, failed publishes, my tasks and recent activity

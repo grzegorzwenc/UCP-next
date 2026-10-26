@@ -6,6 +6,8 @@ Feature: Author's (peer) review
     Given the page "Cash ISA" was sent for review by "content.author"
     And "rachel.hughes" has "Review & approve" on the page
 
+  # Business benefit: Reviews start as soon as any reviewer is free, so pages do not wait for one person. Each review has one named owner, which makes delays visible.
+  @depends:US-04.01.1
   Rule: US-04.02.1 · Take a review from the Backlog, or give it back
     As a peer reviewer
     I want to assign a waiting page to myself and return it if I cannot do it
@@ -44,6 +46,8 @@ Feature: Author's (peer) review
       When the reviewer clicks "Back to backlog"
       Then they see "The review has already started"
 
+  # Business benefit: A single decision point moves the page on or back without extra meetings or e-mails. Only the assigned reviewer can approve, which keeps the peer check accountable and auditable.
+  @depends:US-04.02.1
   Rule: US-04.02.2 · Review the page and decide what happens next
     As a peer reviewer
     I want to finish my review with one decision: business review or back to the author
@@ -77,6 +81,8 @@ Feature: Author's (peer) review
       Then the page is back at "Build the page"
       And the peer reviewer, the business reviewer and the review groups are cleared
 
+  # Business benefit: Rate-limited reminders keep pages moving without manual chasing or noisy escalation. Shorter waiting times bring content to market faster.
+  @depends:US-04.02.1
   Rule: US-04.02.3 · Nudge a reviewer who is taking long
     As a content author
     I want to remind the reviewer, but not more often than every 15 minutes
@@ -92,7 +98,8 @@ Feature: Author's (peer) review
       When I click "Remind" again
       Then I see "A reminder was sent a few minutes ago"
 
-  @admin
+  # Business benefit: Admins can rebalance workload and unblock stuck reviews, which protects launch dates. Every intervention is logged on behalf of the reviewer, so oversight never weakens the audit trail.
+  @admin @depends:US-04.02.1 @depends:US-04.02.2
   Rule: US-04.02.4 · Steer reviews as a site admin
     As a site admin
     I want to reassign reviewers and act for them when needed

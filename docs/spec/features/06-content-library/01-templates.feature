@@ -2,6 +2,7 @@
 Feature: Page templates
   Defines which components a type of page starts with and in which markets it can be used.
 
+  # Business benefit: Every page type starts from an approved structure with mandatory brand and navigation parts, so brand and compliance consistency is built in. New pages are created faster, cutting time to market.
   @admin
   Rule: US-06.01.1 · Build and maintain page templates
     As a site admin
@@ -21,7 +22,8 @@ Feature: Page templates
       Then I can create a template with a unique name, duplicate it as "(copy)" and delete it
       But the "Blank page" template cannot be duplicated or deleted
 
-  @admin
+  # Business benefit: Market-specific layouts cannot be reused by markets they were not approved for, reducing local regulatory and brand risk. Central teams can share templates safely without extra manual checks.
+  @admin @depends:US-06.01.1
   Rule: US-06.01.2 · Limit a template to some markets
     As a site admin
     I want to choose in which local markets a template can be used
@@ -32,6 +34,8 @@ Feature: Page templates
       Then only Hong Kong can create pages from it
       And I am warned that the UK can no longer create pages from it
 
+  # Business benefit: Authors start from approved, market-appropriate templates instead of improvising layouts, which lowers rework and review effort. Read-only access protects templates from accidental change.
+  @depends:US-06.01.1 @depends:US-06.01.2
   Rule: US-06.01.3 · Pick the right template for my market
     As a content author
     I want to browse the template library and see what each template contains and where it can be used, without being able to change it

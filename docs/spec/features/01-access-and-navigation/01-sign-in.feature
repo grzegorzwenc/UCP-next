@@ -4,6 +4,7 @@ Feature: Sign in and sign out
 
   Note: the prototype uses an SSO stand-in (pick an account, no password). Real SSO is on the roadmap.
 
+  # Business benefit: Only identified staff can reach the CMS, which closes the door to anonymous changes on customer-facing pages. Every action is tied to a named person, giving auditors a reliable trail.
   Rule: US-01.01.1 · Sign in with the company account
     As a content author
     I want to sign in with my company account and land where I was going
@@ -32,6 +33,8 @@ Feature: Sign in and sign out
     Scenario: Session length
       Then a session lasts 12 hours
 
+  # Business benefit: External and occasional reviewers can sign off pages without the bank buying and managing extra CMS licences. Reviews happen sooner because nobody waits for an account to be created.
+  @depends:US-04.04.1
   Rule: US-01.01.2 · Open a review link without an account
     As a guest reviewer
     I want to open a review link without signing in
@@ -41,6 +44,8 @@ Feature: Sign in and sign out
       When I open a review link "/review/<token>"
       Then the page opens without signing in
 
+  # Business benefit: Stakeholders can evaluate every role before the bank commits to a rollout, reducing the risk of a costly wrong choice. The demo stays private, so unfinished screens and sample data are never exposed publicly.
+  @depends:US-01.01.1
   Rule: US-01.01.3 · Try the private demo as any person
     As a business owner
     I want the hosted demo kept behind a password and to try it as any demo person

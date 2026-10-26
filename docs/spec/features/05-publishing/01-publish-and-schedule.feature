@@ -6,6 +6,8 @@ Feature: Publish and schedule pages
   Background:
     Given I am signed in as "jordan.mensah" with Publish on the folder
 
+  # Business benefit: Approved pages reach customers in one controlled step instead of a chain of manual releases. Publishing the files with the page removes broken pictures and missing documents that damage customer trust.
+  @depends:US-04.03.2 @depends:US-06.02.4
   Rule: US-05.01.1 · Publish a signed-off page now, together with its files
     As a publisher
     I want to put a page that passed both reviews live in one step, together with the pictures and documents it uses
@@ -41,6 +43,8 @@ Feature: Publish and schedule pages
       And a live copy of the page is kept for comparisons
       And confetti and "Published! Cash ISA is live" fill the screen
 
+  # Business benefit: Campaigns and rate changes go live at the agreed minute without anyone working out of hours. Fewer manual late-night releases also means fewer publishing mistakes and lower overtime cost.
+  @depends:US-05.01.1
   Rule: US-05.01.2 · Publish later at a chosen time
     As a publisher
     I want to schedule a signed-off page to go live at a chosen time, and cancel that schedule if plans change
@@ -65,6 +69,8 @@ Feature: Publish and schedule pages
       When I click "Cancel schedule"
       Then the page is back at "Ready to publish"
 
+  # Business benefit: Related pages of a launch go live together, so customers never see half of a product release. Per-page results cut the time spent finding out what was held back and why.
+  @depends:US-05.01.1
   Rule: US-05.01.3 · Publish several pages in one go
     As a publisher
     I want to publish a selection of pages at once and see the result for each
@@ -76,6 +82,8 @@ Feature: Publish and schedule pages
       Then the 2 ready pages go live
       And "Publishing results" shows a tick for each and the reason for the third
 
+  # Business benefit: Keeping publishing with authorised publishers enforces separation of duties that auditors and regulators expect. Clear hand-over status reduces chasing between teams and shortens time to market.
+  @depends:US-05.01.1
   Rule: US-05.01.4 · Hand a signed-off page over to the publisher
     As a content author
     I want to see that my signed-off page is waiting for a publisher instead of publishing it myself

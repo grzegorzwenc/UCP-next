@@ -6,6 +6,8 @@ Feature: Review links for people without UCP access
     Given the page "Cash ISA" is in business review
     And a review link was created for it
 
+  # Business benefit: Stakeholders without a UCP account can give feedback, which saves licence cost and onboarding effort. Feedback lands on the page itself, so nothing is lost in e-mail threads.
+  @depends:US-04.03.3
   Rule: US-04.04.1 · Read and comment through a link
     As a guest reviewer
     I want to open a link, see the page full screen and comment on any part of it
@@ -37,6 +39,8 @@ Feature: Review links for people without UCP access
       When I open a review link with an unknown token
       Then I see "This review link does not work"
 
+  # Business benefit: The business can approve without a UCP account, which speeds up sign-off for busy owners. Restricting decisions to invited addresses stops forwarded links from approving content, which limits fraud and compliance risk.
+  @depends:US-04.04.1
   Rule: US-04.04.2 · Decide through the link, only if invited
     As a guest reviewer who was invited
     I want to sign off or send the page back from the link

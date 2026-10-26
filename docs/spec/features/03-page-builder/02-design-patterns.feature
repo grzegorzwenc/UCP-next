@@ -5,6 +5,8 @@ Feature: Design patterns
   Background:
     Given I am signed in with Edit on the page
 
+  # Business benefit: Common sections look identical across pages, strengthening brand consistency for customers. Adding a whole section in one click saves authors significant build time.
+  @depends:US-03.01.1
   Rule: US-03.02.1 · Reuse a section in one click
     As a content author
     I want to pick a design pattern from its own library and add all its components at once
@@ -20,6 +22,8 @@ Feature: Design patterns
       Then Masthead, Content master and Icon tiles are added below the selected component
       And I see "Product introduction added · 3 components"
 
+  # Business benefit: Proven sections are reused instead of rebuilt, spreading good practice across teams and markets. Market targeting stops a pattern from appearing where it does not fit local rules.
+  @depends:US-03.02.1 @depends:US-03.01.3
   Rule: US-03.02.2 · Save my own design pattern
     As a content author
     I want to save components already on the page as a named pattern, for all or only some markets
@@ -54,6 +58,8 @@ Feature: Design patterns
       When I click "Markets" on my pattern and untick the current market
       Then I am warned "This market will no longer see it. Pages that already use it keep their components."
 
+  # Business benefit: The pattern library stays tidy without risking pages that already use a pattern. Two-step removal prevents losing valuable shared work by mistake.
+  @depends:US-03.02.2
   Rule: US-03.02.3 · Remove my patterns safely
     As a content author
     I want to archive my own patterns first and delete them for good only on purpose
@@ -80,8 +86,9 @@ Feature: Design patterns
         | saved by someone else | me             | there is no bin on it                                     |
         | Product introduction  | content.author | there is no bin on it                                     |
 
-  @admin
-  Rule: US-03.02.4 · Manage design-system patterns
+  # Business benefit: Outdated design-system sections can be retired centrally, so new pages do not reuse superseded designs. Restricting this to site admins protects the shared library from accidental removal.
+  @admin @depends:US-03.02.3
+  Rule: US-03.02.4 · Remove built-in design-system patterns
     As a site admin
     I want to remove built-in design-system patterns that ordinary authors cannot touch
     So that the shared pattern library stays current

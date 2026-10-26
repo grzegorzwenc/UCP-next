@@ -2,6 +2,8 @@
 Feature: My tasks
   One list of the pages that need me, grouped by stage, with only the actions I may take.
 
+  # Business benefit: One prioritised work list reduces time lost looking for pending work across tools. Due dates and overdue markers make bottlenecks visible to the team and management.
+  @depends:US-04.01.1
   Rule: US-04.06.1 · See what needs me, by stage
     As anyone in the content team
     I want every page in the workflow as one task in the right tab
@@ -34,6 +36,8 @@ Feature: My tasks
       And new tasks have a red dot until I have seen them
       And the header says "N assigned to you · M new"
 
+  # Business benefit: Authors can track their pages without asking around, which reduces status meetings. Hiding review actions on their own work enforces four-eyes separation in the interface.
+  @depends:US-04.06.1
   Rule: US-04.06.2 · Follow my own pages as an author
     As a content author
     I want to see where each of my pages is and who has it, without review buttons for my own work
@@ -54,6 +58,8 @@ Feature: My tasks
         | Ready to publish | Waiting for a publisher |
         | Published        | Open                    |
 
+  # Business benefit: Taking and finishing work from one list shortens cycle time for every hand-off. Showing only the permitted action reduces errors and unauthorised steps.
+  @depends:US-04.06.1
   Rule: US-04.06.3 · Pick up and finish work as a reviewer or publisher
     As a peer reviewer, business owner or publisher
     I want the action for my step right on the row
@@ -77,7 +83,8 @@ Feature: My tasks
         | Business review           | the business reviewer | Reauthor, Sign off            |
         | Ready to publish          | a publisher           | Publish                       |
 
-  @admin
+  # Business benefit: Admins can balance workload across reviewers, which protects delivery dates. Restricting reassignment once a page is ready to publish keeps late changes under control.
+  @admin @depends:US-04.06.1 @depends:US-04.06.3
   Rule: US-04.06.4 · Oversee everything as a site admin
     As a site admin
     I want to see all tasks, split by who has them, and change the peer reviewer

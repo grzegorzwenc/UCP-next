@@ -6,6 +6,8 @@ Feature: Build a page from components
     Given I am signed in with Edit on the page "Cash ISA"
     And the page is at "Build the page"
 
+  # Business benefit: Pages are built only from approved components, so brand and compliance quality is built in rather than checked later. Authors produce pages without developer help, lowering cost and time to market.
+  @depends:US-02.01.2
   Rule: US-03.01.1 · Add on-brand components from the library
     As a content author
     I want to find components in the library and add them where I need them
@@ -25,6 +27,8 @@ Feature: Build a page from components
       Given the page has no components
       Then I see "How do you want to start this page?" with 3 layouts
 
+  # Business benefit: Authors see exactly what customers will see, which reduces review rounds caused by layout surprises. Restricting link formats also blocks unsafe links from reaching customers.
+  @depends:US-03.01.1
   Rule: US-03.01.2 · Edit text where it is shown
     As a content author
     I want to type and format text directly on the page
@@ -49,6 +53,8 @@ Feature: Build a page from components
       Then I can make text bold, italic, underlined, a link, a bullet list or a numbered list
       And links must start with https, mailto, tel, / or #
 
+  # Business benefit: One consistent way to configure all components shortens training for new authors. Locking components protects mandatory content such as disclaimers from accidental edits.
+  @depends:US-03.01.1
   Rule: US-03.01.3 · Arrange and configure every component the same way
     As a content author
     I want the same toolbar on every component and a Configure panel with all its properties
@@ -70,6 +76,8 @@ Feature: Build a page from components
       And required fields are marked "required"
       And Cancel puts back the values from when Configure opened
 
+  # Business benefit: Authors never redo work after a closed tab or a lost connection. Fewer lost edits also mean fewer errors slipping into reviewed pages.
+  @depends:US-03.01.2
   Rule: US-03.01.4 · Never lose my work
     As a content author
     I want the page to save itself, to save on demand and to tell me when saving fails
@@ -87,6 +95,8 @@ Feature: Build a page from components
       Given the server cannot be reached
       Then I see "Not saved · Retry"
 
+  # Business benefit: Problems on mobile and tablet are caught before review, when they are cheapest to fix. Customers get a consistent experience on every device, which protects trust and conversion.
+  @depends:US-03.01.1
   Rule: US-03.01.5 · Check the page on every device width
     As a content author
     I want to preview the page at desktop, tablet and mobile width and full screen

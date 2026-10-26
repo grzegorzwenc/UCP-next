@@ -5,6 +5,8 @@ Feature: Compare an authoring version with the live page
   Background:
     Given the page "Cash ISA" was published before and has been edited since
 
+  # Business benefit: Publishers catch unintended changes before customers see them, lowering the risk of wrong rates or terms going live. A clear list of differences makes sign-off faster and easier to evidence.
+  @depends:US-05.01.1 @depends:US-03.06.4
   Rule: US-05.02.1 · See what will change before publishing
     As a publisher
     I want to see the authoring version next to the live page, with every difference listed
@@ -27,6 +29,8 @@ Feature: Compare an authoring version with the live page
       When I click a difference in the sidebar
       Then it flashes on both sides
 
+  # Business benefit: The bank can quickly establish when a change was made and what customers were shown at the time. This supports complaint handling and regulatory enquiries without costly investigation.
+  @depends:US-05.02.1
   Rule: US-05.02.2 · Check an older version against live
     As a content author
     I want to compare any saved version of my page with the live page

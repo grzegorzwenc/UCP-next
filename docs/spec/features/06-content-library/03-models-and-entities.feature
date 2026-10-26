@@ -2,6 +2,7 @@
 Feature: Content models and content entities
   Structured content types (models) and reusable content items (entities), so facts like rates and product names are written once and shown everywhere.
 
+  # Business benefit: Structured, validated content types give every channel consistent data and reduce errors in key facts. Guarded breaking changes protect live content and avoid costly outages.
   @admin
   Rule: US-06.03.1 · Define and evolve content models
     As a site admin
@@ -34,6 +35,8 @@ Feature: Content models and content entities
     Scenario: Versions
       Then every change is kept as a version I can compare and restore into the draft
 
+  # Business benefit: Facts such as rates are entered once, so the bank avoids inconsistent figures that could mislead customers. Blocking deletion of items in use prevents broken pages.
+  @depends:US-06.03.1
   Rule: US-06.03.2 · Create reusable content items from a model
     As a content author
     I want to fill in entities from published models, see the model as documentation, and be stopped from deleting entities in use
@@ -60,6 +63,8 @@ Feature: Content models and content entities
       When I delete it
       Then I see "Used on 3 pages · Remove it from those pages first"
 
+  # Business benefit: A rate change reaches every page and channel at the same moment, lowering conduct risk from outdated figures. It removes the cost of editing many pages by hand.
+  @depends:US-06.03.2 @depends:US-03.05.1
   Rule: US-06.03.3 · Update a fact everywhere at once
     As a content author
     I want publishing an entity to update every page that shows it

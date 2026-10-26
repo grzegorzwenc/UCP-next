@@ -2,6 +2,8 @@
 Feature: Working together on a page (authors, Jira, versions)
   A page can be built by several authors, linked to its ticket and taken back to any earlier version, so work is shared, traceable and reversible.
 
+  # Business benefit: Larger pages are delivered faster because several authors can share the work. Clear ownership means reviewers and managers always know who is responsible.
+  @depends:US-02.01.2
   Rule: US-03.06.1 · Build a page together with other authors
     As a content author
     I want to join or leave the authors of a page while it is being built
@@ -28,7 +30,8 @@ Feature: Working together on a page (authors, Jira, versions)
       Given the page has 2 authors
       Then My tasks shows the second one under the Content author as "+ Name"
 
-  @admin
+  # Business benefit: Managers can hand out work deliberately and keep delivery on schedule. Every assignment is logged and limited to people with Edit, keeping access controlled.
+  @admin @depends:US-03.06.1
   Rule: US-03.06.2 · Assign other people as authors
     As a site admin
     I want to add or remove other people as authors of a page
@@ -49,6 +52,7 @@ Feature: Working together on a page (authors, Jira, versions)
       When I try to add "aisha.khan" as an author
       Then I see "Only a site admin can assign other people"
 
+  # Business benefit: Every page change is traceable to the business request behind it, which supports audit and change management. Reviewers reach the context in one click, speeding up approval.
   Rule: US-03.06.3 · Link a page to its Jira ticket
     As a content author
     I want to link the page to its Jira ticket and open it in one click
@@ -68,6 +72,8 @@ Feature: Working together on a page (authors, Jira, versions)
       When I click the Jira chip next to the page title or in My tasks
       Then the ticket opens in a new tab
 
+  # Business benefit: Any mistake can be reversed quickly, limiting the impact of an incorrect change. A full version history supports audit and regulatory record-keeping.
+  @depends:US-03.01.4
   Rule: US-03.06.4 · Go back to any earlier version
     As a content author
     I want every save kept as a version that I can restore or comment on

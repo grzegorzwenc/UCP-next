@@ -5,6 +5,8 @@ Feature: Translate pages
   Background:
     Given I selected "Cash ISA" and "Fixed rate bonds" in the UK market
 
+  # Business benefit: Pages reach every language of a market far faster than copying them by hand, shortening time to market. Wider language coverage improves access for customers and supports local language requirements.
+  @depends:US-02.01.1
   Rule: US-07.01.1 · Create translated copies of pages in a few steps
     As a content author
     I want to choose the languages, how the text is translated and where the copies go, then check and create them in one flow
@@ -33,7 +35,9 @@ Feature: Translate pages
       Then the new page waits in the review Backlog
       And it shows "Source: /banking/savings/fixed-rate-bonds" in the page list
 
-  Rule: US-07.01.2 · Every language version is reviewed before going live
+  # Business benefit: Translations get the same checks as originals, so no unverified wording about products or terms reaches customers. This keeps the bank compliant in every language it publishes.
+  @depends:US-07.01.1 @depends:US-04.01.1
+  Rule: US-07.01.2 · Review every language version before it goes live
     As a business owner
     I want every translated page to go through the same author's review and business review as the original
     So that no unchecked translation reaches customers

@@ -2,6 +2,8 @@
 Feature: Notifications
   The bell tells people when a page is handed to them or comes back to them.
 
+  # Business benefit: People learn immediately when it is their turn, which removes idle time between hand-offs. Faster hand-offs shorten time to market for every page.
+  @depends:US-04.06.1
   Rule: US-04.07.1 · Be told when a page is handed to me
     As anyone in the content team
     I want a notification when it is my turn on a page
@@ -26,6 +28,8 @@ Feature: Notifications
         | the business signed off a page I publish | finished the business review of Cash ISA · ready to publish           |
         | my draft has not been sent               | Your draft of Cash ISA is waiting to be sent for review               |
 
+  # Business benefit: Overdue items stand out, so service levels and regulatory deadlines are met more reliably. One-click access cuts the time from notice to action.
+  @depends:US-04.07.1
   Rule: US-04.07.2 · Act on a notification in one click
     As anyone in the content team
     I want urgent items to stand out and to open the page from the notification

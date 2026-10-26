@@ -5,6 +5,8 @@ Feature: Linked content (entities and tokens)
   Background:
     Given the entity "ISA rates 2026" of the model "Rate" exists
 
+  # Business benefit: Rates and product details are maintained once and update everywhere, cutting maintenance effort. It removes the risk of customers seeing outdated or conflicting figures on different pages.
+  @depends:US-06.03.2
   Rule: US-03.05.1 · Show shared content from one place
     As a content author
     I want to link an entity to the page and use its fields in text and component fields
@@ -27,6 +29,8 @@ Feature: Linked content (entities and tokens)
       When I type "{{" while editing a text
       Then the content picker opens and the token is inserted at the caret
 
+  # Business benefit: Broken or missing shared content is flagged before it reaches customers, protecting accuracy of regulated information. Authors can still detach content deliberately, with a clear trace.
+  @depends:US-03.05.1
   Rule: US-03.05.2 · Keep page text and linked content consistent
     As a content author
     I want to detach a field on purpose and be warned about tokens and entities that do not match

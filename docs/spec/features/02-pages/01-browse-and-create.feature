@@ -5,6 +5,8 @@ Feature: Browse and create pages
   Background:
     Given I am signed in to the "HSBC UK" market in "Production"
 
+  # Business benefit: Authors find the right page in seconds, which saves time on every task across all markets. Fewer duplicate pages get created because existing ones are easy to find.
+  @depends:US-01.03.1
   Rule: US-02.01.1 · Find any page in the market
     As a content author
     I want to browse the folder tree and search the whole market
@@ -24,6 +26,8 @@ Feature: Browse and create pages
       Given a folder has 120 pages
       Then 50 are shown with "Show 50 more"
 
+  # Business benefit: Every new page starts on-brand and market-appropriate, reducing rework and brand-compliance findings in review. Folder permissions keep teams from cluttering areas they do not own.
+  @depends:US-02.01.1 @depends:US-06.01.3
   Rule: US-02.01.2 · Create pages and folders from on-brand templates
     As a content author
     I want to create folders and new pages from a template allowed in my market, where I have Edit

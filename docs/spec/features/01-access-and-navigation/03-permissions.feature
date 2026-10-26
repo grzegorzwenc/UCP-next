@@ -6,7 +6,8 @@ Feature: Roles and permissions
     Given the permissions are Read, Edit, Review & approve, Publish and Manage
     And they are granted on the whole site or on a top-level folder
 
-  Rule: US-01.03.1 · Roles and workflow steps carry the right permissions
+  # Business benefit: Approval rights follow the bank's segregation-of-duties rules, which supports regulatory compliance. Sensible defaults also cut the admin effort of setting up each new person.
+  Rule: US-01.03.1 · Give each role and workflow step the right permissions
     As a business owner
     I want each role to come with sensible defaults and each workflow step to need its permission
     So that only qualified people edit, approve and publish content
@@ -35,7 +36,8 @@ Feature: Roles and permissions
         | Ready to publish          | Review & approve   |
         | Scheduled / Published     | Publish            |
 
-  @admin
+  # Business benefit: Access can be tailored per folder, so teams work independently without over-privileged accounts. Every grant is logged, which makes access reviews and audits straightforward.
+  @admin @depends:US-01.03.1
   Rule: US-01.03.2 · Manage people and their permissions
     As a site admin
     I want to invite people and grant them permissions on the right folders
@@ -56,7 +58,9 @@ Feature: Roles and permissions
       Then the sign-in id is "sam.taylor"
       And they get the Author permissions on the whole site
 
-  Rule: US-01.03.3 · Nobody else can change access
+  # Business benefit: Server-side enforcement closes a privilege-escalation risk that would otherwise undermine every other control. It gives security and audit teams evidence that access rules cannot be bypassed.
+  @depends:US-01.03.2
+  Rule: US-01.03.3 · Only site admins can change access
     As a business owner
     I want only site admins to change users and permissions, enforced on screen and on the server
     So that nobody can grant themselves more than they should have

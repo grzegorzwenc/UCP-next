@@ -2,6 +2,7 @@
 Feature: Markets, environments and navigation
   One platform serves every HSBC market; this feature covers switching market and environment and reaching any screen quickly.
 
+  # Business benefit: One platform serves every market, so the bank runs and pays for a single CMS instead of one per country. Authors working across markets make fewer wrong-market edits.
   Rule: US-01.02.1 · Switch between markets
     As a content author
     I want to pick an instance and market and switch market without losing my place
@@ -22,6 +23,7 @@ Feature: Markets, environments and navigation
       When I switch to "HSBC France"
       Then I am on Pages in France
 
+  # Business benefit: Constant visibility of the environment prevents accidental publication to customers, a costly and reputationally damaging incident. Teams can test freely in staging with confidence.
   Rule: US-01.02.2 · Always know which environment I am in
     As a publisher
     I want the environment and its consequences always visible
@@ -36,6 +38,7 @@ Feature: Markets, environments and navigation
         | Production  | Publishing here goes live for customers.          |
         | Staging     | Nothing in this environment reaches customers.    |
 
+  # Business benefit: Authors spend less time hunting through menus, which raises daily output at no extra cost. The same tool works on laptops and small screens, so work does not stall away from the desk.
   Rule: US-01.02.3 · Reach any screen quickly on any device
     As a content author
     I want a command palette, a global search and a menu that fits my screen

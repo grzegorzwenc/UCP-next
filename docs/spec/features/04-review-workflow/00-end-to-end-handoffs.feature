@@ -14,6 +14,8 @@ Feature: End-to-end journey of a page (who hands it to whom)
       | jordan.mensah  | publisher       | Read, Review & approve, Publish     |
       | super.admin    | site admin      | everything                          |
 
+  # Business benefit: Every page passes through separate authoring, review, sign-off and publishing hands, which builds four-eyes control into the process itself. Clear hand-offs cut idle time between teams and shorten time to market.
+  @depends:US-04.01.1 @depends:US-04.02.2 @depends:US-04.03.2 @depends:US-05.01.1
   Rule: US-04.00.1 · Hand the page over step by step
     As a content author
     I want to request each next step instead of doing it myself
@@ -48,6 +50,8 @@ Feature: End-to-end journey of a page (who hands it to whom)
         | Ready to publish                       | Wait · "Waiting for a publisher"  | a publisher                    |
         | Published                              | Edit to start a new version       | me                             |
 
+  # Business benefit: Rework goes back to one accountable author instead of being patched by reviewers, which keeps responsibility clear. Restarting both reviews after changes means no unchecked edit can reach customers.
+  @depends:US-04.00.1
   Rule: US-04.00.2 · Get the page back when someone asks for changes
     As a content author
     I want any reviewer to send the page back to me with comments
@@ -65,6 +69,8 @@ Feature: End-to-end journey of a page (who hands it to whom)
         | rachel.hughes | In author's review |
         | david.clarke  | In business review |
 
+  # Business benefit: Segregation of duties is enforced by the system rather than by policy documents, which satisfies four-eyes compliance requirements. Auditors can rely on the platform instead of sampling manual evidence.
+  @depends:US-04.00.1
   Rule: US-04.00.3 · Nobody approves their own work
     As the bank
     I want different people for authoring, peer review and business review
@@ -86,8 +92,9 @@ Feature: End-to-end journey of a page (who hands it to whom)
       And I am signed in as "content.author"
       Then I see "Waiting for a publisher" instead of "Publish"
 
-  @admin
-  Rule: US-04.00.4 · A site admin can walk the whole flow, visibly
+  # Business benefit: Urgent regulatory or pricing changes can still go live when reviewers are unavailable, which reduces business risk. Every override is recorded as on behalf of a named person, so audit trails stay complete.
+  @admin @depends:US-04.00.1 @depends:US-04.00.3
+  Rule: US-04.00.4 · Walk the whole flow as a site admin, on record
     As a site admin
     I want to perform any step for the person who should do it
     So that I can demo the platform and unblock urgent pages
@@ -106,7 +113,8 @@ Feature: End-to-end journey of a page (who hands it to whom)
       Given I am signed in as "content.author"
       Then no button on the stepper or in My tasks lets me act for someone else
 
-  @status:next
+  # Business benefit: Planned launch dates reduce last-minute coordination between marketing and publishers. Authors learn when a page is live without chasing anyone, which saves time and avoids missed campaign starts.
+  @status:next @depends:US-04.00.1
   Rule: US-04.00.5 · Ask for publishing and hear when the page is live
     As a content author
     I want to request publishing at a date and be told when the page is live

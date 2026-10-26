@@ -6,6 +6,8 @@ Feature: Comments on a page
     Given the page "Cash ISA" is in the author's review
     And I am signed in as the reviewer
 
+  # Business benefit: Feedback pinned to the exact element removes ambiguity and reduces rework. Limiting who can comment keeps feedback relevant and the review record trustworthy.
+  @depends:US-04.02.2
   Rule: US-04.05.1 · Comment on exactly what I mean
     As a peer reviewer or business owner
     I want to click a text, picture or component and comment on it
@@ -40,6 +42,8 @@ Feature: Comments on a page
       Then the Comments panel opens with the number of open comments
       And "Review & feedback" next to "1:1" opens the page full screen with floating comments
 
+  # Business benefit: Authors see at a glance what is still open, so no requested change is missed before sign-off. Resolved comments never leak onto the published page, which protects the customer experience.
+  @depends:US-04.05.1
   Rule: US-04.05.2 · Work through the feedback
     As a content author
     I want to jump to each comment's place, resolve it and undo by mistake

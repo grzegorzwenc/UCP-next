@@ -20,6 +20,23 @@ Product  ─ HSBC Unified Content Platform
              └─ Scenario (236) acceptance criteria (Given / When / Then)
 ```
 
+Every story has the same shape, in this order:
+
+```gherkin
+  # Business benefit: <two sentences: what the bank gains — time, risk, compliance, cost, trust>.
+  @admin @depends:US-03.01.2        ← optional tags: site-admin story, stories it needs first
+  Rule: US-03.01.4 · Never lose my work      ← ID (epic.feature.order) and name
+    As a content author                       ← user story
+    I want …
+    So that …
+
+    Scenario: …                               ← acceptance criteria
+```
+
+Inside each feature, stories are listed **in build order** (the last number of the ID is that order).
+`@depends:` names every story that has to exist first, also across features. The whole picture —
+benefits, dependencies and build waves for the product — is in **[STORY-MAP.md](STORY-MAP.md)**.
+
 Related requirements are merged into one story (one goal for one persona); a story is split only
 when the persona changes. Site-admin-only stories are tagged `@admin`, planned ones `@status:next`.
 
