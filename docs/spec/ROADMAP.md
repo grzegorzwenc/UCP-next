@@ -124,7 +124,7 @@ flowchart TD
 
 ## Phase 4 — Production readiness (next) ⬜
 
-Ordered by risk. Each item should get its own `@status:next` feature file.
+Ordered by risk. Each item should become stories tagged `@status:next` in the matching epic file.
 
 | # | Item | Why |
 |---|---|---|

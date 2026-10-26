@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Builds docs/spec/STORY-MAP.md from the .feature files (they stay the source of truth).
+"""Builds docs/spec/STORY-MAP.md from the epic files in epics/ (they stay the source of truth).
 One .feature file = one Jira Epic; each Rule = one Jira Story.
 Run from docs/spec:  python3 tools/story-map.py"""
 import glob, html, os, re
@@ -59,7 +59,7 @@ def epic_of(path):
     return (eid, name, eben), desc, out
 
 
-epics = [(f, *epic_of(f)) for f in sorted(glob.glob("features/*.feature"))]
+epics = [(f, *epic_of(f)) for f in sorted(glob.glob("epics/*.feature"))]
 allst = [s for *_, st in epics for s in st]; by = {s["id"]: s for s in allst}
 memo = {}
 def wave(i):
@@ -76,7 +76,7 @@ o = ["# Story map", "", open("tools/jira-notes.md").read().rstrip(), "",
      "(wave 1 needs nothing; a story can start once everything it depends on is done). "
      "🛡 site-admin story · ⏭ planned, not built yet · 🧪 runs on a stand-in today (mock).", "",
      f"**{len(epics)} epics · {len(allst)} stories · {waves} build waves.** "
-     "Generated from the `.feature` files with `python3 tools/story-map.py` — edit the features, then regenerate.", "",
+     "Generated from the `.feature` files with `python3 tools/story-map.py` — edit the epic files, then regenerate.", "",
      "| Epic | Stories | Source |", "|---|---|---|"]
 for f, (eid, name, eben), desc, st in epics:
     o.append(f"| [{eid} · {name}]({anchor(eid, name)}) | {len(st)} | [`{os.path.basename(f)}`]({f}) |")
