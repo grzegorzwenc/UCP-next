@@ -41,7 +41,7 @@ export function ViewToggle({ view, onChange }: { view: View; onChange: (v: View)
   );
 }
 
-export function FolderTiles({ folders, base, rel, counts, scopeName, upHref }: {
+export function FolderTiles({ folders, base, rel, counts, scopeName, upHref, upName }: {
   folders: PageSummary[];
   base: string;
   rel: (p: string) => string;
@@ -49,6 +49,8 @@ export function FolderTiles({ folders, base, rel, counts, scopeName, upHref }: {
   scopeName: string;
   /** The parent folder, when there is one — the card views have no breadcrumb of their own. */
   upHref?: string;
+  /** The parent's name, so the tile can say where it goes. */
+  upName?: string;
 }) {
   if (!folders.length && !upHref) return null;
   return (
@@ -61,7 +63,7 @@ export function FolderTiles({ folders, base, rel, counts, scopeName, upHref }: {
             className="group flex cursor-pointer items-center gap-2 border border-dashed border-line bg-surface px-3 py-2 text-start text-sm text-ink-3 no-underline transition-[background-color,box-shadow] duration-160 ease-out hover:bg-accent/40 hover:text-ink hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             <FolderUp className="size-4 shrink-0 transition-colors group-hover:text-brand" />
-            <span className="min-w-0 flex-1 truncate font-medium">Up one level</span>
+            <span className="min-w-0 flex-1 truncate font-medium">{upName ? `Up to ${upName}` : "Up one level"}</span>
           </Link>
         )}
         {folders.map((f) => (

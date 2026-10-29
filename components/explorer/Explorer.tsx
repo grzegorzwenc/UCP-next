@@ -284,6 +284,9 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
   /* The card views have no breadcrumb of their own, so the folder tiles carry the way back up. */
   const upParent = folder.path === root ? null : parentOf(folder.path);
   const upHref = upParent === null ? undefined : upParent === root ? `${base}/pages` : `${base}/pages${rel(upParent)}`;
+  /* Name where you are going rather than the direction: "Up to Borrowing" beats "Up one level",
+     and at the top it is the market, which is what the tree calls the root too. */
+  const upName = upParent === null ? undefined : upParent === root ? marketName : tree.find((f) => f.path === upParent)?.title ?? upParent.split("/").pop();
 
   /* The options are the market's declared locales, not just the ones present — as theirs takes
      them from its language list and counts rows against it. Otherwise a market whose pages are all
@@ -516,7 +519,7 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
           <div className="relative min-h-0 flex-1 overflow-auto">
             {view !== "list" ? (
               <div className="flex flex-col gap-4 p-4">
-                {!q && <FolderTiles folders={items.filter(isFolder)} base={base} rel={rel} counts={counts} scopeName={scopeName} upHref={upHref} />}
+                {!q && <FolderTiles folders={items.filter(isFolder)} base={base} rel={rel} counts={counts} scopeName={scopeName} upHref={upHref} upName={upName} />}
                 {shownPages.length ? (
                   <section aria-label={`Pages in ${scopeName}`}>
                     {!q && items.some(isFolder) && <h3 className="mb-2 text-xs font-medium text-ink-3">Pages</h3>}
