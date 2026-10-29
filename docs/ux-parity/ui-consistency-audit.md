@@ -1017,6 +1017,29 @@ Assets and Templates still use it.
   with the product name written into them, which the template would have doubled; they now carry
   only their own name.
 
+### The library side panels
+
+The Asset Library's folder panel was asked to match Pages'. It is built from `components/ui/SideTree.tsx`
+and `components/ui/FolderList.tsx` — **shared with Models, Templates and Entities** — so the work went
+into those rather than into a fork for Assets. Changing one screen would have left three as the odd
+ones out, which is the opposite of the request.
+
+| Was | Now (matching Pages) |
+|---|---|
+| Bare column with `md:border-r` and loose uppercase `h6` group labels | A bordered card whose header band carries the label and the section's action, tree scrolling inside |
+| Root row had a chevron and collapsed the whole list | Root is fixed — no chevron, always open, children aligned under it |
+| `SiteIcon` / `FolderIcon` (two-tone illustrative) | lucide `Layers` / `Folder` / `FolderOpen`, `text-ink-3` → `text-brand` on the current row |
+| `▾` / `▸` text chevrons | lucide `ChevronRight` rotating 90°, leaf rows padded to match |
+| Active row `bg-brand-soft text-brand-hover` | `bg-(--sidebar-active)` with the `inset 2px` red bar, as the app sidebar and the Pages tree |
+| Counts in `text-ink-4` (**3.19:1** — see the a11y audit) | `text-ink-3` (**4.54:1**) |
+| `＋ New folder` as a `btn-ghost` under the list | The shared `NewFolderButton` in the header band, label sliding out on hover |
+| Root labels carried a flag emoji | Dropped, as on Pages |
+
+`NewFolderButton` was extracted from Explorer, where it was inline, so Pages and the library screens
+use one control rather than two copies. `SectionSkeleton`'s `sidebar` variant was updated with them —
+it mirrored the old bare column and would have jumped on swap. Removing the flag from the Assets and
+Templates roots made their `flag` props dead, so those were removed too.
+
 ### Workspace customisation
 
 Beyond parity: the "Your workspace" cards can be reordered and hidden per person

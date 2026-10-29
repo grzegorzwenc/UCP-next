@@ -1,20 +1,28 @@
 "use client";
-import { usePathname, useSearchParams } from "next/navigation";
-import { useState } from "react";
 
 /**
- * Left tree panel of two-pane screens. From md up it is the usual side column. On phones it folds into one
- * "Folders · current place" button, so the list comes first; it folds again by itself after you pick something.
+ * Left tree panel of the library screens — assets, models, templates, entities.
+ *
+ * This *is* the card, with the same classes as the Pages folder panel
+ * (`components/explorer/Explorer.tsx`): a bordered box whose header band carries the label and the
+ * section's one action, the tree scrolling inside, capped below `lg` and full height above it. It
+ * sits as a grid cell, so the page shell owns the gap and the padding around it — which is what
+ * makes it read as a separate box rather than a column welded to the app sidebar.
  */
-export function SideTree({ label, current, className = "", children }: { label: string; current?: string; className?: string; children: React.ReactNode }) {
-  const here = `${usePathname()}?${useSearchParams().toString()}`;
-  const [openAt, setOpenAt] = useState<string | null>(null); const open = openAt === here;
-  return <aside className={`bg-surface border-b md:border-b-0 md:border-r border-line md:overflow-auto ${className}`}>
-    <button type="button" className="md:hidden w-full flex items-center gap-2 px-4 py-3 text-left text-sm" aria-expanded={open} onClick={() => setOpenAt(open ? null : here)}>
-      <svg viewBox="0 0 24 24" className="w-5 h-5 fill-none stroke-current text-ink-3 flex-none" strokeWidth={1.8} aria-hidden><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>
-      <b className="font-medium">{label}</b>{current && <span className="text-ink-3 truncate min-w-0">· {current}</span>}
-      <span className="ml-auto text-ink-3 text-xs" aria-hidden>{open ? "▴" : "▾"}</span>
-    </button>
-    <div className={`${open ? "block border-t border-line" : "hidden"} md:block p-3`}>{children}</div>
-  </aside>;
+export function SideTree({ label, action, className = "", children }: {
+  label: string;
+  /** The section's primary tree action — New folder and the like — shown in the header band. */
+  action?: React.ReactNode;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <aside className={`flex max-h-96 min-h-0 flex-col overflow-hidden border border-line bg-surface lg:max-h-none ${className}`} role="navigation" aria-label={label}>
+      <div className="flex shrink-0 items-center justify-between gap-2 border-b border-line bg-surface-2 px-4 py-3">
+        <h2 className="text-sm font-medium text-ink-2">{label}</h2>
+        {action}
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto py-1">{children}</div>
+    </aside>
+  );
 }

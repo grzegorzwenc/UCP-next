@@ -16,5 +16,5 @@ export default async function Page({ params, searchParams }: PageProps<"/[market
   // Folders: seed order first, then anything else that exists in the repository or on an asset.
   const folders = [...ASSET_FOLDERS]; for (const f of [...storedFolders, ...assets.map((a) => a.folder)]) if (!folders.includes(f)) folders.push(f);
   const usageSlim = Object.fromEntries(Object.entries(usage).map(([id, ps]) => [id, ps.map((p) => ({ path: p.path, title: p.title, status: p.status }))]));
-  return <AssetLibrary marketId={mid} envId={eid} marketName={mk.name} flag={mk.flag} root={mk.root} assets={assets} folders={folders} usage={usageSlim} locales={mk.locales} folder={folder} view={view} />;
+  return <AssetLibrary marketId={mid} envId={eid} marketName={mk.name} root={mk.root} assets={assets} folders={folders} usage={usageSlim} locales={mk.locales} folder={folder} view={view} />;
 }

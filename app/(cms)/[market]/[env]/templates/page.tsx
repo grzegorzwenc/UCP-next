@@ -11,5 +11,5 @@ export default async function Page({ params, searchParams }: PageProps<"/[market
   const used: Record<string, number> = {};
   for (const p of pages) if (!p.isFolder && p.template) used[p.template] = (used[p.template] ?? 0) + 1;
   const s = (v: unknown) => (typeof v === "string" ? v : "");
-  return <TemplateLibrary marketId={mid} envId={eid} marketName={mk.name} flag={mk.flag} templates={templates} used={used} folder={s(sp.folder)} view={s(sp.view) === "list" ? "list" : "grid"} q={s(sp.q)} />;
+  return <TemplateLibrary marketId={mid} envId={eid} marketName={mk.name} templates={templates} used={used} folder={s(sp.folder)} view={s(sp.view) === "list" ? "list" : "grid"} q={s(sp.q)} />;
 }

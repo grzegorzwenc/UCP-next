@@ -80,13 +80,13 @@ export function Models(p: Props) {
   else body = <Overview key={p.group} p={p} isAdmin={isAdmin} go={go} say={say} onCreate={() => setWizard(true)} onNewFolder={() => setFolderDlg({ mode: "create" })} />;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] grid-rows-[auto_1fr] md:grid-rows-1 h-full min-h-0">
-      <SideTree label="Models" current={md?.name ?? (p.group || "All models")}>
+    <div className="grid h-[calc(100svh-4rem)] min-h-0 grid-cols-1 gap-4 overflow-hidden p-4 pt-0 lg:grid-cols-[16rem_minmax(0,1fr)] group-has-data-[collapsible=icon]/sidebar-wrapper:h-[calc(100svh-3rem)]">
+      <SideTree label="Models">
         <h6 className="text-xs tracking-[.1em] uppercase text-ink-3 font-medium px-2 mb-2">Content models</h6>
 
         <FolderList key={ql ? `q:${ql}` : `sel:${md?.id ?? ""}:${p.group}`} root={{ label: "All models", count: p.models.length, active: !md && !p.group, onClick: () => go(`${p.base}/models`) }} items={items} extra={ql && !items.length ? <div className="text-xs text-ink-4 px-2 py-1">Nothing matches “{q}”</div> : undefined} />
       </SideTree>
-      <div className="overflow-auto min-w-0 min-h-0">{body}</div>
+      <div className="min-h-0 overflow-auto border border-line bg-surface min-w-0">{body}</div>
       {wizard && isAdmin && <CreateWizard models={p.models} folders={groups} marketId={p.marketId} onClose={() => setWizard(false)} onDone={onCreated} />}
       {pending && <UnsavedModal busy={busy === "guard"} onStay={() => setPending(null)} onDiscard={() => { const h = pending; setPending(null); setDirty(false); router.push(h); }} onSave={async () => { setBusy("guard"); const ok = await saveRef.current?.(); setBusy(""); if (ok) { const h = pending; setPending(null); setDirty(false); router.push(h); } }} />}
       {moving && <MoveDialog title={`Move ${moving.name}`} what={moving.name} current={moving.group} targets={groups.filter((g) => g !== "Block types").map((g) => ({ id: g, label: g, hint: `${p.models.filter((m) => m.group === g).length} models` }))} allowNew onClose={() => setMoving(null)}

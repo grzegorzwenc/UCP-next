@@ -2,6 +2,8 @@
 import { SideTree } from "@/components/ui/SideTree";
 import { ViewToggle } from "@/components/ui/ViewToggle";
 import { FolderList } from "@/components/ui/FolderList";
+import { NewFolderButton } from "@/components/ui/NewFolderButton";
+import { Lock, Upload } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -15,7 +17,7 @@ import { Pill } from "@/components/ui/Pill";
 import { useConfirm } from "@/components/ui/Confirm";
 
 type Usage = Record<string, { path: string; title: string; status: string }[]>;
-type Props = { marketId: string; envId: string; marketName: string; flag: string; root: string; assets: Asset[]; folders: string[]; usage: Usage; locales: string[]; folder: string; view: "" | "unused" | "noalt" };
+type Props = { marketId: string; envId: string; marketName: string; root: string; assets: Asset[]; folders: string[]; usage: Usage; locales: string[]; folder: string; view: "" | "unused" | "noalt" };
 
 const TYPE_LABEL: Record<string, string> = { image: "IMAGE", pdf: "PDF", svg: "SVG", file: "FILE" };
 const PAGE = 60;
@@ -61,7 +63,7 @@ function UsedOnPages({ used, hrefOf }: { used: { path: string; title: string; st
   </section>;
 }
 
-export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, folders, usage, locales, folder, view }: Props) {
+export function AssetLibrary({ marketId, envId, marketName, root, assets, folders, usage, locales, folder, view }: Props) {
   const ask = useConfirm();
   const router = useRouter(); const { can, marketRoot, user } = useSession();
   /** Assets that still miss accessibility info (alt text, or title/language/tagged for documents). */
@@ -99,26 +101,33 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
   const onDrop = (e: React.DragEvent) => { e.preventDefault(); setDrag(false); const files = Array.from(e.dataTransfer.files ?? []); if (files.length) upload(files, folder || "Uploads"); };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] grid-rows-[auto_1fr] md:grid-rows-1 h-full min-h-0">
-      <SideTree label="Folders" current={title}>
-        <h6 className="text-xs tracking-[.1em] uppercase text-ink-3 font-medium px-2 mb-2">Asset library</h6>
-        <FolderList root={{ label: `${flag} All assets`, count: assets.length, active: !folder && !view, onClick: () => go("") }} items={folders.map((f) => ({ key: f, label: f, count: assets.filter((x) => x.folder === f).length, active: folder === f, onClick: () => go(`?folder=${encodeURIComponent(f)}`) }))} />
-        {canEdit && <button className="btn-ghost mt-2.5 ml-1" onClick={() => setNewFolder(true)}>＋ New folder</button>}
-        <h6 className="text-xs tracking-[.1em] uppercase text-ink-3 font-medium px-2 mt-5 mb-2">Smart views</h6>
+    <div className="grid h-[calc(100svh-4rem)] min-h-0 grid-cols-1 gap-4 overflow-hidden p-4 pt-0 lg:grid-cols-[16rem_minmax(0,1fr)] lg:grid-rows-[auto_minmax(0,1fr)] group-has-data-[collapsible=icon]/sidebar-wrapper:h-[calc(100svh-3rem)]">
+      <SideTree label="Folders" className="lg:row-span-2" action={canEdit ? <NewFolderButton onClick={() => setNewFolder(true)} /> : undefined}>
+        <FolderList root={{ label: "All assets", count: assets.length, active: !folder && !view, onClick: () => go("") }} items={folders.map((f) => ({ key: f, label: f, count: assets.filter((x) => x.folder === f).length, active: folder === f, onClick: () => go(`?folder=${encodeURIComponent(f)}`) }))} />
+        <h3 className="mt-3 mb-1 px-4 text-xs font-medium text-ink-3">Smart views</h3>
         <FolderList root={{ label: "Needs attention", count: unusedCount + noAlt.length }} items={[{ key: "unused", label: "Not used on any page", count: unusedCount, active: view === "unused", onClick: () => go("?view=unused"), icon: "page" }, { key: "noalt", label: "Missing accessibility info", count: noAlt.length, active: view === "noalt", onClick: () => go("?view=noalt"), icon: "page" }]} />
       </SideTree>
 
-      <div className={`p-4 md:p-7 overflow-auto min-h-0 relative ${drag ? "outline outline-2 outline-dashed outline-brand -outline-offset-8" : ""}`} onDragOver={(e) => { if (canEdit && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDrag(true); } }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false); }} onDrop={onDrop}>
+      <div className="flex min-w-0 shrink-0 items-center justify-end">
+        {canEdit
+          ? <button type="button" className="btn btn-primary inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 px-4 text-sm" disabled={busy === "upload"} onClick={() => uplRef.current?.click()}><Upload className="size-4" />{busy === "upload" ? "Uploading…" : "Upload files"}</button>
+          : <span className="inline-flex shrink-0 items-center gap-1.5 border border-line bg-surface-3 px-3 py-1.5 text-xs text-ink-3" title="You don't have Edit on this site. Ask a site admin."><Lock className="size-3.5" />Read-only library</span>}
+      </div>
+      <div className={`flex min-h-0 flex-col overflow-hidden border border-line bg-surface ${drag ? "outline outline-2 outline-dashed outline-brand -outline-offset-8" : ""}`} onDragOver={(e) => { if (canEdit && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDrag(true); } }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false); }} onDrop={onDrop}>
         <input ref={uplRef} type="file" multiple accept="image/*,.pdf,.svg" className="hidden" onChange={(e) => { upload(Array.from(e.target.files ?? []), folder || "Uploads"); e.target.value = ""; }} />
         <input ref={replRef} type="file" accept="image/*,.pdf,.svg" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) replace(f); e.target.value = ""; }} />
-        <div className="text-xs text-ink-3 mb-2 flex items-center gap-1.5"><button className="hover:underline" onClick={() => go("")}>Asset library</button>{(folder || view) && <><span>/</span><b className="text-ink">{title}</b></>}</div>
-        <div className="flex flex-wrap items-end gap-x-4 gap-y-3 mb-5"><div><h1 className="text-2xl font-medium">{title}</h1><p className="text-ink-3 text-sm mt-1">{list.length} file{list.length === 1 ? "" : "s"}{folder ? " in this folder" : view ? " in this view" : ` in the ${marketName} library`}</p></div>
-          <div className="ml-auto flex gap-2 items-center">{canEdit ? <><button className="btn btn-sm btn-secondary" onClick={() => setNewFolder(true)}>＋ New folder</button><button className="btn btn-sm btn-primary" disabled={busy === "upload"} onClick={() => uplRef.current?.click()}>{busy === "upload" ? "Uploading…" : "↑ Upload files"}</button></> : <span className="inline-flex items-center gap-1.5 text-xs text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="You don't have Edit on this site. Ask a site admin."><span aria-hidden="true">🔒</span>Read-only library</span>}</div></div>
-        <div className="flex flex-wrap items-center gap-2 mb-4">
-          <input className="border border-line-2 rounded-md px-2.5 py-1.5 text-sm flex-1 sm:flex-none sm:w-[280px] min-w-[150px]" placeholder="Find a file by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a file by name" />
-          <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-sm bg-surface" value={type} onChange={(e) => setType(e.target.value)} aria-label="File type"><option value="">Any type</option><option value="image">Images</option><option value="pdf">Documents</option><option value="svg">Icons</option></select>
-          <ViewToggle value={mode} onChange={setView} className="ml-auto" />
+        <div className="flex shrink-0 items-center gap-4 border-b border-line px-4 py-3">
+          <div className="min-w-28 flex-1">
+            <h2 className="truncate text-base font-medium" title={title}>{title}</h2>
+            <p className="truncate text-xs text-ink-3">{list.length} file{list.length === 1 ? "" : "s"}{folder ? " in this folder" : view ? " in this view" : ` in the ${marketName} library`}</p>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <input className="border border-line-2 rounded-md px-2.5 py-1.5 text-sm flex-1 sm:flex-none sm:w-[280px] min-w-[150px]" placeholder="Find a file by name" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Find a file by name" />
+            <select className="border border-line-2 rounded-md px-2.5 py-1.5 text-sm bg-surface" value={type} onChange={(e) => setType(e.target.value)} aria-label="File type"><option value="">Any type</option><option value="image">Images</option><option value="pdf">Documents</option><option value="svg">Icons</option></select>
+            <ViewToggle value={mode} onChange={setView} />
+          </div>
         </div>
+        <div className="relative min-h-0 flex-1 overflow-auto p-4">
         {err && <div className="text-crit text-xs bg-crit-soft px-3 py-2 rounded mb-4 flex items-center">{err}<button className="ml-auto underline" onClick={() => setErr(null)}>Dismiss</button></div>}
 
         <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-5 items-start">
@@ -158,6 +167,7 @@ export function AssetLibrary({ marketId, envId, marketName, flag, root, assets, 
               <button className="btn btn-sm btn-secondary" onClick={copyId} title={a.id}>Copy id</button>
             </div>
           </div>}
+        </div>
         </div>
       </div>
 

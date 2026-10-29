@@ -12,12 +12,13 @@ import type { PageSummary } from "@/lib/api/types";
 import { repoApi, ucpApi } from "@/lib/api";
 import { errorText as errText } from "@/lib/api/errors";
 import { ukDateTime } from "@/lib/dates";
-import { Archive, ChevronRight, Copy, EllipsisVertical, ExternalLink, FolderInput, FolderPlus, Link as LinkIcon, Lock, Pencil, Plus, Search, Trash2, Type, X } from "lucide-react";
+import { Archive, ChevronRight, Copy, EllipsisVertical, ExternalLink, FolderInput, Link as LinkIcon, Lock, Pencil, Plus, Search, Trash2, Type, X } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/shadcn/dropdown-menu";
 import { FolderTiles, PageCard, ViewToggle, type View } from "@/components/explorer/PagesViews";
 import { LocationSelect, type FolderOption } from "@/components/explorer/LocationSelect";
 import { FilterChips, MultiFilter, QuickChips, RangeFilter, SortHeader } from "@/components/explorer/PagesFilters";
 import { PageThumb } from "@/components/explorer/PageThumb";
+import { NewFolderButton } from "@/components/ui/NewFolderButton";
 import { inRange, rangeActive, sortRows, type Range, type Sort } from "@/lib/pages-filter";
 import { STATUS_LABEL } from "@/components/ui/Pill";
 import { Dialog as UIDialog, DialogContent as UIDialogContent, DialogFooter as UIDialogFooter, DialogHeader as UIDialogHeader, DialogTitle as UIDialogTitle } from "@/components/shadcn/dialog";
@@ -466,17 +467,7 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
         <div className="flex max-h-96 min-h-0 flex-col overflow-hidden border border-line bg-surface lg:row-span-2 lg:max-h-none" role="navigation" aria-label="Folders">
           <div className="flex shrink-0 items-center justify-between gap-2 border-b border-line bg-surface-2 px-4 py-3">
             <h2 className="text-sm font-medium text-ink-2">Folders</h2>
-            {canEditHere && (
-              <button
-                type="button"
-                className="group/new -my-1 ms-auto inline-flex h-8 cursor-pointer items-center gap-0 rounded-md px-1.5 text-ink-3 transition-[background-color,box-shadow,color] duration-160 ease-out hover:bg-background hover:text-foreground hover:shadow-xs hover:ring-1 hover:ring-border focus-visible:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                aria-label="New folder"
-                onClick={() => { setParent(folder.path); openModal({ kind: "folder" }); }}
-              >
-                <FolderPlus className="size-4 shrink-0" />
-                <span className="max-w-0 overflow-hidden text-xs font-medium whitespace-nowrap opacity-0 transition-[max-width,opacity,margin] duration-200 ease-out group-hover/new:ms-1.5 group-hover/new:max-w-24 group-hover/new:opacity-100 group-focus-visible/new:ms-1.5 group-focus-visible/new:max-w-24 group-focus-visible/new:opacity-100 motion-reduce:transition-none">New folder</span>
-              </button>
-            )}
+            {canEditHere && <NewFolderButton onClick={() => { setParent(folder.path); openModal({ kind: "folder" }); }} />}
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto py-1"><FolderTree root={root} marketName={marketName} base={base} current={folder.path} folders={tree} counts={counts} /></div>
         </div>

@@ -16,13 +16,13 @@ import { BLOCK_BY_TYPE } from "@/lib/blocks/registry";
 import { MARKETS } from "@/lib/markets";
 import { MarketPicker } from "@/components/ui/MarketPicker";
 
-type Props = { marketId: string; envId: string; marketName: string; flag: string; templates: Template[]; used: Record<string, number>; folder: string; view: "grid" | "list"; q: string };
+type Props = { marketId: string; envId: string; marketName: string; templates: Template[]; used: Record<string, number>; folder: string; view: "grid" | "list"; q: string };
 const slugify = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 /** Folder list: fixed set ∪ market name ∪ folders that exist on templates ∪ folders added in this session. */
 export const tplFolders = (templates: Template[], marketName: string, extra: string[] = []) => { const out = [TEMPLATE_FOLDERS[0], marketName, ...TEMPLATE_FOLDERS.slice(1), ...extra]; for (const t of templates) if (t.folder && !out.includes(t.folder)) out.push(t.folder); return [...new Set(out)]; };
 export const tplFolderOf = (t: Template) => t.folder || (t.id === "campaign" ? "Campaigns" : "Global (all markets)");
 
-export function TemplateLibrary({ marketId, envId, marketName, flag, templates, used, folder, view, q: q0 }: Props) {
+export function TemplateLibrary({ marketId, envId, marketName, templates, used, folder, view, q: q0 }: Props) {
   const router = useRouter(); const { user, can, marketRoot } = useSession();
   const canManage = user.role === "admin" || can("manage", marketRoot);
   const base = `/${marketId}/${envId}`;
@@ -54,13 +54,13 @@ export function TemplateLibrary({ marketId, envId, marketName, flag, templates, 
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] grid-rows-[auto_1fr] md:grid-rows-1 h-full min-h-0">
-      <SideTree label="Folders" current={folder || "All templates"}>
+    <div className="grid h-[calc(100svh-4rem)] min-h-0 grid-cols-1 gap-4 overflow-hidden p-4 pt-0 lg:grid-cols-[16rem_minmax(0,1fr)] group-has-data-[collapsible=icon]/sidebar-wrapper:h-[calc(100svh-3rem)]">
+      <SideTree label="Folders">
         <h6 className="text-xs tracking-[.1em] uppercase text-ink-3 font-medium mx-2 mb-2">Template library</h6>
-        <FolderList root={{ label: `${flag} All templates`, count: templates.length, active: !folder, href: href("") }} items={folders.map((f) => ({ key: f, label: f, count: templates.filter((t) => tplFolderOf(t) === f).length, active: folder === f, href: href(f) }))} />
+        <FolderList root={{ label: "All templates", count: templates.length, active: !folder, href: href("") }} items={folders.map((f) => ({ key: f, label: f, count: templates.filter((t) => tplFolderOf(t) === f).length, active: folder === f, href: href(f) }))} />
         {canManage && <button className="btn-ghost mt-2.5 mx-1" onClick={() => { setName(""); setErr(null); setModal({ kind: "folder" }); }}>＋ New folder</button>}
       </SideTree>
-      <div className="p-6 overflow-auto min-w-0">
+      <div className="min-h-0 overflow-auto border border-line bg-surface min-w-0 p-6">
         <div className="text-sm text-ink-3 mb-2 flex gap-1.5"><Link href={href("")} className="hover:text-ink">Template library</Link>{folder && <><span className="text-ink-4">/</span><b className="text-ink">{folder}</b></>}</div>
         <div className="flex flex-wrap items-end gap-x-4 gap-y-3 mb-5"><div><h1 className="text-2xl font-medium">{folder || "All templates"}</h1><p className="text-sm text-ink-3 mt-1">{list.length} template{list.length === 1 ? "" : "s"}</p></div>
           <div className="ml-auto flex gap-2 items-center">{canManage ? <><button className="btn btn-sm btn-secondary" onClick={() => { setName(""); setErr(null); setModal({ kind: "folder" }); }}>＋ New folder</button><button className="btn btn-sm btn-primary" onClick={() => openTemplateModal(folder || "Global (all markets)")}>＋ New template</button></> : <span className="inline-flex items-center gap-1.5 text-xs text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="Only site admins (Manage) can change templates."><span aria-hidden="true">🔒</span>Read-only · ask a site admin to change templates</span>}</div></div>

@@ -95,13 +95,13 @@ export function Entities(p: EntitiesProps) {
   else body = <Overview key={md?.id ?? ""} p={p} md={md} byModel={byModel} models={models} canEdit={canEdit} go={go} onCreate={() => setCreating(true)} onNewFolder={(m) => setFolderDlg({ model: m })} />;
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] grid-rows-[auto_1fr] md:grid-rows-1 h-full min-h-0">
-      <SideTree label="Entities" current={ent?.title ?? md?.name ?? "All entities"}>
+    <div className="grid h-[calc(100svh-4rem)] min-h-0 grid-cols-1 gap-4 overflow-hidden p-4 pt-0 lg:grid-cols-[16rem_minmax(0,1fr)] group-has-data-[collapsible=icon]/sidebar-wrapper:h-[calc(100svh-3rem)]">
+      <SideTree label="Entities">
         <h6 className="text-xs tracking-[.1em] uppercase text-ink-3 font-medium px-2 mb-2">Content entities</h6>
 
         <FolderList key={ql ? `q:${ql}` : `sel:${md?.id ?? ""}`} root={{ label: "All entities", count: p.entities.length, active: !md, onClick: () => go(entitiesLink(p.base)) }} items={items} extra={ql && !items.length ? <div className="text-xs text-ink-4 px-2 py-1">Nothing matches “{q}”</div> : undefined} />
       </SideTree>
-      <div className="overflow-y-auto overflow-x-hidden min-w-0 min-h-0">{body}</div>
+      <div className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto border border-line bg-surface">{body}</div>
       {creating && canEdit && <NewEntityModal marketId={p.marketId} models={models} initial={md} folder={p.folder} onClose={() => setCreating(false)} onDone={onCreated} />}
       {pending && <UnsavedModal what={ent ? `“${ent.title}”` : "this entity"} busy={busy === "guard"} onStay={() => setPending(null)} onDiscard={() => { const h = pending; setPending(null); setDirty(false); router.push(h); }} onSave={async () => { setBusy("guard"); const ok = await saveRef.current?.(); setBusy(""); if (ok) { const h = pending; setPending(null); setDirty(false); router.push(h); } }} />}
       {moving && <MoveDialog title={`Move ${moving.title}`} what={moving.title} current={`${moving.model}|${moving.folder ?? ""}`} targets={models.flatMap((m) => [{ id: `${m.id}|`, label: m.name, hint: `${(byModel[m.id] ?? []).length} entities` }, ...(p.folders[m.id] ?? []).map((f) => ({ id: `${m.id}|${f}`, label: `${m.name} / ${f}` }))])} onClose={() => setMoving(null)}

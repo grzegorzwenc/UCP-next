@@ -17,9 +17,22 @@ export function SectionSkeleton({ section, rows = 8, tiles = false, sidebar = fa
   );
   if (!sidebar) return body;
   return (
-    <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] h-full min-h-0">
-      <aside className="bg-surface border-r border-line p-3 grid content-start gap-2"><Skeleton className="h-3 w-[120px] mx-2 mb-1" />{Array.from({ length: 7 }, (_, i) => <Skeleton key={i} className="h-6" />)}</aside>
-      <div className="overflow-auto min-w-0">{body}</div>
+    /* mirrors the library shell: the page gutter, a gap, the 16rem SideTree card and a body card */
+    <div className="grid h-[calc(100svh-4rem)] min-h-0 grid-cols-1 gap-4 overflow-hidden p-4 pt-0 lg:grid-cols-[16rem_minmax(0,1fr)] group-has-data-[collapsible=icon]/sidebar-wrapper:h-[calc(100svh-3rem)]">
+      <aside className="flex max-h-96 min-h-0 flex-col overflow-hidden border border-line bg-surface lg:max-h-none">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-line bg-surface-2 px-4 py-3">
+          <Skeleton className="h-4 w-[64px]" /><Skeleton className="size-6" />
+        </div>
+        <div className="grid content-start gap-1 py-1">
+          {Array.from({ length: 7 }, (_, i) => (
+            <div key={i} className="flex h-8 items-center gap-2 px-3">
+              <Skeleton className="size-4 shrink-0" />
+              <div className="min-w-0" style={{ width: `${68 - i * 6}%` }}><Skeleton className="h-3.5 w-full" /></div>
+            </div>
+          ))}
+        </div>
+      </aside>
+      <div className="min-h-0 min-w-0 overflow-auto border border-line bg-surface">{body}</div>
     </div>
   );
 }
