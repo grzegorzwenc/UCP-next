@@ -19,7 +19,9 @@ export type View = "compact" | "grid" | "list";
  */
 const TOGGLE_ITEM = "inline-flex size-9 cursor-pointer items-center justify-center transition-colors duration-160 ease-out focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none";
 
-export function ViewToggle({ view, onChange }: { view: View; onChange: (v: View) => void }) {
+const ALL_VIEWS: View[] = ["compact", "grid", "list"];
+
+export function ViewToggle({ view, onChange, modes = ALL_VIEWS }: { view: View; onChange: (v: View) => void; modes?: readonly View[] }) {
   const item = (v: View, Icon: React.ComponentType<{ className?: string }>, title: string) => (
     <button
       type="button"
@@ -34,9 +36,9 @@ export function ViewToggle({ view, onChange }: { view: View; onChange: (v: View)
   );
   return (
     <div className="inline-flex shrink-0 border border-line-2" role="group" aria-label="View">
-      {item("compact", Grid3x3, "Compact")}
-      {item("grid", LayoutGrid, "Grid")}
-      {item("list", List, "List")}
+      {modes.includes("compact") && item("compact", Grid3x3, "Compact")}
+      {modes.includes("grid") && item("grid", LayoutGrid, "Grid")}
+      {modes.includes("list") && item("list", List, "List")}
     </div>
   );
 }
