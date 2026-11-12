@@ -1,5 +1,4 @@
 "use client";
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Block, PageView, PageStatus } from "@/lib/api/types";
 import { repoApi, ucpApi, ApiError } from "@/lib/api";
@@ -25,6 +24,7 @@ import { JiraChip } from "@/components/ui/JiraChip";
 import { SavePatternDialog, PatternMarketsDialog } from "./PatternDialog";
 import { toParts, fromPattern, type DesignPattern } from "@/lib/blocks/patterns";
 import { LockedVeil } from "./LockedVeil";
+import { EditorVeil } from "./EditorSkeleton";
 import { ShareReviewDialog } from "@/components/tasks/ShareReviewDialog";
 import { useConfirm } from "@/components/ui/Confirm";
 import { ReviewedChoice } from "@/components/tasks/ReviewedChoice";
@@ -286,7 +286,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   }
   /** Leaving Preview on a draft asks whether the page is right: yes → Send for review, no → back to the content. */
   const leavePreview = () => { setFocusMode(false); if (canEdit && (status === "draft" || status === "failed")) setPreviewCheck(true); };
-  /* ---- Focus mode (⌘⇧F): body.focus hides the top bar and side nav (CSS in globals.css); other parts of the shell can listen to ucp:focus. ---- */
+  /* ---- Focus mode (⌘⇧F): hides the editor's own toolbar, stepper and panels (the `focus` branches
+     in the grid below). The app sidebar and top bar no longer need hiding — the editor is in its own
+     `(editor)` route group and never renders them. `body.focus` and the `ucp:focus` event stay so
+     other parts of the shell can still react. ---- */
   const panelsBeforeFocus = useRef<{ left: boolean; right: boolean; preview: boolean } | null>(null);
   const [fsHint, setFsHint] = useState(false);
   const leaveFocusState = () => { setFocus(false); document.body.classList.remove("focus"); window.dispatchEvent(new CustomEvent("ucp:focus", { detail: { on: false } })); const b = panelsBeforeFocus.current; if (b) { setLeftRaw(b.left); setRight(b.right); setPreviewRaw(b.preview); panelsBeforeFocus.current = null; } };
@@ -308,6 +311,24 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   }
   /* Autosave: 1.2 s after the last change the draft is saved. There is no Save button any more. */
   const saveRef = useRef(save); useEffect(() => { saveRef.current = save; });
+  /* ---- Close the editor (✕ in the toolbar) ----
+     The editor is its own shell now, so leaving it is a navigation, not a panel toggle.
+     Autosave means there is nothing to ask about: a pending edit is flushed first and the
+     veil says so, because `save()` is a real round trip and a dead button would read as a
+     hang. A failed save keeps the author in the editor — `save()` has already said why. */
+  const [closing, setClosing] = useState<string | null>(null);
+  const libraryHref = `/${marketId}/${envId}/pages${rel.replace(/\/[^/]+$/, "")}`;
+  async function closeEditor() {
+    if (closing) return;
+    if (editing) commitInline(true);
+    if (dirty && canEdit && !locked) {
+      setClosing("Saving changes…");
+      try { await saveRef.current(); }
+      catch { setClosing(null); return; }
+    }
+    setClosing("Closing editor");
+    router.push(libraryHref);
+  }
   useEffect(() => { if (!dirty || !canEdit || locked || editing) return; const id = setTimeout(() => { saveRef.current().catch(() => {}); }, 1200); return () => clearTimeout(id); }, [dirty, blocks, title, description, canEdit, locked, editing]);
   /** Why the page cannot move to `next` (permission, or required fields before review); says it and returns true when blocked. */
   function blocked(next: PageStatus) {
@@ -532,7 +553,13 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
       {!focus && <div className="grid grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto_minmax(max-content,1fr)] items-center gap-3 px-2.5 bg-surface border-b border-line overflow-x-auto overflow-y-hidden">
         {/* left: back + page · centre: device width · right: status | panels + preview | next action */}
         <div className="flex items-center gap-3 min-w-0">
-          {!focus && <Link href={`/${marketId}/${envId}/pages${rel.replace(/\/[^/]+$/, "")}`} className="btn-ghost">‹ Pages</Link>}
+          {/* Close, not "‹ Pages": the editor owns the whole screen, so the control that gives it
+              back is an exit. The destination is named in the tooltip rather than on the button,
+              which is the review's "name the Back destination" without spending toolbar width. */}
+          <button type="button" onClick={() => void closeEditor()} disabled={!!closing} aria-label="Close the editor and go back to Pages" title="Close the editor · back to Pages"
+            className="grid size-8 flex-none place-items-center rounded-md text-ink-3 transition-[color,background-color,transform] duration-150 ease-out hover:bg-surface-3 hover:text-ink active:scale-[0.97] disabled:opacity-40">
+            <svg viewBox="0 0 24 24" className="size-5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
           <div className="min-w-0 flex-1"><span className="flex items-center gap-2 min-w-0"><b className="block text-sm truncate">{title}</b>{jira && <JiraChip url={jira} />}</span><span className="hidden sm:block text-xs text-ink-3 truncate">{flag} {locale} · {domain}{rel}</span></div>
         </div>
         <div className="hidden lg:inline-flex justify-self-center border border-line-2 rounded-lg overflow-hidden">{(["desktop", "tablet", "mobile"] as const).map((d) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink"}`} title={d} aria-label={`${d} view`} aria-pressed={device === d}><Ico d={d === "desktop" ? "M3 4.5h18v11.5H3zM8.5 20h7M12 16v4" : d === "tablet" ? "M5.5 3h13v18h-13zM11 18h2" : "M8 2.5h8v19H8zM11 18.5h2"} /></button>)}</div>
@@ -696,6 +723,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {sending && <SendForReviewModal marketId={marketId} pagePath={page.path} onClose={() => setSending(false)} onSend={sendForReview} />}
         {translating && <TranslateModal marketId={marketId} path={page.path} title={title} onClose={() => setTranslating(false)} onDone={(created) => { say(`Created ${created.length} translation${created.length === 1 ? "" : "s"}`); router.refresh(); }} />}
         {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm shadow-xl z-50">{toast}</div>}
+        {/* Closing mirrors opening: the same spinner-over-label as the "Loading editor" skeleton, so the editor opens and shuts with one look. */}
+        {closing && <EditorVeil label={closing} detail={title} />}
       </div>
     </div>
   );

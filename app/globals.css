@@ -791,20 +791,10 @@
   color: #7c808b;
 }
 
-body.focus .cms-shell [data-slot="sidebar-inset"] {
-  grid-template-rows: 1fr;
-}
-
-body.focus .cms-shell [data-slot="sidebar"],
-body.focus .cms-shell [data-slot="sidebar-gap"],
-body.focus .cms-shell [data-slot="sidebar-rail"],
-body.focus .cms-shell [data-slot="sidebar-inset"] > header {
-  display: none;
-}
-
-body.focus .cms-shell {
-  display: block;
-}
+/* The page builder's focus mode used to hide the CMS shell from the outside — `body.focus
+   .cms-shell [data-slot="sidebar"] { display: none }` and friends. The builder now lives in
+   the `(editor)` route group, which never renders the sidebar or the app top bar, so those
+   rules matched nothing. The builder is the only thing that ever set `body.focus`. */
 
 .site.tablet .cblk {
   padding: 18px 20px;
