@@ -1,0 +1,148 @@
+/* BDL skin for driver.js tour popovers, ported from the UCP mock onto this app's
+   tokens. Lazy-loaded with driver.js by the tour controller, so none of it ships
+   until a tour actually starts. Driver's own popover z-index (≥1e9) already clears the
+   sticky header (z-50) and BDL modals (--z-modal: 10000); tours never run
+   concurrently with a modal, so the overlay's inline z-index 10000 tie is
+   moot. */
+.driver-popover.bdl-tour-popover {
+	background-color: var(--color-surface);
+	color: var(--color-ink);
+	border-radius: 0;
+	box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+	font-family: var(--font-sans);
+	max-width: 22rem;
+	padding: 1rem;
+}
+
+.bdl-tour-popover .driver-popover-title {
+	font-size: 0.95rem;
+	font-weight: 600;
+	font-family: inherit;
+	line-height: 1.3;
+}
+
+.bdl-tour-popover .driver-popover-description {
+	font-size: 0.85rem;
+	color: var(--color-ink-2);
+	line-height: 1.5;
+}
+
+.bdl-tour-popover .driver-popover-progress-text {
+	font-size: 0.75rem;
+	color: var(--color-ink-3);
+}
+
+.bdl-tour-popover .driver-popover-footer button {
+	border-radius: 0;
+	border: 1px solid var(--color-line);
+	background-color: var(--color-surface);
+	color: var(--color-ink);
+	font-family: inherit;
+	font-size: 0.8rem;
+	font-weight: 500;
+	padding: 0.3rem 0.75rem;
+	text-shadow: none;
+	cursor: pointer;
+}
+
+.bdl-tour-popover .driver-popover-footer button:hover {
+	background-color: var(--color-surface-3);
+}
+
+.bdl-tour-popover .driver-popover-footer .driver-popover-next-btn {
+	background-color: var(--color-brand);
+	border-color: var(--color-brand);
+	color: var(--color-surface);
+}
+
+.bdl-tour-popover .driver-popover-footer .driver-popover-next-btn:hover {
+	background-color: var(--color-brand-hover);
+	border-color: var(--color-brand-hover);
+}
+
+/* Arrows are CSS borders — recolor the pointing side to the popover bg. */
+.bdl-tour-popover .driver-popover-arrow-side-left.driver-popover-arrow {
+	border-left-color: var(--color-surface);
+}
+
+.bdl-tour-popover .driver-popover-arrow-side-right.driver-popover-arrow {
+	border-right-color: var(--color-surface);
+}
+
+.bdl-tour-popover .driver-popover-arrow-side-top.driver-popover-arrow {
+	border-top-color: var(--color-surface);
+}
+
+.bdl-tour-popover .driver-popover-arrow-side-bottom.driver-popover-arrow {
+	border-bottom-color: var(--color-surface);
+}
+
+/* Dark mode — tokens from src/routes/layout.css (.dark block). */
+.dark .driver-popover.bdl-tour-popover {
+	background-color: var(--color-surface);
+	color: var(--color-ink);
+}
+
+.dark .bdl-tour-popover .driver-popover-description {
+	color: var(--color-ink-3);
+}
+
+.dark .bdl-tour-popover .driver-popover-progress-text {
+	color: var(--color-ink-3);
+}
+
+.dark .bdl-tour-popover .driver-popover-footer button {
+	border-color: var(--color-line);
+	background-color: var(--color-surface);
+	color: var(--color-ink);
+}
+
+.dark .bdl-tour-popover .driver-popover-footer button:hover {
+	background-color: color-mix(in srgb, var(--color-surface) 85%, white);
+}
+
+.dark .bdl-tour-popover .driver-popover-footer .driver-popover-next-btn {
+	background-color: var(--color-brand);
+	border-color: var(--color-brand);
+	color: var(--color-surface);
+}
+
+.dark .bdl-tour-popover .driver-popover-footer .driver-popover-next-btn:hover {
+	background-color: var(--color-brand-hover);
+	border-color: var(--color-brand-hover);
+}
+
+.dark .bdl-tour-popover .driver-popover-arrow-side-left.driver-popover-arrow {
+	border-left-color: var(--color-surface);
+}
+
+.dark .bdl-tour-popover .driver-popover-arrow-side-right.driver-popover-arrow {
+	border-right-color: var(--color-surface);
+}
+
+.dark .bdl-tour-popover .driver-popover-arrow-side-top.driver-popover-arrow {
+	border-top-color: var(--color-surface);
+}
+
+.dark .bdl-tour-popover .driver-popover-arrow-side-bottom.driver-popover-arrow {
+	border-bottom-color: var(--color-surface);
+}
+
+/* The tour's own trigger, while the tour points at it: painted active and
+   pulsing red so there is no doubt where the demo lives. */
+[data-tour-help].driver-active-element {
+	color: var(--color-brand);
+	background-color: var(--color-surface);
+	box-shadow: inset 0 0 0 1px var(--color-brand);
+	animation: ucp-tour-help-pulse 1.2s ease-in-out infinite;
+}
+@keyframes ucp-tour-help-pulse {
+	50% {
+		box-shadow: inset 0 0 0 3px var(--color-brand);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	[data-tour-help].driver-active-element {
+		animation: none;
+	}
+}

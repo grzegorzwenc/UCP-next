@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { startEditorTour, tourSeen } from "@/lib/editor/tour";
 import { DEVICE_W, DEVICES, type Device } from "@/lib/ucp/devices";
 import { Check, Lock, Languages, Sparkles, MoreHorizontal, ChevronLeft, Maximize2, Minimize2 } from "lucide-react";
 import type { Block, PageView, PageStatus } from "@/lib/api/types";
@@ -568,6 +569,19 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   useEffect(() => () => { const w = watched.current; w.ro.forEach((r) => r.disconnect()); w.ro = []; w.canvas = null; /* forget it so a remount (React strict mode) re-attaches */ }, []);
   /* Watch the canvas and the page for size changes. They can mount after the first render, so re-attach whenever the element changes. */
   const watched = useRef<{ canvas: HTMLElement | null; ro: ResizeObserver[] }>({ canvas: null, ro: [] });
+  /* The tour drives the editor into the state each stop describes, rather than hoping the
+     author happens to have the right panel open. */
+  const tourHost = {
+    showPanels: () => { setZen(false); setFocusMode(false); setLeftRaw(true); setRight(true); },
+    openLeft: (t: LeftTab) => { setLeftTab(t); setLeftRaw(true); },
+    openRight: () => setRight(true),
+    setDevice: (d: "desktop") => setDevice(d),
+    selectFirstBlock: () => { const b = blocksRef.current[1] ?? blocksRef.current[0]; if (b) configure(b.id); return b?.id ?? null; },
+  };
+  const runTour = () => { void startEditorTour(tourHost); };
+  /* First time anyone opens the builder, the tour introduces it — once, then never again
+     unless they ask from the components panel. */
+  useEffect(() => { if (tourSeen()) return; const id = setTimeout(runTour, 900); return () => clearTimeout(id); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const railsOn = !preview || !!lockReason; // a locked page keeps the rails (panels open read-only or veiled); a plain preview hides them
   const railBadge = (t: RightTab) => (t === "comments" ? commentCount : t === "insights" ? insightBadge : t === "content" ? Object.keys(bindings).length : t === "ai" ? aiTasks.filter((x) => x.stage !== "done").length : 0);
   const openRight = (t: RightTab) => { setZen(false); if (t === "block" && sel) configure(sel); else { setRightTab(t); setRight(true); } };
@@ -590,7 +604,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {/* Close, not "‹ Pages": the editor owns the whole screen, so the control that gives it
               back is an exit. The destination is named in the tooltip rather than on the button,
               which is the review's "name the Back destination" without spending toolbar width. */}
-          <button type="button" onClick={() => void closeEditor()} disabled={!!closing} aria-label="Close the editor and go back to Pages" title="Close the editor · back to Pages"
+          <button type="button" data-tour-close onClick={() => void closeEditor()} disabled={!!closing} aria-label="Close the editor and go back to Pages" title="Close the editor · back to Pages"
             className="grid size-8 flex-none place-items-center rounded-md text-ink-3 transition-[color,background-color,transform] duration-150 ease-out hover:bg-surface-3 hover:text-ink active:scale-[0.97] disabled:opacity-40">
             <svg viewBox="0 0 24 24" className="size-5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
@@ -615,7 +629,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {/* The two panel toggles that used to sit here are gone: each panel is reopened from the slim
               bar it leaves behind, which is where you are already looking when you want it back. */}
           {/* the page itself: look at it, or take it back to editing */}
-          <div className="flex items-center gap-1 pl-2.5 border-l border-line">{!focus && <button className={`bdl-chip btn-square size-8 ${zen ? "bdl-chip-active" : ""}`} onClick={() => setZen(!zen)} title={zen ? "Show the panels · \u2318." : "Focus mode: hide both panels · \u2318."} aria-label={zen ? "Show the panels" : "Focus mode: hide both panels"} aria-pressed={zen}>{zen ? <Minimize2 className="size-4" strokeWidth={1.7} aria-hidden /> : <Maximize2 className="size-4" strokeWidth={1.7} aria-hidden />}</button>}<button className={`bdl-chip ${focus ? "bdl-chip-active" : ""}`} onClick={() => (focus ? leavePreview() : setFocusMode(true))} title="Preview the page as visitors see it (⌘⇧F)" aria-pressed={focus}>{focus ? <><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>Exit preview</> : <><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></svg>Preview</>}</button>{canEdit && !locked && !focus && (status === "draft" || status === "failed") && <button className={`btn btn-sm btn-secondary ${dirty ? "btn-primary" : ""}`} disabled={!dirty || saving === "Saving…"} onClick={async () => { try { await save(); say("Saved"); } catch { /* save() already says why */ } }} title={dirty ? "Save now (it also saves by itself after a moment) · ⌘S" : "All changes are saved"}><Ico d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6" />{dirty ? (saving === "Saving…" ? "Saving…" : "Save") : "Saved"}</button>}{!canEdit ? <span className="inline-flex items-center gap-1 text-xs text-ink-3 px-1.5 whitespace-nowrap" title={lockedByOther ? `Locked by ${pageLock!.name}` : "Ask a site admin for Edit on this folder"}><Lock className="size-3" strokeWidth={1.5} aria-hidden />Read-only</span> : locked ? <button className="btn btn-sm btn-secondary" onClick={() => void goEdit("blocks")} title={status === "published" ? "Change the page; the live version stays online until you publish again" : "Take the page back to editing"}><Ico d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />Edit</button> : null}</div>
+          <div data-tour-actions className="flex items-center gap-1 pl-2.5 border-l border-line">{!focus && <button data-tour-focus className={`bdl-chip btn-square size-8 ${zen ? "bdl-chip-active" : ""}`} onClick={() => setZen(!zen)} title={zen ? "Show the panels · \u2318." : "Focus mode: hide both panels · \u2318."} aria-label={zen ? "Show the panels" : "Focus mode: hide both panels"} aria-pressed={zen}>{zen ? <Minimize2 className="size-4" strokeWidth={1.7} aria-hidden /> : <Maximize2 className="size-4" strokeWidth={1.7} aria-hidden />}</button>}<button className={`bdl-chip ${focus ? "bdl-chip-active" : ""}`} onClick={() => (focus ? leavePreview() : setFocusMode(true))} title="Preview the page as visitors see it (⌘⇧F)" aria-pressed={focus}>{focus ? <><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>Exit preview</> : <><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></svg>Preview</>}</button>{canEdit && !locked && !focus && (status === "draft" || status === "failed") && <button className={`btn btn-sm btn-secondary ${dirty ? "btn-primary" : ""}`} disabled={!dirty || saving === "Saving…"} onClick={async () => { try { await save(); say("Saved"); } catch { /* save() already says why */ } }} title={dirty ? "Save now (it also saves by itself after a moment) · ⌘S" : "All changes are saved"}><Ico d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6" />{dirty ? (saving === "Saving…" ? "Saving…" : "Save") : "Saved"}</button>}{!canEdit ? <span className="inline-flex items-center gap-1 text-xs text-ink-3 px-1.5 whitespace-nowrap" title={lockedByOther ? `Locked by ${pageLock!.name}` : "Ask a site admin for Edit on this folder"}><Lock className="size-3" strokeWidth={1.5} aria-hidden />Read-only</span> : locked ? <button className="btn btn-sm btn-secondary" onClick={() => void goEdit("blocks")} title={status === "published" ? "Change the page; the live version stays online until you publish again" : "Take the page back to editing"}><Ico d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />Edit</button> : null}</div>
         </div>
       </div>}
       {/* Flow stepper (hidden in preview) */}
@@ -672,7 +686,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         
         {railsOn && <LeftPanel open={left} hidden={zen} phone={phone} width={leftW} canEdit={canEdit} onAdd={add} onClose={() => setLeft(false)} onOpenPanel={() => setLeft(true)}
           railItems={LEFT_RAIL.map(([t, label, path]) => ({ key: t, label, path, active: leftTab === t, onClick: () => { setLeftTab(t); setLeft(true); } }))} lockedReason={lockReason || undefined} onEdit={veilEdit}
-          onFloatChange={setLeftFloating} blocks={blocks} selected={sel} onSelect={(id) => { select(id); canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }}
+          onHelp={runTour} onFloatChange={setLeftFloating} blocks={blocks} selected={sel} onSelect={(id) => { select(id); canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }}
           tab={leftTab} onTab={setLeftTab} patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onRestorePattern={async (p) => { try { await ucpApi.archivePattern(marketId, p.id, false); say(`${p.name} restored`); } catch { say("Could not restore"); } loadPatterns(); }} onDeletePattern={(p) => deletePatternForGood(p)} onPatternMarkets={setPatMarkets} mayManage={mayManagePattern} onStartPattern={() => startPattern()} creating={patternMode} />}
         {/* Right panel: Configure (contextual) or Page settings */}
         {railsOn && !focus && phone && <nav data-ui aria-label="Panels" className={phone ? "absolute left-0 right-0 bottom-0 h-12 bg-surface border-t border-line flex flex-row items-center justify-around px-2 z-[6]" : "absolute right-0 top-0 bottom-0 w-[52px] bg-surface border-l border-line flex flex-col items-center px-1.5 py-2.5 gap-1.5 z-[6] cursor-pointer"}>

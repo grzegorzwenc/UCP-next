@@ -68,7 +68,9 @@ function PatternPreview({ p, top, left }: { p: DesignPattern; top: number; left:
 
 type Props = {
   phone?: boolean; width?: number;
-  canEdit: boolean; onAdd: (type: string) => void; onClose: () => void; onOpenPanel?: () => void; lockedReason?: string; onEdit?: () => void;
+  canEdit: boolean; onAdd: (type: string) => void; onClose: () => void; onOpenPanel?: () => void;
+  /** Replays the editor tour. Lives on the panel's bottom bar, which is where the tour ends. */
+  onHelp?: () => void; lockedReason?: string; onEdit?: () => void;
   /** Outline: the page's blocks in document order, and the selection, so the tree can mirror the canvas. */
   blocks?: Block[]; selected?: string | null; onSelect?: (id: string) => void;
   /** without `patterns` (e.g. the template editor) only the component library shows */
@@ -93,7 +95,7 @@ const tabCls = (on: boolean) =>
 const rowCls = "group/item flex h-7 w-full cursor-pointer items-center gap-2 ps-7 pe-1.5 text-left transition-colors duration-150 ease-out hover:bg-surface-2 disabled:cursor-default disabled:opacity-50";
 
 export function LeftPanel({
-  phone, width = 280, canEdit, onAdd, onClose, onOpenPanel = noop, lockedReason, onEdit,
+  phone, width = 280, canEdit, onAdd, onClose, onOpenPanel = noop, onHelp, lockedReason, onEdit,
   blocks = [], selected = null, onSelect = noop,
   tab: tabIn = "components", onTab = noop, patterns, onAddPattern = noop, onRemovePattern = noop, onRestorePattern = noop,
   onDeletePattern = noop, onPatternMarkets = noop, mayManage = () => false, onStartPattern = noop, creating = false, onFloatChange, open = true, hidden = false, railItems = [],
@@ -279,11 +281,16 @@ export function LeftPanel({
         )}
       </LockedVeil>
 
-      {tab === "components" && (
-        <p className="flex shrink-0 items-center gap-2 border-t border-line px-3 py-2 text-xs text-ink-3">
-          <CircleHelp className="size-3.5 shrink-0" aria-hidden />
-          {canEdit ? "Click to add below the selection" : "Read-only"}
-        </p>
+      {/* The bottom bar is the tour's home now — the running commentary that used to live here
+          said what the rows already show. */}
+      {onHelp && (
+        <div className="flex shrink-0 items-center border-t border-line px-1.5 py-1.5 text-xs">
+          <button type="button" data-tour-help onClick={onHelp} title="How the editor works" aria-label="How the editor works"
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded px-1.5 py-1 text-ink-3 transition-[color,background-color] duration-150 ease-out hover:bg-surface-3 hover:text-ink">
+            <CircleHelp className="size-3.5 shrink-0" strokeWidth={1.6} aria-hidden />
+            How it works
+          </button>
+        </div>
       )}
       </PanelBody>
       {preview && !float.floating && open && <PatternPreview {...preview} />}
