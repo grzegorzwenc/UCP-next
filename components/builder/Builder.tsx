@@ -242,6 +242,17 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     e.preventDefault();
     const at = dropAt ?? dropIndexAt(e.clientY); setDropAt(null); add(type, at);
   };
+  /** Move a block to an index in the page order. `to` is the gap it was dropped into. */
+  const moveBlockTo = (id: string, to: number) => {
+    mutate((bl) => {
+      const from = bl.findIndex((x) => x.id === id);
+      if (from < 0) return bl;
+      const c = bl.slice(); const [b] = c.splice(from, 1);
+      c.splice(to > from ? to - 1 : to, 0, b); // removing it first shifts every later gap down one
+      return c;
+    });
+    select(id); revealBlock(id);
+  };
   const move = (id: string, d: number) => mutate((b) => { const i = b.findIndex((x) => x.id === id); const j = i + d; if (j < 0 || j >= b.length) return b; const c = b.slice(); [c[i], c[j]] = [c[j], c[i]]; return c; });
   const remove = (id: string) => { mutate((b) => b.filter((x) => x.id !== id)); select(null); };
   const duplicate = (b: Block) => mutate((bl) => { const i = bl.findIndex((x) => x.id === b.id); const c = bl.slice(); c.splice(i + 1, 0, { ...b, id: makeBlock(b.type).id, props: { ...b.props } }); return c; });
@@ -718,7 +729,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         
         {railsOn && <LeftPanel open={left} hidden={zen} phone={phone} width={leftW} canEdit={canEdit} onAdd={add} onClose={() => setLeft(false)} onOpenPanel={() => setLeft(true)}
           railItems={LEFT_RAIL.map(([t, label, path]) => ({ key: t, label, path, active: leftTab === t, onClick: () => { setLeftTab(t); setLeft(true); } }))} lockedReason={lockReason || undefined} onEdit={veilEdit}
-          onHelp={runTour} dragType={DRAG_TYPE} onFloatChange={setLeftFloating} blocks={blocks} selected={sel} onSelect={(id) => { select(id); canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }}
+          onHelp={runTour} dragType={DRAG_TYPE} onReorder={moveBlockTo} onFloatChange={setLeftFloating} blocks={blocks} selected={sel} onSelect={(id) => { select(id); canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }}
           tab={leftTab} onTab={setLeftTab} patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onRestorePattern={async (p) => { try { await ucpApi.archivePattern(marketId, p.id, false); say(`${p.name} restored`); } catch { say("Could not restore"); } loadPatterns(); }} onDeletePattern={(p) => deletePatternForGood(p)} onPatternMarkets={setPatMarkets} mayManage={mayManagePattern} onStartPattern={() => startPattern()} creating={patternMode} />}
         {/* Right panel: Configure (contextual) or Page settings */}
         {railsOn && !focus && phone && <nav data-ui aria-label="Panels" className={phone ? "absolute left-0 right-0 bottom-0 h-12 bg-surface border-t border-line flex flex-row items-center justify-around px-2 z-[6]" : "absolute right-0 top-0 bottom-0 w-[52px] bg-surface border-l border-line flex flex-col items-center px-1.5 py-2.5 gap-1.5 z-[6] cursor-pointer"}>

@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { THUMB_W } from "@/lib/ucp/devices";
-import { AlignLeft, CircleHelp, Lock, CreditCard, FileText, Image, LayoutGrid, Link2, MessageSquareQuote, Megaphone, ScrollText, Shapes, Table2, Type } from "lucide-react";
+import { AlignLeft, CircleHelp, GripVertical, Lock, CreditCard, FileText, Image, LayoutGrid, Link2, MessageSquareQuote, Megaphone, ScrollText, Shapes, Table2, Type } from "lucide-react";
 import type { Block } from "@/lib/api/types";
 import { BLOCKS, BLOCK_BY_TYPE, GROUPS } from "@/lib/blocks/registry";
 import { RenderBlock } from "@/lib/blocks/Render";
@@ -82,6 +82,8 @@ type Props = {
   dragType?: string; lockedReason?: string; onEdit?: () => void;
   /** Outline: the page's blocks in document order, and the selection, so the tree can mirror the canvas. */
   blocks?: Block[]; selected?: string | null; onSelect?: (id: string) => void;
+  /** Dragging an outline row to a new position reorders the page itself. */
+  onReorder?: (id: string, to: number) => void;
   /** without `patterns` (e.g. the template editor) only the component library shows */
   patterns?: DesignPattern[] | null; tab?: LeftTab; onTab?: (t: LeftTab) => void;
   onAddPattern?: (p: DesignPattern) => void; onRemovePattern?: (p: DesignPattern) => void; onRestorePattern?: (p: DesignPattern) => void;
@@ -105,7 +107,7 @@ const rowCls = "group/item flex h-7 w-full cursor-grab items-center gap-2 ps-7 p
 
 export function LeftPanel({
   phone, width = 280, canEdit, onAdd, onClose, onOpenPanel = noop, onHelp, dragType, lockedReason, onEdit,
-  blocks = [], selected = null, onSelect = noop,
+  blocks = [], selected = null, onSelect = noop, onReorder,
   tab: tabIn = "components", onTab = noop, patterns, onAddPattern = noop, onRemovePattern = noop, onRestorePattern = noop,
   onDeletePattern = noop, onPatternMarkets = noop, mayManage = () => false, onStartPattern = noop, creating = false, onFloatChange, open = true, hidden = false, railItems = [],
 }: Props) {
@@ -114,6 +116,19 @@ export function LeftPanel({
   const [showArchived, setShowArchived] = useState(false);
   const [q, setQ] = useState("");
   const float = useFloat(onFloatChange);
+  /* Reordering from the outline. `moveId` is the row being dragged, `moveAt` the gap it would
+     land in. A separate dataTransfer type from the palette's, so the canvas — which listens for
+     new components — ignores an outline drag rather than adding a second copy of the block. */
+  const MOVE_TYPE = `${dragType ?? "x"}+move`;
+  const [moveId, setMoveId] = useState<string | null>(null);
+  const [moveAt, setMoveAt] = useState<number | null>(null);
+  const outlineRef = useRef<HTMLUListElement>(null);
+  const outlineIndexAt = (y: number) => {
+    const rows = [...(outlineRef.current?.querySelectorAll<HTMLElement>("li[data-id]") ?? [])];
+    for (let i = 0; i < rows.length; i++) { const r = rows[i].getBoundingClientRect(); if (y < r.top + r.height / 2) return i; }
+    return rows.length;
+  };
+  const endMove = () => { setMoveId(null); setMoveAt(null); };
   /* Pattern hover preview. The short delay stops a card flashing for every row while the
      pointer sweeps the list; leaving a row clears it immediately, because a stale preview
      beside a different row is worse than none. */
@@ -228,17 +243,26 @@ export function LeftPanel({
           <div className="min-h-0 flex-1 overflow-auto py-1">
             {blocks.length === 0
               ? <p className="px-4 py-8 text-center text-sm text-ink-3">Nothing on the page yet. Add a component to start.</p>
-              : <ul className="m-0 list-none p-0">
+              : <ul ref={outlineRef} className="m-0 list-none p-0"
+                  onDragOver={(e) => { if (!onReorder || !e.dataTransfer.types.includes(MOVE_TYPE)) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; const i = outlineIndexAt(e.clientY); if (i !== moveAt) setMoveAt(i); }}
+                  onDrop={(e) => { if (!onReorder) return; const id = e.dataTransfer.getData(MOVE_TYPE); if (!id) return; e.preventDefault(); const to = moveAt ?? outlineIndexAt(e.clientY); endMove(); onReorder(id, to); }}
+                  onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setMoveAt(null); }}>
                 {blocks.map((b, i) => { const def = BLOCK_BY_TYPE[b.type]; const Icon = iconFor(b.type); const on = selected === b.id; return (
-                  <li key={b.id} className="m-0 p-0">
+                  <li key={b.id} data-id={b.id} className="relative m-0 p-0">
+                    {moveAt === i && <div aria-hidden className="absolute inset-x-0 -top-px z-10 h-0.5 bg-brand" />}
                     <button type="button" onClick={() => onSelect(b.id)} aria-current={on ? "true" : undefined}
-                      className={`flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors duration-150 ease-out hover:bg-surface-2 ${on ? "bg-brand-soft text-ink shadow-[inset_2px_0_0_var(--color-brand,currentColor)]" : "text-ink-2"}`}>
+                      draggable={!!onReorder}
+                      onDragStart={(e) => { if (!onReorder) return; e.dataTransfer.setData(MOVE_TYPE, b.id); e.dataTransfer.effectAllowed = "move"; setMoveId(b.id); }}
+                      onDragEnd={endMove}
+                      className={`group/row flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-[color,background-color,opacity] duration-150 ease-out hover:bg-surface-2 ${onReorder ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${moveId === b.id ? "opacity-40" : ""} ${on ? "bg-brand-soft text-ink shadow-[inset_2px_0_0_var(--color-brand,currentColor)]" : "text-ink-2"}`}>
                       <span className="w-4 shrink-0 text-right text-xs tabular-nums text-ink-4">{i + 1}</span>
                       <Icon className="size-3.5 shrink-0 text-ink-3" aria-hidden />
                       <span className="min-w-0 flex-1 truncate">{def?.name ?? b.type}</span>
                       {b.props.hidden ? <span className="flex-none text-xs text-ink-4">hidden</span> : null}
                       {b.props.locked ? <Lock className="size-3 shrink-0 text-ink-4" strokeWidth={1.5} aria-label="Locked" /> : null}
+                      {onReorder && <GripVertical className="size-3.5 shrink-0 text-ink-4 opacity-0 transition-opacity duration-150 ease-out group-hover/row:opacity-100" strokeWidth={1.5} aria-hidden />}
                     </button>
+                    {moveAt === i + 1 && i === blocks.length - 1 && <div aria-hidden className="absolute inset-x-0 -bottom-px z-10 h-0.5 bg-brand" />}
                   </li>
                 ); })}
               </ul>}
