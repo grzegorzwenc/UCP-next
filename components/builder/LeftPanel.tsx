@@ -48,19 +48,26 @@ function PatternPreview({ p, top, left }: { p: DesignPattern; top: number; left:
     () => p.parts.filter((x) => BLOCK_BY_TYPE[x.type]).map((x, i) => ({ id: `pv_${p.id}_${i}`, type: x.type, props: x.props }) as Block),
     [p],
   );
-  const W = 300;
+  /* 360 rather than 300: at 300 the desktop page scaled to 0.23 and the body text came out
+     around 3px — a grey smear rather than a preview. Wider helps, but a thumbnail can only ever
+     show shape at this size, so the card leans on that: the crop fades out instead of stopping
+     mid-sentence, and the words that actually identify the pattern sit underneath in real type. */
+  const W = 360;
   return (
     <div role="tooltip" style={{ top, left, width: W }}
       className="pointer-events-none fixed z-40 overflow-hidden rounded-lg border border-line bg-surface shadow-2xl transition-[opacity,transform] duration-150 ease-out starting:translate-x-[-4px] starting:opacity-0">
-      <div className="relative h-[170px] overflow-hidden border-b border-line bg-white">
+      <div className="relative h-[150px] overflow-hidden border-b border-line bg-white">
         <span aria-hidden className="site desktop pointer-events-none absolute left-0 top-0 origin-top-left select-none" style={{ transform: `scale(${W / THUMB_W})`, width: THUMB_W }}>
           {blocks.map((b) => <RenderBlock key={b.id} b={b} />)}
         </span>
+        {/* The pattern is almost always taller than the crop; fade it out so the cut reads as a
+            thumbnail rather than as something that failed to load. */}
+        <span aria-hidden className="absolute inset-x-0 bottom-0 h-10 bg-gradient-to-b from-transparent to-white" />
       </div>
-      <div className="p-2.5">
-        <b className="block text-sm text-ink">{p.name}</b>
-        {p.desc && <small className="mt-0.5 block text-xs leading-snug text-ink-2">{p.desc}</small>}
-        <small className="mt-1 block text-xs leading-snug text-ink-3">{p.parts.length} components · {partNames(p)}</small>
+      <div className="grid gap-0.5 p-3">
+        <b className="truncate text-sm text-ink">{p.name}</b>
+        {p.desc && <small className="truncate text-xs text-ink-2">{p.desc}</small>}
+        <small className="truncate text-xs text-ink-3">{p.parts.length} components · {p.markets?.length ? p.markets.map((m) => MARKETS.find((k) => k.id === m)?.flag ?? m).join(" ") + " only" : "All markets"}</small>
       </div>
     </div>
   );
@@ -121,7 +128,7 @@ export function LeftPanel({
     hoverTimer.current = setTimeout(() => setPreview({
       p,
       // Keep the card on screen when the row is near the bottom of a long list.
-      top: Math.max(8, Math.min(r.top - 8, window.innerHeight - 290)),
+      top: Math.max(8, Math.min(r.top - 8, window.innerHeight - 260)),
       left: r.right + 8,
     }), 140);
   };
@@ -135,6 +142,11 @@ export function LeftPanel({
 
   const match = (p: DesignPattern) => !needle || `${p.name} ${p.desc} ${partNames(p)}`.toLowerCase().includes(needle);
   const pats = (patterns ?? []).filter((p) => !p.archived && match(p));
+  /* Two groups, so the row no longer has to repeat where each pattern came from. */
+  const patGroups = useMemo(() => [
+    { id: "Design system", items: pats.filter((p) => p.builtIn) },
+    { id: "Saved by the team", items: pats.filter((p) => !p.builtIn) },
+  ].filter((g) => g.items.length > 0), [patterns, needle]); // eslint-disable-line react-hooks/exhaustive-deps
   const archived = (patterns ?? []).filter((p) => p.archived && match(p));
   const where = (p: DesignPattern) => (p.markets?.length ? p.markets.map((m) => MARKETS.find((k) => k.id === m)?.flag ?? m).join(" ") + " only" : "All markets");
 
@@ -233,46 +245,48 @@ export function LeftPanel({
           </div>
         )}
 
-        {/* ---- Design patterns: kept, compacted to match the components list ---- */}
+        {/* ---- Design patterns ----
+             Grouped and one-line, exactly like the components list. The per-row "System" badge
+             and the "N components · All markets" sub-line are gone: the badge said the same word
+             on every row, and the sub-line was identical on all but one. The group heading now
+             carries the first, the hover preview carries the detail, and only a genuine market
+             restriction still shows on the row — because that is the only part that varies. ---- */}
         {tab === "patterns" && (
           <div className="min-h-0 flex-1 overflow-auto">
-            {canEdit && (
-              <button type="button" onClick={onStartPattern} disabled={creating}
-                className="flex w-full cursor-pointer items-center gap-2 border-b border-line px-2.5 py-2 text-left text-[13px] text-brand transition-colors duration-150 ease-out hover:bg-brand-soft disabled:cursor-default disabled:bg-brand-soft">
-                <svg viewBox="0 0 24 24" aria-hidden className="size-3.5 shrink-0 fill-none stroke-current" strokeWidth={2} strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-                <span className="min-w-0 flex-1 truncate font-medium">{creating ? "Pick the components on the page…" : "Create a design pattern"}</span>
-              </button>
-            )}
             {patterns === null && <div className="p-6 text-center text-sm text-ink-3">Loading…</div>}
             {patterns !== null && !pats.length && <Empty q={q} onClear={() => setQ("")} none="No patterns yet." />}
-            <ul className="m-0 list-none p-0">
-              {pats.map((p) => (
-                <li key={p.id} className="group/item relative m-0 p-0" onMouseEnter={previewOn(p)} onMouseLeave={clearPreview}>
-                  <button type="button" disabled={!canEdit} onClick={() => { clearPreview(); onAddPattern(p); }} onFocus={previewOn(p)} onBlur={clearPreview}
-                    className="flex w-full cursor-pointer items-center gap-2 px-2.5 py-1.5 text-left transition-colors duration-150 ease-out hover:bg-surface-2 disabled:cursor-default disabled:opacity-50">
-                    <Shapes className="size-3.5 shrink-0 text-ink-3" aria-hidden />
-                    <span className="min-w-0 flex-1">
-                      <span className="flex items-center gap-1.5">
-                        <b className="min-w-0 truncate text-[13px] font-medium text-ink">{p.name}</b>
-                        <span className={`flex-none rounded px-1 py-px text-[10px] font-medium ${p.builtIn ? "bg-surface-3 text-ink-2" : "bg-info-soft text-info"}`}>{p.builtIn ? "System" : "Saved"}</span>
-                      </span>
-                      <small className="block truncate text-xs text-ink-3">{p.parts.length} components · {where(p)}</small>
-                    </span>
-                  </button>
-                  {mayManage(p) && (
-                    <span className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity duration-150 ease-out group-hover/item:opacity-100 focus-within:opacity-100">
-                      <button type="button" onClick={() => onPatternMarkets(p)} title="Choose the markets that see this pattern" className="cursor-pointer rounded border border-line bg-surface px-1.5 py-0.5 text-[10px] font-medium text-ink-2 hover:text-ink">Markets</button>
-                      <button type="button" onClick={() => onRemovePattern(p)} title={`Remove ${p.name}`} aria-label={`Remove ${p.name}`} className="grid size-5 cursor-pointer place-items-center rounded border border-line bg-surface text-ink-3 hover:border-crit hover:text-crit">
-                        <svg viewBox="0 0 24 24" aria-hidden className="size-3 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M5 7h14M10 11v6M14 11v6M6.5 7l1 13h9l1-13M9 7V4h6v3" /></svg>
+            {patGroups.map((g, gi) => (
+              <PanelSection key={g.id} id={`pat-${g.id}`} title={g.id} count={g.items.length} defaultOpen={gi === 0} {...(searching ? { open: true } : {})}>
+                <ul className="m-0 list-none p-0">
+                  {g.items.map((p) => (
+                    <li key={p.id} className="group/item relative m-0 p-0" onMouseEnter={previewOn(p)} onMouseLeave={clearPreview}>
+                      <button type="button" disabled={!canEdit} onClick={() => { clearPreview(); onAddPattern(p); }} onFocus={previewOn(p)} onBlur={clearPreview}
+                        title={p.desc || p.name} className={rowCls}
+                        draggable={!!dragType && canEdit}
+                        onDragStart={(e) => { if (!dragType) return; e.dataTransfer.setData(`${dragType}+pattern`, p.id); e.dataTransfer.effectAllowed = "copy"; }}>
+                        <Shapes className="size-3.5 shrink-0 text-ink-3" aria-hidden />
+                        <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{p.name}</span>
+                        {p.markets?.length ? <span className="flex-none text-[11px] leading-none" title={where(p)} aria-label={where(p)}>{p.markets.map((m) => MARKETS.find((k) => k.id === m)?.flag ?? m).join("")}</span> : null}
+                        <span aria-hidden className="grid size-5 shrink-0 place-items-center rounded text-ink-3 opacity-0 transition-opacity duration-150 ease-out group-hover/item:opacity-100">
+                          <svg viewBox="0 0 24 24" className="size-3.5 fill-none stroke-current" strokeWidth={2} strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                        </span>
                       </button>
-                    </span>
-                  )}
-                </li>
-              ))}
-            </ul>
+                      {mayManage(p) && (
+                        <span className="absolute right-1 top-1/2 flex -translate-y-1/2 gap-1 bg-surface-2 opacity-0 transition-opacity duration-150 ease-out group-hover/item:opacity-100 focus-within:opacity-100">
+                          <button type="button" onClick={() => onPatternMarkets(p)} title="Choose the markets that see this pattern" className="cursor-pointer rounded border border-line bg-surface px-1.5 py-0.5 text-[10px] font-medium text-ink-2 hover:text-ink">Markets</button>
+                          <button type="button" onClick={() => onRemovePattern(p)} title={`Remove ${p.name}`} aria-label={`Remove ${p.name}`} className="grid size-5 cursor-pointer place-items-center rounded border border-line bg-surface text-ink-3 hover:border-crit hover:text-crit">
+                            <svg viewBox="0 0 24 24" aria-hidden className="size-3 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M5 7h14M10 11v6M14 11v6M6.5 7l1 13h9l1-13M9 7V4h6v3" /></svg>
+                          </button>
+                        </span>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </PanelSection>
+            ))}
             {archived.length > 0 && (
               <PanelSection id="archived" title="Archived" count={archived.length} defaultOpen={false} open={showArchived} onToggle={setShowArchived}>
-                <ul className="m-0 grid list-none gap-1 p-2 pt-0">
+                <ul className="m-0 grid list-none gap-1 p-0">
                   {archived.map((p) => (
                     <li key={p.id} className="flex items-center gap-2 rounded-md border border-line px-2.5 py-1.5 text-xs">
                       <span className="min-w-0 flex-1"><b className="block truncate text-ink-2">{p.name}</b><small className="block text-ink-3">by {p.archived!.name} · {new Date(p.archived!.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</small></span>
@@ -281,6 +295,14 @@ export function LeftPanel({
                   ))}
                 </ul>
               </PanelSection>
+            )}
+            {/* Creating one is an action, not an item, so it sits at the end rather than shouting from the top. */}
+            {canEdit && (
+              <button type="button" onClick={onStartPattern} disabled={creating}
+                className="flex w-full cursor-pointer items-center gap-2 border-t border-line px-2.5 py-2 text-left text-[13px] text-ink-2 transition-colors duration-150 ease-out hover:bg-surface-2 hover:text-ink disabled:cursor-default disabled:text-brand">
+                <svg viewBox="0 0 24 24" aria-hidden className="size-3.5 shrink-0 fill-none stroke-current" strokeWidth={2} strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                <span className="min-w-0 flex-1 truncate">{creating ? "Pick the components on the page…" : "Create a design pattern"}</span>
+              </button>
             )}
           </div>
         )}

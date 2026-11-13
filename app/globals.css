@@ -211,10 +211,12 @@
   /* The page fills whatever box it is given — in the builder that is the frame, which carries
      the device width and animates it. `.site` must NOT set its own width: when it did, a
      breakpoint change snapped the page to the new width instantly while the frame was still
-     tweening, so the content overhung to the right and then re-centred. Previews that render
-     `.site` outside the builder set an explicit width inline. */
+     tweening, so the content overhung to the right and then re-centred.
+     No `max-width` either. Previews render `.site` at a full page width and scale it down with
+     a transform; a `max-width: 100%` clamps it to the little box it is being scaled *into*
+     first, so the thumbnail came out at a third of its width with dead space beside it. The
+     builder's frame clips with `overflow: hidden`, so nothing needs capping here. */
   width: 100%;
-  max-width: 100%;
   box-shadow:
     0 1px 2px rgba(20, 22, 30, 0.05),
     0 6px 20px rgba(20, 22, 30, 0.07);
