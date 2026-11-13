@@ -4,7 +4,20 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import type { Float } from "./useFloat";
 
 /* size-6, not size-7: with three tabs beside them the header has to fit inside a 260px panel. */
-const ctl = "grid size-6 flex-none cursor-pointer place-items-center rounded text-ink-3 transition-[color,background-color,transform] duration-150 ease-out hover:bg-surface-3 hover:text-ink active:scale-[0.97]";
+const ctl = "grid size-6 flex-none cursor-pointer place-items-center rounded text-ink-3 transition-[color,background-color,border-color,transform] duration-150 ease-out hover:bg-surface-3 hover:text-ink active:scale-[0.97]";
+
+/**
+ * The collapse control, given a surface of its own.
+ *
+ * Bare, it was an outline glyph in a header full of other outline glyphs — the one control
+ * that changes the shape of the editor read as the least important thing on the row. A light
+ * `surface-2` fill was no better: at #f9f9f9 against a white header it is a 2% shade.
+ *
+ * So: charcoal, which is BDL's own strong treatment (`.bdl-tab-active` fills with the same
+ * colour). Not brand red — that is spoken for by the underline on the active tab, and two
+ * red things on one row both claiming attention is worse than none.
+ */
+const collapseCtl = `${ctl} bg-ink text-white hover:bg-ink-2 hover:text-white`;
 
 /** Grip strip shown at the top of a detached panel. The only handle that moves it. */
 export function GripStrip({ float }: { float: Float }) {
@@ -52,7 +65,7 @@ export function PanelHeader({ title, tabs, float, onClose, side, canDetach = tru
         aria-label={float.floating ? "Dock the panel" : "Detach the panel"} aria-pressed={float.floating}>
         {float.floating ? <Pin className="size-3.5" strokeWidth={1.5} aria-hidden /> : <PictureInPicture2 className="size-3.5" strokeWidth={1.5} aria-hidden />}
       </button>}
-      <button type="button" className={ctl} onClick={onClose} title="Collapse the panel" aria-label="Collapse the panel">
+      <button type="button" className={collapseCtl} onClick={onClose} title="Collapse the panel" aria-label="Collapse the panel">
         {side === "left" ? <PanelLeftClose className="size-3.5" strokeWidth={1.5} aria-hidden /> : <PanelRightClose className="size-3.5" strokeWidth={1.5} aria-hidden />}
       </button>
     </div>
@@ -166,13 +179,18 @@ export function IconTabs({ items, label, leading }: {
             render={
               /* Same selected treatment as the left panel's tabs: the label darkens and a brand
                  underline sits on the row's edge — no filled box, so the two panels match. The
-                 buttons flex, so seven icons share the full width instead of bunching left. */
-              <button type="button" role="tab" aria-selected={it.active} aria-label={it.label} onClick={it.onClick}
+                 buttons flex, so seven icons share the full width instead of bunching left. The
+                 glyph is 14px at 1.5 stroke — the same as the collapse control beside it. */
+              <button type="button" role="tab" aria-selected={it.active} aria-label={it.badge ? `${it.label}, ${it.badge}` : it.label} onClick={it.onClick}
                 className={`relative flex flex-1 cursor-pointer items-center justify-center py-2.5 transition-colors duration-150 ease-out ${it.active ? "text-ink after:absolute after:inset-x-1.5 after:bottom-0 after:h-0.5 after:bg-brand" : "text-ink-3 hover:text-ink"}`}>
                 <span className="relative inline-flex">
-                  <svg viewBox="0 0 24 24" aria-hidden className="size-[18px] fill-none stroke-current" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d={it.path} /></svg>
+                  <svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d={it.path} /></svg>
                   {!!it.badge && it.badge > 0 && (
-                    <span className="absolute -right-2 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand px-1 text-[10px] font-bold text-white">{it.badge}</span>
+                    /* A dot, not a count: on a row of seven 14px icons a numbered pill was the
+                       loudest thing in the panel, and the exact number is not what you need at a
+                       glance — only that the tab has something waiting. The ring keeps it legible
+                       against the icon it sits on. */
+                    <span aria-hidden className="absolute -right-1 -top-0.5 size-1.5 rounded-full bg-brand ring-2 ring-surface" />
                   )}
                 </span>
               </button>
@@ -189,7 +207,7 @@ export function IconTabs({ items, label, leading }: {
 /** The collapse control on its own, for panels that place it outside a header row. */
 export function CollapseButton({ side, onClose }: { side: "left" | "right"; onClose: () => void }) {
   return (
-    <button type="button" className={ctl} onClick={onClose} title="Collapse the panel" aria-label="Collapse the panel">
+    <button type="button" className={collapseCtl} onClick={onClose} title="Collapse the panel" aria-label="Collapse the panel">
       {side === "left" ? <PanelLeftClose className="size-3.5" strokeWidth={1.5} aria-hidden /> : <PanelRightClose className="size-3.5" strokeWidth={1.5} aria-hidden />}
     </button>
   );

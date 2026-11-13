@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { THUMB_W } from "@/lib/ucp/devices";
 import type { Model, ModelField } from "@/lib/ucp/types";
 import { makeBlock } from "@/lib/blocks/registry";
 import { RenderBlock } from "@/lib/blocks/Render";
@@ -34,9 +35,9 @@ export function FormPreview({ md, fields, locales }: { md: Pick<Model, "name">; 
 /** Block type rendered with default content, scaled to fit the card. */
 export function BlockPreview({ type }: { type: string }) {
   const outer = useRef<HTMLDivElement>(null); const inner = useRef<HTMLDivElement>(null); const [box, setBox] = useState({ scale: 0.6, h: 300 });
-  useEffect(() => { const fit = () => { if (!outer.current || !inner.current) return; const s = Math.min(1, outer.current.clientWidth / 1200); setBox({ scale: s, h: inner.current.offsetHeight * s }); }; fit(); const ro = new ResizeObserver(fit); if (outer.current) ro.observe(outer.current); if (inner.current) ro.observe(inner.current); return () => ro.disconnect(); }, [type]);
+  useEffect(() => { const fit = () => { if (!outer.current || !inner.current) return; const s = Math.min(1, outer.current.clientWidth / THUMB_W); setBox({ scale: s, h: inner.current.offsetHeight * s }); }; fit(); const ro = new ResizeObserver(fit); if (outer.current) ro.observe(outer.current); if (inner.current) ro.observe(inner.current); return () => ro.disconnect(); }, [type]);
   const [b] = useState(() => makeBlock(type));
-  return <div><div ref={outer} className="overflow-hidden bg-surface-3 border border-line rounded-lg p-3" style={{ height: box.h + 24 }}><div ref={inner} className="site desktop" style={{ transform: `scale(${box.scale})`, transformOrigin: "top left", margin: 0 }}><RenderBlock b={b} /></div></div>
+  return <div><div ref={outer} className="overflow-hidden bg-surface-3 border border-line rounded-lg p-3" style={{ height: box.h + 24 }}><div ref={inner} className="site desktop" style={{ transform: `scale(${box.scale})`, transformOrigin: "top left", margin: 0, width: THUMB_W }}><RenderBlock b={b} /></div></div>
     <p className="text-xs text-ink-3 mt-2">Rendered with the block’s default content. Fields map one-to-one to what authors edit in the Page Builder.</p></div>;
 }
 

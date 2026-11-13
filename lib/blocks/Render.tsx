@@ -1,5 +1,4 @@
 import type { Block } from "@/lib/api/types";
-import { DEVICE_W, type Device } from "@/lib/ucp/devices";
 import { BLOCK_BY_TYPE, lines } from "./registry";
 import { AssetsContext, EntitiesContext, InlineEditContext, MastSurface, RichInline, RichText } from "./AssetsContext";
 export { AssetsContext, EntitiesContext, InlineEditContext };
@@ -56,11 +55,10 @@ export function RenderBlock({ b }: { b: Block }) {
 }
 
 export function SiteChrome({ marketName, crumbs, children, device }: { marketName: string; crumbs: string[]; children: React.ReactNode; device: string }) {
-  // Width comes from DEVICE_W, not from a `.site.<device>` rule, so the page and the frame
-  // around it can never disagree (they did: tablet drew 768 inside a 700 frame).
-  const w = DEVICE_W[device as Device] ?? DEVICE_W.desktop;
+  // No width here: the page fills the frame, and the frame carries the device width (from
+  // DEVICE_W) and animates it. Setting a width here made the page snap ahead of the frame.
   return (
-    <div className={`site ${device}`} style={{ width: w, maxWidth: w }}>
+    <div className={`site ${device}`}>
       <div className="hs-util"><b>Personal</b><span>Private</span><span>Business</span><span>Corporate</span><div className="r"><span>English</span><span>Register ›</span><span className="logon">Log on</span></div></div>
       <div className="hs-head"><img src="/hsbc-logo.svg" alt={marketName} /><nav><span>Banking</span><span>Borrowing</span><span>Investing</span><span>Insurance</span><span>Wellbeing</span><span>Help</span></nav></div>
       <div className="hs-crumb">{marketName}{crumbs.map((c, i) => <span key={i}><i>›</i> {i === crumbs.length - 1 ? <b>{c}</b> : c}</span>)}</div>

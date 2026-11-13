@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DEVICE_W, DEVICES, type Device } from "@/lib/ucp/devices";
-import { Check, Lock, Languages, Sparkles, MoreHorizontal, ChevronLeft } from "lucide-react";
+import { Check, Lock, Languages, Sparkles, MoreHorizontal, ChevronLeft, Maximize2, Minimize2 } from "lucide-react";
 import type { Block, PageView, PageStatus } from "@/lib/api/types";
 import { repoApi, ucpApi, ApiError } from "@/lib/api";
 import { blocksToComponents, componentsToBlocks } from "@/lib/repo/mapping";
@@ -112,7 +112,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
      author has to manage on every page is a setting pretending to be a feature. */
   const leftW = 280;  // the mock's 14.5rem, plus room between the tabs and the dock/collapse pair
   const rightW = 320; // settings fields and their labels, without the form feeling boxed in
-  const setLeft = (v: boolean) => setLeftRaw(v);
+  /* Focus mode: both panels go to nothing — not even their slim bars — and the canvas takes the
+     width, while the toolbar stays and the page stays editable. Distinct from `focus`, which in
+     this editor is the full visitor preview. Opening either panel leaves it, so there is never a
+     panel on screen that focus mode claims to have hidden. */
+  const [zen, setZen] = useState(false);
+  const setLeft = (v: boolean) => { setLeftRaw(v); if (v) setZen(false); };
   // On a phone or tablet start with the matching rendition so the 1:1 page fits the screen; desktop stays at its full width.
   const [shellSeen, setShellSeen] = useState({ phone: false, tablet: false }); // adjusted during render when the shell mode changes (no effect needed)
   if (shellSeen.phone !== phone || shellSeen.tablet !== tablet) { setShellSeen({ phone, tablet }); if (phone) { setLeftRaw(false); setDevice("mobile"); } else if (tablet) { setLeftRaw(false); setDevice("tablet"); } } // tablet: both panels plus a page do not fit, so the palette starts collapsed
@@ -202,12 +207,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const showBlock = (r: { id: string; field?: string }) => { if (!flash(canvasRef.current, r)) say("That part is not on the page any more"); };
   const onCommentList = (l: { block?: { id: string }; resolved?: unknown }[]) => { const open = l.filter((x) => !x.resolved); const c: Record<string, number> = {}; for (const x of open) if (x.block) c[x.block.id] = (c[x.block.id] ?? 0) + 1; setCommentCounts(c); setCommentTotal(open.length); setCommentCount(open.length); }; // resolved comments stay in the list but leave the page
   const reviewProps = reviewMode ? { target: commentTarget, onClearTarget: () => setCommentTarget(null), onShowBlock: showBlock, onList: onCommentList } : { onShowBlock: showBlock, onList: onCommentList };
-  const select = (id: string | null) => { setSel(id); setMode("select"); setPop(null); setMulti([]); if (id && right && rightTab === "block") setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
+  const select = (id: string | null) => { setSel(id); setMode("select"); setPop(null); setMulti([]); if (id) setZen(false); if (id && right && rightTab === "block") setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
   const add = (type: string) => { const nb = makeBlock(type); mutate((b) => { const i = sel ? b.findIndex((x) => x.id === sel) + 1 : b.length; const c = b.slice(); c.splice(i, 0, nb); return c; }); select(nb.id); say(`${BLOCK_BY_TYPE[type].name} added · click Edit to fill it in`); };
   const move = (id: string, d: number) => mutate((b) => { const i = b.findIndex((x) => x.id === id); const j = i + d; if (j < 0 || j >= b.length) return b; const c = b.slice(); [c[i], c[j]] = [c[j], c[i]]; return c; });
   const remove = (id: string) => { mutate((b) => b.filter((x) => x.id !== id)); select(null); };
   const duplicate = (b: Block) => mutate((bl) => { const i = bl.findIndex((x) => x.id === b.id); const c = bl.slice(); c.splice(i + 1, 0, { ...b, id: makeBlock(b.type).id, props: { ...b.props } }); return c; });
-  const configure = (id: string) => { setSel(id); setMode("select"); setPop(null); setRightTab("block"); setRight(true); setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
+  const configure = (id: string) => { setSel(id); setMode("select"); setPop(null); setZen(false); setRightTab("block"); setRight(true); setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
   /** Clicking a component opens Configure with its fields right away (not on phones, where the panel would cover the page). */
   const openCfgPanel = (id: string) => { if (phone || !canEdit || locked) return; setRightTab("block"); setRight(true); setCfgSnapshot(blocksRef.current.find((b) => b.id === id)?.props ?? null); };
   const closeConfigure = (keep: boolean) => { if (!keep && sel && cfgSnapshot) mutate((b) => b.map((x) => (x.id === sel ? { ...x, props: cfgSnapshot } : x))); setCfgSnapshot(null); setRight(false); };
@@ -449,6 +454,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     const h = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === "s") { e.preventDefault(); save().catch(() => {}); return; }
       if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "f") { e.preventDefault(); setFocusMode(!focus); return; }
+      if ((e.metaKey || e.ctrlKey) && e.key === ".") { e.preventDefault(); setZen((v) => !v); return; } // focus mode: hide both panels
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "s") { e.preventDefault(); if (canEdit && !locked && dirty) { if (editing) commitInline(true); void saveRef.current().then(() => say("Saved"), () => {}); } return; } // ⌘S / Ctrl+S saves now
       if (e.key === "Escape") { if (focus && !editing && !pop && !ctaPop) leavePreview(); }
     };
@@ -551,18 +557,20 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   // On phones and tablets the panels float over the canvas instead of reserving space, so the 1:1 page keeps its width.
   const siteW = DEVICE_W[device];
   const [avail, setAvail] = useState(0);
-  /* The page is drawn at its real width (see lib/ucp/devices.ts) and scaled down to fit the canvas, so the canvas never scrolls sideways. */
-  const siteRef = useRef<HTMLDivElement>(null); const [siteH, setSiteH] = useState(0);
-  useEffect(() => { const w = watched.current; const c = canvasRef.current, el = siteRef.current; if (c === w.canvas && el === w.site) return;
-    w.ro.forEach((r) => r.disconnect()); w.ro = []; w.canvas = c; w.site = el;
-    if (c) { const r = new ResizeObserver(() => setAvail(c.clientWidth)); r.observe(c); w.ro.push(r); }
-    if (el) { const r = new ResizeObserver(() => setSiteH(el.offsetHeight)); r.observe(el); w.ro.push(r); } });
-  useEffect(() => () => { const w = watched.current; w.ro.forEach((r) => r.disconnect()); w.ro = []; w.canvas = null; w.site = null; /* forget them so a remount (React strict mode) re-attaches */ }, []);
+  /* The page is drawn at its real width (see lib/ucp/devices.ts) and `zoom`ed to fit the canvas.
+     `zoom` rather than a transform, and one element rather than two: a scaled inner element needs
+     an outer box sized from its measured height, and that measurement re-fires on every frame of
+     a breakpoint change, retargeting the height animation mid-flight — which is what made the
+     switch judder. `zoom` takes part in layout, so the parent sizes itself and nothing is measured. */
+  useEffect(() => { const w = watched.current; const c = canvasRef.current; if (c === w.canvas) return;
+    w.ro.forEach((r) => r.disconnect()); w.ro = []; w.canvas = c;
+    if (c) { const r = new ResizeObserver(() => setAvail(c.clientWidth)); r.observe(c); w.ro.push(r); } });
+  useEffect(() => () => { const w = watched.current; w.ro.forEach((r) => r.disconnect()); w.ro = []; w.canvas = null; /* forget it so a remount (React strict mode) re-attaches */ }, []);
   /* Watch the canvas and the page for size changes. They can mount after the first render, so re-attach whenever the element changes. */
-  const watched = useRef<{ canvas: HTMLElement | null; site: HTMLElement | null; ro: ResizeObserver[] }>({ canvas: null, site: null, ro: [] });
+  const watched = useRef<{ canvas: HTMLElement | null; ro: ResizeObserver[] }>({ canvas: null, ro: [] });
   const railsOn = !preview || !!lockReason; // a locked page keeps the rails (panels open read-only or veiled); a plain preview hides them
   const railBadge = (t: RightTab) => (t === "comments" ? commentCount : t === "insights" ? insightBadge : t === "content" ? Object.keys(bindings).length : t === "ai" ? aiTasks.filter((x) => x.stage !== "done").length : 0);
-  const openRight = (t: RightTab) => { if (t === "block" && sel) configure(sel); else { setRightTab(t); setRight(true); } };
+  const openRight = (t: RightTab) => { setZen(false); if (t === "block" && sel) configure(sel); else { setRightTab(t); setRight(true); } };
   const rightItems = RAIL.map(([t, label, path]) => ({ key: t, label, path, active: right && rightTab === t, badge: railBadge(t), onClick: () => openRight(t) }));
   const rightTitle = rightTab === "block" ? (selected ? `Configure · ${BLOCK_BY_TYPE[selected.type].name}` : "Configure") : rightTab === "page" ? "Page settings" : rightTab === "content" ? "Entities" : rightTab === "ai" ? "AI assistant" : rightTab === "insights" ? "Page insights" : rightTab === "comments" ? `Comments${commentTotal ? ` · ${commentTotal}` : ""}` : "Version history";
   const panelW = rightW; // one width for every tab: a panel that jumps wider on Comments or History reads as a glitch
@@ -570,8 +578,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   /* The gutters reserve exactly what the docked panels occupy. They used to skip that on
      narrow viewports — from the days when the panels floated over the canvas — but the panels
      are opaque docked columns now, so the page simply disappeared behind them below 1100px. */
-  const padL = focus ? 0 : !railsOn ? 24 : phone ? 12 : left && !leftFloating ? leftW + 24 : RAIL_W + 24;
-  const padR = focus ? (floatingOpen ? 412 : 0) : !railsOn ? 24 : phone ? 12 : right && !rightFloat.floating ? panelW + 24 : RAIL_W + 24;
+  const padL = focus ? 0 : !railsOn ? 24 : phone ? 12 : zen ? 24 : left && !leftFloating ? leftW + 24 : RAIL_W + 24;
+  const padR = focus ? (floatingOpen ? 412 : 0) : !railsOn ? 24 : phone ? 12 : zen ? 24 : right && !rightFloat.floating ? panelW + 24 : RAIL_W + 24;
 
   return (
     <div className={`h-full grid ${focus ? "grid-rows-[1fr]" : STEPPER_HIDDEN ? "grid-rows-[54px_1fr]" : "grid-rows-[54px_48px_1fr]"} min-w-0 overflow-hidden`}>
@@ -607,7 +615,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {/* The two panel toggles that used to sit here are gone: each panel is reopened from the slim
               bar it leaves behind, which is where you are already looking when you want it back. */}
           {/* the page itself: look at it, or take it back to editing */}
-          <div className="flex items-center gap-1 pl-2.5 border-l border-line"><button className={`bdl-chip ${focus ? "bdl-chip-active" : ""}`} onClick={() => (focus ? leavePreview() : setFocusMode(true))} title="Preview the page as visitors see it (⌘⇧F)" aria-pressed={focus}>{focus ? <><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>Exit preview</> : <><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></svg>Preview</>}</button>{canEdit && !locked && !focus && (status === "draft" || status === "failed") && <button className={`btn btn-sm btn-secondary ${dirty ? "btn-primary" : ""}`} disabled={!dirty || saving === "Saving…"} onClick={async () => { try { await save(); say("Saved"); } catch { /* save() already says why */ } }} title={dirty ? "Save now (it also saves by itself after a moment) · ⌘S" : "All changes are saved"}><Ico d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6" />{dirty ? (saving === "Saving…" ? "Saving…" : "Save") : "Saved"}</button>}{!canEdit ? <span className="inline-flex items-center gap-1 text-xs text-ink-3 px-1.5 whitespace-nowrap" title={lockedByOther ? `Locked by ${pageLock!.name}` : "Ask a site admin for Edit on this folder"}><Lock className="size-3" strokeWidth={1.5} aria-hidden />Read-only</span> : locked ? <button className="btn btn-sm btn-secondary" onClick={() => void goEdit("blocks")} title={status === "published" ? "Change the page; the live version stays online until you publish again" : "Take the page back to editing"}><Ico d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />Edit</button> : null}</div>
+          <div className="flex items-center gap-1 pl-2.5 border-l border-line">{!focus && <button className={`bdl-chip btn-square size-8 ${zen ? "bdl-chip-active" : ""}`} onClick={() => setZen(!zen)} title={zen ? "Show the panels · \u2318." : "Focus mode: hide both panels · \u2318."} aria-label={zen ? "Show the panels" : "Focus mode: hide both panels"} aria-pressed={zen}>{zen ? <Minimize2 className="size-4" strokeWidth={1.7} aria-hidden /> : <Maximize2 className="size-4" strokeWidth={1.7} aria-hidden />}</button>}<button className={`bdl-chip ${focus ? "bdl-chip-active" : ""}`} onClick={() => (focus ? leavePreview() : setFocusMode(true))} title="Preview the page as visitors see it (⌘⇧F)" aria-pressed={focus}>{focus ? <><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>Exit preview</> : <><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></svg>Preview</>}</button>{canEdit && !locked && !focus && (status === "draft" || status === "failed") && <button className={`btn btn-sm btn-secondary ${dirty ? "btn-primary" : ""}`} disabled={!dirty || saving === "Saving…"} onClick={async () => { try { await save(); say("Saved"); } catch { /* save() already says why */ } }} title={dirty ? "Save now (it also saves by itself after a moment) · ⌘S" : "All changes are saved"}><Ico d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6" />{dirty ? (saving === "Saving…" ? "Saving…" : "Save") : "Saved"}</button>}{!canEdit ? <span className="inline-flex items-center gap-1 text-xs text-ink-3 px-1.5 whitespace-nowrap" title={lockedByOther ? `Locked by ${pageLock!.name}` : "Ask a site admin for Edit on this folder"}><Lock className="size-3" strokeWidth={1.5} aria-hidden />Read-only</span> : locked ? <button className="btn btn-sm btn-secondary" onClick={() => void goEdit("blocks")} title={status === "published" ? "Change the page; the live version stays online until you publish again" : "Take the page back to editing"}><Ico d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />Edit</button> : null}</div>
         </div>
       </div>}
       {/* Flow stepper (hidden in preview) */}
@@ -627,7 +635,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {/* The hint / "1:1 · 1200 px" strip is gone: it was a light band sitting on the dark canvas
              ground, and it narrated what the canvas already shows. */}
           <div ref={canvasRef} className={`bld-pad ${focus ? "flex-1 overflow-auto p-0 bg-white" : "editor-ground flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""} ${patternMode ? "pattern-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onMouseMove={onCanvasMove} onMouseLeave={() => { if (!qcPinned) setQcTarget(null); }} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
-            {(() => { const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / siteW)) : 1; return <div className="bld-frame" style={{ width: siteW * fit, height: siteH ? siteH * fit : undefined, margin: "0 auto" }}><div ref={siteRef} style={{ transform: "scale(" + fit + ")", transformOrigin: "top left", width: siteW }}>
+            {(() => { const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / siteW)) : 1; return <div className="bld-frame" style={{ width: siteW, zoom: fit, margin: "0 auto" }}>
             <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
               {blocks.length ? blocks.map((b, i) => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id && !commentTarget.field ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""} ${multi.includes(b.id) ? "multi" : ""}`} tabIndex={0}>
                 {multi.includes(b.id) && <span className="multi-n" aria-hidden>{multiBlocks.findIndex((x) => x.id === b.id) + 1}</span>}
@@ -640,7 +648,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
                   onAi={(p) => { mutate((bl) => bl.map((x) => (x.id === b.id ? { ...x, props: { ...x.props, ...p.props } } : x))); say("AI changes applied"); }} />}
                 <RenderBlock b={b} /></div>; })
               : <div className="m-7 p-11 border-2 border-dashed border-line-2 rounded-xl text-center text-ink-2 text-base">How do you want to start this page?<small className="block text-sm text-ink-3 mt-1.5">Pick a layout, or add components one by one from the left.</small><div className="grid grid-cols-3 gap-3 mt-4 text-left">{TEMPLATES.filter((t) => t.blocks.length).slice(0, 3).map((t) => <button key={t.id} className="border border-line-2 bg-surface p-3.5 text-left hover:border-ink" onClick={() => mutate(() => t.blocks.map((x) => makeBlock(x, x === "mast" ? { heading: title } : {})))}><b className="block text-sm">{t.name}</b><small className="text-ink-3">{t.desc}</small></button>)}</div></div>}
-            </SiteChrome></InlineEditContext.Provider></EntitiesContext.Provider></AssetsContext.Provider></div></div>; })()}
+            </SiteChrome></InlineEditContext.Provider></EntitiesContext.Provider></AssetsContext.Provider></div>; })()}
           </div>
           {editing && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 flex gap-1 bg-foreground rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}><span className="px-2 py-1.5 text-white/70">Editing text</span><button className="px-2.5 py-1.5 rounded hover:bg-white/15 inline-flex items-center" title="Choose content from an entity (or type {{ to insert at the cursor)" aria-label="Choose content from an entity" onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }}><ContentIcon /></button><button className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-good font-medium" onClick={() => { commitInline(true); say("Saved"); }}><Check className="size-3.5" strokeWidth={2} aria-hidden />Save</button><button className="inline-flex items-center gap-1 px-3 py-1.5 rounded hover:bg-white/15" onClick={() => commitInline(false)}><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>Cancel</button></div>}
           {(patternMode || multi.length > 0) && !preview && <div data-ui role="toolbar" aria-label="Design pattern selection" className="absolute left-1/2 -translate-x-1/2 bottom-6 flex items-center gap-1 bg-foreground rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}>
@@ -662,7 +670,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {/* The left rail is gone: its three icons duplicated the panel's own Components / Patterns /
             Outline tabs. The top bar's "Components panel" toggle reopens the panel when it is closed. */}
         
-        {railsOn && <LeftPanel open={left} phone={phone} width={leftW} canEdit={canEdit} onAdd={add} onClose={() => setLeft(false)} onOpenPanel={() => setLeft(true)}
+        {railsOn && <LeftPanel open={left} hidden={zen} phone={phone} width={leftW} canEdit={canEdit} onAdd={add} onClose={() => setLeft(false)} onOpenPanel={() => setLeft(true)}
           railItems={LEFT_RAIL.map(([t, label, path]) => ({ key: t, label, path, active: leftTab === t, onClick: () => { setLeftTab(t); setLeft(true); } }))} lockedReason={lockReason || undefined} onEdit={veilEdit}
           onFloatChange={setLeftFloating} blocks={blocks} selected={sel} onSelect={(id) => { select(id); canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }}
           tab={leftTab} onTab={setLeftTab} patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onRestorePattern={async (p) => { try { await ucpApi.archivePattern(marketId, p.id, false); say(`${p.name} restored`); } catch { say("Could not restore"); } loadPatterns(); }} onDeletePattern={(p) => deletePatternForGood(p)} onPatternMarkets={setPatMarkets} mayManage={mayManagePattern} onStartPattern={() => startPattern()} creating={patternMode} />}
@@ -685,9 +693,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               {badge > 0 && <span className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-xs font-bold grid place-items-center ${on ? "bg-white text-brand" : "bg-brand text-white"}`}>{badge}</span>}
             </button>; })}
         </nav>}
-        {railsOn && <aside data-ui {...rightFloat.panelProps} data-side="right" style={phone ? rightFloat.panelProps.style : rightFloat.floating ? { width: panelW, ...rightFloat.panelProps.style } : { width: right ? panelW : RAIL_W, ...rightFloat.panelProps.style }} className={panelClass("right", rightFloat.floating, phone)}>
+        {railsOn && <aside data-ui {...rightFloat.panelProps} data-side="right" style={phone ? rightFloat.panelProps.style : rightFloat.floating ? { width: panelW, ...rightFloat.panelProps.style } : { width: zen ? 0 : right ? panelW : RAIL_W, ...rightFloat.panelProps.style }} className={panelClass("right", rightFloat.floating, phone)}>
           {/* Fixed width, like the left panel: a draggable edge is a setting nobody wants to manage. */}
-          {!phone && !rightFloat.floating && <CollapsedRail side="right" show={!right} label="Open the settings panel" onOpen={() => openRight(rightTab)} items={rightItems} />}
+          {!phone && !rightFloat.floating && <CollapsedRail side="right" show={!right && !zen} label="Open the settings panel" onOpen={() => openRight(rightTab)} items={rightItems} />}
           {rightFloat.floating && <GripStrip float={rightFloat} />}
           <PanelBody open={right} width={panelW} floating={rightFloat.floating}>
           <section aria-label="Page and component settings" className="flex min-h-0 flex-1 flex-col">

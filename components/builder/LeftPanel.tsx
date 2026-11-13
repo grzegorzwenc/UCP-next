@@ -82,6 +82,8 @@ type Props = {
   onFloatChange?: (floating: boolean) => void;
   /** Closed panels stay mounted so the collapse can animate and the panel keeps its state. */
   open?: boolean;
+  /** Focus mode: no panel and no rail at all, so the canvas gets the whole width. */
+  hidden?: boolean;
 };
 const noop = () => {};
 
@@ -94,7 +96,7 @@ export function LeftPanel({
   phone, width = 280, canEdit, onAdd, onClose, onOpenPanel = noop, lockedReason, onEdit,
   blocks = [], selected = null, onSelect = noop,
   tab: tabIn = "components", onTab = noop, patterns, onAddPattern = noop, onRemovePattern = noop, onRestorePattern = noop,
-  onDeletePattern = noop, onPatternMarkets = noop, mayManage = () => false, onStartPattern = noop, creating = false, onFloatChange, open = true, railItems = [],
+  onDeletePattern = noop, onPatternMarkets = noop, mayManage = () => false, onStartPattern = noop, creating = false, onFloatChange, open = true, hidden = false, railItems = [],
 }: Props) {
   const withPatterns = patterns !== undefined;
   const tab: LeftTab = withPatterns || tabIn !== "patterns" ? tabIn : "components";
@@ -153,7 +155,7 @@ export function LeftPanel({
        child pinned to the inner edge, so collapsing wipes the body out instead of squashing it.
        No resize handle: the panel is a fixed width, like the mock. */
     <aside data-ui data-side="left" {...float.panelProps}
-      style={phone ? float.panelProps.style : float.floating ? { width, ...float.panelProps.style } : { width: open ? width : collapsedWidth(), ...float.panelProps.style }}
+      style={phone ? float.panelProps.style : float.floating ? { width, ...float.panelProps.style } : { width: hidden ? 0 : open ? width : collapsedWidth(), ...float.panelProps.style }}
       className={panelClass("left", float.floating, phone)}>
       {!float.floating && <CollapsedRail side="left" show={!open} label="Open the panel" onOpen={onOpenPanel} items={railItems} />}
       <PanelBody open={open} width={width} floating={float.floating}>

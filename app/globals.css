@@ -208,7 +208,13 @@
   background: #fff;
   color: #1b1c1f;
   margin: 0 auto;
-  /* Width is set inline from lib/ucp/devices.ts — see SiteChrome. Do not restate it here. */
+  /* The page fills whatever box it is given — in the builder that is the frame, which carries
+     the device width and animates it. `.site` must NOT set its own width: when it did, a
+     breakpoint change snapped the page to the new width instantly while the frame was still
+     tweening, so the content overhung to the right and then re-centred. Previews that render
+     `.site` outside the builder set an explicit width inline. */
+  width: 100%;
+  max-width: 100%;
   box-shadow:
     0 1px 2px rgba(20, 22, 30, 0.05),
     0 6px 20px rgba(20, 22, 30, 0.07);
@@ -309,7 +315,12 @@
 }
 .cblk {
   position: relative;
-  padding: 22px 28px;
+  /* The block's inset, published as variables so a full-bleed child (.s-foot) can cancel it
+     exactly. It used to hard-code `margin: 0 -28px`, which was right only at desktop and
+     overflowed the page by 8px at tablet and 12px at mobile, where the padding is smaller. */
+  --cblk-x: 28px;
+  --cblk-y: 22px;
+  padding: var(--cblk-y) var(--cblk-x);
   border: 2px solid transparent;
   cursor: pointer;
   border-radius: 4px;
@@ -691,7 +702,7 @@
 .s-foot {
   background: #f3f3f3;
   padding: 18px;
-  margin: 0 -28px -22px;
+  margin: 0 calc(var(--cblk-x) * -1) calc(var(--cblk-y) * -1);
   border-top: 1px solid #d7d8d6;
 }
 .s-foot h3 {
@@ -788,7 +799,8 @@
    rules matched nothing. The builder is the only thing that ever set `body.focus`. */
 
 .site.tablet .cblk {
-  padding: 18px 20px;
+  --cblk-x: 20px;
+  --cblk-y: 18px;
 }
 .site.tablet .s-mast {
   margin: -18px -20px 0;
@@ -810,7 +822,8 @@
 }
 
 .site.mobile .cblk {
-  padding: 14px 16px;
+  --cblk-x: 16px;
+  --cblk-y: 14px;
 }
 .site.mobile .hs-util {
   padding: 0 16px;
@@ -1370,13 +1383,11 @@
    a thing entering or leaving, so it accelerates and decelerates at both ends.
    The canvas here scales with `transform` rather than the mock's `zoom`, so the transition
    covers width/height/transform; the effect is the same. */
-.bld-frame,
-.bld-frame > * {
+.bld-frame {
   transition:
     width 500ms cubic-bezier(0.77, 0, 0.175, 1),
-    height 500ms cubic-bezier(0.77, 0, 0.175, 1),
-    transform 500ms cubic-bezier(0.77, 0, 0.175, 1);
+    zoom 500ms cubic-bezier(0.77, 0, 0.175, 1);
 }
 @media (prefers-reduced-motion: reduce) {
-  .bld-frame, .bld-frame > * { transition-duration: 1ms; }
+  .bld-frame { transition-duration: 1ms; }
 }
