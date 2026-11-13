@@ -15,13 +15,14 @@ test.describe("builder", () => {
     // Clicking a text edits it straight away, so select the block by clicking next to its texts (bottom-right corner).
     // (dispatched on the block itself: a click at coordinates can land on a moving layout while the editor settles)
     await blocks.nth(1).dispatchEvent("click");
+    // Button names lost their leading glyphs when the builder dropped decorative characters.
     const bar = page.getByRole("toolbar", { name: / actions$/ }); // the block toolbar (Configure has its own formatting toolbar)
     await expect(bar).toBeVisible();
-    await expect(bar.getByRole("button", { name: "✎ Edit" })).toBeVisible();
+    await expect(bar.getByRole("button", { name: "Edit", exact: true })).toBeVisible();
     // desktop: clicking the block opens Configure on its own, so the toolbar has no Configure button
     await expect(page.getByText(/^Configure · /)).toBeVisible();
-    await expect(bar.getByRole("button", { name: "⚙ Configure" })).toHaveCount(0);
-    await expect(bar.getByRole("button", { name: "✨ AI" })).toBeVisible();
+    await expect(bar.getByRole("button", { name: "Configure", exact: true })).toHaveCount(0);
+    await expect(bar.getByRole("button", { name: "AI", exact: true })).toBeVisible();
 
     // The mast heading is the first inline-editable text of the first block.
     const heading = blocks.first().locator(".ie").first();
@@ -29,16 +30,16 @@ test.describe("builder", () => {
     await heading.click(); // one click is enough to edit a text
     await expect(heading).toHaveClass(/editing/);
     await caretToEnd(heading);
-    await page.keyboard.type(" ✓");
+    await page.keyboard.type(" x"); // 2 chars: the cleanup below presses Backspace twice
     await page.keyboard.press("Enter");
     await expect(heading).not.toHaveClass(/editing/);
-    await expect(heading).toHaveText(`${before} ✓`);
+    await expect(heading).toHaveText(`${before} x`);
 
     // Autosave: shortly after the change the Save button turns into a greyed-out "Saved".
     const status = page.getByRole("button", { name: "Saved", exact: true });
     await expect(status).toBeDisabled({ timeout: 5000 });
     await page.reload();
-    await expect(heading).toHaveText(`${before} ✓`);
+    await expect(heading).toHaveText(`${before} x`);
 
     // Put the heading back so the seed stays tidy for other tests.
     await heading.click();

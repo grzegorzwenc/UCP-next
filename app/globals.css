@@ -1310,3 +1310,82 @@
     font-variation-settings: normal;
   }
 }
+
+/* ---- Builder panels: collapse to a slim rail ----
+   Mechanism copied verbatim from the UCP mock's `.editor-panel` (src/routes/layout.css):
+   the CONTAINER's width animates, the body is a fixed-width child anchored to the moving
+   edge so `overflow: hidden` wipes it out of view, and the rail fades in behind it. The
+   panel does not slide away as a whole — that was the earlier attempt here and it reads
+   differently, because the body's edge and the container's edge move together instead of
+   the body being revealed/clipped.
+
+   Tokens are the mock's: 260ms on cubic-bezier(0.32, 0.72, 0, 1) for the width, 160ms for
+   the body's opacity, and the rail's fade held back 100ms so the two never overlap. */
+:root {
+  --bld-dur: 260ms;
+  --bld-ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --bld-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+}
+.bld-panel {
+  overflow: hidden;
+  transition:
+    width var(--bld-dur) var(--bld-ease),
+    border-color 120ms ease;
+}
+.bld-panel-body {
+  position: absolute;
+  inset-block: 0;
+  display: flex;
+  flex-direction: column;
+  transition:
+    opacity 160ms var(--bld-ease-out),
+    transform var(--bld-dur) var(--bld-ease);
+}
+/* The body rides with the moving edge: anchored end on the left panel, start on the right. */
+.bld-panel[data-side="left"] .bld-panel-body { inset-inline-end: 0; }
+.bld-panel[data-side="right"] .bld-panel-body { inset-inline-start: 0; }
+.bld-panel-body[data-on="false"] { opacity: 0; pointer-events: none; }
+
+.bld-panel-rail {
+  position: absolute;
+  inset-block: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: opacity 160ms var(--bld-ease-out) 100ms;
+}
+.bld-panel[data-side="left"] .bld-panel-rail { inset-inline-start: 0; }
+.bld-panel[data-side="right"] .bld-panel-rail { inset-inline-end: 0; }
+.bld-panel-rail[data-on="false"] { opacity: 0; pointer-events: none; transition-delay: 0ms; }
+
+/* The canvas gutter rides the same curve so the page edge and the panel edge move together. */
+.bld-pad {
+  transition: padding-left var(--bld-dur) var(--bld-ease), padding-right var(--bld-dur) var(--bld-ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  .bld-panel, .bld-panel-body, .bld-panel-rail, .bld-pad { transition-duration: 1ms; transition-delay: 0ms; }
+}
+
+/* The canvas ground: the surface the 1:1 page sheet sits on.
+   Dark on purpose, taken from the UCP mock (.editor-ground) — a dark ground separates the
+   page from the chrome and stops a white page bleeding into a white panel, which is what
+   made the old editor read as one undifferentiated sheet. */
+.editor-ground { background-color: #31363d; }
+.dark .editor-ground { background-color: #0f1620; }
+
+/* Breakpoint toggle: the page frame eases between widths instead of snapping.
+   The mock's tokens — 500ms on cubic-bezier(0.77, 0, 0.175, 1), its --ease-in-out. Slower and
+   more symmetric than the panel collapse on purpose: this is a thing resizing on screen, not
+   a thing entering or leaving, so it accelerates and decelerates at both ends.
+   The canvas here scales with `transform` rather than the mock's `zoom`, so the transition
+   covers width/height/transform; the effect is the same. */
+.bld-frame,
+.bld-frame > * {
+  transition:
+    width 500ms cubic-bezier(0.77, 0, 0.175, 1),
+    height 500ms cubic-bezier(0.77, 0, 0.175, 1),
+    transform 500ms cubic-bezier(0.77, 0, 0.175, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .bld-frame, .bld-frame > * { transition-duration: 1ms; }
+}

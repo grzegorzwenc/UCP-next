@@ -24,7 +24,7 @@ const KIND_ICON = { text: "M5 6h14M12 6v12M9 18h6", image: "M4 5h16v14H4zM4 15l4
 const KindIcon = ({ k, size = 14 }: { k: keyof typeof KIND_ICON; size?: number }) => <svg aria-hidden width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d={KIND_ICON[k]} /></svg>;
 
 /**
- * The picked text, image or component shown as a small card: in the composer (with ✕) it slides in when you click the page,
+ * The picked text, image or component shown as a small card: in the composer (with a remove control) it slides in when you click the page,
  * on a comment it is compact and clicking it shows that spot on the page.
  */
 export function TargetCard({ target, onShow, onClear, compact = false }: { target: Ref; onShow?: (r: Ref) => void; onClear?: () => void; compact?: boolean }) {
@@ -42,7 +42,7 @@ export function TargetCard({ target, onShow, onClear, compact = false }: { targe
   return <div key={`${target.id}|${target.field ?? ""}`} className="cmt-card-in flex items-center gap-2.5 min-w-0 rounded-lg border border-brand/30 border-l-[3px] border-l-accent bg-brand-soft/35 px-2.5 py-2">
     {body}
     <span className="flex flex-none flex-col items-end gap-1">
-      {onClear && <button type="button" onClick={onClear} className="w-6 h-6 rounded grid place-items-center text-ink-3 hover:bg-surface-3 hover:text-ink" aria-label="Not about this · write a general comment" title="Remove · write a general comment">✕</button>}
+      {onClear && <button type="button" onClick={onClear} className="w-6 h-6 rounded grid place-items-center text-ink-3 hover:bg-surface-3 hover:text-ink" aria-label="Not about this · write a general comment" title="Remove · write a general comment"><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>}
       {onShow && <button type="button" onClick={() => onShow(target)} className="text-xs text-ink-3 hover:text-brand underline underline-offset-2">Show</button>}
     </span>
   </div>;
@@ -104,7 +104,7 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
     <div className={`flex items-baseline gap-2 ${bare ? "sr-only" : ""}`}><h3 id="cm-h" className="text-sm font-medium">Comments</h3>{!!open.length && <span className="text-xs text-ink-3">{open.length}</span>}</div>
     {mayWrite && <div className="border border-line-2 rounded-lg bg-surface focus-within:border-ink-3">
       {target && <div className="p-2 pb-0"><TargetCard key={`${target.id}|${target.field ?? ""}`} target={target} onShow={onShowBlock} onClear={onClearTarget} /></div>}
-      {about && <div className="flex items-center gap-2 px-2.5 pt-2 text-xs"><span className="inline-flex items-center gap-1 rounded-full bg-info-soft text-info px-2 py-0.5 min-w-0"><span className="truncate">About the version from {about.label}</span></span><button type="button" className="text-ink-3 hover:text-ink flex-none" onClick={onClearAbout} aria-label="Not about a version">✕</button></div>}
+      {about && <div className="flex items-center gap-2 px-2.5 pt-2 text-xs"><span className="inline-flex items-center gap-1 rounded-full bg-info-soft text-info px-2 py-0.5 min-w-0"><span className="truncate">About the version from {about.label}</span></span><button type="button" className="text-ink-3 hover:text-ink flex-none" onClick={onClearAbout} aria-label="Not about a version"><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>}
       <textarea ref={box} rows={2} value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} placeholder={target ? "What should change here?" : about ? "What about this version?" : target !== undefined ? "Click a text or an image on the page, or write a general comment…" : "Add a comment for the team…"} aria-label="New comment"
         onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void add(); } }} className="block w-full resize-y bg-transparent px-2.5 py-2 text-sm outline-none" />
       <div className="flex items-center gap-2 px-2 pb-2"><span className="text-xs text-ink-4">⌘/Ctrl + Enter to post</span><button type="button" className="btn btn-sm btn-primary ml-auto" disabled={!text.trim() || busy} onClick={add}>{busy ? "Posting…" : "Add comment"}</button></div>

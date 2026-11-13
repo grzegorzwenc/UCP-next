@@ -29,7 +29,7 @@ export function AssetPicker({ marketId, value, onChange, invalid }: { marketId: 
       <Thumb a={current} className="w-14 h-10 shrink-0" />
       <div className="min-w-0 flex-1"><div className="text-xs truncate">{current ? current.name : value ? <span className="text-ink-3">{value}</span> : <span className="text-ink-3">No image chosen</span>}</div>{current && <div className="text-xs text-ink-3">{current.size} · {current.folder}</div>}</div>
       <button className="btn btn-sm btn-secondary" onClick={() => setOpen(true)}>{value ? "Change" : "Choose image"}</button>
-      {value && <button className="btn-ghost" onClick={() => onChange("")} aria-label="Remove image">✕</button>}
+      {value && <button className="btn-ghost" onClick={() => onChange("")} aria-label="Remove image"><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>}
     </div>
     {open && <div className="fixed inset-0 bg-black/45 grid place-items-center z-50" onMouseDown={(e) => { e.stopPropagation(); if (e.target === e.currentTarget) setOpen(false); }} onClick={(e) => e.stopPropagation()}>
       <div role="dialog" aria-labelledby="ap" className="bg-surface rounded-xl w-[min(720px,94vw)] shadow-2xl flex flex-col max-h-[85vh]">

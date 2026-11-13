@@ -54,7 +54,7 @@ export function InsightsPanel({ blocks, page, onFix, onSelectBlock }: Props) {
     <p className="text-xs text-ink-3 -mb-1">{live ? "Checked against the live page" : "Checked as you edit"} · {passedN + must.length + should.length} checks</p>
 
     <div role="status" className={`rounded-lg border px-3.5 py-3 ${toneCls}`}>
-      <div className={`text-sm font-medium ${toneTxt}`}>{verdict.tone === "good" ? "✓ " : verdict.tone === "crit" ? "! " : ""}{verdict.title}</div>
+      <div className={`text-sm font-medium ${toneTxt}`}>{verdict.tone === "good" ? "" : verdict.tone === "crit" ? "! " : ""}{verdict.title}</div>
       <p className="text-xs text-ink-2 mt-0.5 leading-relaxed">{verdict.text}</p>
       <div className="flex gap-3 mt-2 text-xs"><span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-crit" />{must.length} must fix</span><span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-warn" />{should.length} should fix</span><span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-good" />{passedN} passed</span></div>
     </div>
@@ -71,7 +71,7 @@ export function InsightsPanel({ blocks, page, onFix, onSelectBlock }: Props) {
 
     {passedN > 0 && <section className="border border-line rounded-lg bg-surface">
       <button type="button" className="w-full flex items-center gap-2 px-3 py-2.5 text-left" aria-expanded={showPassed} onClick={() => setShowPassed(!showPassed)}>
-        <span className="text-ink-3 text-xs w-3" aria-hidden="true">{showPassed ? "▾" : "▸"}</span>
+        <span className="text-ink-3 text-xs w-3" aria-hidden="true">{showPassed ? "–" : "+"}</span>
         <span className="text-sm font-medium flex-1">Checks passed</span>
         <span className="text-xs text-good font-medium tabular-nums">{passedN}</span>
       </button>

@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Check, Lock, Languages, Sparkles, MoreHorizontal } from "lucide-react";
 import type { Block, PageView, PageStatus } from "@/lib/api/types";
 import { repoApi, ucpApi, ApiError } from "@/lib/api";
 import { blocksToComponents, componentsToBlocks } from "@/lib/repo/mapping";
@@ -24,6 +25,10 @@ import { JiraChip } from "@/components/ui/JiraChip";
 import { SavePatternDialog, PatternMarketsDialog } from "./PatternDialog";
 import { toParts, fromPattern, type DesignPattern } from "@/lib/blocks/patterns";
 import { LockedVeil } from "./LockedVeil";
+import { PanelSection } from "./panels/PanelSection";
+import { PanelRightOpen } from "lucide-react";
+import { PanelHeader, GripStrip, panelClass, PanelBody, RAIL_W } from "./panels/PanelFrame";
+import { useFloat } from "./panels/useFloat";
 import { EditorVeil } from "./EditorSkeleton";
 import { ShareReviewDialog } from "@/components/tasks/ShareReviewDialog";
 import { useConfirm } from "@/components/ui/Confirm";
@@ -51,16 +56,42 @@ const AI_EXAMPLES: { title: string; items: [string, string, string][] }[] = [
   { title: "Check and fix", items: [["Check accessibility", "Check accessibility", "Alt text, heading order, descriptive link labels"], ["Optimise for search", "Optimise SEO", "Meta description, H1, FAQ suggestions"], ["Translate to Welsh", "Translate this page", "Draft copy in cy-GB for a translator to review"]] },
 ];
 const PATTERN_ICON = "M4 4h7v7H4zM13 4h7v7h-7zM4 13h16v7H4z"; // three components joined into one
-const LEFT_RAIL: [LeftTab, string, string][] = [["components", "Add a component", "M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM12 8.5v7M8.5 12h7"], ["patterns", "Design patterns", PATTERN_ICON]];
-const RAIL: [RightTab, string, string][] = [["block", "Component settings", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"], ["page", "Page settings", "M6 3h8l5 5v13H6zM14 3v5h5M9 13h6M9 17h6"], ["content", "Entities", "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"], ["ai", "AI assistant", "M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 15l.6 1.6L7.2 17l-1.6.6L5 19.2l-.6-1.6L2.8 17l1.6-.4z"], ["insights", "Page insights", "M12 3a9 9 0 1 0 9 9M12 3v9l6.4-6.4M12 12l4 4"], ["comments", "Comments", "M4 5h16v11H9l-5 4zM8 9h8M8 12.5h5"], ["history", "Version history", "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"]];
+/* Phones only. On desktop the left panel's own tabs do this job, so there is no left rail. */
+const LEFT_RAIL: [LeftTab, string, string][] = [["components", "Add a component", "M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM12 8.5v7M8.5 12h7"], ["patterns", "Design patterns", PATTERN_ICON], ["outline", "Outline", "M4 6h2M4 12h2M4 18h2M9 6h11M9 12h11M9 18h11"]];
+/* Page settings first: it is what the panel opens on, so it leads the rail. */
+const RAIL: [RightTab, string, string][] = [["page", "Page settings", "M6 3h8l5 5v13H6zM14 3v5h5M9 13h6M9 17h6"], ["block", "Component settings", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"], ["content", "Entities", "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"], ["ai", "AI assistant", "M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 15l.6 1.6L7.2 17l-1.6.6L5 19.2l-.6-1.6L2.8 17l1.6-.4z"], ["insights", "Page insights", "M12 3a9 9 0 1 0 9 9M12 3v9l6.4-6.4M12 12l4 4"], ["comments", "Comments", "M4 5h16v11H9l-5 4zM8 9h8M8 12.5h5"], ["history", "Version history", "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"]];
+
 /** Short step names used when the stepper is narrow (same order as STEPS). */
+/** The four breakpoints, with the mock's widths. XL exists because a 1536 preview cannot be
+    shown 1:1 on a laptop — it renders full width and scales to fit, like the others. */
+type Device = "xl" | "desktop" | "tablet" | "mobile";
+const DEVICE_W: Record<Device, number> = { xl: 1536, desktop: 1280, tablet: 700, mobile: 390 };
+const DEVICES: [Device, string, string][] = [
+  ["xl", "Extra large", "M2.5 4.5h19v12h-19zM8 20h8M12 16.5v3.5"],
+  ["desktop", "Desktop", "M3 4.5h18v11.5H3zM8.5 20h7M12 16v4"],
+  ["tablet", "Tablet", "M5.5 3h13v18h-13zM11 18h2"],
+  ["mobile", "Mobile", "M8 2.5h8v19H8zM11 18.5h2"],
+];
 const STEP_SHORT = ["Build", "Preview", "Waiting", "Assigned", "In review", "Biz waiting", "Business", "Ready", "Live"];
+/**
+ * TEMPORARY: hides the 1-to-9 progress bar while its redesign is pending.
+ *
+ * Set back to `false` to restore it — that is the only change needed. The row is hidden with
+ * `hidden` rather than removed, so the stepper code, `STEPS`, `STEP_SHORT`, `hasAct` and
+ * `stepAct` all stay live and nothing has to be rebuilt later. The flag also drops the 48px
+ * grid track, because a `display:none` child leaves the grid and the body would otherwise
+ * slide up into the stepper's row.
+ *
+ * Note while this is on: the next-step buttons lived *on* that row, so "Go to preview",
+ * "Send for review" and "Publish" have no on-screen trigger. See the note where it is used.
+ */
+const STEPPER_HIDDEN = true;
 const STEPS = [["Build the page", "Add blocks and fill in the content"], ["Preview", "See it exactly as visitors will"], ["Waiting for a reviewer", "Sent · no reviewer has taken it yet"], ["Assigned to reviewer", "A reviewer has taken it · not started yet"], ["In author's review", "The reviewer is checking it"], ["Waiting for business review assignment", "Reviewed · no business reviewer has taken it yet"], ["In business review", "Business sign-off"], ["Ready to publish", "Reviewed · click Publish"], ["Published", "Live for customers"]];
 
 /**
  * Interaction model (three levels):
  *   hover        → subtle outline + component name
- *   click        → select; Configure opens on the right; contextual toolbar at the block: ✎ Edit · ✨ AI · ⋯ More (⚙ Configure on phones)
+ *   click        → select; Configure opens on the right; contextual toolbar at the block: Edit · AI · More (Configure on phones)
  *   double-click → straight into inline edit
  * Edit never opens the right panel; Configure does (with Cancel / Save).
  */
@@ -80,25 +111,25 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [sel, setSel] = useState<string | null>(null);
   const [mode, setMode] = useState<"select" | "edit">("select");
   const [pop, setPop] = useState<"ai" | "more" | null>(null);
-  const [device, setDevice] = useState<"desktop" | "tablet" | "mobile">("desktop");
+  const [device, setDevice] = useState<Device>("desktop");
   const [preview, setPreviewRaw] = useState(!canEdit || startInPreview); // read-only users always see the preview; ?preview=1 opens straight into it
   const { phone, tablet } = useShellMode(); const narrow = phone || tablet;
-  const [left, setLeftRaw] = useState(true); const [right, setRight] = useState(false);
+  const [left, setLeftRaw] = useState(true); const [right, setRight] = useState(true); // the right panel opens on Page settings, as in the mock
   // Panel widths are draggable (min 260, max 560) and remembered per browser.
-  const [leftW, setLeftW] = useState(320); const [rightW, setRightW] = useState(340);
-  // eslint-disable-next-line react-hooks/set-state-in-effect -- read once from localStorage after hydration (not available during SSR)
-  useEffect(() => { try { const l = Number(localStorage.getItem("ucp-leftw")); const r = Number(localStorage.getItem("ucp-rightw")); if (l >= 260 && l <= 560) setLeftW(l); if (r >= 260 && r <= 560) setRightW(r); } catch {} }, []);
-  const startResize = (side: "left" | "right") => (e: React.MouseEvent) => {
-    e.preventDefault(); const x0 = e.clientX; const w0 = side === "left" ? leftW : rightW; document.body.style.cursor = "col-resize"; document.body.style.userSelect = "none";
-    const mv = (ev: MouseEvent) => { const w = Math.min(560, Math.max(260, w0 + (side === "left" ? ev.clientX - x0 : x0 - ev.clientX))); if (side === "left") setLeftW(w); else setRightW(w); };
-    const up = (ev: MouseEvent) => { window.removeEventListener("mousemove", mv); window.removeEventListener("mouseup", up); document.body.style.cursor = ""; document.body.style.userSelect = ""; const w = Math.min(560, Math.max(260, w0 + (side === "left" ? ev.clientX - x0 : x0 - ev.clientX))); try { localStorage.setItem(side === "left" ? "ucp-leftw" : "ucp-rightw", String(w)); } catch {} };
-    window.addEventListener("mousemove", mv); window.addEventListener("mouseup", up);
-  };
+  /* Both panels are a fixed width. They used to be drag-resizable and remembered per browser;
+     that went with the mock-parity pass — one-line rows need no more room, and a width the
+     author has to manage on every page is a setting pretending to be a feature. */
+  const leftW = 280;  // the mock's 14.5rem, plus room between the tabs and the dock/collapse pair
+  const rightW = 320; // settings fields and their labels, without the form feeling boxed in
   const setLeft = (v: boolean) => setLeftRaw(v);
   // On a phone or tablet start with the matching rendition so the 1:1 page fits the screen; desktop stays 1200 px.
   const [shellSeen, setShellSeen] = useState({ phone: false, tablet: false }); // adjusted during render when the shell mode changes (no effect needed)
   if (shellSeen.phone !== phone || shellSeen.tablet !== tablet) { setShellSeen({ phone, tablet }); if (phone) { setLeftRaw(false); setDevice("mobile"); } else if (tablet) setDevice("tablet"); }
   const [rightTab, setRightTab] = useState<RightTab>("page");
+  /* A detached panel floats over the canvas instead of reserving a column, so the padding below
+     treats it as closed and the page gets the width back. */
+  const [leftFloating, setLeftFloating] = useState(false);
+  const rightFloat = useFloat(); // Configure / Page settings can be detached and dragged over the canvas
   const [translating, setTranslating] = useState(false); const router = useRouter();
   const [description, setDescription] = useState(page.description ?? "");
   const [aiTasks, setAiTasks] = useState<AiTask[]>([]); const [aiDraft, setAiDraft] = useState("");
@@ -181,7 +212,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const onCommentList = (l: { block?: { id: string }; resolved?: unknown }[]) => { const open = l.filter((x) => !x.resolved); const c: Record<string, number> = {}; for (const x of open) if (x.block) c[x.block.id] = (c[x.block.id] ?? 0) + 1; setCommentCounts(c); setCommentTotal(open.length); setCommentCount(open.length); }; // resolved comments stay in the list but leave the page
   const reviewProps = reviewMode ? { target: commentTarget, onClearTarget: () => setCommentTarget(null), onShowBlock: showBlock, onList: onCommentList } : { onShowBlock: showBlock, onList: onCommentList };
   const select = (id: string | null) => { setSel(id); setMode("select"); setPop(null); setMulti([]); if (id && right && rightTab === "block") setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
-  const add = (type: string) => { const nb = makeBlock(type); mutate((b) => { const i = sel ? b.findIndex((x) => x.id === sel) + 1 : b.length; const c = b.slice(); c.splice(i, 0, nb); return c; }); select(nb.id); say(`${BLOCK_BY_TYPE[type].name} added · click ✎ Edit to fill it in`); };
+  const add = (type: string) => { const nb = makeBlock(type); mutate((b) => { const i = sel ? b.findIndex((x) => x.id === sel) + 1 : b.length; const c = b.slice(); c.splice(i, 0, nb); return c; }); select(nb.id); say(`${BLOCK_BY_TYPE[type].name} added · click Edit to fill it in`); };
   const move = (id: string, d: number) => mutate((b) => { const i = b.findIndex((x) => x.id === id); const j = i + d; if (j < 0 || j >= b.length) return b; const c = b.slice(); [c[i], c[j]] = [c[j], c[i]]; return c; });
   const remove = (id: string) => { mutate((b) => b.filter((x) => x.id !== id)); select(null); };
   const duplicate = (b: Block) => mutate((bl) => { const i = bl.findIndex((x) => x.id === b.id); const c = bl.slice(); c.splice(i + 1, 0, { ...b, id: makeBlock(b.type).id, props: { ...b.props } }); return c; });
@@ -232,7 +263,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   }
   const undoAllAi = (task: AiTask) => { task.done.slice().reverse().forEach((id) => undoAiOp(task, id)); say("Changes undone"); };
 
-  /* ---- inline editing (only in Edit mode): click a text, Enter/✓ saves, Esc/✕ cancels ---- */
+  /* ---- inline editing (only in Edit mode): click a text, Enter saves, Esc cancels ---- */
   const [editing, setEditing] = useState<{ key: string; original: string } | null>(null); const [inlineGen, setInlineGen] = useState(0);
   const editingKey = editing?.key ?? null; const inlineCtx = useMemo(() => ({ editing: editingKey, gen: inlineGen, raw: !preview && !focus }), [editingKey, inlineGen, preview, focus]); const editingEl = useRef<HTMLElement | null>(null); // the live element stays out of state (mutated in place)
   const [ctaPop, setCtaPop] = useState<{ id: string; labelKey: string; linkKey?: string } | null>(null);
@@ -279,10 +310,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     const token = `{{${alias}.${c.field.k}}}`;
     if (target.target === "field") { setProp(target.blockId, target.k, token); say(`${target.l} now shows ${c.entity.title} · ${c.field.l}`); return; }
     const el = editingEl.current; if (!el) return; el.focus({ preventScroll: true }); const sel = window.getSelection();
-    if (tokTyped) { const r = caret.current && el.contains(caret.current.startContainer) ? caret.current : null; if (r && r.startContainer.nodeType === 3 && r.startOffset >= 2 && (r.startContainer.textContent ?? "").slice(r.startOffset - 2, r.startOffset) === "{{") { r.setStart(r.startContainer, r.startOffset - 2); r.deleteContents(); const t = document.createTextNode(token); r.insertNode(t); r.setStartAfter(t); r.collapse(true); sel?.removeAllRanges(); sel?.addRange(r); setTokTyped(false); say(`Inserted ${c.entity.title} · ${c.field.l}. Press ✓ Save.`); return; } }
-    if (el.dataset.rich !== undefined) { const r0 = caret.current && el.contains(caret.current.startContainer) ? caret.current : null; if (r0) { sel?.removeAllRanges(); sel?.addRange(r0); } document.execCommand("insertText", false, token); setTokTyped(false); say(`Inserted ${c.entity.title} · ${c.field.l}. Click outside or ✓ Save.`); return; }
+    if (tokTyped) { const r = caret.current && el.contains(caret.current.startContainer) ? caret.current : null; if (r && r.startContainer.nodeType === 3 && r.startOffset >= 2 && (r.startContainer.textContent ?? "").slice(r.startOffset - 2, r.startOffset) === "{{") { r.setStart(r.startContainer, r.startOffset - 2); r.deleteContents(); const t = document.createTextNode(token); r.insertNode(t); r.setStartAfter(t); r.collapse(true); sel?.removeAllRanges(); sel?.addRange(r); setTokTyped(false); say(`Inserted ${c.entity.title} · ${c.field.l}. Press Save.`); return; } }
+    if (el.dataset.rich !== undefined) { const r0 = caret.current && el.contains(caret.current.startContainer) ? caret.current : null; if (r0) { sel?.removeAllRanges(); sel?.addRange(r0); } document.execCommand("insertText", false, token); setTokTyped(false); say(`Inserted ${c.entity.title} · ${c.field.l}. Click outside or Save.`); return; }
     setTokTyped(false); el.innerText = token; const r = document.createRange(); r.selectNodeContents(el); r.collapse(false); sel?.removeAllRanges(); sel?.addRange(r);
-    say(`This text now shows ${c.entity.title} · ${c.field.l}. Press ✓ Save.`);
+    say(`This text now shows ${c.entity.title} · ${c.field.l}. Press Save.`);
   }
   /** Leaving Preview on a draft asks whether the page is right: yes → Send for review, no → back to the content. */
   const leavePreview = () => { setFocusMode(false); if (canEdit && (status === "draft" || status === "failed")) setPreviewCheck(true); };
@@ -311,7 +342,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   }
   /* Autosave: 1.2 s after the last change the draft is saved. There is no Save button any more. */
   const saveRef = useRef(save); useEffect(() => { saveRef.current = save; });
-  /* ---- Close the editor (✕ in the toolbar) ----
+  /* ---- Close the editor (the X in the toolbar) ----
      The editor is its own shell now, so leaving it is a navigation, not a panel toggle.
      Autosave means there is nothing to ask about: a pending edit is flushed first and the
      veil says so, because `save()` is a real round trip and a dead button would read as a
@@ -343,7 +374,6 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   /* ---- Authors (Build the page): several people can be assigned to build the page together ---- */
   const [authors, setAuthors] = useState<PageAuthor[]>(() => { try { const v = JSON.parse(String(page.meta?.["ucp:authors"] ?? "[]")) as PageAuthor[]; return Array.isArray(v) ? v : []; } catch { return []; } });
   const firstStage = status === "draft" || status === "failed";
-  const otherAuthors = authors.filter((a) => a.id !== user.id);
   async function authorAction(a: "join" | "leave" | "add" | "remove", id?: string) {
     try { const r = await ucpApi.pageAuthors(marketId, page.path, a, id); setAuthors(r.authors); say(a === "join" ? `You are an author of this page${r.authors.length > 1 ? ` with ${r.authors.filter((x) => x.id !== user.id).map((x) => x.name.split(" ")[0]).join(", ")}` : ""}` : a === "leave" ? "You are no longer an author of this page" : a === "add" ? `${names[id ?? ""] ?? "They"} can now build this page too` : "Removed from the authors"); }
     catch (e) { say(e instanceof ApiError ? e.problem.title : "Could not change the authors"); }
@@ -441,7 +471,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     return () => { window.removeEventListener("ucp:add-block", onAdd); window.removeEventListener("ucp:ai", onAi); };
   });
   function enterEdit(id: string, target?: HTMLElement, at?: { x: number; y: number }) {
-    const b = blocks.find((x) => x.id === id); if (!b || b.props.locked) { say("This block is locked. Unlock it from ⋯ More."); return; }
+    const b = blocks.find((x) => x.id === id); if (!b || b.props.locked) { say("This block is locked. Unlock it from the More menu."); return; }
     setSel(id); setMode("edit"); setPop(null);
     const ie = target?.closest<HTMLElement>(".ie") ?? canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"] .ie`) ?? undefined;
     // A token span may have been remounted by the commit that just happened: look it up again by its key.
@@ -466,7 +496,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     /* One click on a text edits it straight away (caret where you clicked); a click elsewhere in the block selects the block. */
     if (ie && editing && editingEl.current === ie) return; // moving the caret inside the text being edited
     if (ie && canEdit && !locked) {
-      const b = blocks.find((x) => x.id === id)!; if (b.props.locked) { if (id !== sel) select(id); say("This block is locked. Unlock it from ⋯ More."); return; }
+      const b = blocks.find((x) => x.id === id)!; if (b.props.locked) { if (id !== sel) select(id); say("This block is locked. Unlock it from the More menu."); return; }
       e.preventDefault(); if (editing) commitInline(true);
       const cta = t.closest(".s-cta"); const hasLink = BLOCK_BY_TYPE[b.type].fields.some((f) => f.k === "link");
       if (cta && hasLink && !ie.dataset.inline!.includes("|")) { setSel(id); setMode("edit"); setCtaPop({ id, labelKey: ie.dataset.inline!.split("|")[1], linkKey: "link" }); return; }
@@ -512,7 +542,6 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     || (i === 4 && ((status === "inreview" && (mayApprove || canEdit)) || (status === "reviewed" && (maySendBiz || mayStatus("review")))))
     || (i === 5 && status === "bizreview" && !bizAssigned && mayBizClaim) || (i === 6 && bizAssigned && (mayBizApprove || canEdit)) || (i === 7 && (status === "approved" || status === "scheduled") && mayStatus("published"));
   /** Author's review and business review: the page full screen, click a text or image and leave feedback in the floating comments. */
-  const feedbackBtn = <button className="btn btn-sm btn-secondary" onClick={() => { setFloatOpen(true); setFocusMode(true); }} title="Open the page full screen: click a text or an image to comment on it"><svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg><span className="hidden xl:inline">Review &amp; feedback</span><span className="xl:hidden">Feedback</span></button>;
   const stepAct = (i: number): React.ReactNode =>
     i === 0 ? <button className="btn btn-sm btn-primary btn-next" onClick={() => flowClick(1)} title="See the page exactly as visitors will">Go to preview</button>
     : i === 1 ? <button className="btn btn-sm btn-primary btn-next" onClick={openSend} aria-label="Send to author's review"><span className="lg:hidden">Send for review</span><span className="hidden lg:inline">Send to author&apos;s review</span></button>
@@ -529,7 +558,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const insightMeta = useMemo(() => ({ title, description, template: page.template, status, locale, assets: assetMap, entities }), [title, description, page.template, status, locale, assetMap, entities]);
   const insightBadge = useMemo(() => pageInsights(blocks, insightMeta).groups.flatMap((g) => g.items).filter((i) => i.level === "crit").length, [blocks, insightMeta]);
   // On phones and tablets the panels float over the canvas instead of reserving space, so the 1:1 page keeps its width.
-  const siteW = device === "desktop" ? 1200 : device === "tablet" ? 768 : 390;
+  const siteW = DEVICE_W[device];
   const [avail, setAvail] = useState(0);
   /* The page is drawn at its real width (1200 / 768 / 390 px) and scaled down to fit the canvas, so the canvas never scrolls sideways. */
   const siteRef = useRef<HTMLDivElement>(null); const [siteH, setSiteH] = useState(0);
@@ -543,12 +572,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const railsOn = !preview || !!lockReason; // a locked page keeps the rails (panels open read-only or veiled); a plain preview hides them
   const panelW = rightTab === "history" || rightTab === "comments" ? Math.max(rightW, 400) : rightW; // versions and comments need room
   const floatingOpen = focus && !phone && ((qcMode && qcOpen) || (reviewMode && floatOpen)); // full screen: keep the page clear of the floating panel
-  const padL = focus ? 0 : !railsOn ? 24 : left && !narrow ? leftW + 76 : phone ? 12 : narrow ? 64 : 76, padR = focus ? (floatingOpen ? 412 : 0) : !railsOn ? 24 : right && !narrow ? panelW + 76 : phone ? 12 : narrow ? 64 : 76;
-  const baseHint = lockedByOther ? `Locked by ${pageLock!.name} · ask them or a site admin to unlock it in Pages` : !canEdit ? "Read-only: you don't have Edit on this folder. Ask a site admin to grant it." : locked ? (inAuthor ? "In author's review · read-only" : status === "reviewed" ? "Reviewed · read-only" : status === "bizreview" ? "In business review · read-only" : status === "published" ? `Live on ${domain}${rel}` : "Ready to publish · read-only") : preview ? "What visitors will see" : mode === "edit" ? "Click a highlighted text to change it · Esc when done" : sel ? "Change the text on the page, or the details on the right" : "Click a block to change it";
-  const hint = reviewMode ? "Or click a text or an image here to comment on it" : firstStage && otherAuthors.length ? (authors.some((a) => a.id === user.id) ? `Building it together with ${otherAuthors.map((a) => a.name).join(", ")} · ${baseHint}` : `${otherAuthors.map((a) => a.name).join(", ")} ${otherAuthors.length === 1 ? "is" : "are"} building this page${canEdit ? " · Assign me to work on it with them" : ""}`) : baseHint;
+  const padL = focus ? 0 : !railsOn ? 24 : left && !narrow && !leftFloating ? leftW + 24 : phone ? 12 : RAIL_W + 24, padR = focus ? (floatingOpen ? 412 : 0) : !railsOn ? 24 : right && !narrow && !rightFloat.floating ? panelW + 76 : phone ? 12 : narrow ? 64 : 76;
 
   return (
-    <div className={`h-full grid ${focus ? "grid-rows-[1fr]" : "grid-rows-[54px_48px_1fr]"} min-w-0 overflow-hidden`}>
+    <div className={`h-full grid ${focus ? "grid-rows-[1fr]" : STEPPER_HIDDEN ? "grid-rows-[54px_1fr]" : "grid-rows-[54px_48px_1fr]"} min-w-0 overflow-hidden`}>
       {/* Toolbar (docked; gone in preview) */}
       {!focus && <div className="grid grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto_minmax(max-content,1fr)] items-center gap-3 px-2.5 bg-surface border-b border-line overflow-x-auto overflow-y-hidden">
         {/* left: back + page · centre: device width · right: status | panels + preview | next action */}
@@ -562,13 +589,13 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           </button>
           <div className="min-w-0 flex-1"><span className="flex items-center gap-2 min-w-0"><b className="block text-sm truncate">{title}</b>{jira && <JiraChip url={jira} />}</span><span className="hidden sm:block text-xs text-ink-3 truncate">{flag} {locale} · {domain}{rel}</span></div>
         </div>
-        <div className="hidden lg:inline-flex justify-self-center border border-line-2 rounded-lg overflow-hidden">{(["desktop", "tablet", "mobile"] as const).map((d) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink"}`} title={d} aria-label={`${d} view`} aria-pressed={device === d}><Ico d={d === "desktop" ? "M3 4.5h18v11.5H3zM8.5 20h7M12 16v4" : d === "tablet" ? "M5.5 3h13v18h-13zM11 18h2" : "M8 2.5h8v19H8zM11 18.5h2"} /></button>)}</div>
+        <div role="group" aria-label="Preview width" className="hidden lg:inline-flex justify-self-center border border-line-2 rounded-lg overflow-hidden">{DEVICES.map(([d, label, path]) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center transition-colors duration-150 ease-out ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink hover:bg-surface-3"}`} title={`${label} · ${DEVICE_W[d]}px`} aria-label={`${label} view, ${DEVICE_W[d]} pixels`} aria-pressed={device === d}><Ico d={path} /></button>)}</div>
         <div className="flex items-center justify-end gap-2.5 min-w-0">
           {/* status, who has it, and what it is waiting for, in one group (the waiting line sits under the chips) */}
           <div className="flex flex-col items-end gap-0.5 flex-none">
             <div className="flex items-center gap-2">
               {saving === "Save failed" ? <button className="hidden sm:inline text-xs text-crit bg-crit-soft rounded-full px-2.5 py-1 hover:underline" onClick={() => save().then(() => say("Saved")).catch(() => {})} title="Your last changes were not saved">Not saved · Retry</button>
-                : canEdit && !locked && (status === "draft" || status === "failed") ? null /* the Save button says it */ : <span className="hidden sm:inline text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1" aria-live="polite" title="Changes are saved automatically">{saving === "Unsaved" ? "Saving…" : saving === "Saved just now" || saving === "Saved" ? "✓ Saved" : saving}</span>}
+                : canEdit && !locked && (status === "draft" || status === "failed") ? null /* the Save button says it */ : <span className="hidden sm:inline text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1" aria-live="polite" title="Changes are saved automatically">{saving === "Unsaved" ? "Saving…" : saving === "Saved just now" || saving === "Saved" ? "Saved" : saving}</span>}
               {/* the current stage is shown on the stepper below, so no status pill here */}
               {firstStage && <span className="hidden sm:contents"><AuthorsChip authors={authors} meId={user.id} admin={isAdmin} canEdit={canEdit} people={names} onAction={authorAction} /></span>}
               {inAuthor && assignee && <span className="hidden sm:contents"><AssigneeChip name={assigneeName} admin={isAdmin} marketId={marketId} pagePath={page.path} meId={user.id} onReassigned={(r) => { setAssignee(r.assignee); say(`Reassigned to ${r.assigneeName}`); router.refresh(); }} /></span>}
@@ -578,16 +605,17 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             {status === "reviewed" && !maySendBiz && <span className="hidden sm:inline text-xs text-ink-3 whitespace-nowrap pr-1">Waiting for the author to send it to the business review</span>}
           {(status === "approved" || status === "scheduled") && !mayStatus("published") && <span className="hidden sm:inline text-xs text-ink-3 whitespace-nowrap pr-1">Waiting for a publisher</span>}
           </div>
-          <div className="hidden md:flex gap-1 pl-2.5 border-l border-line"><button className={`bdl-chip btn-square size-8 ${left ? "bdl-chip-active" : ""}`} onClick={() => setLeft(!left)} title="Components panel" aria-label="Components panel" aria-pressed={left}><Ico d="M3.5 4h17v16h-17zM9 4v16" /></button><button className={`bdl-chip btn-square size-8 ${right ? "bdl-chip-active" : ""}`} onClick={() => { if (right) closeConfigure(true); else { setRightTab(sel ? "block" : "page"); setRight(true); } }} title="Page settings panel" aria-label="Page settings panel" aria-pressed={right}><Ico d="M3.5 4h17v16h-17zM15 4v16" /></button></div>
+          {/* The two panel toggles that used to sit here are gone: each panel is reopened from the slim
+              bar it leaves behind, which is where you are already looking when you want it back. */}
           {/* the page itself: look at it, or take it back to editing */}
-          <div className="flex items-center gap-1 pl-2.5 border-l border-line"><button className={`bdl-chip ${focus ? "bdl-chip-active" : ""}`} onClick={() => (focus ? leavePreview() : setFocusMode(true))} title="Preview the page as visitors see it (⌘⇧F)" aria-pressed={focus}>{focus ? <><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>Exit preview</> : <><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></svg>Preview</>}</button>{canEdit && !locked && !focus && (status === "draft" || status === "failed") && <button className={`btn btn-sm btn-secondary ${dirty ? "btn-primary" : ""}`} disabled={!dirty || saving === "Saving…"} onClick={async () => { try { await save(); say("Saved"); } catch { /* save() already says why */ } }} title={dirty ? "Save now (it also saves by itself after a moment) · ⌘S" : "All changes are saved"}><Ico d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6" />{dirty ? (saving === "Saving…" ? "Saving…" : "Save") : "Saved"}</button>}{!canEdit ? <span className="text-xs text-ink-3 px-1.5 whitespace-nowrap" title={lockedByOther ? `Locked by ${pageLock!.name}` : "Ask a site admin for Edit on this folder"}>🔒 Read-only</span> : locked ? <button className="btn btn-sm btn-secondary" onClick={() => void goEdit("blocks")} title={status === "published" ? "Change the page; the live version stays online until you publish again" : "Take the page back to editing"}><Ico d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />Edit</button> : null}</div>
+          <div className="flex items-center gap-1 pl-2.5 border-l border-line"><button className={`bdl-chip ${focus ? "bdl-chip-active" : ""}`} onClick={() => (focus ? leavePreview() : setFocusMode(true))} title="Preview the page as visitors see it (⌘⇧F)" aria-pressed={focus}>{focus ? <><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>Exit preview</> : <><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></svg>Preview</>}</button>{canEdit && !locked && !focus && (status === "draft" || status === "failed") && <button className={`btn btn-sm btn-secondary ${dirty ? "btn-primary" : ""}`} disabled={!dirty || saving === "Saving…"} onClick={async () => { try { await save(); say("Saved"); } catch { /* save() already says why */ } }} title={dirty ? "Save now (it also saves by itself after a moment) · ⌘S" : "All changes are saved"}><Ico d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6" />{dirty ? (saving === "Saving…" ? "Saving…" : "Save") : "Saved"}</button>}{!canEdit ? <span className="inline-flex items-center gap-1 text-xs text-ink-3 px-1.5 whitespace-nowrap" title={lockedByOther ? `Locked by ${pageLock!.name}` : "Ask a site admin for Edit on this folder"}><Lock className="size-3" strokeWidth={1.5} aria-hidden />Read-only</span> : locked ? <button className="btn btn-sm btn-secondary" onClick={() => void goEdit("blocks")} title={status === "published" ? "Change the page; the live version stays online until you publish again" : "Take the page back to editing"}><Ico d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />Edit</button> : null}</div>
         </div>
       </div>}
       {/* Flow stepper (hidden in preview) */}
-      {!focus && <div className="flex items-center px-4 bg-surface border-b border-line overflow-hidden" role="list" aria-label="Page progress">
+      {!focus && <div className={`${STEPPER_HIDDEN ? "hidden" : ""} flex items-center px-4 bg-surface border-b border-line overflow-hidden`} role="list" aria-label="Page progress">
         <div className="flex-1 min-w-0 flex items-center overflow-hidden h-12">
           {STEPS.map((s, i) => { const done = i < cur || (cur === 8 && i === 8); const on = i === cur && cur !== 8; const act = hasAct(i); return <div key={s[0]} role="listitem" className={`items-center ${on ? "flex" : "hidden sm:flex"} ${i < STEPS.length - 1 ? "flex-auto" : "flex-none"}`}>
-            <div aria-current={on ? "step" : undefined} className={`flex items-center gap-2 py-1 rounded-full text-xs flex-none cursor-default select-none ${on ? "bg-brand-soft ring-1 ring-brand/35 pl-1 pr-3 text-brand-hover font-medium" : "px-1.5 " + (done ? "text-ink-2" : "text-ink-3")}`} title={`${s[0]} · ${s[1]}`}><i className={`flex-none w-6 h-6 rounded-full border-2 grid place-items-center not-italic text-xs font-bold ${done ? "bg-good border-good text-white" : on ? "bg-brand border-brand text-white" : "border-line-2 bg-surface"}`}>{done ? "✓" : i + 1}</i><span className={`leading-tight whitespace-nowrap ${on ? "" : done ? "hidden min-[1700px]:inline" : "hidden min-[1400px]:inline"}`}>{on ? <><span className="lg:hidden">{STEP_SHORT[i]}</span><span className="hidden lg:inline">{s[0]}</span></> : <><span className="min-[1700px]:hidden">{STEP_SHORT[i]}</span><span className="hidden min-[1700px]:inline">{s[0]}</span></>}{on && <small className="hidden 2xl:block text-xs text-ink-3 font-normal">{s[1]}</small>}</span></div>
+            <div aria-current={on ? "step" : undefined} className={`flex items-center gap-2 py-1 rounded-full text-xs flex-none cursor-default select-none ${on ? "bg-brand-soft ring-1 ring-brand/35 pl-1 pr-3 text-brand-hover font-medium" : "px-1.5 " + (done ? "text-ink-2" : "text-ink-3")}`} title={`${s[0]} · ${s[1]}`}><i className={`flex-none w-6 h-6 rounded-full border-2 grid place-items-center not-italic text-xs font-bold ${done ? "bg-good border-good text-white" : on ? "bg-brand border-brand text-white" : "border-line-2 bg-surface"}`}>{done ? <Check className="size-3.5" strokeWidth={2.5} aria-hidden /> : i + 1}</i><span className={`leading-tight whitespace-nowrap ${on ? "" : done ? "hidden min-[1700px]:inline" : "hidden min-[1400px]:inline"}`}>{on ? <><span className="lg:hidden">{STEP_SHORT[i]}</span><span className="hidden lg:inline">{s[0]}</span></> : <><span className="min-[1700px]:hidden">{STEP_SHORT[i]}</span><span className="hidden min-[1700px]:inline">{s[0]}</span></>}{on && <small className="hidden 2xl:block text-xs text-ink-3 font-normal">{s[1]}</small>}</span></div>
             {/* steps only show where the page is; the next action sits on the line between this step and the next one */}
             {i < STEPS.length - 1 && (act ? <><span className="hidden sm:flex items-center flex-auto min-w-0 mx-1 gap-1.5"><span className={`flex-1 min-w-1 h-0.5 ${i < cur ? "bg-good" : "bg-line"}`} />{stepAct(i)}<span className="flex-1 min-w-1 h-0.5 bg-line" /></span><span className={`sm:hidden flex-1 min-w-1 max-w-10 h-0.5 mx-1 ${i < cur ? "bg-good" : "bg-line"}`} /></>
               : <span className={`flex-1 min-w-1 max-w-10 h-0.5 mx-1 ${i < cur ? "bg-good" : "bg-line"}`} />)}</div>; })}
@@ -597,15 +625,16 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
       {/* Body */}
       <div className="relative min-h-0 overflow-hidden bg-bg">
         <div className={`absolute inset-0 flex flex-col ${preview ? "preview" : ""}`}>
-          {!focus && <div className="flex items-center gap-3 px-6 py-2 text-xs text-ink-3 border-b border-line bg-surface-2" style={{ paddingLeft: padL, paddingRight: padR }}><span className="mr-auto truncate" title={hint}>{hint}</span>{reviewMode && (status !== "bizreview" || bizAssigned) && <span className="flex-none">{feedbackBtn}</span>} {/* not while it waits for a business reviewer */}<span className="border border-line-2 rounded px-2 py-0.5 bg-surface whitespace-nowrap">1:1 · {device === "desktop" ? 1200 : device === "tablet" ? 768 : 390} px</span></div>}
-          <div ref={canvasRef} className={`${focus ? "flex-1 overflow-auto p-0 bg-white" : "flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""} ${patternMode ? "pattern-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onMouseMove={onCanvasMove} onMouseLeave={() => { if (!qcPinned) setQcTarget(null); }} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
-            {(() => { const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / siteW)) : 1; return <div style={fit < 1 ? { width: siteW * fit, height: siteH ? siteH * fit : undefined, margin: "0 auto" } : undefined}><div ref={siteRef} style={fit < 1 ? { transform: "scale(" + fit + ")", transformOrigin: "top left", width: siteW } : undefined}>
+          {/* The hint / "1:1 · 1200 px" strip is gone: it was a light band sitting on the dark canvas
+             ground, and it narrated what the canvas already shows. */}
+          <div ref={canvasRef} className={`bld-pad ${focus ? "flex-1 overflow-auto p-0 bg-white" : "editor-ground flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""} ${patternMode ? "pattern-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onMouseMove={onCanvasMove} onMouseLeave={() => { if (!qcPinned) setQcTarget(null); }} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
+            {(() => { const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / siteW)) : 1; return <div className="bld-frame" style={{ width: siteW * fit, height: siteH ? siteH * fit : undefined, margin: "0 auto" }}><div ref={siteRef} style={{ transform: "scale(" + fit + ")", transformOrigin: "top left", width: siteW }}>
             <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
               {blocks.length ? blocks.map((b, i) => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id && !commentTarget.field ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""} ${multi.includes(b.id) ? "multi" : ""}`} tabIndex={0}>
                 {multi.includes(b.id) && <span className="multi-n" aria-hidden>{multiBlocks.findIndex((x) => x.id === b.id) + 1}</span>}
                 {reviewMode && <span className="cmt-pick" aria-hidden>{commentTarget?.id === b.id ? "Commenting here" : "Click a text or image to comment"}</span>}
                 {!!commentCounts[b.id] && <button type="button" data-ui className="cmt-badge" title={`${commentCounts[b.id]} comment${commentCounts[b.id] === 1 ? "" : "s"} on this component`} onClick={(e) => { e.stopPropagation(); if (focus) setFloatOpen(true); else { setRightTab("comments"); setRight(true); } }}><CommentIcon size={12} />{commentCounts[b.id]}</button>}
-                <span className="tag">{def.name}{b.props.locked ? " · 🔒 locked" : ""}{b.props.hidden ? " · hidden" : ""}</span>
+                <span className="tag">{def.name}{b.props.locked ? " · locked" : ""}{b.props.hidden ? " · hidden" : ""}</span>
                 {isSel && !preview && !multi.length && <ContextBar block={b} index={i} count={blocks.length} mode={mode} pop={pop} setPop={setPop} clipboard={clipboard} aiSeed={aiSeed}
                   onEdit={() => (mode === "edit" ? (commitInline(true), setMode("select")) : enterEdit(b.id))} onConfigure={phone ? () => configure(b.id) : undefined /* desktop: clicking the block already opens Configure */}
                   onMore={(a) => { setPop(null); if (a === "duplicate") duplicate(b); else if (a === "copy") { setClipboard(b); say("Copied"); } else if (a === "paste" && clipboard) { mutate((bl) => { const c = bl.slice(); c.splice(i + 1, 0, { ...clipboard, id: makeBlock(clipboard.type).id, props: { ...clipboard.props } }); return c; }); } else if (a === "up") move(b.id, -1); else if (a === "down") move(b.id, 1); else if (a === "hide") setProp(b.id, "hidden", !b.props.hidden); else if (a === "lock") { setProp(b.id, "locked", !b.props.locked); if (!b.props.locked) setMode("select"); } else if (a === "delete") remove(b.id); else if (a === "history") { if (phone) setLeftRaw(false); setRightTab("history"); setRight(true); } else if (a === "pattern") { startPattern(b.id); say("Click the other components to put in the pattern"); } }}
@@ -614,65 +643,95 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               : <div className="m-7 p-11 border-2 border-dashed border-line-2 rounded-xl text-center text-ink-2 text-base">How do you want to start this page?<small className="block text-sm text-ink-3 mt-1.5">Pick a layout, or add components one by one from the left.</small><div className="grid grid-cols-3 gap-3 mt-4 text-left">{TEMPLATES.filter((t) => t.blocks.length).slice(0, 3).map((t) => <button key={t.id} className="border border-line-2 bg-surface p-3.5 text-left hover:border-ink" onClick={() => mutate(() => t.blocks.map((x) => makeBlock(x, x === "mast" ? { heading: title } : {})))}><b className="block text-sm">{t.name}</b><small className="text-ink-3">{t.desc}</small></button>)}</div></div>}
             </SiteChrome></InlineEditContext.Provider></EntitiesContext.Provider></AssetsContext.Provider></div></div>; })()}
           </div>
-          {editing && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 flex gap-1 bg-foreground rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}><span className="px-2 py-1.5 text-white/70">Editing text</span><button className="px-2.5 py-1.5 rounded hover:bg-white/15 inline-flex items-center" title="Choose content from an entity (or type {{ to insert at the cursor)" aria-label="Choose content from an entity" onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }}><ContentIcon /></button><button className="px-3 py-1.5 rounded bg-good font-medium" onClick={() => { commitInline(true); say("Saved"); }}>✓ Save</button><button className="px-3 py-1.5 rounded hover:bg-white/15" onClick={() => commitInline(false)}>✕ Cancel</button></div>}
+          {editing && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 flex gap-1 bg-foreground rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}><span className="px-2 py-1.5 text-white/70">Editing text</span><button className="px-2.5 py-1.5 rounded hover:bg-white/15 inline-flex items-center" title="Choose content from an entity (or type {{ to insert at the cursor)" aria-label="Choose content from an entity" onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }}><ContentIcon /></button><button className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-good font-medium" onClick={() => { commitInline(true); say("Saved"); }}><Check className="size-3.5" strokeWidth={2} aria-hidden />Save</button><button className="inline-flex items-center gap-1 px-3 py-1.5 rounded hover:bg-white/15" onClick={() => commitInline(false)}><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>Cancel</button></div>}
           {(patternMode || multi.length > 0) && !preview && <div data-ui role="toolbar" aria-label="Design pattern selection" className="absolute left-1/2 -translate-x-1/2 bottom-6 flex items-center gap-1 bg-foreground rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}>
             <span className="flex items-center gap-2 px-2.5 py-1.5"><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinejoin="round" aria-hidden><path d={PATTERN_ICON} /></svg><b>New design pattern</b></span>
             <span className="px-2 py-1.5 text-white/70">{multi.length ? `${multi.length} component${multi.length === 1 ? "" : "s"}` : "Click the components to put in it"}{multi.length === 1 ? " · pick at least one more" : ""}</span>
             <button className="px-3 py-1.5 rounded bg-brand font-medium disabled:opacity-40" disabled={multi.length < 2} onClick={() => setSavingPattern(true)}>Name it and save…</button>
-            <button className="px-3 py-1.5 rounded hover:bg-white/15" onClick={stopPattern}>Cancel</button></div>}
+            <button className="inline-flex items-center gap-1 px-3 py-1.5 rounded hover:bg-white/15" onClick={stopPattern}>Cancel</button></div>}
           {savingPattern && multiBlocks.length > 1 && <SavePatternDialog blocks={multiBlocks} marketId={marketId} onSave={savePattern} onClose={() => setSavingPattern(false)} />}
           {patMarkets && <PatternMarketsDialog name={patMarkets.name} value={patMarkets.markets ?? []} marketId={marketId} onClose={() => setPatMarkets(null)} onSave={async (m) => { try { await ucpApi.patternMarkets(marketId, patMarkets.id, m); say(m.length ? `${patMarkets.name}: only ${m.length} market${m.length === 1 ? "" : "s"}` : `${patMarkets.name}: all markets`); } catch { say("Could not change the markets"); } setPatMarkets(null); loadPatterns(); }} />}
           {ctaPop && selected && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 w-[min(420px,calc(100vw-24px))] bg-surface border border-line rounded-xl shadow-2xl z-20 p-3.5 text-sm" onMouseDown={(e) => { e.stopPropagation(); if (!(e.target as HTMLElement).closest("input, textarea")) e.preventDefault(); }}>
-            <div className="flex items-center mb-2.5"><b>Button</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => setCtaPop(null)} aria-label="Close">✕</button></div>
+            <div className="flex items-center mb-2.5"><b>Button</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => setCtaPop(null)} aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
             <label className="block text-xs text-ink-2 font-medium">Label<input autoFocus className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink font-normal" value={String(selected.props[ctaPop.labelKey] ?? "")} onChange={(e) => setProp(selected.id, ctaPop.labelKey, e.target.value)} /></label>
             {ctaPop.linkKey && <label className="block text-xs text-ink-2 font-medium mt-2.5">URL<input className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink font-normal" value={String(selected.props[ctaPop.linkKey] ?? "")} onChange={(e) => setProp(selected.id, ctaPop.linkKey!, e.target.value)} placeholder="/borrowing/credit-cards/apply" /></label>}
             <div className="flex justify-end mt-3"><button className="btn btn-sm btn-primary" onClick={() => setCtaPop(null)}>Done</button></div>
           </div>}
-          {/* ✨ Ask AI: floating button → full-width bar at the bottom of the canvas. Read-only users get the hint instead. */}
+          {/* Ask AI: floating button → full-width bar at the bottom of the canvas. Read-only users get the hint instead. */}
         </div>
         {/* Left panel: Add / Outline */}
-        {railsOn && !focus && !phone && <nav data-ui aria-label="Left panels" title={left ? "Click to collapse the panel" : "Click to open the panel"} onClick={(e) => { if (e.target === e.currentTarget) setLeftRaw(!left); /* empty rail area toggles the panel (last tab) */ }} className="absolute left-0 top-0 bottom-0 w-[52px] bg-surface border-r border-line flex flex-col items-center py-2 gap-1.5 z-[6] cursor-pointer">
-          {LEFT_RAIL.map(([t, label, path]) => { const on = left && leftTab === t; return <button key={t} type="button" title={label} aria-label={label} aria-pressed={on} onClick={() => { if (on) setLeftRaw(false); else { setLeftTab(t); setLeftRaw(true); } }} className={`relative w-11 h-11 rounded-lg grid place-items-center ${on ? "bg-brand text-white" : "text-ink-2 hover:bg-surface-3"}`}><svg viewBox="0 0 24 24" className="w-6 h-6 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={path} /></svg></button>; })}
-        </nav>}
-        {left && railsOn && <LeftPanel phone={phone} width={leftW} onResizeStart={startResize("left")} canEdit={canEdit} onAdd={add} onClose={() => setLeft(false)} lockedReason={lockReason || undefined} onEdit={veilEdit}
+        {/* The left rail is gone: its three icons duplicated the panel's own Components / Patterns /
+            Outline tabs. The top bar's "Components panel" toggle reopens the panel when it is closed. */}
+        
+        {railsOn && <LeftPanel open={left} phone={phone} width={leftW} canEdit={canEdit} onAdd={add} onClose={() => setLeft(false)} onOpenPanel={() => setLeft(true)}
+          railItems={LEFT_RAIL.map(([t, label, path]) => ({ key: t, label, path, active: leftTab === t, onClick: () => { setLeftTab(t); setLeft(true); } }))} lockedReason={lockReason || undefined} onEdit={veilEdit}
+          onFloatChange={setLeftFloating} blocks={blocks} selected={sel} onSelect={(id) => { select(id); canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }}
           tab={leftTab} onTab={setLeftTab} patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onRestorePattern={async (p) => { try { await ucpApi.archivePattern(marketId, p.id, false); say(`${p.name} restored`); } catch { say("Could not restore"); } loadPatterns(); }} onDeletePattern={(p) => deletePatternForGood(p)} onPatternMarkets={setPatMarkets} mayManage={mayManagePattern} onStartPattern={() => startPattern()} creating={patternMode} />}
         {/* Right panel: Configure (contextual) or Page settings */}
-        {railsOn && !focus && <nav data-ui aria-label="Panels" title={phone ? undefined : right ? "Click to collapse the panel" : "Click to open the panel"} onClick={(e) => { if (phone || e.target !== e.currentTarget) return; if (right) closeConfigure(true); else { if (rightTab === "block" && sel) configure(sel); else setRight(true); } }} className={phone ? "absolute left-0 right-0 bottom-0 h-12 bg-surface border-t border-line flex flex-row items-center justify-around px-2 z-[6]" : "absolute right-0 top-0 bottom-0 w-[52px] bg-surface border-l border-line flex flex-col items-center py-2 gap-1.5 z-[6] cursor-pointer"}>
-          {phone && LEFT_RAIL.map(([t, label, path]) => { const on = left && leftTab === t; return <button key={t} type="button" title={label} aria-label={label} aria-pressed={on} onClick={() => { if (on) setLeftRaw(false); else { setLeftTab(t); setLeftRaw(true); setRight(false); } }} className={`w-11 h-11 rounded-lg grid place-items-center ${on ? "bg-brand text-white" : "text-ink-2 hover:bg-surface-3"}`}><svg viewBox="0 0 24 24" className="w-6 h-6 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={path} /></svg></button>; })}
+        {railsOn && !focus && <nav data-ui aria-label="Panels" title={phone ? undefined : right ? "Click to collapse the panel" : "Click to open the panel"} onClick={(e) => { if (phone || e.target !== e.currentTarget) return; if (right) closeConfigure(true); else { if (rightTab === "block" && sel) configure(sel); else setRight(true); } }} className={phone ? "absolute left-0 right-0 bottom-0 h-12 bg-surface border-t border-line flex flex-row items-center justify-around px-2 z-[6]" : "absolute right-0 top-0 bottom-0 w-[52px] bg-surface border-l border-line flex flex-col items-center px-1.5 py-2.5 gap-1.5 z-[6] cursor-pointer"}>
+          {/* The slim bar's own expand control, replacing the toggle that used to live in the top bar. */}
+          {!phone && !right && <>
+            <button type="button" title="Open the settings panel" aria-label="Open the settings panel"
+              onClick={(e) => { e.stopPropagation(); if (rightTab === "block" && sel) configure(sel); else setRight(true); }}
+              className="w-10 h-10 rounded-lg grid place-items-center text-ink-3 transition-[color,background-color,transform] duration-150 ease-out hover:bg-surface-3 hover:text-ink active:scale-[0.97]">
+              <PanelRightOpen className="w-5 h-5" aria-hidden />
+            </button>
+            <span className="my-0.5 h-px w-5 bg-line" aria-hidden />
+          </>}
+          {phone && LEFT_RAIL.map(([t, label, path]) => { const on = left && leftTab === t; return <button key={t} type="button" title={label} aria-label={label} aria-pressed={on} onClick={() => { if (on) setLeftRaw(false); else { setLeftTab(t); setLeftRaw(true); setRight(false); } }} className={`w-10 h-10 rounded-lg grid place-items-center transition-[color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${on ? "bg-brand-soft text-brand" : "text-ink-3 hover:bg-surface-3 hover:text-ink"}`}><svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={path} /></svg></button>; })}
           {phone && <span className="w-px h-6 bg-line" aria-hidden />}
           {RAIL.map(([t, label, path]) => { const on = right && rightTab === t; const badge = t === "comments" ? commentCount : t === "insights" ? insightBadge : t === "content" ? Object.keys(bindings).length : t === "ai" ? aiTasks.filter((x) => x.stage !== "done").length : 0;
-            return <button key={t} type="button" title={label} aria-label={label} aria-pressed={on} onClick={() => { if (on) { closeConfigure(true); return; } if (phone) setLeftRaw(false); if (t === "block" && sel) configure(sel); else { setRightTab(t); setRight(true); } }} className={`relative w-11 h-11 rounded-lg grid place-items-center ${on ? "bg-brand text-white" : "text-ink-2 hover:bg-surface-3"}`}>
-              <svg viewBox="0 0 24 24" className="w-6 h-6 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={path} /></svg>
+            return <button key={t} type="button" title={label} aria-label={label} aria-pressed={on} onClick={() => { if (on) { closeConfigure(true); return; } if (phone) setLeftRaw(false); if (t === "block" && sel) configure(sel); else { setRightTab(t); setRight(true); } }} className={`relative w-10 h-10 rounded-lg grid place-items-center transition-[color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${on ? "bg-brand-soft text-brand" : "text-ink-3 hover:bg-surface-3 hover:text-ink"}`}>
+              <svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={path} /></svg>
               {badge > 0 && <span className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-xs font-bold grid place-items-center ${on ? "bg-white text-brand" : "bg-brand text-white"}`}>{badge}</span>}
             </button>; })}
         </nav>}
-        {right && railsOn && <aside data-ui style={phone ? undefined : { width: panelW }} className={phone ? "absolute inset-x-0 top-0 bottom-12 bg-surface flex flex-col z-[5]" : "absolute right-[52px] top-0 bottom-0 max-w-[calc(100%-52px)] bg-surface border-l border-line flex flex-col z-[5] shadow-xl md:shadow-none"}>
-          {!phone && <div role="separator" aria-orientation="vertical" aria-label="Resize panel" title="Drag to resize" onMouseDown={startResize("right")} className="absolute -left-1 top-0 bottom-0 w-2 cursor-col-resize hover:bg-brand/30 active:bg-brand/40 z-10" />}
-          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-sm">{rightTab === "block" ? (selected ? `Configure · ${BLOCK_BY_TYPE[selected.type].name}` : "Configure") : rightTab === "page" ? "Page settings" : rightTab === "content" ? "Entities" : rightTab === "ai" ? "✨ AI assistant" : rightTab === "insights" ? "Page insights" : rightTab === "comments" ? `Comments${commentTotal ? ` · ${commentTotal}` : ""}` : "Version history"}</b><button className={`ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3`} onClick={() => closeConfigure(true)} aria-label="Close">✕</button></div>
+        {railsOn && <aside data-ui {...rightFloat.panelProps} aria-hidden={!right} inert={!right || undefined} data-side="right" style={phone ? rightFloat.panelProps.style : rightFloat.floating ? { width: panelW, ...rightFloat.panelProps.style } : { width: right ? panelW : 0, ...rightFloat.panelProps.style }} className={panelClass("right", rightFloat.floating, phone)}>
+          {/* Fixed width, like the left panel: a draggable edge is a setting nobody wants to manage. */}
+          {rightFloat.floating && <GripStrip float={rightFloat} />}
+          <PanelBody open={right} width={panelW} floating={rightFloat.floating}>
+          <section aria-label="Page and component settings" className="flex min-h-0 flex-1 flex-col">
+          <PanelHeader side="right" canDetach={false} float={rightFloat} onClose={() => closeConfigure(true)} title={rightTab === "block" ? (selected ? `Configure · ${BLOCK_BY_TYPE[selected.type].name}` : "Configure") : rightTab === "page" ? "Page settings" : rightTab === "content" ? "Entities" : rightTab === "ai" ? "AI assistant" : rightTab === "insights" ? "Page insights" : rightTab === "comments" ? `Comments${commentTotal ? ` · ${commentTotal}` : ""}` : "Version history"} />
           <LockedVeil on={!!lockReason && (rightTab === "block" || rightTab === "ai")} reason={lockReason} onEdit={veilEdit}>
-          {rightTab === "insights" ? <div className="flex-1 overflow-auto p-3.5 text-sm"><InsightsPanel blocks={blocks} page={insightMeta} onFix={(apply, label) => { if (!canEdit) { say("Read-only: ask a site admin for Edit"); return; } mutate(apply); say(`Fixed: ${label}`); }} onSelectBlock={(id) => { select(id); const el = canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`); el?.scrollIntoView({ block: "center", behavior: "smooth" }); }} /></div>
-          : rightTab === "comments" ? <div className="flex-1 overflow-auto p-3.5 text-sm"><PageComments marketId={marketId} path={page.path} about={commentAbout} onClearAbout={() => setCommentAbout(null)} focusKey={commentFocus} bare {...reviewProps} /></div>
-          : rightTab === "history" ? <div className="flex-1 overflow-auto p-3.5 text-sm"><VersionHistory marketId={marketId} path={page.path} currentBlocks={blocks.length} onCommentVersion={(a) => { setCommentAbout(a); setCommentFocus((k) => k + 1); setRightTab("comments"); }} onRestored={() => { router.refresh(); say("Version restored · reloading"); setTimeout(() => window.location.reload(), 400); }} /></div>
-          : rightTab === "content" ? <div className="flex-1 overflow-auto p-3.5 text-sm"><EntitiesPanel marketId={marketId} base={`/${marketId}/${envId}`} pagePath={page.path} bindings={bindings} entities={entities} models={models} blocks={blocks} canEdit={canEdit && !locked} onChange={setBindings} say={say} /></div>
-          : rightTab === "ai" ? <AiPanel tasks={aiTasks} draft={aiDraft} setDraft={setAiDraft} dirty={dirty} onAsk={startAiTask} onToggle={(t, id) => patchTask(t.id, (x) => ({ ...x, on: { ...x.on, [id]: !x.on[id] } }))} onRun={runAiTask} onUndo={undoAiOp} onRedo={redoAiOp} onUndoAll={undoAllAi} onSave={() => save().then(() => say("Saved")).catch(() => {})} /> : <div className="flex-1 overflow-auto p-3.5 text-sm">
-            {rightTab === "page" ? <div className="flex flex-col gap-3">
-              <label className="text-xs text-ink-2 font-medium">Page title<input className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm font-normal text-ink" value={title} onChange={(e) => setPageField("title", e.target.value)} /></label>
-              <label className="text-xs text-ink-2 font-medium">Meta description<textarea rows={3} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm font-normal text-ink" value={description} onChange={(e) => setPageField("description", e.target.value)} placeholder="One or two sentences shown in search results" /><small className={`font-normal ${description.length > 155 ? "text-crit" : "text-ink-3"}`}>{description.length}/155 characters</small></label>
-              <div className="text-xs text-ink-2 font-medium"><label htmlFor="pg-jira">Jira ticket</label>
-                <form className="mt-1 flex gap-1.5" onSubmit={(e) => { e.preventDefault(); void saveJira(jiraDraft); }}><input id="pg-jira" className="flex-1 min-w-0 border border-line-2 rounded-md px-2.5 py-1.5 text-sm font-normal text-ink" value={jiraDraft} onChange={(e) => { setJiraDraft(e.target.value); setJiraErr(""); }} placeholder="UCP-123 or https://…/browse/UCP-123" />
-                  {jiraDraft.trim() !== jira && <button className="btn btn-sm btn-primary">Save</button>}</form>
-                {jiraErr ? <small className="block mt-1 text-crit font-normal">{jiraErr}</small> : jira ? <span className="mt-1.5 flex items-center gap-2 font-normal"><JiraChip url={jira} /><button type="button" className="text-xs text-ink-3 underline underline-offset-2 hover:text-ink" onClick={() => void saveJira("")}>Remove link</button></span> : <small className="block mt-1 text-ink-3 font-normal">The ticket this page is built for. Everyone can open it from the page.</small>}</div>
-              <div className="text-xs text-ink-2 font-medium">URL<div className="mt-1 text-xs bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">{domain}{rel}</div></div>
-              <div className="text-xs text-ink-2 font-medium">Template<div className="mt-1 bg-surface-2 border border-line rounded-md px-2.5 py-1.5 font-normal text-ink-2">{TEMPLATES.find((t) => t.id === page.template)?.name ?? page.template}</div><small className="text-ink-3 font-normal">Fixed after creation</small></div>
-              <div className="text-xs text-ink-2 font-medium">Repository path (JCR)<div className="mt-1 text-xs bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">{page.path}/jcr:content</div><small className="text-ink-3 font-normal">Components are stored under jcr:content/root as nodes with sling:resourceType</small></div>
-              <div className="text-xs text-ink-3">Created {page.created?.slice(0, 10)} · Last modified {page.lastModified?.slice(0, 16).replace("T", " ")}</div>
-              <div className="border-t border-line pt-3 flex flex-col gap-2"><b className="text-xs text-ink-2">Languages</b><span className="text-xs text-ink-3">This page is {locale}. Create a translated copy in another locale.</span><button className="btn btn-sm btn-secondary justify-center" onClick={() => setTranslating(true)}>🌐 Translate this page…</button></div>
+          {rightTab === "insights" ? <div className="flex-1 overflow-auto p-4 text-sm"><InsightsPanel blocks={blocks} page={insightMeta} onFix={(apply, label) => { if (!canEdit) { say("Read-only: ask a site admin for Edit"); return; } mutate(apply); say(`Fixed: ${label}`); }} onSelectBlock={(id) => { select(id); const el = canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`); el?.scrollIntoView({ block: "center", behavior: "smooth" }); }} /></div>
+          : rightTab === "comments" ? <div className="flex-1 overflow-auto p-4 text-sm"><PageComments marketId={marketId} path={page.path} about={commentAbout} onClearAbout={() => setCommentAbout(null)} focusKey={commentFocus} bare {...reviewProps} /></div>
+          : rightTab === "history" ? <div className="flex-1 overflow-auto p-4 text-sm"><VersionHistory marketId={marketId} path={page.path} currentBlocks={blocks.length} onCommentVersion={(a) => { setCommentAbout(a); setCommentFocus((k) => k + 1); setRightTab("comments"); }} onRestored={() => { router.refresh(); say("Version restored · reloading"); setTimeout(() => window.location.reload(), 400); }} /></div>
+          : rightTab === "content" ? <div className="flex-1 overflow-auto p-4 text-sm"><EntitiesPanel marketId={marketId} base={`/${marketId}/${envId}`} pagePath={page.path} bindings={bindings} entities={entities} models={models} blocks={blocks} canEdit={canEdit && !locked} onChange={setBindings} say={say} /></div>
+          : rightTab === "ai" ? <AiPanel tasks={aiTasks} draft={aiDraft} setDraft={setAiDraft} dirty={dirty} onAsk={startAiTask} onToggle={(t, id) => patchTask(t.id, (x) => ({ ...x, on: { ...x.on, [id]: !x.on[id] } }))} onRun={runAiTask} onUndo={undoAiOp} onRedo={redoAiOp} onUndoAll={undoAllAi} onSave={() => save().then(() => say("Saved")).catch(() => {})} /> : <div className="flex-1 overflow-auto p-4 text-sm">
+            {/* Page settings was a flat wall of nine fields — the one tab on this side that really
+                needed grouping. Same collapsible sections as Configure and the left panel, so both
+                panels read the same way. Only Basics is open: the rest are reference, not edits. */}
+            {rightTab === "page" ? <div className="-mx-4 -mt-4 flex flex-col">
+              <Section t="Basics">
+                <label className="text-xs text-ink-2 font-medium">Page title<input className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm font-normal text-ink" value={title} onChange={(e) => setPageField("title", e.target.value)} /></label>
+                <label className="text-xs text-ink-2 font-medium">Meta description<textarea rows={3} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm font-normal text-ink" value={description} onChange={(e) => setPageField("description", e.target.value)} placeholder="One or two sentences shown in search results" /><small className={`font-normal ${description.length > 155 ? "text-crit" : "text-ink-3"}`}>{description.length}/155 characters</small></label>
+              </Section>
+              <Section t="Address" open={false}>
+                <div className="text-xs text-ink-2 font-medium">URL<div className="mt-1 text-xs bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">{domain}{rel}</div></div>
+                <div className="text-xs text-ink-2 font-medium">Template<div className="mt-1 bg-surface-2 border border-line rounded-md px-2.5 py-1.5 font-normal text-ink-2">{TEMPLATES.find((t) => t.id === page.template)?.name ?? page.template}</div><small className="text-ink-3 font-normal">Fixed after creation</small></div>
+              </Section>
+              <Section t="Languages" open={false}>
+                <span className="text-xs text-ink-3">This page is {locale}. Create a translated copy in another locale.</span>
+                <button className="btn btn-sm btn-secondary justify-center" onClick={() => setTranslating(true)}><Languages className="size-3.5" strokeWidth={1.5} aria-hidden />Translate this page…</button>
+              </Section>
+              <Section t="Tracking" open={false}>
+                <div className="text-xs text-ink-2 font-medium"><label htmlFor="pg-jira">Jira ticket</label>
+                  <form className="mt-1 flex gap-1.5" onSubmit={(e) => { e.preventDefault(); void saveJira(jiraDraft); }}><input id="pg-jira" className="flex-1 min-w-0 border border-line-2 rounded-md px-2.5 py-1.5 text-sm font-normal text-ink" value={jiraDraft} onChange={(e) => { setJiraDraft(e.target.value); setJiraErr(""); }} placeholder="UCP-123 or https://…/browse/UCP-123" />
+                    {jiraDraft.trim() !== jira && <button className="btn btn-sm btn-primary">Save</button>}</form>
+                  {jiraErr ? <small className="block mt-1 text-crit font-normal">{jiraErr}</small> : jira ? <span className="mt-1.5 flex items-center gap-2 font-normal"><JiraChip url={jira} /><button type="button" className="text-xs text-ink-3 underline underline-offset-2 hover:text-ink" onClick={() => void saveJira("")}>Remove link</button></span> : <small className="block mt-1 text-ink-3 font-normal">The ticket this page is built for. Everyone can open it from the page.</small>}</div>
+              </Section>
+              <Section t="Technical" open={false}>
+                <div className="text-xs text-ink-2 font-medium">Repository path (JCR)<div className="mt-1 text-xs bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">{page.path}/jcr:content</div><small className="text-ink-3 font-normal">Components are stored under jcr:content/root as nodes with sling:resourceType</small></div>
+                <div className="text-xs text-ink-3">Created {page.created?.slice(0, 10)} · Last modified {page.lastModified?.slice(0, 16).replace("T", " ")}</div>
+              </Section>
             </div>
             : !selected ? <div className="text-ink-3 p-2"><b className="block text-sm text-ink mb-1.5">Nothing selected</b>Click a block on the page to see its settings here.<div className="mt-3.5 flex flex-col gap-1.5">{blocks.slice(0, 8).map((k, ix) => <button key={k.id} className="btn btn-sm btn-secondary justify-start" onClick={() => configure(k.id)}>{ix + 1}. {BLOCK_BY_TYPE[k.type].name}</button>)}</div></div>
             : <ConfigForm block={selected} index={blocks.indexOf(selected)} count={blocks.length} marketId={marketId} setProp={(k, v) => setProp(selected.id, k, v)} entities={entities} canEdit={canEdit && !locked} onFieldFocus={(k, l, start, end) => { if (editing) commitInline(true); lastField.current = { blockId: selected.id, k, l, start, end }; }} onChoose={(k, l) => setContentPick({ target: "field", blockId: selected.id, k, l })} />}
           </div>}
           </LockedVeil>
           {rightTab === "block" && selected && !lockReason && <div className="flex justify-end gap-2 px-3.5 py-2.5 border-t border-line bg-surface"><button className="btn btn-sm btn-secondary" onClick={() => closeConfigure(false)}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => { closeConfigure(true); say("Component updated · Save the page when you're done"); }}>Save</button></div>}
+          </section>
+          </PanelBody>
         </aside>}
         {focus && <div aria-live="polite" className={`fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-foreground/85 text-white text-xs px-3 py-1.5 rounded-full transition-opacity duration-700 ${fsHint ? "opacity-100" : "opacity-0 pointer-events-none"}`}>Preview · this is what visitors see · press Esc to go back to editing</div>}
         {focus && reviewMode && <FloatingPanel title={status === "bizreview" && bizAssigned && mayBizApprove ? "Review" : "Comments"} count={commentTotal} open={floatOpen} onToggle={setFloatOpen} hint={commentTarget || (status === "bizreview" && bizAssigned && mayBizApprove) ? undefined : "Click a text, an image or a component on the page to comment on it."}
@@ -730,8 +789,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   );
 }
 
-/* ---- contextual toolbar at the selected block: ✎ Edit · ✨ AI · ⋯ More (+ ⚙ Configure on phones, where clicking only selects) ---- */
-function Btn({ children, on, onClick, disabled, title }: { children: React.ReactNode; on?: boolean; onClick: () => void; disabled?: boolean; title: string }) { return <button title={title} disabled={disabled} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); onClick(); }} className={`px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap disabled:opacity-40 ${on ? "bg-brand text-white" : "hover:bg-white/15"}`}>{children}</button>; }
+/* ---- contextual toolbar at the selected block: Edit · AI · More (+ Configure on phones, where clicking only selects) ---- */
+function Btn({ children, on, onClick, disabled, title }: { children: React.ReactNode; on?: boolean; onClick: () => void; disabled?: boolean; title: string }) { return <button title={title} disabled={disabled} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); onClick(); }} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap disabled:opacity-40 ${on ? "bg-brand text-white" : "hover:bg-white/15"}`}>{children}</button>; }
 type MoreAction = "duplicate" | "copy" | "paste" | "up" | "down" | "hide" | "lock" | "delete" | "history" | "pattern";
 function ContextBar({ block: b, index, count, mode, pop, setPop, clipboard, aiSeed, onEdit, onConfigure, onMore, onAi }: { block: Block; index: number; count: number; mode: "select" | "edit"; pop: "ai" | "more" | null; setPop: (p: "ai" | "more" | null) => void; clipboard: Block | null; aiSeed?: string; onEdit: () => void; onConfigure?: () => void; onMore: (a: MoreAction) => void; onAi: (p: AiProposal) => void }) {
   const locked = !!b.props.locked; const editing = mode === "edit";
@@ -742,20 +801,20 @@ function ContextBar({ block: b, index, count, mode, pop, setPop, clipboard, aiSe
   const items: [MoreAction, string, boolean?][] = [["duplicate", "Duplicate"], ["copy", "Copy"], ["paste", "Paste after", !clipboard], ["hide", b.props.hidden ? "Show" : "Hide"], ["lock", locked ? "Unlock" : "Lock"], ["history", "Version history"], ["delete", "Delete"]];
   return <div data-ui className="absolute -top-5 left-3 z-[4]" onMouseDown={(e) => { e.stopPropagation(); if (!(e.target as HTMLElement).closest("input, textarea")) e.preventDefault(); }} onDoubleClick={(e) => e.stopPropagation()}>
     <div role="toolbar" aria-label={`${BLOCK_BY_TYPE[b.type].name} actions`} className="flex items-center gap-0.5 bg-foreground text-background rounded-lg p-1 shadow-xl">
-      <b className="px-2 text-xs text-white/70 border-r border-white/15 mr-0.5">{BLOCK_BY_TYPE[b.type].name}{locked ? " 🔒" : ""}{b.props.hidden ? " · hidden" : ""}</b>
-      <Btn title={editing ? "Finish editing text" : "Edit text, images and buttons in place"} on={editing} onClick={onEdit} disabled={locked}>{editing ? "✓ Done" : "✎ Edit"}</Btn>
-      {onConfigure && <Btn title="All properties, layout and behaviour" onClick={onConfigure}>⚙ Configure</Btn>}
+      <b className="px-2 text-xs text-white/70 border-r border-white/15 mr-0.5">{BLOCK_BY_TYPE[b.type].name}{locked ? " · locked" : ""}{b.props.hidden ? " · hidden" : ""}</b>
+      <Btn title={editing ? "Finish editing text" : "Edit text, images and buttons in place"} on={editing} onClick={onEdit} disabled={locked}>{editing ? "Done" : "Edit"}</Btn>
+      {onConfigure && <Btn title="All properties, layout and behaviour" onClick={onConfigure}>Configure</Btn>}
       <Btn title="Create a design pattern starting with this component" onClick={() => onMore("pattern")}><span className="inline-flex items-center gap-1.5"><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinejoin="round" aria-hidden><path d={PATTERN_ICON} /></svg>Pattern</span></Btn>
-      <Btn title="Ask AI to change this block" on={pop === "ai"} onClick={() => { setPop(pop === "ai" ? null : "ai"); setProposal(null); }} disabled={locked}>✨ AI</Btn>
+      <Btn title="Ask AI to change this block" on={pop === "ai"} onClick={() => { setPop(pop === "ai" ? null : "ai"); setProposal(null); }} disabled={locked}><Sparkles className="size-3.5" strokeWidth={1.5} aria-hidden />AI</Btn>
       <span className="w-px h-5 bg-white/20 mx-0.5" aria-hidden />
       <Btn title="Move up" onClick={() => onMore("up")} disabled={index === 0 || locked}><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 19V5M5 12l7-7 7 7" /></svg></Btn>
       <Btn title="Move down" onClick={() => onMore("down")} disabled={index === count - 1 || locked}><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M12 5v14M5 12l7 7 7-7" /></svg></Btn>
       <Btn title="Delete block" onClick={() => onMore("delete")} disabled={locked}><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg></Btn>
-      <Btn title="More actions" on={pop === "more"} onClick={() => setPop(pop === "more" ? null : "more")}>⋯</Btn>
+      <Btn title="More actions" on={pop === "more"} onClick={() => setPop(pop === "more" ? null : "more")}><MoreHorizontal className="size-4" strokeWidth={1.8} aria-hidden /></Btn>
     </div>
     {pop === "more" && <div role="menu" className="absolute left-0 top-full mt-1 w-44 bg-surface border border-line rounded-lg shadow-2xl py-1 text-sm text-ink">{items.map(([a, l, dis]) => <button key={a} role="menuitem" disabled={dis} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); onMore(a); }} className={`w-full text-left px-3 py-1.5 hover:bg-surface-3 disabled:opacity-40 ${a === "delete" ? "text-brand border-t border-line mt-1" : ""}`}>{l}</button>)}</div>}
     {pop === "ai" && <div className="absolute left-0 top-full mt-1 w-[min(440px,calc(100vw-24px))] bg-surface border border-line rounded-xl shadow-2xl p-3.5 text-sm text-ink">
-      <div className="flex items-center mb-2"><b>✨ What would you like to change?</b><span className="ml-auto text-xs text-ink-3">{BLOCK_BY_TYPE[b.type].name} only</span></div>
+      <div className="flex items-center mb-2"><b className="inline-flex items-center gap-1.5"><Sparkles className="size-3.5" strokeWidth={1.5} aria-hidden />What would you like to change?</b><span className="ml-auto text-xs text-ink-3">{BLOCK_BY_TYPE[b.type].name} only</span></div>
       {!proposal && <div className="flex flex-col gap-1 mb-2.5">{AI_SUGGESTIONS.map((s) => <button key={s} onMouseDown={(e) => e.preventDefault()} className="text-left px-2.5 py-1.5 rounded-md border border-line hover:border-ink hover:bg-surface-2" onClick={(e) => { e.stopPropagation(); ask(s); }}>“{s}”</button>)}</div>}
       {proposal && <div className="mb-2.5">
         <div className="text-xs text-ink-3 mb-1.5">{proposal.note}</div>
@@ -769,9 +828,24 @@ function ContextBar({ block: b, index, count, mode, pop, setPop, clipboard, aiSe
 
 /* ---- Configure panel: Content / Layout / Behaviour / Metadata ---- */
 type PropCtl = { P: Record<string, unknown>; setProp: (k: string, v: unknown) => void };
-function Seg({ P, setProp, k, opts }: PropCtl & { k: string; opts: string[] }) { return <div className="flex gap-1">{opts.map((o) => <button key={o} className={`bdl-chip capitalize ${(P[k] ?? opts[0]) === o ? "bdl-chip-active" : ""}`} onClick={() => setProp(k, o)}>{o}</button>)}</div>; }
-function Tog({ P, setProp, k, l }: PropCtl & { k: string; l: string }) { return <label className="flex items-center justify-between text-xs text-ink-2 font-medium">{l}<button className={`w-9 h-5 rounded-full relative ${P[k] ? "bg-good" : "bg-line-2"}`} aria-pressed={!!P[k]} onClick={() => setProp(k, !P[k])}><i className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${P[k] ? "left-4" : "left-0.5"}`} /></button></label>; }
-function Section({ t, children }: { t: string; children: React.ReactNode }) { return <div className="border-t border-line pt-3 mt-1"><h6 className="text-xs tracking-[.1em] uppercase text-ink-3 font-medium mb-2.5">{t}</h6><div className="flex flex-col gap-3">{children}</div></div>; }
+/* A single-choice control, so it is announced as one: radiogroup + radio, not a row of buttons. */
+function Seg({ P, setProp, k, opts, label }: PropCtl & { k: string; opts: string[]; label?: string }) {
+  const value = String(P[k] ?? opts[0]);
+  return <div role="radiogroup" aria-label={label ?? k} className="flex gap-1">{opts.map((o) => <button key={o} type="button" role="radio" aria-checked={value === o} className={`bdl-chip capitalize ${value === o ? "bdl-chip-active" : ""}`} onClick={() => setProp(k, o)}>{o}</button>)}</div>;
+}
+/* A real checkbox in BDL's own class, not a hand-rolled switch: it is the house control, it is
+   reachable by keyboard and announced as a checkbox, and its label is properly associated. */
+function Tog({ P, setProp, k, l }: PropCtl & { k: string; l: string }) {
+  const id = `tog-${k}`;
+  return <div className="flex items-start gap-2.5"><input id={id} type="checkbox" className="bdl-checkbox bdl-checkbox-sm mt-px" checked={!!P[k]} onChange={(e) => setProp(k, e.target.checked)} /><label htmlFor={id} className="text-xs font-medium text-ink-2">{l}</label></div>;
+}
+/* Configure's groups are collapsible now (same component as the left panel's groups), so a block
+   with a long Content list no longer buries Layout, Behaviour and Metadata below the fold.
+   Content is the one open by default — it is what the author came for. */
+function Section({ t, children, open }: { t: string; children: React.ReactNode; open?: boolean }) {
+  // An id so the header's `aria-controls` actually points at the region it expands.
+  return <PanelSection id={`sec-${t.toLowerCase().replace(/\W+/g, "-")}`} title={t} defaultOpen={open ?? true}><div className="flex flex-col gap-3">{children}</div></PanelSection>;
+}
 type FieldFocus = (k: string, l: string, start: number, end: number) => void;
 /** Remembers the caret of the last focused text field so token chips insert where the author was typing. */
 const track = (k: string, l: string, fn: FieldFocus) => (e: React.SyntheticEvent<HTMLInputElement | HTMLTextAreaElement>) => { const t = e.currentTarget; fn(k, l, t.selectionStart ?? t.value.length, t.selectionEnd ?? t.value.length); };
@@ -797,26 +871,26 @@ function ConfigForm({ block: selected, index, count, marketId, setProp, entities
       : <input className="w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm" value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} />}
       {(f.t === "text" || f.t === "textarea") && <Inherited value={String(v ?? "")} entities={entities} onStop={(text) => setProp(f.k, text)} />}
       {invalid ? <div className="text-xs text-crit mt-1">Required before the page can be sent for review.</div> : f.hint && f.t !== "lines" ? <div className="text-xs text-ink-3 mt-1">{f.hint}</div> : null}</div>; })}</Section>
-    <Section t="Layout"><div><label className="block text-xs text-ink-2 font-medium mb-1">Width</label><Seg P={P} setProp={setProp} k="layout" opts={["full", "contained", "narrow"]} /></div><div><label className="block text-xs text-ink-2 font-medium mb-1">Spacing</label><Seg P={P} setProp={setProp} k="spacing" opts={["default", "compact", "roomy"]} /></div></Section>
-    <Section t="Behaviour"><Tog P={P} setProp={setProp} k="hidden" l="Hidden (not rendered on the live site)" /><Tog P={P} setProp={setProp} k="hideMobile" l="Hide on mobile" /><Tog P={P} setProp={setProp} k="locked" l="Locked (no edits until unlocked)" /><Tog P={P} setProp={setProp} k="personalise" l="Targeting enabled (Adobe Target segment)" /></Section>
-    <Section t="Metadata"><div className="text-xs text-ink-2 font-medium">Node<div className="mt-1 text-xs bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">jcr:content/root/{selected.id}</div></div><div className="text-xs text-ink-2 font-medium">sling:resourceType<div className="mt-1 text-xs bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2">hsbc/components/{selected.type}</div></div></Section>
+    <Section t="Layout" open={false}><div><label className="block text-xs text-ink-2 font-medium mb-1">Width</label><Seg P={P} setProp={setProp} k="layout" label="Width" opts={["full", "contained", "narrow"]} /></div><div><label className="block text-xs text-ink-2 font-medium mb-1">Spacing</label><Seg P={P} setProp={setProp} k="spacing" label="Spacing" opts={["default", "compact", "roomy"]} /></div></Section>
+    <Section t="Behaviour" open={false}><Tog P={P} setProp={setProp} k="hidden" l="Hidden (not rendered on the live site)" /><Tog P={P} setProp={setProp} k="hideMobile" l="Hide on mobile" /><Tog P={P} setProp={setProp} k="locked" l="Locked (no edits until unlocked)" /><Tog P={P} setProp={setProp} k="personalise" l="Targeting enabled (Adobe Target segment)" /></Section>
+    <Section t="Metadata" open={false}><div className="text-xs text-ink-2 font-medium">Node<div className="mt-1 text-xs bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">jcr:content/root/{selected.id}</div></div><div className="text-xs text-ink-2 font-medium">sling:resourceType<div className="mt-1 text-xs bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2">hsbc/components/{selected.type}</div></div></Section>
   </div>;
 }
 
 function ListEditor({ rows, hint, onChange }: { rows: string[][]; hint?: string; onChange: (rows: string[][]) => void }) {
   const cols = (hint ?? "Value").split("|").map((c) => c.trim());
   const set = (r: number, c: number, v: string) => { const n = rows.map((x) => x.slice()); while (n[r].length <= c) n[r].push(""); n[r][c] = cellSafe(v); onChange(n); };
-  return <div className="flex flex-col gap-2">{rows.map((r, ri) => <div key={ri} className="border border-line bg-surface-2 p-2.5 rounded-md"><div className="flex justify-between items-center mb-1"><b className="text-xs">Item {ri + 1}</b><span className="flex gap-0.5"><button className="btn-ghost" disabled={ri === 0} onClick={() => { const n = rows.slice(); [n[ri - 1], n[ri]] = [n[ri], n[ri - 1]]; onChange(n); }} aria-label="Move up">↑</button><button className="btn-ghost" disabled={ri === rows.length - 1} onClick={() => { const n = rows.slice(); [n[ri + 1], n[ri]] = [n[ri], n[ri + 1]]; onChange(n); }} aria-label="Move down">↓</button><button className="btn-ghost" onClick={() => onChange(rows.filter((_, i) => i !== ri))} aria-label="Remove">✕</button></span></div>
+  return <div className="flex flex-col gap-2">{rows.map((r, ri) => <div key={ri} className="border border-line bg-surface-2 p-2.5 rounded-md"><div className="flex justify-between items-center mb-1"><b className="text-xs">Item {ri + 1}</b><span className="flex gap-0.5"><button className="btn-ghost" disabled={ri === 0} onClick={() => { const n = rows.slice(); [n[ri - 1], n[ri]] = [n[ri], n[ri - 1]]; onChange(n); }} aria-label="Move up">↑</button><button className="btn-ghost" disabled={ri === rows.length - 1} onClick={() => { const n = rows.slice(); [n[ri + 1], n[ri]] = [n[ri], n[ri + 1]]; onChange(n); }} aria-label="Move down">↓</button><button className="btn-ghost" onClick={() => onChange(rows.filter((_, i) => i !== ri))} aria-label="Remove"><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button></span></div>
     {cols.map((c, ci) => { const n = c.toLowerCase(); const plain = /icon|style|link|url/.test(n); const block = n.includes("text") || n.includes("answer");
       return <div key={ci} className="mt-1.5 text-xs text-ink-3">{plain ? <label className="block">{c}<input className="mt-0.5 w-full border border-line-2 rounded px-2 py-1 text-sm text-ink" value={r[ci] ?? ""} onChange={(e) => set(ri, ci, e.target.value)} /></label>
         : <><span className="block mb-0.5">{c}</span><RichField inline={!block} compact value={r[ci] ?? ""} label={`${c}, item ${ri + 1}`} onChange={(html) => set(ri, ci, html)} /></>}</div>; })}</div>)}
     <button className="btn btn-sm btn-secondary justify-center" onClick={() => onChange([...rows, cols.map(() => "")])}>＋ Add item</button></div>;
 }
 
-/* ---- ✨ Ask AI bar: full-width prompt at the bottom of the canvas (page level). Enter asks, Esc closes. ---- */
+/* ---- Ask AI bar: full-width prompt at the bottom of the canvas (page level). Enter asks, Esc closes. ---- */
 function Stage({ label, state, children }: { label: string; state: "done" | "on" | "todo"; children?: React.ReactNode }) {
   return <div className={`flex gap-2.5 ${state === "todo" ? "opacity-40" : ""}`}>
-    <i className={`mt-0.5 w-5 h-5 flex-none rounded-full grid place-items-center not-italic text-xs font-bold ${state === "done" ? "bg-good text-white" : state === "on" ? "bg-brand text-white animate-pulse" : "border border-line-2 text-ink-3"}`}>{state === "done" ? "✓" : STAGES.indexOf(label as typeof STAGES[number]) + 1}</i>
+    <i className={`mt-0.5 w-5 h-5 flex-none rounded-full grid place-items-center not-italic text-xs font-bold ${state === "done" ? "bg-good text-white" : state === "on" ? "bg-brand text-white animate-pulse" : "border border-line-2 text-ink-3"}`}>{state === "done" ? <Check className="size-3" strokeWidth={2.5} aria-hidden /> : STAGES.indexOf(label as typeof STAGES[number]) + 1}</i>
     <div className="min-w-0 flex-1"><div className="text-xs tracking-[.1em] uppercase text-ink-3 font-medium">{label}</div>{children}</div>
   </div>;
 }
@@ -832,23 +906,23 @@ function AiPanel({ tasks, draft, setDraft, dirty, onAsk, onToggle, onRun, onUndo
     <div ref={ref} className="flex-1 overflow-auto p-3.5 text-sm flex flex-col gap-4 min-h-0">
       {history.length > 0 && <div className="border border-line rounded-lg bg-surface-2 p-2.5"><div className="text-xs tracking-[.1em] uppercase text-ink-3 font-medium mb-1">Earlier in this session</div>{history.map((t) => <div key={t.id} className="flex gap-2 text-xs py-0.5"><span className="truncate text-ink-2">{t.prompt}</span><span className="ml-auto flex-none text-ink-3">{applied(t)}/{t.plan.ops.length} applied</span></div>)}</div>}
       {!tasks.length && <div className="flex-1 flex flex-col justify-center items-center text-center px-2 py-6 gap-4">
-        <div className="w-11 h-11 rounded-full bg-foreground text-background grid place-items-center text-xl" aria-hidden>✨</div>
+        <div className="w-11 h-11 rounded-full bg-foreground text-background grid place-items-center" aria-hidden><Sparkles className="size-5" strokeWidth={1.5} /></div>
         <div><b className="block text-base">What would you like to do with this page?</b><p className="text-xs text-ink-3 mt-1 max-w-[280px]">You will see a plan first. Nothing changes until you run it, and every change can be undone.</p></div>
         <div className="flex flex-wrap justify-center gap-1.5 max-w-[320px]">{AI_EXAMPLES.flatMap((g) => g.items).map(([label, prompt, hint]) => <button key={label} type="button" title={hint} onClick={() => onAsk(prompt)} className="text-xs px-3 py-1.5 rounded-full border border-line-2 bg-surface text-ink-2 hover:border-ink hover:text-ink hover:bg-surface-2">{label}</button>)}</div>
-        <p className="text-xs text-ink-4">With a block selected, the ✨ button on the block changes only that block.</p>
+        <p className="text-xs text-ink-4">With a block selected, the AI button on the block changes only that block.</p>
       </div>}
       {tasks.map((t, ti) => { const last = ti === tasks.length - 1; const ops = t.plan.ops; const enabled = ops.filter((o) => t.on[o.id]); const n = applied(t); const st = (s: typeof STAGES[number]): "done" | "on" | "todo" => { const order = { understanding: 0, plan: 1, executing: 2, done: 4 }[t.stage]; const i = STAGES.indexOf(s); return i < order || t.stage === "done" ? "done" : i === order ? "on" : "todo"; };
         return <div key={t.id} className={`flex flex-col gap-3 ${last ? "" : "opacity-80"}`}>
           <div className="self-end max-w-[85%] bg-ink text-white rounded-xl rounded-br-sm px-3 py-2 text-sm"><span className="block text-xs uppercase tracking-[.08em] text-white/60">You</span>{t.prompt}</div>
           <div className="border border-line rounded-xl p-3 flex flex-col gap-3 bg-surface">
-            <b className="text-sm">✨ {t.plan.title}</b>
+            <b className="inline-flex items-center gap-1.5 text-sm"><Sparkles className="size-3.5 shrink-0" strokeWidth={1.5} aria-hidden />{t.plan.title}</b>
             <Stage label="Understanding" state={st("Understanding")}><p className="text-ink-2 mt-0.5">{t.plan.understanding}</p>{t.stage === "understanding" && <p className="text-xs text-ink-3 mt-1">Reading the page and working out what could be better…</p>}</Stage>
             {t.stage !== "understanding" && <Stage label="Plan" state={st("Plan")}>
               {t.plan.note && <p className="text-xs text-ink-3 mt-0.5 mb-1.5">{t.plan.note}</p>}
               {ops.length ? <ul className="flex flex-col gap-1 mt-1">{ops.map((o) => <li key={o.id}><label className={`flex gap-2 items-start ${t.stage === "plan" ? "cursor-pointer" : ""}`}><input type="checkbox" className="mt-1 accent-brand" checked={!!t.on[o.id]} disabled={t.stage !== "plan"} onChange={() => onToggle(t, o.id)} /><span className={t.on[o.id] ? "" : "line-through text-ink-3"}>{o.label}</span></label></li>)}</ul> : <p className="text-ink-3 mt-1">Nothing to change.</p>}
               {t.stage === "plan" && <div className="mt-2.5"><p className="text-xs text-ink-3 mb-2">Untick anything you don’t want. Nothing changes until you run the plan.</p><div className="flex gap-2"><button className="btn btn-sm btn-primary" onClick={() => onRun(t)} disabled={!enabled.length && ops.length > 0}>{enabled.length ? `Run plan · ${enabled.length} change${enabled.length === 1 ? "" : "s"}` : "Nothing selected"}</button></div></div>}
             </Stage>}
-            {(t.stage === "executing" || t.stage === "done") && <Stage label="Executing" state={st("Executing")}><ul className="flex flex-col gap-0.5 mt-1">{enabled.map((o) => { const d = t.done.includes(o.id); return <li key={o.id} className={`flex gap-2 ${d ? "text-ink" : "text-ink-3"}`}><span className={`w-4 flex-none ${d ? "text-good" : ""}`}>{d ? "✓" : "…"}</span><span>{o.label}</span></li>; })}</ul></Stage>}
+            {(t.stage === "executing" || t.stage === "done") && <Stage label="Executing" state={st("Executing")}><ul className="flex flex-col gap-0.5 mt-1">{enabled.map((o) => { const d = t.done.includes(o.id); return <li key={o.id} className={`flex gap-2 ${d ? "text-ink" : "text-ink-3"}`}><span className={`w-4 flex-none ${d ? "text-good" : ""}`}>{d ? <Check className="size-3.5" strokeWidth={2.5} aria-hidden /> : "…"}</span><span>{o.label}</span></li>; })}</ul></Stage>}
             {t.stage === "done" && <Stage label="Review" state="done">
               <div className="flex flex-col gap-2 mt-1">{t.done.map((id) => { const o = ops.find((x) => x.id === id)!; const r = t.results[id]; if (!r) return null; return <div key={id} className={`border border-line rounded-md p-2 ${r.undone ? "opacity-60" : ""}`}>
                 <div className="flex items-start gap-2"><b className={`text-xs ${r.undone ? "line-through" : ""}`}>{o.label}</b>{r.undone ? <button className="btn-ghost ml-auto flex-none" onClick={() => onRedo(t, id)}>Redo</button> : r.changes.length > 0 && <button className="btn-ghost ml-auto flex-none" onClick={() => onUndo(t, id)}>Undo</button>}</div>
@@ -863,7 +937,7 @@ function AiPanel({ tasks, draft, setDraft, dirty, onAsk, onToggle, onRun, onUndo
     <form className="px-3.5 py-3 border-t border-line bg-surface" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) onAsk(draft); }}>
       <div className="border border-line-2 rounded-xl bg-surface focus-within:border-ink focus-within:shadow-[0_0_0_3px_var(--brand-soft)]">
         <textarea rows={3} className="w-full resize-none bg-transparent px-3 pt-2.5 pb-1 text-sm leading-snug outline-none" placeholder={tasks.length ? "Ask a follow-up… e.g. “make the banner light” or “add an FAQ about fees”" : "What would you like to do with this page?\ne.g. “Make the intro shorter and add a call to action”"} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (draft.trim()) onAsk(draft); } }} aria-label="Ask AI" />
-        <div className="flex items-center gap-2 px-2 pb-2"><span className="text-xs text-ink-3">Enter to ask · Shift+Enter for a new line</span><button className="btn btn-sm btn-primary ml-auto" disabled={!draft.trim()}>✨ Ask</button></div>
+        <div className="flex items-center gap-2 px-2 pb-2"><span className="text-xs text-ink-3">Enter to ask · Shift+Enter for a new line</span><button className="btn btn-sm btn-primary ml-auto" disabled={!draft.trim()}><Sparkles className="size-3.5" strokeWidth={1.5} aria-hidden />Ask</button></div>
       </div>
     </form>
   </>;

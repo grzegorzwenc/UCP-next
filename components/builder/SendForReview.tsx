@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import type { ReviewerOption } from "@/lib/ucp/types";
 import { ucpApi } from "@/lib/api";
 import { errorText } from "@/lib/api/errors";
@@ -47,7 +48,7 @@ export function AssigneeChip({ name, admin, marketId, pagePath, meId, onReassign
   if (!admin) return <span className={cls}>{body}</span>;
   const toggle = () => { if (at) { setAt(null); return; } const r = btn.current?.getBoundingClientRect(); if (r) setAt({ top: r.bottom + 6, right: Math.max(8, window.innerWidth - r.right) }); };
   return <>
-    <button ref={btn} type="button" className={`${cls} hover:bg-surface-2`} title="Change reviewer" aria-expanded={!!at} onClick={toggle}>{body}<span aria-hidden className="text-ink-3 text-xs">▾</span></button>
+    <button ref={btn} type="button" className={`${cls} hover:bg-surface-2`} title="Change reviewer" aria-expanded={!!at} onClick={toggle}>{body}<ChevronDown className="size-3 text-ink-3" strokeWidth={1.5} aria-hidden /></button>
     {at && <ReassignPopover at={at} marketId={marketId} pagePath={pagePath} meId={meId} onClose={() => setAt(null)} onDone={(r) => { setAt(null); onReassigned(r); }} />}
   </>;
 }

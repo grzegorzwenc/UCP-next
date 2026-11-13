@@ -1,5 +1,6 @@
 "use client";
 import { useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 
 export type PageAuthor = { id: string; name: string; at: string };
@@ -26,7 +27,7 @@ export function AuthorsChip({ authors, meId, admin, canEdit, people, onAction }:
         {authors.length === 1 && <b className="font-medium truncate max-w-[120px]">{authors[0].id === meId ? "You" : authors[0].name}</b>}
         {authors.length > 1 && <b className="font-medium">{mine ? `You + ${authors.length - 1}` : `${authors.length} people`}</b>}
         {more > 0 && <span className="text-ink-3">+{more}</span>}
-        <span aria-hidden className="text-ink-3 text-xs">▾</span>
+        <ChevronDown className="size-3 text-ink-3" strokeWidth={1.5} aria-hidden />
       </button>
       {canEdit && !mine && <button type="button" className="btn btn-sm btn-secondary" disabled={!!busy} onClick={() => void run("join")} title="Add yourself as an author · the others stay assigned">{busy === "join" ? "Assigning…" : "Assign me"}</button>}
     </span>
@@ -36,7 +37,7 @@ export function AuthorsChip({ authors, meId, admin, canEdit, people, onAction }:
         <ul className="border-t border-line divide-y divide-line max-h-[240px] overflow-auto">{authors.map((a) => <li key={a.id} className="flex items-center gap-2.5 px-3.5 py-2">
           <Avatar name={a.name} size={26} /><span className="min-w-0 flex-1"><b className="block font-medium truncate">{a.name}{a.id === meId ? " (you)" : ""}</b><small className="block text-xs text-ink-3">since {new Date(a.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</small></span>
           {a.id === meId ? <button type="button" className="text-xs text-ink-2 underline underline-offset-2 hover:text-ink" disabled={!!busy} onClick={() => void run("leave")}>Leave</button>
-            : admin && <button type="button" className="w-7 h-7 rounded text-ink-3 hover:bg-surface-3 hover:text-crit" disabled={!!busy} onClick={() => void run("remove", a.id)} aria-label={`Remove ${a.name}`} title={`Remove ${a.name}`}>✕</button>}
+            : admin && <button type="button" className="w-7 h-7 rounded text-ink-3 hover:bg-surface-3 hover:text-crit" disabled={!!busy} onClick={() => void run("remove", a.id)} aria-label={`Remove ${a.name}`} title={`Remove ${a.name}`}><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>}
         </li>)}{!authors.length && <li className="px-3.5 py-3 text-ink-3">Nobody is assigned yet.</li>}</ul>
         {((canEdit && !mine) || admin) && <div className="border-t border-line p-3 grid gap-2">
           {canEdit && !mine && <button type="button" className="btn btn-sm btn-primary justify-center" disabled={!!busy} onClick={() => void run("join")}>Assign me too</button>}

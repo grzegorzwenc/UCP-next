@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { Check, Sparkles } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { ucpApi, ApiError } from "@/lib/api";
@@ -41,20 +42,20 @@ export function TranslateModal({ marketId, path, title, onClose, onDone }: Props
   }
   const steps = ["Read the source page", "Apply HSBC glossary and product names", `Translate copy to ${langs.join(", ") || "…"} ${mode === "ai" ? "(AI draft)" : "(sent to translation vendor)"}`, "Keep rates, links and regulatory text unchanged", `Create ${langs.length} draft${langs.length === 1 ? "" : "s"} in ${dest === "same" ? "the same folder" : "the chosen folder"}`, review ? "Send drafts for review" : "Leave as drafts"];
 
-  if (created) return <ModalShell title="✓ Translations created" width={560} onClose={onClose} footer={<><button className="btn btn-sm btn-secondary" onClick={onClose}>Close</button>{created[0] && <Link className="btn btn-sm btn-primary" href={`${base}/page${rel(created[0].replace(/ \(exists\)$/, ""))}`}>Open the first draft</Link>}</>}>
-    <ul className="text-sm text-ink-2 grid gap-1">{steps.map((s) => <li key={s} className="flex gap-2"><span className="text-good">✓</span>{s}</li>)}</ul>
+  if (created) return <ModalShell title="Translations created" width={560} onClose={onClose} footer={<><button className="btn btn-sm btn-secondary" onClick={onClose}>Close</button>{created[0] && <Link className="btn btn-sm btn-primary" href={`${base}/page${rel(created[0].replace(/ \(exists\)$/, ""))}`}>Open the first draft</Link>}</>}>
+    <ul className="text-sm text-ink-2 grid gap-1">{steps.map((s) => <li key={s} className="flex gap-2"><Check className="size-3.5 shrink-0 text-good" strokeWidth={2} aria-hidden />{s}</li>)}</ul>
     <div className="mt-4 text-xs text-ink-3">Created {created.length} page{created.length === 1 ? "" : "s"}. Each draft links back to “{title}”.</div>
     <ul className="mt-2 grid gap-1 max-h-[220px] overflow-auto">{created.map((c) => { const p = c.replace(/ \(exists\)$/, ""); return <li key={c} className="flex items-center gap-2 text-sm"><Link href={`${base}/page${rel(p)}`} className="text-xs text-info hover:underline">{rel(p)}</Link>{c.endsWith("(exists)") && <span className="text-xs text-ink-3">already existed · skipped</span>}</li>; })}</ul>
   </ModalShell>;
 
-  return <ModalShell title="🌐 Translate this page" onClose={onClose} footer={<><button className="btn btn-sm btn-secondary" onClick={onClose}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!langs.length || busy} onClick={go}>{busy ? "Translating…" : `Translate into ${langs.length || "…"} language${langs.length === 1 ? "" : "s"}`}</button></>}>
+  return <ModalShell title="Translate this page" onClose={onClose} footer={<><button className="btn btn-sm btn-secondary" onClick={onClose}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!langs.length || busy} onClick={go}>{busy ? "Translating…" : `Translate into ${langs.length || "…"} language${langs.length === 1 ? "" : "s"}`}</button></>}>
     <div className="grid grid-cols-2 gap-x-5 gap-y-3">
       <div className="grid gap-3">
         <div className="text-xs text-ink-3">Page<div className="mt-1 border border-line rounded-md px-2.5 py-1.5 flex items-center justify-between gap-2 text-sm text-ink"><span className="truncate">{title}</span><span className="text-xs text-ink-3">{rel(path)}</span></div><div className="mt-1 text-xs text-ink-4">Source language {flagOf(mk.locales[0])} {mk.locales[0]}</div></div>
         <div className="text-xs text-ink-3">Target languages <span className="text-ink-4">pick one or more</span>
-          <div className="mt-1 flex flex-wrap gap-1.5">{allLangs.map((l) => { const on = langs.includes(l); const home = mk.locales.includes(l); return <button type="button" key={l} className={`bdl-chip ${on ? "bdl-chip-active" : ""}`} aria-pressed={on} title={home ? `${mk.name} locale` : "Other HSBC market"} onClick={() => setLangs(on ? langs.filter((x) => x !== l) : [...langs, l])}>{on ? "✓ " : ""}{flagOf(l)} {l}</button>; })}</div>
+          <div className="mt-1 flex flex-wrap gap-1.5">{allLangs.map((l) => { const on = langs.includes(l); const home = mk.locales.includes(l); return <button type="button" key={l} className={`bdl-chip ${on ? "bdl-chip-active" : ""}`} aria-pressed={on} title={home ? `${mk.name} locale` : "Other HSBC market"} onClick={() => setLangs(on ? langs.filter((x) => x !== l) : [...langs, l])}>{on ? <Check className="size-3.5" strokeWidth={2} aria-hidden /> : null}{flagOf(l)} {l}</button>; })}</div>
           <div className="mt-1.5 text-xs">{langs.length} language{langs.length === 1 ? "" : "s"} × 1 page = <b className="text-ink">{langs.length}</b> translation{langs.length === 1 ? "" : "s"}</div></div>
-        <div className="text-xs text-ink-3">How<div className="mt-1 flex gap-1.5"><button type="button" className={`bdl-chip ${mode === "ai" ? "bdl-chip-active" : ""}`} aria-pressed={mode === "ai"} onClick={() => setMode("ai")}>✨ AI draft now</button><button type="button" className={`bdl-chip ${mode === "vendor" ? "bdl-chip-active" : ""}`} aria-pressed={mode === "vendor"} onClick={() => setMode("vendor")}>Send to translation vendor</button></div></div>
+        <div className="text-xs text-ink-3">How<div className="mt-1 flex gap-1.5"><button type="button" className={`bdl-chip ${mode === "ai" ? "bdl-chip-active" : ""}`} aria-pressed={mode === "ai"} onClick={() => setMode("ai")}><Sparkles className="size-3.5" strokeWidth={1.5} aria-hidden />AI draft now</button><button type="button" className={`bdl-chip ${mode === "vendor" ? "bdl-chip-active" : ""}`} aria-pressed={mode === "vendor"} onClick={() => setMode("vendor")}>Send to translation vendor</button></div></div>
       </div>
       <div className="grid gap-3 content-start">
         <div className="text-xs text-ink-3">Where should the translations live?<div className="mt-1 flex gap-1.5 mb-2"><button type="button" className={`bdl-chip ${dest === "same" ? "bdl-chip-active" : ""}`} aria-pressed={dest === "same"} onClick={() => setDest("same")}>Same folder as this page</button><button type="button" className={`bdl-chip ${dest === "folder" ? "bdl-chip-active" : ""}`} aria-pressed={dest === "folder"} onClick={() => setDest("folder")}>Pick a folder</button></div>
