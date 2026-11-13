@@ -1,5 +1,5 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { startEditorTour, tourSeen } from "@/lib/editor/tour";
 import { DEVICE_W, DEVICES, type Device } from "@/lib/ucp/devices";
 import { Check, Lock, Languages, Sparkles, MoreHorizontal, ChevronLeft, Maximize2, Minimize2 } from "lucide-react";
@@ -209,7 +209,39 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const onCommentList = (l: { block?: { id: string }; resolved?: unknown }[]) => { const open = l.filter((x) => !x.resolved); const c: Record<string, number> = {}; for (const x of open) if (x.block) c[x.block.id] = (c[x.block.id] ?? 0) + 1; setCommentCounts(c); setCommentTotal(open.length); setCommentCount(open.length); }; // resolved comments stay in the list but leave the page
   const reviewProps = reviewMode ? { target: commentTarget, onClearTarget: () => setCommentTarget(null), onShowBlock: showBlock, onList: onCommentList } : { onShowBlock: showBlock, onList: onCommentList };
   const select = (id: string | null) => { setSel(id); setMode("select"); setPop(null); setMulti([]); if (id) setZen(false); if (id && right && rightTab === "block") setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
-  const add = (type: string) => { const nb = makeBlock(type); mutate((b) => { const i = sel ? b.findIndex((x) => x.id === sel) + 1 : b.length; const c = b.slice(); c.splice(i, 0, nb); return c; }); select(nb.id); say(`${BLOCK_BY_TYPE[type].name} added · click Edit to fill it in`); };
+  /** Scroll a block into view once React has painted it. */
+  const revealBlock = (id: string) => requestAnimationFrame(() => requestAnimationFrame(() => {
+    canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }));
+  /* `at` is where a drag dropped it; without one the block goes after the selection, or at the
+     end when nothing is selected — which is off-screen on a long page, so we scroll to it. */
+  const add = (type: string, at?: number) => { const nb = makeBlock(type); mutate((b) => { const i = at ?? (sel ? b.findIndex((x) => x.id === sel) + 1 : b.length); const c = b.slice(); c.splice(i, 0, nb); return c; }); select(nb.id); revealBlock(nb.id); say(`${BLOCK_BY_TYPE[type].name} added · click Edit to fill it in`); };
+
+  /* ---- Drag a component from the palette onto the page ----
+     Native HTML5 drag: the palette rows are the source, the canvas is the target, and a line
+     shows where it would land. No drag library — one list and one insertion point does not
+     need one, and `dropAt` is the only state it takes. */
+  const DRAG_TYPE = "application/x-ucp-block";
+  const [dropAt, setDropAt] = useState<number | null>(null);
+  const canDrop = canEdit && !locked && !preview && !focus;
+  /** Index the pointer is closest to: above a block's middle means before it, below means after. */
+  const dropIndexAt = (y: number) => {
+    const els = [...(canvasRef.current?.querySelectorAll<HTMLElement>(".cblk") ?? [])];
+    if (!els.length) return 0;
+    for (let i = 0; i < els.length; i++) { const r = els[i].getBoundingClientRect(); if (y < r.top + r.height / 2) return i; }
+    return els.length;
+  };
+  const onCanvasDragOver = (e: React.DragEvent) => {
+    if (!canDrop || !e.dataTransfer.types.includes(DRAG_TYPE)) return;
+    e.preventDefault(); e.dataTransfer.dropEffect = "copy";
+    const i = dropIndexAt(e.clientY); if (i !== dropAt) setDropAt(i);
+  };
+  const onCanvasDrop = (e: React.DragEvent) => {
+    if (!canDrop) return;
+    const type = e.dataTransfer.getData(DRAG_TYPE); if (!type) return;
+    e.preventDefault();
+    const at = dropAt ?? dropIndexAt(e.clientY); setDropAt(null); add(type, at);
+  };
   const move = (id: string, d: number) => mutate((b) => { const i = b.findIndex((x) => x.id === id); const j = i + d; if (j < 0 || j >= b.length) return b; const c = b.slice(); [c[i], c[j]] = [c[j], c[i]]; return c; });
   const remove = (id: string) => { mutate((b) => b.filter((x) => x.id !== id)); select(null); };
   const duplicate = (b: Block) => mutate((bl) => { const i = bl.findIndex((x) => x.id === b.id); const c = bl.slice(); c.splice(i + 1, 0, { ...b, id: makeBlock(b.type).id, props: { ...b.props } }); return c; });
@@ -648,10 +680,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         <div className={`absolute inset-0 flex flex-col ${preview ? "preview" : ""}`}>
           {/* The hint / "1:1 · 1200 px" strip is gone: it was a light band sitting on the dark canvas
              ground, and it narrated what the canvas already shows. */}
-          <div ref={canvasRef} className={`bld-pad ${focus ? "flex-1 overflow-auto p-0 bg-white" : "editor-ground flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""} ${patternMode ? "pattern-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onMouseMove={onCanvasMove} onMouseLeave={() => { if (!qcPinned) setQcTarget(null); }} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
+          <div ref={canvasRef} className={`bld-pad ${focus ? "flex-1 overflow-auto p-0 bg-white" : "editor-ground flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""} ${patternMode ? "pattern-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onMouseMove={onCanvasMove} onDragOver={onCanvasDragOver} onDrop={onCanvasDrop} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropAt(null); }} onMouseLeave={() => { if (!qcPinned) setQcTarget(null); }} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
             {(() => { const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / siteW)) : 1; return <div className="bld-frame" style={{ width: siteW, zoom: fit, margin: "0 auto" }}>
             <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
-              {blocks.length ? blocks.map((b, i) => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id && !commentTarget.field ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""} ${multi.includes(b.id) ? "multi" : ""}`} tabIndex={0}>
+              {blocks.length ? blocks.map((b, i) => { const line = dropAt === i && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />; return <Fragment key={b.id}>{line}{(() => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id && !commentTarget.field ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""} ${multi.includes(b.id) ? "multi" : ""}`} tabIndex={0}>
                 {multi.includes(b.id) && <span className="multi-n" aria-hidden>{multiBlocks.findIndex((x) => x.id === b.id) + 1}</span>}
                 {reviewMode && <span className="cmt-pick" aria-hidden>{commentTarget?.id === b.id ? "Commenting here" : "Click a text or image to comment"}</span>}
                 {!!commentCounts[b.id] && <button type="button" data-ui className="cmt-badge" title={`${commentCounts[b.id]} comment${commentCounts[b.id] === 1 ? "" : "s"} on this component`} onClick={(e) => { e.stopPropagation(); if (focus) setFloatOpen(true); else { setRightTab("comments"); setRight(true); } }}><CommentIcon size={12} />{commentCounts[b.id]}</button>}
@@ -660,9 +692,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
                   onEdit={() => (mode === "edit" ? (commitInline(true), setMode("select")) : enterEdit(b.id))} onConfigure={phone ? () => configure(b.id) : undefined /* desktop: clicking the block already opens Configure */}
                   onMore={(a) => { setPop(null); if (a === "duplicate") duplicate(b); else if (a === "copy") { setClipboard(b); say("Copied"); } else if (a === "paste" && clipboard) { mutate((bl) => { const c = bl.slice(); c.splice(i + 1, 0, { ...clipboard, id: makeBlock(clipboard.type).id, props: { ...clipboard.props } }); return c; }); } else if (a === "up") move(b.id, -1); else if (a === "down") move(b.id, 1); else if (a === "hide") setProp(b.id, "hidden", !b.props.hidden); else if (a === "lock") { setProp(b.id, "locked", !b.props.locked); if (!b.props.locked) setMode("select"); } else if (a === "delete") remove(b.id); else if (a === "history") { if (phone) setLeftRaw(false); setRightTab("history"); setRight(true); } else if (a === "pattern") { startPattern(b.id); say("Click the other components to put in the pattern"); } }}
                   onAi={(p) => { mutate((bl) => bl.map((x) => (x.id === b.id ? { ...x, props: { ...x.props, ...p.props } } : x))); say("AI changes applied"); }} />}
-                <RenderBlock b={b} /></div>; })
+                <RenderBlock b={b} /></div>; })()}</Fragment>; })
               : <div className="m-7 p-11 border-2 border-dashed border-line-2 rounded-xl text-center text-ink-2 text-base">How do you want to start this page?<small className="block text-sm text-ink-3 mt-1.5">Pick a layout, or add components one by one from the left.</small><div className="grid grid-cols-3 gap-3 mt-4 text-left">{TEMPLATES.filter((t) => t.blocks.length).slice(0, 3).map((t) => <button key={t.id} className="border border-line-2 bg-surface p-3.5 text-left hover:border-ink" onClick={() => mutate(() => t.blocks.map((x) => makeBlock(x, x === "mast" ? { heading: title } : {})))}><b className="block text-sm">{t.name}</b><small className="text-ink-3">{t.desc}</small></button>)}</div></div>}
-            </SiteChrome></InlineEditContext.Provider></EntitiesContext.Provider></AssetsContext.Provider></div>; })()}
+            {dropAt === blocks.length && blocks.length > 0 && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />}</SiteChrome></InlineEditContext.Provider></EntitiesContext.Provider></AssetsContext.Provider></div>; })()}
           </div>
           {editing && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 flex gap-1 bg-foreground rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}><span className="px-2 py-1.5 text-white/70">Editing text</span><button className="px-2.5 py-1.5 rounded hover:bg-white/15 inline-flex items-center" title="Choose content from an entity (or type {{ to insert at the cursor)" aria-label="Choose content from an entity" onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }}><ContentIcon /></button><button className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-good font-medium" onClick={() => { commitInline(true); say("Saved"); }}><Check className="size-3.5" strokeWidth={2} aria-hidden />Save</button><button className="inline-flex items-center gap-1 px-3 py-1.5 rounded hover:bg-white/15" onClick={() => commitInline(false)}><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>Cancel</button></div>}
           {(patternMode || multi.length > 0) && !preview && <div data-ui role="toolbar" aria-label="Design pattern selection" className="absolute left-1/2 -translate-x-1/2 bottom-6 flex items-center gap-1 bg-foreground rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}>
@@ -686,7 +718,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         
         {railsOn && <LeftPanel open={left} hidden={zen} phone={phone} width={leftW} canEdit={canEdit} onAdd={add} onClose={() => setLeft(false)} onOpenPanel={() => setLeft(true)}
           railItems={LEFT_RAIL.map(([t, label, path]) => ({ key: t, label, path, active: leftTab === t, onClick: () => { setLeftTab(t); setLeft(true); } }))} lockedReason={lockReason || undefined} onEdit={veilEdit}
-          onHelp={runTour} onFloatChange={setLeftFloating} blocks={blocks} selected={sel} onSelect={(id) => { select(id); canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }}
+          onHelp={runTour} dragType={DRAG_TYPE} onFloatChange={setLeftFloating} blocks={blocks} selected={sel} onSelect={(id) => { select(id); canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }}
           tab={leftTab} onTab={setLeftTab} patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onRestorePattern={async (p) => { try { await ucpApi.archivePattern(marketId, p.id, false); say(`${p.name} restored`); } catch { say("Could not restore"); } loadPatterns(); }} onDeletePattern={(p) => deletePatternForGood(p)} onPatternMarkets={setPatMarkets} mayManage={mayManagePattern} onStartPattern={() => startPattern()} creating={patternMode} />}
         {/* Right panel: Configure (contextual) or Page settings */}
         {railsOn && !focus && phone && <nav data-ui aria-label="Panels" className={phone ? "absolute left-0 right-0 bottom-0 h-12 bg-surface border-t border-line flex flex-row items-center justify-around px-2 z-[6]" : "absolute right-0 top-0 bottom-0 w-[52px] bg-surface border-l border-line flex flex-col items-center px-1.5 py-2.5 gap-1.5 z-[6] cursor-pointer"}>

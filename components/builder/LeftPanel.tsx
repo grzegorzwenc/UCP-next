@@ -70,7 +70,9 @@ type Props = {
   phone?: boolean; width?: number;
   canEdit: boolean; onAdd: (type: string) => void; onClose: () => void; onOpenPanel?: () => void;
   /** Replays the editor tour. Lives on the panel's bottom bar, which is where the tour ends. */
-  onHelp?: () => void; lockedReason?: string; onEdit?: () => void;
+  onHelp?: () => void;
+  /** dataTransfer type the canvas listens for, so a component can be dragged onto the page. */
+  dragType?: string; lockedReason?: string; onEdit?: () => void;
   /** Outline: the page's blocks in document order, and the selection, so the tree can mirror the canvas. */
   blocks?: Block[]; selected?: string | null; onSelect?: (id: string) => void;
   /** without `patterns` (e.g. the template editor) only the component library shows */
@@ -92,10 +94,10 @@ const noop = () => {};
 const tabCls = (on: boolean) =>
   `relative cursor-pointer px-2.5 py-2 text-xs font-medium transition-colors duration-150 ease-out ${on ? "text-ink after:absolute after:inset-x-1.5 after:bottom-0 after:h-0.5 after:bg-brand" : "text-ink-3 hover:text-ink"}`;
 /** Row affordances appear only on the row under the pointer, which is what keeps a long list quiet. */
-const rowCls = "group/item flex h-7 w-full cursor-pointer items-center gap-2 ps-7 pe-1.5 text-left transition-colors duration-150 ease-out hover:bg-surface-2 disabled:cursor-default disabled:opacity-50";
+const rowCls = "group/item flex h-7 w-full cursor-grab items-center gap-2 ps-7 pe-1.5 text-left active:cursor-grabbing transition-colors duration-150 ease-out hover:bg-surface-2 disabled:cursor-default disabled:opacity-50";
 
 export function LeftPanel({
-  phone, width = 280, canEdit, onAdd, onClose, onOpenPanel = noop, onHelp, lockedReason, onEdit,
+  phone, width = 280, canEdit, onAdd, onClose, onOpenPanel = noop, onHelp, dragType, lockedReason, onEdit,
   blocks = [], selected = null, onSelect = noop,
   tab: tabIn = "components", onTab = noop, patterns, onAddPattern = noop, onRemovePattern = noop, onRestorePattern = noop,
   onDeletePattern = noop, onPatternMarkets = noop, mayManage = () => false, onStartPattern = noop, creating = false, onFloatChange, open = true, hidden = false, railItems = [],
@@ -191,7 +193,10 @@ export function LeftPanel({
                   <ul className="m-0 list-none p-0">
                     {g.items.map((b) => { const Icon = iconFor(b.type); return (
                       <li key={b.type} className="m-0 p-0">
-                        <button type="button" disabled={!canEdit} onClick={() => onAdd(b.type)} title={b.desc} className={rowCls}>
+                        {/* Click to add after the selection, or drag onto the page to choose where it lands. */}
+                        <button type="button" disabled={!canEdit} onClick={() => onAdd(b.type)} title={b.desc} className={rowCls}
+                          draggable={!!dragType && canEdit}
+                          onDragStart={(e) => { if (!dragType) return; e.dataTransfer.setData(dragType, b.type); e.dataTransfer.effectAllowed = "copy"; }}>
                           <Icon className="size-3.5 shrink-0 text-ink-3" aria-hidden />
                           <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{b.name}</span>
                           <span aria-hidden className="grid size-5 shrink-0 place-items-center rounded text-ink-3 opacity-0 transition-opacity duration-150 ease-out group-hover/item:opacity-100 group-focus-visible/item:opacity-100">
