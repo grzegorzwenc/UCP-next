@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { THUMB_W } from "@/lib/ucp/devices";
 import type { Block } from "@/lib/api/types";
 import { BLOCK_BY_TYPE } from "@/lib/blocks/registry";
 import { RenderBlock } from "@/lib/blocks/Render";
@@ -22,7 +23,7 @@ export function SavePatternDialog({ blocks, marketId, onSave, onClose }: { block
       </div>
       <div><b className="block text-xs text-ink-2 mb-1">{blocks.length} components, in this order</b>
         <ol className="grid gap-1 mb-2">{blocks.map((b, i) => <li key={b.id} className="text-xs flex gap-1.5"><span className="text-ink-3 w-3.5">{i + 1}.</span>{BLOCK_BY_TYPE[b.type].name}</li>)}</ol>
-        <div className="relative h-[220px] rounded-md border border-line bg-white overflow-hidden" aria-hidden><div className="absolute left-0 top-0 origin-top-left pointer-events-none select-none site desktop" style={{ transform: "scale(0.165)", width: 1200 }}>{blocks.map((b) => <RenderBlock key={b.id} b={b} />)}</div></div>
+        <div className="relative h-[220px] rounded-md border border-line bg-white overflow-hidden" aria-hidden><div className="absolute left-0 top-0 origin-top-left pointer-events-none select-none site desktop" style={{ transform: `scale(${220 / THUMB_W * 1.2})`, width: THUMB_W }}>{blocks.map((b) => <RenderBlock key={b.id} b={b} />)}</div></div>
       </div>
     </div>
   </ModalShell>;

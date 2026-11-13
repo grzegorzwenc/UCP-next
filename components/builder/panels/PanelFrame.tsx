@@ -1,9 +1,10 @@
 "use client";
 import { PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, PictureInPicture2, Pin, GripVertical } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/shadcn/tooltip";
 import type { Float } from "./useFloat";
 
 /* size-6, not size-7: with three tabs beside them the header has to fit inside a 260px panel. */
-const ctl = "grid size-6 flex-none place-items-center rounded text-ink-3 transition-[color,background-color,transform] duration-150 ease-out hover:bg-surface-3 hover:text-ink active:scale-[0.97]";
+const ctl = "grid size-6 flex-none cursor-pointer place-items-center rounded text-ink-3 transition-[color,background-color,transform] duration-150 ease-out hover:bg-surface-3 hover:text-ink active:scale-[0.97]";
 
 /** Grip strip shown at the top of a detached panel. The only handle that moves it. */
 export function GripStrip({ float }: { float: Float }) {
@@ -68,7 +69,7 @@ export const RAIL_W = 48;
  * the docked panel's rows — at rail size a thick stroke reads as a different, louder icon set
  * rather than the same one repeated, so the two sides stopped looking related.
  */
-const railBtn = "grid size-10 place-items-center rounded-lg text-ink-3 transition-[color,background-color,transform] duration-150 ease-out hover:bg-surface-3 hover:text-ink active:scale-[0.97]";
+const railBtn = "grid size-10 cursor-pointer place-items-center rounded-lg text-ink-3 transition-[color,background-color,transform] duration-150 ease-out hover:bg-surface-3 hover:text-ink active:scale-[0.97]";
 
 /**
  * The panel container. Its WIDTH animates; the body inside is clipped by `overflow: hidden`.
@@ -78,11 +79,12 @@ const railBtn = "grid size-10 place-items-center rounded-lg text-ink-3 transitio
 export function panelClass(side: "left" | "right", floating: boolean, phone?: boolean) {
   if (phone) return "absolute inset-x-0 top-0 bottom-12 bg-surface flex flex-col z-[5]";
   if (floating) return "fixed top-28 z-30 flex max-h-[72vh] flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-2xl " + (side === "left" ? "left-6" : "right-[72px]");
-  return `bld-panel absolute ${side === "left" ? "left-0 border-r" : "right-[52px] border-l"} top-0 bottom-0 bg-surface border-line z-[5]`;
+  return `bld-panel absolute ${side === "left" ? "left-0 border-r" : "right-0 border-l"} top-0 bottom-0 bg-surface border-line z-[5]`;
 }
 
 /** Collapsed width: a left panel leaves its rail behind, a right panel leaves nothing. */
-export const collapsedWidth = (side: "left" | "right") => (side === "left" ? RAIL_W : 0);
+/** Both panels leave the same slim bar behind when collapsed. */
+export const collapsedWidth = () => RAIL_W;
 
 /**
  * The body.
@@ -127,5 +129,68 @@ export function CollapsedRail({ side, label, onOpen, show, items = [] }: {
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * The right panel's tabs, as icons across the top of the panel itself.
+ *
+ * They used to be a permanent 52px rail beside the panel — a column of chrome standing there
+ * whether the panel was open or not. Moving them inside mirrors the left panel: no rail while
+ * expanded, a slim bar only once collapsed, and 52px back to the canvas.
+ *
+ * Icons alone need their names available, so each carries a hover/focus tooltip, and the open
+ * one is named in full on the row underneath. `aria-label` carries the name regardless, so the
+ * tooltip is a convenience for sighted users rather than the only way to know what a tab is.
+ */
+/* A full second before a tooltip appears. These tabs are used many times a session and their
+   icons sit shoulder to shoulder, so a quick tooltip fires constantly just from crossing the
+   row on the way somewhere else. The delay means it only speaks when someone actually pauses
+   to ask what an icon is. */
+const TOOLTIP_DELAY = 1000;
+
+export function IconTabs({ items, label, leading }: {
+  label: string;
+  items: { key: string; label: string; path: string; active?: boolean; badge?: number; onClick: () => void }[];
+  /** Pinned to the START of the row — the collapse control leads, as on the left panel. */
+  leading?: React.ReactNode;
+}) {
+  return (
+    /* A nested provider: the delay belongs to this row, not to every tooltip in the editor. */
+    <TooltipProvider delay={TOOLTIP_DELAY}>
+    <div role="tablist" aria-label={label} className="flex shrink-0 items-stretch border-b border-line px-1">
+      {leading && <span className="flex flex-none items-center pe-1">{leading}</span>}
+      {items.map((it) => (
+        <Tooltip key={it.key}>
+          <TooltipTrigger
+            render={
+              /* Same selected treatment as the left panel's tabs: the label darkens and a brand
+                 underline sits on the row's edge — no filled box, so the two panels match. The
+                 buttons flex, so seven icons share the full width instead of bunching left. */
+              <button type="button" role="tab" aria-selected={it.active} aria-label={it.label} onClick={it.onClick}
+                className={`relative flex flex-1 cursor-pointer items-center justify-center py-2.5 transition-colors duration-150 ease-out ${it.active ? "text-ink after:absolute after:inset-x-1.5 after:bottom-0 after:h-0.5 after:bg-brand" : "text-ink-3 hover:text-ink"}`}>
+                <span className="relative inline-flex">
+                  <svg viewBox="0 0 24 24" aria-hidden className="size-[18px] fill-none stroke-current" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><path d={it.path} /></svg>
+                  {!!it.badge && it.badge > 0 && (
+                    <span className="absolute -right-2 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-brand px-1 text-[10px] font-bold text-white">{it.badge}</span>
+                  )}
+                </span>
+              </button>
+            }
+          />
+          <TooltipContent side="bottom">{it.label}</TooltipContent>
+        </Tooltip>
+      ))}
+    </div>
+    </TooltipProvider>
+  );
+}
+
+/** The collapse control on its own, for panels that place it outside a header row. */
+export function CollapseButton({ side, onClose }: { side: "left" | "right"; onClose: () => void }) {
+  return (
+    <button type="button" className={ctl} onClick={onClose} title="Collapse the panel" aria-label="Collapse the panel">
+      {side === "left" ? <PanelLeftClose className="size-3.5" strokeWidth={1.5} aria-hidden /> : <PanelRightClose className="size-3.5" strokeWidth={1.5} aria-hidden />}
+    </button>
   );
 }

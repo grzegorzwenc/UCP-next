@@ -1,5 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { THUMB_W } from "@/lib/ucp/devices";
 import { AlignLeft, CircleHelp, Lock, CreditCard, FileText, Image, LayoutGrid, Link2, MessageSquareQuote, Megaphone, ScrollText, Shapes, Table2, Type } from "lucide-react";
 import type { Block } from "@/lib/api/types";
 import { BLOCKS, BLOCK_BY_TYPE, GROUPS } from "@/lib/blocks/registry";
@@ -39,7 +40,7 @@ const iconFor = (type: string) => ICONS[type] ?? Shapes;
  * A pattern is a composition, so a name alone does not say what you are about to drop onto
  * the page — but a thumbnail big enough to read would undo the one-line density the panel was
  * rebuilt for. So the row stays one line and the picture appears beside the panel on hover.
- * It renders the same blocks the canvas does, at 1200px scaled to the card, so it is the
+ * It renders the same blocks the canvas does, at the desktop width scaled to the card, so it is the
  * actual pattern rather than a drawing of it.
  */
 function PatternPreview({ p, top, left }: { p: DesignPattern; top: number; left: number }) {
@@ -52,7 +53,7 @@ function PatternPreview({ p, top, left }: { p: DesignPattern; top: number; left:
     <div role="tooltip" style={{ top, left, width: W }}
       className="pointer-events-none fixed z-40 overflow-hidden rounded-lg border border-line bg-surface shadow-2xl transition-[opacity,transform] duration-150 ease-out starting:translate-x-[-4px] starting:opacity-0">
       <div className="relative h-[170px] overflow-hidden border-b border-line bg-white">
-        <span aria-hidden className="site desktop pointer-events-none absolute left-0 top-0 origin-top-left select-none" style={{ transform: `scale(${W / 1200})`, width: 1200 }}>
+        <span aria-hidden className="site desktop pointer-events-none absolute left-0 top-0 origin-top-left select-none" style={{ transform: `scale(${W / THUMB_W})`, width: THUMB_W }}>
           {blocks.map((b) => <RenderBlock key={b.id} b={b} />)}
         </span>
       </div>
@@ -87,7 +88,7 @@ const noop = () => {};
 const tabCls = (on: boolean) =>
   `relative cursor-pointer px-2.5 py-2 text-xs font-medium transition-colors duration-150 ease-out ${on ? "text-ink after:absolute after:inset-x-1.5 after:bottom-0 after:h-0.5 after:bg-brand" : "text-ink-3 hover:text-ink"}`;
 /** Row affordances appear only on the row under the pointer, which is what keeps a long list quiet. */
-const rowCls = "group/item flex h-7 w-full items-center gap-2 ps-7 pe-1.5 text-left transition-colors duration-150 ease-out hover:bg-surface-2 disabled:opacity-50";
+const rowCls = "group/item flex h-7 w-full cursor-pointer items-center gap-2 ps-7 pe-1.5 text-left transition-colors duration-150 ease-out hover:bg-surface-2 disabled:cursor-default disabled:opacity-50";
 
 export function LeftPanel({
   phone, width = 280, canEdit, onAdd, onClose, onOpenPanel = noop, lockedReason, onEdit,
@@ -152,7 +153,7 @@ export function LeftPanel({
        child pinned to the inner edge, so collapsing wipes the body out instead of squashing it.
        No resize handle: the panel is a fixed width, like the mock. */
     <aside data-ui data-side="left" {...float.panelProps}
-      style={phone ? float.panelProps.style : float.floating ? { width, ...float.panelProps.style } : { width: open ? width : collapsedWidth("left"), ...float.panelProps.style }}
+      style={phone ? float.panelProps.style : float.floating ? { width, ...float.panelProps.style } : { width: open ? width : collapsedWidth(), ...float.panelProps.style }}
       className={panelClass("left", float.floating, phone)}>
       {!float.floating && <CollapsedRail side="left" show={!open} label="Open the panel" onOpen={onOpenPanel} items={railItems} />}
       <PanelBody open={open} width={width} floating={float.floating}>
@@ -210,7 +211,7 @@ export function LeftPanel({
                 {blocks.map((b, i) => { const def = BLOCK_BY_TYPE[b.type]; const Icon = iconFor(b.type); const on = selected === b.id; return (
                   <li key={b.id} className="m-0 p-0">
                     <button type="button" onClick={() => onSelect(b.id)} aria-current={on ? "true" : undefined}
-                      className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors duration-150 ease-out hover:bg-surface-2 ${on ? "bg-brand-soft text-ink shadow-[inset_2px_0_0_var(--color-brand,currentColor)]" : "text-ink-2"}`}>
+                      className={`flex w-full cursor-pointer items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-colors duration-150 ease-out hover:bg-surface-2 ${on ? "bg-brand-soft text-ink shadow-[inset_2px_0_0_var(--color-brand,currentColor)]" : "text-ink-2"}`}>
                       <span className="w-4 shrink-0 text-right text-xs tabular-nums text-ink-4">{i + 1}</span>
                       <Icon className="size-3.5 shrink-0 text-ink-3" aria-hidden />
                       <span className="min-w-0 flex-1 truncate">{def?.name ?? b.type}</span>
@@ -228,7 +229,7 @@ export function LeftPanel({
           <div className="min-h-0 flex-1 overflow-auto">
             {canEdit && (
               <button type="button" onClick={onStartPattern} disabled={creating}
-                className="flex w-full items-center gap-2 border-b border-line px-2.5 py-2 text-left text-[13px] text-brand transition-colors duration-150 ease-out hover:bg-brand-soft disabled:bg-brand-soft">
+                className="flex w-full cursor-pointer items-center gap-2 border-b border-line px-2.5 py-2 text-left text-[13px] text-brand transition-colors duration-150 ease-out hover:bg-brand-soft disabled:cursor-default disabled:bg-brand-soft">
                 <svg viewBox="0 0 24 24" aria-hidden className="size-3.5 shrink-0 fill-none stroke-current" strokeWidth={2} strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
                 <span className="min-w-0 flex-1 truncate font-medium">{creating ? "Pick the components on the page…" : "Create a design pattern"}</span>
               </button>
@@ -239,7 +240,7 @@ export function LeftPanel({
               {pats.map((p) => (
                 <li key={p.id} className="group/item relative m-0 p-0" onMouseEnter={previewOn(p)} onMouseLeave={clearPreview}>
                   <button type="button" disabled={!canEdit} onClick={() => { clearPreview(); onAddPattern(p); }} onFocus={previewOn(p)} onBlur={clearPreview}
-                    className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left transition-colors duration-150 ease-out hover:bg-surface-2 disabled:opacity-50">
+                    className="flex w-full cursor-pointer items-center gap-2 px-2.5 py-1.5 text-left transition-colors duration-150 ease-out hover:bg-surface-2 disabled:cursor-default disabled:opacity-50">
                     <Shapes className="size-3.5 shrink-0 text-ink-3" aria-hidden />
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5">
@@ -251,8 +252,8 @@ export function LeftPanel({
                   </button>
                   {mayManage(p) && (
                     <span className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity duration-150 ease-out group-hover/item:opacity-100 focus-within:opacity-100">
-                      <button type="button" onClick={() => onPatternMarkets(p)} title="Choose the markets that see this pattern" className="rounded border border-line bg-surface px-1.5 py-0.5 text-[10px] font-medium text-ink-2 hover:text-ink">Markets</button>
-                      <button type="button" onClick={() => onRemovePattern(p)} title={`Remove ${p.name}`} aria-label={`Remove ${p.name}`} className="grid size-5 place-items-center rounded border border-line bg-surface text-ink-3 hover:border-crit hover:text-crit">
+                      <button type="button" onClick={() => onPatternMarkets(p)} title="Choose the markets that see this pattern" className="cursor-pointer rounded border border-line bg-surface px-1.5 py-0.5 text-[10px] font-medium text-ink-2 hover:text-ink">Markets</button>
+                      <button type="button" onClick={() => onRemovePattern(p)} title={`Remove ${p.name}`} aria-label={`Remove ${p.name}`} className="grid size-5 cursor-pointer place-items-center rounded border border-line bg-surface text-ink-3 hover:border-crit hover:text-crit">
                         <svg viewBox="0 0 24 24" aria-hidden className="size-3 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M5 7h14M10 11v6M14 11v6M6.5 7l1 13h9l1-13M9 7V4h6v3" /></svg>
                       </button>
                     </span>

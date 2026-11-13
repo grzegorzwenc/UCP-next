@@ -208,19 +208,10 @@
   background: #fff;
   color: #1b1c1f;
   margin: 0 auto;
-  width: 1200px;
-  max-width: 1200px;
+  /* Width is set inline from lib/ucp/devices.ts — see SiteChrome. Do not restate it here. */
   box-shadow:
     0 1px 2px rgba(20, 22, 30, 0.05),
     0 6px 20px rgba(20, 22, 30, 0.07);
-}
-.site.tablet {
-  width: 768px;
-  max-width: 768px;
-}
-.site.mobile {
-  width: 390px;
-  max-width: 390px;
 }
 .hs-util {
   background: #000;
