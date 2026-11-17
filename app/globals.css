@@ -1427,3 +1427,33 @@
   color: var(--color-ink-3);
 }
 
+/* Dropdowns. BDL's own `select` rule (app/bdl/forms.css) sets `appearance: none` but never
+   supplies a chevron, so a `.bdl-field` select renders as a plain box with nothing to say it
+   opens. The caret is the UCP mock's (`selectWrap` in editor/properties-panel.svelte): a small
+   square rotated 45° showing two of its borders. CSS rather than an SVG so it takes the theme's
+   muted ink instead of baking a colour into a data URI, and it sits on a wrapper because a
+   `select` cannot carry a pseudo-element. Wrap the select, keep `.bdl-field` on the select. */
+.bdl-select {
+  position: relative;
+  display: block;
+}
+.bdl-select > select {
+  padding-inline-end: 2rem;
+  cursor: pointer;
+}
+.bdl-select::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  inset-inline-end: 0.75rem;
+  top: 50%;
+  width: 0.375rem;
+  height: 0.375rem;
+  transform: translateY(-70%) rotate(45deg);
+  border-inline-end: 1px solid var(--color-ink-3);
+  border-block-end: 1px solid var(--color-ink-3);
+}
+.bdl-select:has(> select:disabled)::after {
+  opacity: 0.5;
+}
+

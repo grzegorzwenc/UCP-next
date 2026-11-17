@@ -59,14 +59,14 @@ export function EntitiesPanel({ marketId, base, pagePath, bindings, entities, mo
       <b className="text-xs">Not linked yet</b>
       {typed.map(([alias, n]) => <div key={alias} className="flex flex-col gap-1.5">
         <div className="text-xs"><span>{`{{${alias}.…}}`}</span> is used {n}× but no entity is linked as “{alias}”, so visitors would see the code.</div>
-        {canEdit && <div className="flex gap-1.5"><select className="bdl-field min-w-0 flex-1" value={linkPick[alias] ?? ""} onChange={(e) => setLinkPick((x) => ({ ...x, [alias]: e.target.value }))} aria-label={`Entity for ${alias}`}><option value="">Choose an entity…</option>{(all ?? []).map((e) => <option key={e.path} value={e.path}>{e.title} · {modelName(e.model)}</option>)}</select>
+        {canEdit && <div className="flex gap-1.5"><span className="bdl-select min-w-0 flex-1"><select className="bdl-field" value={linkPick[alias] ?? ""} onChange={(e) => setLinkPick((x) => ({ ...x, [alias]: e.target.value }))} aria-label={`Entity for ${alias}`}><option value="">Choose an entity…</option>{(all ?? []).map((e) => <option key={e.path} value={e.path}>{e.title} · {modelName(e.model)}</option>)}</select></span>
           <button className="btn btn-sm btn-primary" disabled={!linkPick[alias] || busy} onClick={() => void save({ ...bindings, [alias]: linkPick[alias] }, `Linked “${alias}” to ${byPath[linkPick[alias]]?.title ?? "the entity"}`)}>Link</button></div>}
       </div>)}
     </div>}
     {canEdit && (adding ? <div className="border border-line rounded-lg p-2.5 flex flex-col gap-2 bg-surface-2">
-      <label className="text-xs text-ink-2 font-medium">Entity<select className="bdl-field mt-1" value={pick} onChange={(e) => setPick(e.target.value)} autoFocus>
+      <label className="text-xs text-ink-2 font-medium">Entity<span className="bdl-select mt-1"><select className="bdl-field" value={pick} onChange={(e) => setPick(e.target.value)} autoFocus>
         <option value="">{all === null ? "Loading…" : "Choose an entity…"}</option>
-        {Object.keys(byModel).sort().map((m) => <optgroup key={m} label={modelName(m)}>{byModel[m].map((x) => <option key={x.path} value={x.path}>{x.title}{x.status === "draft" ? " (draft)" : ""}</option>)}</optgroup>)}</select></label>
+        {Object.keys(byModel).sort().map((m) => <optgroup key={m} label={modelName(m)}>{byModel[m].map((x) => <option key={x.path} value={x.path}>{x.title}{x.status === "draft" ? " (draft)" : ""}</option>)}</optgroup>)}</select></span></label>
       <div className="flex justify-end gap-2"><button className="btn btn-sm btn-secondary" onClick={() => { setAdding(false); setPick(""); }}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!pick || busy} onClick={() => void add()}>{busy ? "Adding…" : "Add"}</button></div>
     </div> : <button className="btn btn-sm btn-secondary justify-center" onClick={() => setAdding(true)}>＋ Add entity</button>)}
     {err && <div role="alert" className="text-crit text-xs bg-crit-soft px-3 py-2 rounded">{err}</div>}
