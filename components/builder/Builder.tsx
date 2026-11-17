@@ -1181,8 +1181,16 @@ function AiPanel({ tasks, draft, setDraft, dirty, onAsk, onToggle, onRun, onUndo
     </div>
     <form className="px-3.5 py-3 border-t border-line bg-surface" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) onAsk(draft); }}>
       <div className="border border-line-2 bg-surface focus-within:ring-2 focus-within:ring-ring">
-        <textarea rows={3} className="w-full resize-none bg-transparent px-3 pt-2.5 pb-1 text-sm leading-snug outline-none" placeholder={tasks.length ? "Ask a follow-up… e.g. “make the banner light” or “add an FAQ about fees”" : "What would you like to do with this page?\ne.g. “Make the intro shorter and add a call to action”"} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (draft.trim()) onAsk(draft); } }} aria-label="Ask AI" />
-        <div className="flex items-center gap-2 px-2 pb-2"><span className="text-xs text-ink-3">Enter to ask · Shift+Enter for a new line</span><button className="btn btn-sm btn-primary ml-auto" disabled={!draft.trim()}><Sparkles className="size-3.5" strokeWidth={1.5} aria-hidden />Ask</button></div>
+        {/* The placeholder used to repeat the heading above it and carry a second “e.g.” line, which
+            a 320px panel clipped mid-sentence. One short line instead. The hint and the button share
+            one row: the hint is short enough to fit beside the button at this width and is held to a
+            single line, so it can never wrap the button onto a second row. */}
+        {/* `block`: an inline-block textarea sits on the text baseline and leaves a phantom gap under
+            itself, which made this hint sit further from the box than the comments one.
+            `border-0`: BDL's base layer gives every `textarea` a `1px solid #767676`, a second and
+            darker box inside this one, whose edges also sat 10px wider than the button's. */}
+        <textarea rows={3} className="block w-full resize-none border-0 bg-transparent px-2.5 pt-2.5 pb-2 text-sm leading-snug outline-none" placeholder={tasks.length ? "Ask a follow-up…" : "Ask for a change…"} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (draft.trim()) onAsk(draft); } }} aria-label="Ask AI" />
+        <div className="flex items-center gap-2 px-2.5 pt-1 pb-2.5"><span className="min-w-0 flex-1 truncate text-xs text-ink-3" title="Press Enter to ask. Press Shift and Enter together for a new line.">Enter to ask · ⇧Enter for a line</span><button className="btn btn-sm btn-primary flex-none" disabled={!draft.trim()}><Sparkles className="size-3.5" strokeWidth={1.5} aria-hidden />Ask</button></div>
       </div>
     </form>
   </>;

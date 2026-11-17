@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
+import { BdlSelect } from "@/components/ui/BdlSelect";
 
 export type PageAuthor = { id: string; name: string; at: string };
 type Action = "join" | "leave" | "add" | "remove";
@@ -53,7 +54,7 @@ export function AuthorsChip({ authors, meId, admin, canEdit, people, onAction, t
         </li>)}{!authors.length && <li className="px-3.5 py-3 text-ink-3">Nobody is assigned yet.</li>}</ul>
         {((canEdit && !mine) || admin) && <div className="border-t border-line p-3 grid gap-2">
           {canEdit && !mine && <button type="button" className="btn btn-sm btn-primary justify-center" disabled={!!busy} onClick={() => void run("join")}>Assign me too</button>}
-          {admin && <div className="flex gap-1.5"><span className="bdl-select min-w-0 flex-1"><select aria-label="Add an author" className="bdl-field" value={adding} onChange={(e) => setAdding(e.target.value)}><option value="">Add a person…</option>{others.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select></span>
+          {admin && <div className="flex gap-1.5"><BdlSelect className="min-w-0 flex-1" ariaLabel="Add an author" value={adding} onValueChange={setAdding} placeholder="Add a person…" options={others.map(([id, n]) => ({ value: id, label: n }))} />
             <button type="button" className="btn btn-sm btn-secondary" disabled={!adding || !!busy} onClick={() => { void run("add", adding).then(() => setAdding("")); }}>Add</button></div>}
         </div>}
       </div>

@@ -71,13 +71,17 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
   const pinned = open.filter((c) => c.pinned);
   const rest = open.filter((c) => !c.pinned); const shown = all ? rest : rest.slice(0, FIRST);
   const renderItem = (c: PageComment) => { const mine = c.who === user.id;
-    return <li key={c.id} className={`min-w-0 rounded-lg border px-2.5 py-2 ${c.resolved ? "border-line bg-surface-2/70" : c.pinned ? "border-warn/40 bg-warn-soft/60" : "border-line bg-surface"}`}>
+    /* Pinned uses BDL's own warning-alert pair (#ffbb33 on #fff8ea, app/bdl/tokens.css) rather than
+       the app's `warn`/`warn-soft`, which were close to it but not the same two colours. */
+    return <li key={c.id} className={`min-w-0 border px-2.5 py-2 ${c.resolved ? "border-line bg-surface-2/70" : c.pinned ? "border-warning bg-bdl-warning-bg" : "border-line bg-surface"}`}>
           <div className="flex items-start gap-2">
             <Avatar name={c.whoName} size={24} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-2 text-xs"><b className="font-medium text-ink">{c.whoName}</b><time className="text-ink-3" dateTime={c.time} title={new Date(c.time).toLocaleString("en-GB")} suppressHydrationWarning>{relativeTime(c.time)}</time>
                 {c.guest && <span className="text-xs rounded-full bg-surface-3 px-1.5 text-ink-3" title="Commented through a review link without a UCP account">guest</span>}
-                {c.pinned && <span className="inline-flex items-center gap-1 text-xs font-medium uppercase tracking-[.06em] text-warn"><svg viewBox="0 0 24 24" className="w-3 h-3 fill-current" aria-hidden><path d={PIN} /></svg>Pinned</span>}</div>
+                {/* No "Pinned" marker here: the pin button on the right is already filled and amber when
+                    pinned, and the row sits in the tinted strip at the top of the panel. The word, and then
+                    the lone icon that replaced it, only wrapped onto a line of their own to repeat that. */}</div>
               {c.block && <TargetCard target={c.block} onShow={onShowBlock} compact />}
               {c.version && <div className="mt-0.5 text-xs text-info truncate">About the version from {c.version.label}</div>}
               {c.stage && <div className="mt-0.5 text-xs text-info">During the {c.stage === "review" ? "author's review" : "business review"}</div>}
@@ -102,12 +106,18 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
     {pinned.length > 0 && <div className="sticky -top-3.5 z-10 -mx-3.5 -mt-3.5 mb-3 px-3.5 pt-3.5 pb-2.5 bg-surface border-b border-line shadow-[0_6px_12px_-10px_rgba(0,0,0,.35)]"><ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5" aria-label="Pinned comments">{pinned.map(renderItem)}</ul></div>}
   <section aria-labelledby="cm-h" className="grid grid-cols-[minmax(0,1fr)] gap-2">
     <div className={`flex items-baseline gap-2 ${bare ? "sr-only" : ""}`}><h3 id="cm-h" className="text-sm font-medium">Comments</h3>{!!open.length && <span className="text-xs text-ink-3">{open.length}</span>}</div>
-    {mayWrite && <div className="border border-line-2 rounded-lg bg-surface focus-within:border-ink-3">
+    {/* Same box as `.bdl-field` and the AI composer: the `--line-2` hairline and a 2px focus ring,
+        not a darkening border. One interior padding (10px) for the textarea and the button row, so
+        the button is not tighter to the edge than the text above it.
+        The textarea itself carries `border-0`: BDL's base layer gives every `textarea` a
+        `1px solid #767676`, which drew a second, darker box inside this one and pushed the text's
+        edges 10px wider than the button's. The wrapper owns the border. */}
+    {mayWrite && <div className="border border-line-2 bg-surface focus-within:ring-2 focus-within:ring-ring">
       {target && <div className="p-2 pb-0"><TargetCard key={`${target.id}|${target.field ?? ""}`} target={target} onShow={onShowBlock} onClear={onClearTarget} /></div>}
       {about && <div className="flex items-center gap-2 px-2.5 pt-2 text-xs"><span className="inline-flex items-center gap-1 rounded-full bg-info-soft text-info px-2 py-0.5 min-w-0"><span className="truncate">About the version from {about.label}</span></span><button type="button" className="text-ink-3 hover:text-ink flex-none" onClick={onClearAbout} aria-label="Not about a version"><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>}
       <textarea ref={box} rows={2} value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} placeholder={target ? "What should change here?" : about ? "What about this version?" : target !== undefined ? "Click a text or an image on the page, or write a general comment…" : "Add a comment for the team…"} aria-label="New comment"
-        onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void add(); } }} className="block w-full resize-y bg-transparent px-2.5 py-2 text-sm outline-none" />
-      <div className="flex items-center gap-2 px-2 pb-2"><span className="text-xs text-ink-4">⌘/Ctrl + Enter to post</span><button type="button" className="btn btn-sm btn-primary ml-auto" disabled={!text.trim() || busy} onClick={add}>{busy ? "Posting…" : "Add comment"}</button></div>
+        onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void add(); } }} className="block w-full resize-y border-0 bg-transparent px-2.5 pt-2.5 pb-2 text-sm outline-none" />
+      <div className="flex items-center gap-2 px-2.5 pt-1 pb-2.5"><span className="min-w-0 flex-1 truncate text-xs text-ink-3" title="Press Command (or Ctrl) and Enter together to post">⌘/Ctrl + Enter</span><button type="button" className="btn btn-sm btn-primary flex-none" disabled={!text.trim() || busy} onClick={add}>{busy ? "Posting…" : "Add comment"}</button></div>
     </div>}
     {undo && <div role="status" className="cmt-card-in flex items-center gap-2 bg-foreground text-background rounded-lg px-3 py-2 text-xs"><svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-good"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>Comment resolved · hidden from the page
       <button type="button" className="ml-auto font-medium underline underline-offset-2 hover:text-white/80" disabled={busy} onClick={async () => { const id = undo; setUndo(null); clearTimeout(undoTimer.current); await run(() => ucpApi.resolveComment(marketId, path, id, false)); }}>Undo</button></div>}
