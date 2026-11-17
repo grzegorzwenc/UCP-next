@@ -4,6 +4,7 @@ import { ucpApi, ApiError } from "@/lib/api";
 import { SEED_USERS } from "@/lib/ucp/seed";
 import { Avatar } from "@/components/ui/Avatar";
 import { Pill } from "@/components/ui/Pill";
+import { ModalShell } from "@/components/models/ModalShell";
 import { PageComments } from "./PageComments";
 
 type Version = { id: string; time: string; who: string; note: string; title: string; status: string; blocks: number };
@@ -84,16 +85,15 @@ export function VersionHistory({ marketId, path, currentBlocks, onRestored, revi
     {list !== null && !list.length && <div className="p-10 text-center text-ink-3 border border-dashed border-line-2 rounded-lg text-sm">No versions yet — every save and status change creates one.</div>}
     {!!list?.length && <ul className="border border-line rounded-lg bg-surface px-3 min-w-0">{list.map((v, i) => <Row key={v.id} v={v} isLatest={i === 0} comparing={compare} currentBlocks={currentBlocks} onRestore={setConfirm} onComment={(x) => { const a = { id: x.id, label: `${fullTime(x.time)} · ${whoName(x.who)}` }; if (onCommentVersion) { onCommentVersion(a); return; } setAbout(a); setFocusKey((k) => k + 1); }} busy={busy} />)}</ul>}
 
-    {confirm && <div className="fixed inset-0 bg-black/45 grid place-items-center z-50" onClick={(e) => { if (e.target === e.currentTarget && !busy) setConfirm(null); }}>
-      <div role="dialog" aria-label="Restore this version?" className="bg-surface rounded-xl w-[min(480px,94vw)] shadow-2xl">
-        <header className="px-6 pt-5 pb-3"><h2 className="text-lg font-medium">Restore this version?</h2></header>
-        <div className="px-6 pb-2 text-sm text-ink-2 leading-relaxed">
-          <p>The page will go back to how it was on <b className="text-ink">{fullTime(confirm.time)}</b> ({whoName(confirm.who)}, {versionNote(confirm.note).toLowerCase()}, {confirm.blocks} block{confirm.blocks === 1 ? "" : "s"}).</p>
-          <p className="mt-2 text-ink-3 text-xs">Unsaved edits in the builder are replaced. A copy of the current page is kept as a new version, so you can come back.</p>
-          {err && <div className="text-crit text-xs bg-crit-soft px-3 py-2 rounded mt-3">{err}</div>}
-        </div>
-        <footer className="px-6 pb-5 pt-3 flex justify-end gap-2"><button type="button" className="btn btn-sm btn-secondary" disabled={busy} onClick={() => setConfirm(null)}>Cancel</button><button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={() => restore(confirm)}>{busy ? "Restoring…" : "Restore"}</button></footer>
-      </div></div>}
+    {/* the shared dialog, so this matches every other one: BDL square panel, blurred backdrop, focus trap */}
+    {confirm && <ModalShell title="Restore this version?" width={480} onClose={() => { if (!busy) setConfirm(null); }}
+      footer={<><button type="button" className="btn btn-sm btn-secondary" disabled={busy} onClick={() => setConfirm(null)}>Cancel</button><button type="button" className="btn btn-sm btn-primary" disabled={busy} onClick={() => restore(confirm)}>{busy ? "Restoring…" : "Restore"}</button></>}>
+      <div className="text-sm text-ink-2 leading-relaxed">
+        <p>The page will go back to how it was on <b className="text-ink">{fullTime(confirm.time)}</b> ({whoName(confirm.who)}, {versionNote(confirm.note).toLowerCase()}, {confirm.blocks} block{confirm.blocks === 1 ? "" : "s"}).</p>
+        <p className="mt-2 text-ink-3 text-xs">Unsaved edits in the builder are replaced. A copy of the current page is kept as a new version, so you can come back.</p>
+        {err && <div className="text-crit text-xs bg-crit-soft px-3 py-2 rounded mt-3">{err}</div>}
+      </div>
+      </ModalShell>}
     {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm shadow-xl z-50">{toast}</div>}
   </div>;
 }

@@ -40,4 +40,7 @@ export function ModalShell({ title, subtitle, width = 720, onClose, children, fo
   );
 }
 export const Err = ({ err }: { err: string | null }) => (err ? <div role="alert" className="text-crit text-xs bg-crit-soft px-3 py-2 rounded mt-3">{err}</div> : null);
-export const inputCls = "mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink bg-surface";
+/* `.bdl-field` is the app's one input definition (globals.css) — the same box the Pages search and
+   every builder panel field use. This used to restate it with a `rounded-md` corner and its own
+   padding, so dialog inputs were a second, slightly different control. */
+export const inputCls = "bdl-field mt-1";

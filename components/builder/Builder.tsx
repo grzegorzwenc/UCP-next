@@ -67,7 +67,7 @@ const LEFT_RAIL: [LeftTab, string, string][] = [["components", "Add a component"
 const RAIL: [RightTab, string, string][] = [["page", "Page settings", "M6 3h8l5 5v13H6zM14 3v5h5M9 13h6M9 17h6"], ["block", "Component settings", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"], ["content", "Entities", "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"], ["ai", "AI assistant", "M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 15l.6 1.6L7.2 17l-1.6.6L5 19.2l-.6-1.6L2.8 17l1.6-.4z"], ["insights", "Page insights", "M12 3a9 9 0 1 0 9 9M12 3v9l6.4-6.4M12 12l4 4"], ["comments", "Comments", "M4 5h16v11H9l-5 4zM8 9h8M8 12.5h5"]];
 
 
-/** Short step names used when the stepper is narrow (same order as STEPS). */
+/** Short step names: nine full names do not fit one status-bar row (same order as STEPS). */
 const STEP_SHORT = ["Build", "Preview", "Waiting", "Assigned", "In review", "Biz waiting", "Business", "Ready", "Live"];
 /* The 1-to-9 progress bar was hidden behind a `STEPPER_HIDDEN` flag while the panels were being
    rebuilt, with the row kept in the tree (`hidden`) and the 48px grid track dropped. It is back,
@@ -643,10 +643,24 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     || (i === 2 && status === "review" && !assignee && mayClaim) || (i === 3 && status === "review" && !!assignee && (assignee === user.id || canEdit))
     || (i === 4 && ((status === "inreview" && (mayApprove || canEdit)) || (status === "reviewed" && (maySendBiz || mayStatus("review")))))
     || (i === 5 && status === "bizreview" && !bizAssigned && mayBizClaim) || (i === 6 && bizAssigned && (mayBizApprove || canEdit)) || (i === 7 && (status === "approved" || status === "scheduled") && mayStatus("published"));
+  /* The one action the status bar offers: whatever moves the page on from where it is now. The
+     step the page is on owns its action; if that step has none to give (somebody else's turn, or
+     no permission) the first step that does is used, so the bar is never silently empty. */
+  const actStep = [cur, 0, 1, 2, 3, 4, 5, 6, 7].find(hasAct);
   /** Author's review and business review: the page full screen, click a text or image and leave feedback in the floating comments. */
   const stepAct = (i: number): React.ReactNode =>
     i === 0 ? <button className="btn btn-sm btn-primary btn-next" onClick={() => flowClick(1)} title="See the page exactly as visitors will">Go to preview</button>
-    : i === 1 ? <button className="btn btn-sm btn-primary btn-next" onClick={openSend} aria-label="Send to author's review"><span className="lg:hidden">Send for review</span><span className="hidden lg:inline">Send to author&apos;s review</span></button>
+    /* Page insights already warned about unfixed problems, but only once the Send dialog was open —
+       by which point sending is the obvious thing to do. The bar says so before that, and offers
+       both ways out: go and fix them, or send regardless. Sending is still allowed; the reviewer
+       sees the same list. */
+    : i === 1 ? (insightBadge > 0
+      ? <><span className="inline-flex flex-none items-center gap-1.5 whitespace-nowrap text-xs text-warning" title={`Page insights found ${insightBadge} thing${insightBadge === 1 ? "" : "s"} that should be fixed before a reviewer sees this page`}>
+          <svg viewBox="0 0 24 24" aria-hidden className="size-3.5 flex-none fill-none stroke-current" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M12 4.5l8.5 15h-17z" /><path d="M12 10v4M12 16.8v.2" /></svg>
+          {insightBadge} to fix</span>
+        <button className="btn btn-sm btn-secondary" onClick={() => openRight("insights")} title="Open Page insights and work through the list">Fix the issues</button>
+        <button className="btn btn-sm btn-primary btn-next" onClick={openSend} aria-label="Send to author's review anyway">Send anyway</button></>
+      : <button className="btn btn-sm btn-primary btn-next" onClick={openSend} aria-label="Send to author's review"><span className="lg:hidden">Send for review</span><span className="hidden lg:inline">Send to author&apos;s review</span></button>)
     : i === 2 ? <button className="btn btn-sm btn-primary btn-next" onClick={() => void claim()} title="Take this review from the Backlog">Assign to me</button>
     : i === 3 ? (assignee === user.id ? <button className="btn btn-sm btn-primary btn-next" onClick={() => transition("inreview", "Review started")} title="Start the review: the author sees that you are on it">Start review</button> : remindBtn(assigneeName || "the reviewer"))
     : i === 4 ? (status === "reviewed" ? <button className="btn btn-sm btn-primary btn-next" onClick={() => setDecide(true)} title="Send it to the business review, or back to the author">Next step</button>
@@ -708,7 +722,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const fit = areaW && areaW < siteW ? areaW / siteW : 1;
 
   return (
-    <div className={`h-full grid ${focus ? "grid-rows-[1fr]" : "grid-rows-[54px_48px_1fr]"} min-w-0 overflow-hidden`}>
+    <div className={`h-full grid ${focus ? "grid-rows-[1fr]" : "grid-rows-[54px_1fr_36px]"} min-w-0 overflow-hidden`}>
       {/* Toolbar (docked; gone in preview) */}
       {!focus && <div className="grid grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto_minmax(max-content,1fr)] items-center gap-3 px-2.5 bg-surface border-b border-line overflow-x-auto overflow-y-hidden">
         {/* left: back + page · centre: device width · right: status | panels + preview | next action */}
@@ -722,14 +736,18 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           </button>
           <div className="min-w-0 flex-1"><span className="flex items-center gap-2 min-w-0"><b className="block text-sm truncate">{title}</b>{jira && <JiraChip url={jira} />}</span><span className="hidden sm:block text-xs text-ink-3 truncate">{flag} {locale} · {domain}{rel}</span></div>
         </div>
-        <div role="group" aria-label="Preview width" className="hidden lg:inline-flex justify-self-center border border-line-2 rounded-lg overflow-hidden">{DEVICES.map(([d, label, path]) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center transition-colors duration-150 ease-out ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink hover:bg-surface-3"}`} title={`${label} · ${DEVICE_W[d]}px`} aria-label={`${label} view, ${DEVICE_W[d]} pixels`} aria-pressed={device === d}><Ico d={path} /></button>)}</div>
+        {/* The save state sits here, beside the width switch. It used to be stacked above the
+            "Waiting for a reviewer" line on the right, where the two read as one crowded block. */}
+        <div className="hidden lg:flex items-center gap-2.5 justify-self-center">
+          <div role="group" aria-label="Preview width" className="inline-flex border border-line-2 rounded-lg overflow-hidden">{DEVICES.map(([d, label, path]) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center transition-colors duration-150 ease-out ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink hover:bg-surface-3"}`} title={`${label} · ${DEVICE_W[d]}px`} aria-label={`${label} view, ${DEVICE_W[d]} pixels`} aria-pressed={device === d}><Ico d={path} /></button>)}</div>
+          {saving === "Save failed" ? <button className="text-xs text-crit bg-crit-soft rounded-full px-2.5 py-1 hover:underline whitespace-nowrap" onClick={() => save().then(() => say("Saved")).catch(() => {})} title="Your last changes were not saved">Not saved · Retry</button>
+            : canEdit && !locked && (status === "draft" || status === "failed") ? null /* the Save button says it */ : <span className="text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1 whitespace-nowrap" aria-live="polite" title="Changes are saved automatically">{saving === "Unsaved" ? "Saving…" : saving === "Saved just now" || saving === "Saved" ? "Saved" : saving}</span>}
+        </div>
         <div className="flex items-center justify-end gap-2.5 min-w-0">
           {/* status, who has it, and what it is waiting for, in one group (the waiting line sits under the chips) */}
           <div className="flex flex-col items-end gap-0.5 flex-none">
             <div className="flex items-center gap-2">
-              {saving === "Save failed" ? <button className="hidden sm:inline text-xs text-crit bg-crit-soft rounded-full px-2.5 py-1 hover:underline" onClick={() => save().then(() => say("Saved")).catch(() => {})} title="Your last changes were not saved">Not saved · Retry</button>
-                : canEdit && !locked && (status === "draft" || status === "failed") ? null /* the Save button says it */ : <span className="hidden sm:inline text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1" aria-live="polite" title="Changes are saved automatically">{saving === "Unsaved" ? "Saving…" : saving === "Saved just now" || saving === "Saved" ? "Saved" : saving}</span>}
-              {/* the current stage is shown on the stepper below, so no status pill here */}
+              {/* the save state moved beside the width switch; the stage is on the status bar below */}
               {inAuthor && assignee && <span className="hidden sm:contents"><AssigneeChip name={assigneeName} admin={isAdmin} marketId={marketId} pagePath={page.path} meId={user.id} onReassigned={(r) => { setAssignee(r.assignee); say(`Reassigned to ${r.assigneeName}`); router.refresh(); }} /></span>}
             </div>
             {inAuthor && !mayApproveSelf && <span className="hidden sm:inline text-xs text-ink-3 whitespace-nowrap pr-1">{status === "inreview" ? `${assigneeName ? assigneeName.split(" ")[0] : "The reviewer"} is reviewing it` : assigneeName ? `Waiting for ${assigneeName.split(" ")[0]} to start` : "Waiting for a reviewer"}{canEdit && <> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => setRemind(new Date().getTime())}>Remind</button></>}</span>}
@@ -759,9 +777,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               className={`inline-flex size-8 cursor-pointer items-center justify-center rounded-md transition-[color,background-color,transform] duration-150 ease-out hover:bg-surface-3 active:scale-[0.97] ${zen ? "text-brand" : "text-ink-3 hover:text-ink"}`}>
               {zen ? <Minimize2 className="size-4" strokeWidth={1.7} aria-hidden /> : <Maximize2 className="size-4" strokeWidth={1.7} aria-hidden />}
             </button>}
-            {focus
-              ? <button className="btn btn-sm btn-secondary" onClick={() => leavePreview()} title="Leave the visitor preview (⌘⇧F)"><Ico d="M6 6l12 12M18 6L6 18" />Exit preview</button>
-              : !canEdit
+            {/* No `focus` branch here: this whole bar is `{!focus && …}`, so an "Exit preview" button
+                placed in it could never render. The preview's way out is the fixed control below. */}
+            {!canEdit
                 ? <span className="inline-flex items-center gap-1 whitespace-nowrap px-1.5 text-xs text-ink-3" title={lockedByOther ? `Locked by ${pageLock!.name}` : "Ask a site admin for Edit on this folder"}><Lock className="size-3" strokeWidth={1.5} aria-hidden />Read-only</span>
                 : locked
                   ? <button className="btn btn-sm btn-secondary" onClick={() => void goEdit("blocks")} title={status === "published" ? "Change the page; the live version stays online until you publish again" : "Take the page back to editing"}><Ico d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />Edit</button>
@@ -802,16 +820,6 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         </div>
       </div>}
       {/* Flow stepper (hidden in preview) */}
-      {!focus && <div className="flex items-center px-4 bg-surface border-b border-line overflow-hidden" role="list" aria-label="Page progress">
-        <div className="flex-1 min-w-0 flex items-center overflow-hidden h-12">
-          {STEPS.map((s, i) => { const done = i < cur || (cur === 8 && i === 8); const on = i === cur && cur !== 8; const act = hasAct(i); return <div key={s[0]} role="listitem" className={`items-center ${on ? "flex" : "hidden sm:flex"} ${i < STEPS.length - 1 ? "flex-auto" : "flex-none"}`}>
-            <div aria-current={on ? "step" : undefined} className={`flex items-center gap-2 py-1 rounded-full text-xs flex-none cursor-default select-none ${on ? "bg-brand-soft ring-1 ring-brand/35 pl-1 pr-3 text-brand-hover font-medium" : "px-1.5 " + (done ? "text-ink-2" : "text-ink-3")}`} title={`${s[0]} · ${s[1]}`}><i className={`flex-none w-6 h-6 rounded-full border-2 grid place-items-center not-italic text-xs font-bold ${done ? "bg-good border-good text-white" : on ? "bg-brand border-brand text-white" : "border-line-2 bg-surface"}`}>{done ? <Check className="size-3.5" strokeWidth={2.5} aria-hidden /> : i + 1}</i><span className={`leading-tight whitespace-nowrap ${on ? "" : done ? "hidden min-[1700px]:inline" : "hidden min-[1400px]:inline"}`}>{on ? <><span className="lg:hidden">{STEP_SHORT[i]}</span><span className="hidden lg:inline">{s[0]}</span></> : <><span className="min-[1700px]:hidden">{STEP_SHORT[i]}</span><span className="hidden min-[1700px]:inline">{s[0]}</span></>}{on && <small className="hidden 2xl:block text-xs text-ink-3 font-normal">{s[1]}</small>}</span></div>
-            {/* steps only show where the page is; the next action sits on the line between this step and the next one */}
-            {i < STEPS.length - 1 && (act ? <><span className="hidden sm:flex items-center flex-auto min-w-0 mx-1 gap-1.5"><span className={`flex-1 min-w-1 h-0.5 ${i < cur ? "bg-good" : "bg-line"}`} />{stepAct(i)}<span className="flex-1 min-w-1 h-0.5 bg-line" /></span><span className={`sm:hidden flex-1 min-w-1 max-w-10 h-0.5 mx-1 ${i < cur ? "bg-good" : "bg-line"}`} /></>
-              : <span className={`flex-1 min-w-1 max-w-10 h-0.5 mx-1 ${i < cur ? "bg-good" : "bg-line"}`} />)}</div>; })}
-        </div>
-        {[1, 2, 3, 4, 5, 6, 7, 0].some(hasAct) && <div className="sm:hidden flex flex-none items-center pl-2">{stepAct([1, 2, 3, 4, 5, 6, 7, 0].find(hasAct)!)}</div>}
-      </div>}
       {/* Body */}
       <div className="relative min-h-0 overflow-hidden bg-bg">
         <div className={`absolute inset-0 flex flex-col ${preview ? "preview" : ""}`}>
@@ -935,9 +943,23 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           </section>
           </PanelBody>
         </aside>}
-        {focus && <div aria-live="polite" className={`fixed top-4 left-1/2 -translate-x-1/2 z-[60] bg-foreground/85 text-white text-xs px-3 py-1.5 rounded-full transition-opacity duration-700 ${fsHint ? "opacity-100" : "opacity-0 pointer-events-none"}`}>Preview · this is what visitors see · press Esc to go back to editing</div>}
-        {focus && reviewMode && <FloatingPanel title={status === "bizreview" && bizAssigned && mayBizApprove ? "Review" : "Comments"} count={commentTotal} open={floatOpen} onToggle={setFloatOpen} hint={commentTarget || (status === "bizreview" && bizAssigned && mayBizApprove) ? undefined : "Click a text, an image or a component on the page to comment on it."}
-          actions={<button type="button" className="btn btn-sm btn-secondary" onClick={leavePreview} title="Leave full screen (Esc)">Exit full screen</button>}>
+        {/* The way out of the preview. It used to be a pill that faded after 3.5 seconds, leaving no
+            control on screen at all — the editor's own "Exit preview" button sits in the top bar,
+            which the preview hides, so Esc was the only way back and nothing said so any more.
+            This stays put for as long as the preview is open. The sentence still fades, the button
+            does not. `reviewMode` has its own Exit in the floating panel, so this stands down. */}
+        {/* The way out of the preview, and the only one on screen: the editor's own "Exit preview"
+            button is in the top bar, which the preview hides. Top left, because the quality
+            checklist and the review panel both dock down the whole right-hand side. Shown in every
+            preview, review included — gating it on `!reviewMode` left reviewers with nothing but
+            the Esc key, which is exactly the state this was meant to fix. */}
+        {focus && <div className="fixed top-4 left-4 z-[80] flex items-center gap-2">
+          <button type="button" className="btn btn-primary shadow-lg" onClick={leavePreview} title="Leave the visitor preview (Esc)"><Ico d="M6 6l12 12M18 6L6 18" />Exit preview<kbd className="ml-1.5 border border-white/40 px-1 text-xs font-normal">Esc</kbd></button>
+          <span aria-live="polite" className={`hidden text-xs text-white bg-bdl-charcoal px-2.5 py-1.5 transition-opacity duration-700 sm:block ${fsHint ? "opacity-100" : "opacity-0"}`}>This is what visitors see</span>
+        </div>}
+        {/* No Exit in this panel's header: the fixed "Exit preview" button above is on screen for
+            the whole preview, review included, so a second one here only split the way out. */}
+        {focus && reviewMode && <FloatingPanel title={status === "bizreview" && bizAssigned && mayBizApprove ? "Review" : "Comments"} count={commentTotal} open={floatOpen} onToggle={setFloatOpen} hint={commentTarget || (status === "bizreview" && bizAssigned && mayBizApprove) ? undefined : "Click a text, an image or a component on the page to comment on it."}>
           {status === "bizreview" && bizAssigned && mayBizApprove && <section aria-labelledby="dec-b" className="mb-3"><h3 id="dec-b" className="text-xs font-medium uppercase tracking-[.08em] text-ink-3">Decision</h3><div className="mt-1.5 rounded-lg border border-line bg-surface-2 p-3 text-sm">
             <p className="text-xs text-ink-3">Everything right? Sign it off. Something to change? Send it back to the author.</p>
             {askingB ? <><p className="text-xs mt-1">{askingB === "signoff" ? "Sign off this page? It becomes ready to publish." : "Send it back to the author? The page goes back to Build the page."}</p>
@@ -947,7 +969,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {status === "bizreview" && bizAssigned && mayBizApprove && <h3 className="text-xs font-medium uppercase tracking-[.08em] text-ink-3 mb-2 pt-3 border-t border-line">Comments <span className="normal-case tracking-normal font-normal text-ink-4">· click a text or an image on the page to comment on it</span></h3>}
           <PageComments marketId={marketId} path={page.path} about={null} onClearAbout={() => {}} focusKey={0} bare {...reviewProps} />
         </FloatingPanel>}
-        {qcMode && <FloatingPanel title="Quality checklist" open={qcOpen} onToggle={setQcOpen} icon={<svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="M3.5 6l1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" /></svg>}
+        {/* Clear of the status bar (36px + the 16px it would otherwise sit at): docked at the
+            bottom right, this panel and its folded button covered the bar's next-step button. */}
+        {qcMode && <FloatingPanel title="Quality checklist" bottom={focus ? 16 : 52} open={qcOpen} onToggle={setQcOpen} icon={<svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="M3.5 6l1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" /></svg>}
           hint={qcPinned ? <span className="flex items-center gap-2">Pinned · this stays while you look<button type="button" className="ml-auto underline" onClick={() => { setQcPinned(false); setQcTarget(null); }}>Whole page</button></span> : qcTarget ? "Click to pin it" : undefined}>
           <QualityChecklist blocks={blocks} meta={insightMeta} url={`https://${domain}${rel}`} templateName={TEMPLATES.find((t) => t.id === page.template)?.name ?? page.template ?? "Page"} target={qcTarget} />
         </FloatingPanel>}
@@ -984,10 +1008,37 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {sending && <SendForReviewModal marketId={marketId} pagePath={page.path} onClose={() => setSending(false)} onSend={sendForReview} />}
         {translating && <TranslateModal marketId={marketId} path={page.path} title={title} onClose={() => setTranslating(false)} onDone={(created) => { say(`Created ${created.length} translation${created.length === 1 ? "" : "s"}`); router.refresh(); }} />}
         {firstStage && <AuthorsChip trigger={false} anchorRef={actionsRef} openSignal={authorsSignal} authors={authors} meId={user.id} admin={isAdmin} canEdit={canEdit} people={names} onAction={authorAction} />}
-        {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm shadow-xl z-50">{toast}</div>}
+        {toast && <div style={{ bottom: focus ? 24 : 60 }} className="fixed left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm shadow-xl z-50">{toast}</div>}
         {/* Closing mirrors opening: the same spinner-over-label as the "Loading editor" skeleton, so the editor opens and shuts with one look. */}
         {closing && <EditorVeil label={closing} detail={title} />}
       </div>
+      {/* Progress, as a status bar along the bottom.
+          It used to be a 48px white band under the top bar: a second header, with 24px circles and
+          a pill for the current step, both of which fight BDL's square corners, and a light strip
+          between the white chrome and the dark canvas. BDL has no stepper of its own, so this is
+          built from its tokens — charcoal ground, square marks, BDL red for where the page is now,
+          BDL's success teal behind it. The nine names live on the marks; the bar itself says only
+          which step this is, and carries the one action that moves the page on. */}
+      {/* `border-white`: the canvas ground (#31363d) and this bar (#333333) are near enough to read
+          as one dark area once the page is scrolled to the bottom, so a hairline keeps the edge. */}
+      {!focus && <div className="flex items-center gap-3 border-t border-white px-3 bg-bdl-charcoal text-white">
+        {/* Every step is named, not just the one the page is on: the bar is the overview of the
+            whole run, so you can see what is behind and what is still to come without hovering.
+            Short names carry the row; the step in progress gets its full name and the weight.
+            Below `lg` there is no room for nine, so it falls back to the current step alone. */}
+        <ol className="flex min-w-0 flex-1 items-center overflow-hidden" aria-label="Page progress">
+          {STEPS.map((s, i) => { const done = i < cur || (cur === 8 && i === 8); const on = i === cur && cur !== 8;
+            return <li key={s[0]} aria-current={on ? "step" : undefined} title={`${i + 1}. ${s[0]} · ${s[1]}`}
+              className={`flex-none items-center gap-1.5 ${on ? "flex" : "hidden lg:flex"}`}>
+              <span aria-hidden className={`h-2 w-2 flex-none ${done ? "bg-success" : on ? "bg-bdl-red" : "bg-white/25"}`} />
+              <span className={`whitespace-nowrap text-xs ${on ? "font-medium text-white" : done ? "text-white/70" : "text-white/45"}`}>
+                {on ? s[0] : STEP_SHORT[i]}<span className="sr-only">{done ? " · done" : on ? " · where the page is now" : " · still to come"}</span>
+              </span>
+              {i < STEPS.length - 1 && <span aria-hidden className="mx-2 hidden h-px w-3 flex-none bg-white/20 lg:block" />}
+            </li>; })}
+        </ol>
+        {actStep !== undefined && <div className="flex flex-none items-center gap-2">{stepAct(actStep)}</div>}
+      </div>}
     </div>
   );
 }

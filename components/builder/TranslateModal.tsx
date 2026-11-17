@@ -5,21 +5,15 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { ucpApi, ApiError } from "@/lib/api";
 import { MARKETS, market as marketOf } from "@/lib/markets";
+import { ModalShell, inputCls } from "@/components/models/ModalShell";
 
 type Props = { marketId: string; path: string; title: string; onClose: () => void; onDone: (created: string[]) => void };
 
 const errText = (e: unknown) => (e instanceof ApiError ? `${e.problem.title}${e.problem.detail ? ": " + e.problem.detail : ""} · request ${e.requestId ?? "n/a"}` : String(e));
 const flagOf = (l: string) => MARKETS.find((m) => m.locales.includes(l))?.flag ?? "";
-const inputCls = "mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink";
-
-function ModalShell({ title, width = 720, onClose, children, footer }: { title: string; width?: number; onClose: () => void; children: React.ReactNode; footer: React.ReactNode }) {
-  return <div className="fixed inset-0 bg-black/45 grid place-items-center z-50" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-    <div role="dialog" aria-label={title} className="bg-surface rounded-xl shadow-2xl" style={{ width: `min(${width}px, 94vw)` }}>
-      <header className="px-6 pt-5 pb-3 flex items-center"><h2 className="text-lg font-medium">{title}</h2><button className="ml-auto w-8 h-8 rounded text-ink-3 hover:bg-surface-3" onClick={onClose} aria-label="Close">×</button></header>
-      <div className="px-6 pb-2">{children}</div>
-      <footer className="px-6 pb-5 pt-3 flex justify-end gap-2">{footer}</footer>
-    </div></div>;
-}
+/* The shared dialog (components/models/ModalShell) rather than a local copy: that one is built on
+   the shadcn Dialog, so this gets BDL's square panel, the blurred backdrop, a focus trap, a portal
+   and Escape, instead of a bare `bg-black/45` div with its own close button. */
 
 /** Translate one page into other languages. Same flow as the explorer's bulk translate, for a single page. */
 export function TranslateModal({ marketId, path, title, onClose, onDone }: Props) {
