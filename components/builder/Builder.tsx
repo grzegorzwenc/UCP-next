@@ -2,7 +2,8 @@
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { startEditorTour, tourSeen } from "@/lib/editor/tour";
 import { DEVICE_W, DEVICES, type Device } from "@/lib/ucp/devices";
-import { Check, Lock, Languages, Sparkles, MoreHorizontal, ChevronLeft, Maximize2, Minimize2 } from "lucide-react";
+import { Check, Lock, Languages, Sparkles, MoreHorizontal, ChevronLeft, ChevronDown, Users, Maximize2, Minimize2, Eye, Send, Settings, History, Copy, Trash2 } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuShortcut } from "@/components/shadcn/dropdown-menu";
 import type { Block, PageView, PageStatus } from "@/lib/api/types";
 import { repoApi, ucpApi, ApiError } from "@/lib/api";
 import { blocksToComponents, componentsToBlocks } from "@/lib/repo/mapping";
@@ -61,7 +62,10 @@ const PATTERN_ICON = "M4 4h7v7H4zM13 4h7v7h-7zM4 13h16v7H4z"; // three component
 /* Phones only. On desktop the left panel's own tabs do this job, so there is no left rail. */
 const LEFT_RAIL: [LeftTab, string, string][] = [["components", "Add a component", "M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM12 8.5v7M8.5 12h7"], ["patterns", "Design patterns", PATTERN_ICON], ["outline", "Outline", "M4 6h2M4 12h2M4 18h2M9 6h11M9 12h11M9 18h11"]];
 /* Page settings first: it is what the panel opens on, so it leads the rail. */
-const RAIL: [RightTab, string, string][] = [["page", "Page settings", "M6 3h8l5 5v13H6zM14 3v5h5M9 13h6M9 17h6"], ["block", "Component settings", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"], ["content", "Entities", "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"], ["ai", "AI assistant", "M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 15l.6 1.6L7.2 17l-1.6.6L5 19.2l-.6-1.6L2.8 17l1.6-.4z"], ["insights", "Page insights", "M12 3a9 9 0 1 0 9 9M12 3v9l6.4-6.4M12 12l4 4"], ["comments", "Comments", "M4 5h16v11H9l-5 4zM8 9h8M8 12.5h5"], ["history", "Version history", "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"]];
+/* Version history is not here: it opens from the Save-draft menu, with the other page-level
+   actions. Page settings stays, and leads, because it is what the panel opens on. */
+const RAIL: [RightTab, string, string][] = [["page", "Page settings", "M6 3h8l5 5v13H6zM14 3v5h5M9 13h6M9 17h6"], ["block", "Component settings", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"], ["content", "Entities", "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"], ["ai", "AI assistant", "M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 15l.6 1.6L7.2 17l-1.6.6L5 19.2l-.6-1.6L2.8 17l1.6-.4z"], ["insights", "Page insights", "M12 3a9 9 0 1 0 9 9M12 3v9l6.4-6.4M12 12l4 4"], ["comments", "Comments", "M4 5h16v11H9l-5 4zM8 9h8M8 12.5h5"]];
+
 
 /** Short step names used when the stepper is narrow (same order as STEPS). */
 const STEP_SHORT = ["Build", "Preview", "Waiting", "Assigned", "In review", "Biz waiting", "Business", "Ready", "Live"];
@@ -126,6 +130,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   /* A detached panel floats over the canvas instead of reserving a column, so the padding below
      treats it as closed and the page gets the width back. */
   const [leftFloating, setLeftFloating] = useState(false);
+  /* Authors moved out of the top bar and into the page-actions menu; the panel opens under the
+     split button, which is the control that now owns it. */
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const [authorsSignal, setAuthorsSignal] = useState(0);
   const rightFloat = useFloat(); // Configure / Page settings can be detached and dragged over the canvas
   const [translating, setTranslating] = useState(false); const router = useRouter();
   const [description, setDescription] = useState(page.description ?? "");
@@ -441,6 +449,23 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     try { const p = await ucpApi.savePattern(marketId, { ...v, parts: toParts(multiBlocks) }); setSavingPattern(false); stopPattern(); await loadPatterns(); setLeftTab("patterns"); setLeft(true); say(`Saved · ${p.name} is in Design patterns${v.markets.length && !v.markets.includes(marketId) ? " (not shown in this market)" : ""}`); return null; }
     catch (e) { return e instanceof ApiError ? e.problem.title : "Could not save the pattern"; }
   }
+  /** Duplicate this page beside itself, with the blocks as they are now, and open the copy. */
+  async function duplicatePage() {
+    const parent = page.path.replace(/\/[^/]+$/, "");
+    const base = page.path.split("/").pop() ?? "page";
+    try {
+      const copy = await repoApi.createPage({ parentPath: parent, name: `${base}-copy`, title: `${title} (copy)`, template: page.template ?? "", components: blocksToComponents(blocksRef.current) });
+      say(`Duplicated as ${copy.title}`);
+      router.push(`/${marketId}/${envId}/page${copy.path.replace(root, "")}`);
+    } catch (e) { say(e instanceof ApiError ? e.problem.title : "Could not duplicate the page"); }
+  }
+  /** Delete the page for good, after asking. Goes back to the library afterwards. */
+  async function deletePage() {
+    const r = await ask({ title: `Delete “${title}”?`, body: <>This removes the page and everything on it. It cannot be undone.{status === "published" ? <><br /><br />This page is <b>live</b>. Deleting it here does not take it off {domain} until the next publish.</> : null}</>, confirmLabel: "Delete", danger: true });
+    if (r !== true) return;
+    try { await repoApi.deletePage(page.path, true); say(`${title} deleted`); router.push(libraryHref); }
+    catch (e) { say(e instanceof ApiError ? e.problem.title : "Could not delete the page"); }
+  }
   /** Remove: archiving is the default (it can be restored); deleting for good is the second choice. */
   async function removePattern(p: DesignPattern) {
     const r = await ask({ title: `Archive “${p.name}”?`, body: <>Archived patterns leave the library but are kept, so anyone who manages them can <b>restore</b> them later. Pages that already use it keep their components.<br /><br />Deleting removes it for good and cannot be undone.</>, confirmLabel: "Archive", alt: { label: "No, delete permanently…", danger: true } });
@@ -667,7 +692,6 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               {saving === "Save failed" ? <button className="hidden sm:inline text-xs text-crit bg-crit-soft rounded-full px-2.5 py-1 hover:underline" onClick={() => save().then(() => say("Saved")).catch(() => {})} title="Your last changes were not saved">Not saved · Retry</button>
                 : canEdit && !locked && (status === "draft" || status === "failed") ? null /* the Save button says it */ : <span className="hidden sm:inline text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1" aria-live="polite" title="Changes are saved automatically">{saving === "Unsaved" ? "Saving…" : saving === "Saved just now" || saving === "Saved" ? "Saved" : saving}</span>}
               {/* the current stage is shown on the stepper below, so no status pill here */}
-              {firstStage && <span className="hidden sm:contents"><AuthorsChip authors={authors} meId={user.id} admin={isAdmin} canEdit={canEdit} people={names} onAction={authorAction} /></span>}
               {inAuthor && assignee && <span className="hidden sm:contents"><AssigneeChip name={assigneeName} admin={isAdmin} marketId={marketId} pagePath={page.path} meId={user.id} onReassigned={(r) => { setAssignee(r.assignee); say(`Reassigned to ${r.assigneeName}`); router.refresh(); }} /></span>}
             </div>
             {inAuthor && !mayApproveSelf && <span className="hidden sm:inline text-xs text-ink-3 whitespace-nowrap pr-1">{status === "inreview" ? `${assigneeName ? assigneeName.split(" ")[0] : "The reviewer"} is reviewing it` : assigneeName ? `Waiting for ${assigneeName.split(" ")[0]} to start` : "Waiting for a reviewer"}{canEdit && <> · <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => setRemind(new Date().getTime())}>Remind</button></>}</span>}
@@ -678,7 +702,53 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {/* The two panel toggles that used to sit here are gone: each panel is reopened from the slim
               bar it leaves behind, which is where you are already looking when you want it back. */}
           {/* the page itself: look at it, or take it back to editing */}
-          <div data-tour-actions className="flex items-center gap-1 pl-2.5 border-l border-line">{!focus && <button data-tour-focus className={`bdl-chip btn-square size-8 ${zen ? "bdl-chip-active" : ""}`} onClick={() => setZen(!zen)} title={zen ? "Show the panels · \u2318." : "Focus mode: hide both panels · \u2318."} aria-label={zen ? "Show the panels" : "Focus mode: hide both panels"} aria-pressed={zen}>{zen ? <Minimize2 className="size-4" strokeWidth={1.7} aria-hidden /> : <Maximize2 className="size-4" strokeWidth={1.7} aria-hidden />}</button>}<button className={`bdl-chip ${focus ? "bdl-chip-active" : ""}`} onClick={() => (focus ? leavePreview() : setFocusMode(true))} title="Preview the page as visitors see it (⌘⇧F)" aria-pressed={focus}>{focus ? <><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" aria-hidden><path d="M6 6l12 12M18 6L6 18" /></svg>Exit preview</> : <><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="3" /></svg>Preview</>}</button>{canEdit && !locked && !focus && (status === "draft" || status === "failed") && <button className={`btn btn-sm btn-secondary ${dirty ? "btn-primary" : ""}`} disabled={!dirty || saving === "Saving…"} onClick={async () => { try { await save(); say("Saved"); } catch { /* save() already says why */ } }} title={dirty ? "Save now (it also saves by itself after a moment) · ⌘S" : "All changes are saved"}><Ico d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6" />{dirty ? (saving === "Saving…" ? "Saving…" : "Save") : "Saved"}</button>}{!canEdit ? <span className="inline-flex items-center gap-1 text-xs text-ink-3 px-1.5 whitespace-nowrap" title={lockedByOther ? `Locked by ${pageLock!.name}` : "Ask a site admin for Edit on this folder"}><Lock className="size-3" strokeWidth={1.5} aria-hidden />Read-only</span> : locked ? <button className="btn btn-sm btn-secondary" onClick={() => void goEdit("blocks")} title={status === "published" ? "Change the page; the live version stays online until you publish again" : "Take the page back to editing"}><Ico d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />Edit</button> : null}</div>
+          <div data-tour-actions className="flex items-center gap-1.5 pl-2.5 border-l border-line">
+            {/* Focus mode: a plain icon button like the mock's, with no chip outline around it. */}
+            {!focus && <button data-tour-focus type="button" onClick={() => setZen(!zen)} aria-pressed={zen}
+              title={zen ? "Show the panels · \u2318." : "Focus mode: hide both panels · \u2318."} aria-label={zen ? "Show the panels" : "Focus mode: hide both panels"}
+              className={`inline-flex size-8 cursor-pointer items-center justify-center rounded-md transition-[color,background-color,transform] duration-150 ease-out hover:bg-surface-3 active:scale-[0.97] ${zen ? "text-brand" : "text-ink-3 hover:text-ink"}`}>
+              {zen ? <Minimize2 className="size-4" strokeWidth={1.7} aria-hidden /> : <Maximize2 className="size-4" strokeWidth={1.7} aria-hidden />}
+            </button>}
+            {focus
+              ? <button className="btn btn-sm btn-secondary" onClick={() => leavePreview()} title="Leave the visitor preview (⌘⇧F)"><Ico d="M6 6l12 12M18 6L6 18" />Exit preview</button>
+              : !canEdit
+                ? <span className="inline-flex items-center gap-1 whitespace-nowrap px-1.5 text-xs text-ink-3" title={lockedByOther ? `Locked by ${pageLock!.name}` : "Ask a site admin for Edit on this folder"}><Lock className="size-3" strokeWidth={1.5} aria-hidden />Read-only</span>
+                : locked
+                  ? <button className="btn btn-sm btn-secondary" onClick={() => void goEdit("blocks")} title={status === "published" ? "Change the page; the live version stays online until you publish again" : "Take the page back to editing"}><Ico d="M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4" />Edit</button>
+                  : (
+                    /* One split button for every document action, as in the mock: the frequent one is
+                       the button, the rest live under the chevron instead of spreading along the bar. */
+                    <div ref={actionsRef} className="inline-flex" role="group" aria-label="Page actions">
+                      <button type="button" className="btn btn-sm btn-primary rounded-e-none" disabled={!dirty || saving === "Saving…"}
+                        onClick={async () => { try { await save(); say("Saved"); } catch { /* save() already says why */ } }}
+                        title={dirty ? "Save now (it also saves by itself after a moment) · ⌘S" : "All changes are saved"}>
+                        <Ico d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6" />{dirty ? (saving === "Saving…" ? "Saving…" : "Save draft") : "Saved"}
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger aria-label="More page actions"
+                          className="btn btn-sm btn-primary -ms-px cursor-pointer rounded-s-none !px-1.5 data-[popup-open]:bg-brand-hover">
+                          <ChevronDown className="size-4" strokeWidth={2} aria-hidden />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="min-w-56">
+                          <DropdownMenuItem onClick={() => setFocusMode(true)}><Eye className="size-4" strokeWidth={1.6} aria-hidden />Preview<DropdownMenuShortcut>⌘⇧F</DropdownMenuShortcut></DropdownMenuItem>
+                          <DropdownMenuItem disabled={!dirty || saving === "Saving…"} onClick={() => { void save().then(() => say("Saved"), () => {}); }}><Ico d="M5 4h11l3 3v13H5zM8 4v5h7V4M8 20v-6h8v6" />Save draft<DropdownMenuShortcut>⌘S</DropdownMenuShortcut></DropdownMenuItem>
+                          <DropdownMenuItem disabled={status !== "draft" && status !== "failed"} onClick={openSend}><Send className="size-4" strokeWidth={1.6} aria-hidden />Send for review</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => { select(null); setRightTab("page"); setRight(true); setZen(false); }}><Settings className="size-4" strokeWidth={1.6} aria-hidden />Page settings</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setRightTab("history"); setRight(true); setZen(false); }}><History className="size-4" strokeWidth={1.6} aria-hidden />Version history</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setTranslating(true)}><Languages className="size-4" strokeWidth={1.6} aria-hidden />Translate this page…</DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => void duplicatePage()}><Copy className="size-4" strokeWidth={1.6} aria-hidden />Duplicate page</DropdownMenuItem>
+                          <DropdownMenuItem variant="destructive" onClick={() => void deletePage()}><Trash2 className="size-4" strokeWidth={1.6} aria-hidden />Delete page</DropdownMenuItem>
+                          {firstStage && <>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => setAuthorsSignal((v) => v + 1)}><Users className="size-4" strokeWidth={1.6} aria-hidden />Authors<DropdownMenuShortcut>{authors.length || "none"}</DropdownMenuShortcut></DropdownMenuItem>
+                          </>}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  )}
+          </div>
         </div>
       </div>}
       {/* Flow stepper (hidden in preview) */}
@@ -863,6 +933,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           onDone={(r, m) => { const x = r[0]; setPublishing(false); if (!x?.ok) { say(x?.reason ?? "Nothing was published"); return; } setStatus(x.status as PageStatus); setPublishAt(undefined); say(m === "cancel" ? "Schedule cancelled · back to Approved" : m === "schedule" ? "Scheduled for publishing" : `Published to ${envName}`); router.refresh(); }} />}
         {sending && <SendForReviewModal marketId={marketId} pagePath={page.path} onClose={() => setSending(false)} onSend={sendForReview} />}
         {translating && <TranslateModal marketId={marketId} path={page.path} title={title} onClose={() => setTranslating(false)} onDone={(created) => { say(`Created ${created.length} translation${created.length === 1 ? "" : "s"}`); router.refresh(); }} />}
+        {firstStage && <AuthorsChip trigger={false} anchorRef={actionsRef} openSignal={authorsSignal} authors={authors} meId={user.id} admin={isAdmin} canEdit={canEdit} people={names} onAction={authorAction} />}
         {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm shadow-xl z-50">{toast}</div>}
         {/* Closing mirrors opening: the same spinner-over-label as the "Loading editor" skeleton, so the editor opens and shuts with one look. */}
         {closing && <EditorVeil label={closing} detail={title} />}
