@@ -69,19 +69,10 @@ const RAIL: [RightTab, string, string][] = [["page", "Page settings", "M6 3h8l5 
 
 /** Short step names used when the stepper is narrow (same order as STEPS). */
 const STEP_SHORT = ["Build", "Preview", "Waiting", "Assigned", "In review", "Biz waiting", "Business", "Ready", "Live"];
-/**
- * TEMPORARY: hides the 1-to-9 progress bar while its redesign is pending.
- *
- * Set back to `false` to restore it — that is the only change needed. The row is hidden with
- * `hidden` rather than removed, so the stepper code, `STEPS`, `STEP_SHORT`, `hasAct` and
- * `stepAct` all stay live and nothing has to be rebuilt later. The flag also drops the 48px
- * grid track, because a `display:none` child leaves the grid and the body would otherwise
- * slide up into the stepper's row.
- *
- * Note while this is on: the next-step buttons lived *on* that row, so "Go to preview",
- * "Send for review" and "Publish" have no on-screen trigger. See the note where it is used.
- */
-const STEPPER_HIDDEN = true;
+/* The 1-to-9 progress bar was hidden behind a `STEPPER_HIDDEN` flag while the panels were being
+   rebuilt, with the row kept in the tree (`hidden`) and the 48px grid track dropped. It is back,
+   so the flag and both of its branches are gone rather than left dormant. The next-step buttons
+   ("Go to preview", "Send for review", "Publish") live on this row and work again with it. */
 const STEPS = [["Build the page", "Add blocks and fill in the content"], ["Preview", "See it exactly as visitors will"], ["Waiting for a reviewer", "Sent · no reviewer has taken it yet"], ["Assigned to reviewer", "A reviewer has taken it · not started yet"], ["In author's review", "The reviewer is checking it"], ["Waiting for business review assignment", "Reviewed · no business reviewer has taken it yet"], ["In business review", "Business sign-off"], ["Ready to publish", "Reviewed · click Publish"], ["Published", "Live for customers"]];
 
 /**
@@ -717,7 +708,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const fit = areaW && areaW < siteW ? areaW / siteW : 1;
 
   return (
-    <div className={`h-full grid ${focus ? "grid-rows-[1fr]" : STEPPER_HIDDEN ? "grid-rows-[54px_1fr]" : "grid-rows-[54px_48px_1fr]"} min-w-0 overflow-hidden`}>
+    <div className={`h-full grid ${focus ? "grid-rows-[1fr]" : "grid-rows-[54px_48px_1fr]"} min-w-0 overflow-hidden`}>
       {/* Toolbar (docked; gone in preview) */}
       {!focus && <div className="grid grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto_minmax(max-content,1fr)] items-center gap-3 px-2.5 bg-surface border-b border-line overflow-x-auto overflow-y-hidden">
         {/* left: back + page · centre: device width · right: status | panels + preview | next action */}
@@ -811,7 +802,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         </div>
       </div>}
       {/* Flow stepper (hidden in preview) */}
-      {!focus && <div className={`${STEPPER_HIDDEN ? "hidden" : ""} flex items-center px-4 bg-surface border-b border-line overflow-hidden`} role="list" aria-label="Page progress">
+      {!focus && <div className="flex items-center px-4 bg-surface border-b border-line overflow-hidden" role="list" aria-label="Page progress">
         <div className="flex-1 min-w-0 flex items-center overflow-hidden h-12">
           {STEPS.map((s, i) => { const done = i < cur || (cur === 8 && i === 8); const on = i === cur && cur !== 8; const act = hasAct(i); return <div key={s[0]} role="listitem" className={`items-center ${on ? "flex" : "hidden sm:flex"} ${i < STEPS.length - 1 ? "flex-auto" : "flex-none"}`}>
             <div aria-current={on ? "step" : undefined} className={`flex items-center gap-2 py-1 rounded-full text-xs flex-none cursor-default select-none ${on ? "bg-brand-soft ring-1 ring-brand/35 pl-1 pr-3 text-brand-hover font-medium" : "px-1.5 " + (done ? "text-ink-2" : "text-ink-3")}`} title={`${s[0]} · ${s[1]}`}><i className={`flex-none w-6 h-6 rounded-full border-2 grid place-items-center not-italic text-xs font-bold ${done ? "bg-good border-good text-white" : on ? "bg-brand border-brand text-white" : "border-line-2 bg-surface"}`}>{done ? <Check className="size-3.5" strokeWidth={2.5} aria-hidden /> : i + 1}</i><span className={`leading-tight whitespace-nowrap ${on ? "" : done ? "hidden min-[1700px]:inline" : "hidden min-[1400px]:inline"}`}>{on ? <><span className="lg:hidden">{STEP_SHORT[i]}</span><span className="hidden lg:inline">{s[0]}</span></> : <><span className="min-[1700px]:hidden">{STEP_SHORT[i]}</span><span className="hidden min-[1700px]:inline">{s[0]}</span></>}{on && <small className="hidden 2xl:block text-xs text-ink-3 font-normal">{s[1]}</small>}</span></div>
