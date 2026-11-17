@@ -197,7 +197,7 @@ export function LeftPanel({
         {(
           <div className="relative min-w-0 flex-1">
             <svg viewBox="0 0 24 24" aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 fill-none stroke-current text-ink-3" strokeWidth={1.8} strokeLinecap="round"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4 4" /></svg>
-            <input className="h-8 w-full rounded-md border border-line-2 ps-9 pe-8 text-sm" placeholder={placeholder} aria-label={placeholder} value={q} onChange={(e) => setQ(e.target.value)} />
+            <input className="bdl-field !ps-9 !pe-8" placeholder={placeholder} aria-label={placeholder} value={q} onChange={(e) => setQ(e.target.value)} />
             {q && <button type="button" onClick={() => setQ("")} aria-label="Clear the search"
               className="absolute right-1.5 top-1/2 grid size-5 -translate-y-1/2 cursor-pointer place-items-center rounded text-ink-3 hover:text-ink">
               <svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
@@ -298,7 +298,7 @@ export function LeftPanel({
                       </button>
                       {mayManage(p) && (
                         <span className="absolute right-1 top-1/2 flex -translate-y-1/2 gap-1 bg-surface-2 opacity-0 transition-opacity duration-150 ease-out group-hover/item:opacity-100 focus-within:opacity-100">
-                          <button type="button" onClick={() => onPatternMarkets(p)} title="Choose the markets that see this pattern" className="cursor-pointer rounded border border-line bg-surface px-1.5 py-0.5 text-[10px] font-medium text-ink-2 hover:text-ink">Markets</button>
+                          <button type="button" onClick={() => onPatternMarkets(p)} title="Choose the markets that see this pattern" className="cursor-pointer border border-line bg-surface px-1.5 py-0.5 text-xs font-medium text-ink-2 hover:text-ink">Markets</button>
                           <button type="button" onClick={() => onRemovePattern(p)} title={`Remove ${p.name}`} aria-label={`Remove ${p.name}`} className="grid size-5 cursor-pointer place-items-center rounded border border-line bg-surface text-ink-3 hover:border-crit hover:text-crit">
                             <svg viewBox="0 0 24 24" aria-hidden className="size-3 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M5 7h14M10 11v6M14 11v6M6.5 7l1 13h9l1-13M9 7V4h6v3" /></svg>
                           </button>
@@ -314,7 +314,7 @@ export function LeftPanel({
                 <ul className="m-0 grid list-none gap-1 p-0">
                   {archived.map((p) => (
                     <li key={p.id} className="flex items-center gap-2 rounded-md border border-line px-2.5 py-1.5 text-xs">
-                      <span className="min-w-0 flex-1"><b className="block truncate text-ink-2">{p.name}</b><small className="block text-ink-3">by {p.archived!.name} · {new Date(p.archived!.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</small></span>
+                      <span className="min-w-0 flex-1"><b className="block truncate text-ink-2">{p.name}</b><small className="text-xs block text-ink-3">by {p.archived!.name} · {new Date(p.archived!.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</small></span>
                       {mayManage(p) && <><button type="button" className="btn btn-sm btn-secondary" onClick={() => onRestorePattern(p)}>Restore</button><button type="button" className="btn btn-sm btn-secondary text-brand" onClick={() => onDeletePattern(p)}>Delete</button></>}
                     </li>
                   ))}

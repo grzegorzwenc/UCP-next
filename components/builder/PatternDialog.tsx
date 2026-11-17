@@ -15,8 +15,8 @@ export function SavePatternDialog({ blocks, marketId, onSave, onClose }: { block
     footer={<><button type="button" className="btn btn-sm btn-secondary" onClick={onClose}>Cancel</button><button type="button" className="btn btn-sm btn-primary" disabled={busy || !name.trim()} onClick={save}>{busy ? "Saving…" : "Save pattern"}</button></>}>
     <div className="grid gap-4 md:grid-cols-[1fr_200px]">
       <div className="grid gap-3 content-start">
-        <label className="block text-xs text-ink-2 font-medium">Name<input autoFocus className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink font-normal" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") save(); }} placeholder="e.g. Savings product intro" /></label>
-        <label className="block text-xs text-ink-2 font-medium">What it is for <span className="font-normal text-ink-3">(optional)</span><input className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink font-normal" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Top of a savings product page" /></label>
+        <label className="block text-xs text-ink-2 font-medium">Name<input autoFocus className="bdl-field mt-1" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") save(); }} placeholder="e.g. Savings product intro" /></label>
+        <label className="block text-xs text-ink-2 font-medium">What it is for <span className="font-normal text-ink-3">(optional)</span><input className="bdl-field mt-1" value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Top of a savings product page" /></label>
         <MarketPicker value={markets} onChange={setMarkets} current={marketId} what="pattern" />
         <p className="text-xs text-ink-3">The text and pictures are saved too; people change them after adding the pattern.</p>
         {err && <p className="text-xs text-crit font-medium" role="alert">{err}</p>}

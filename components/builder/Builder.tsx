@@ -780,7 +780,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
                   onMore={(a) => { setPop(null); if (a === "duplicate") duplicate(b); else if (a === "copy") { setClipboard(b); say("Copied"); } else if (a === "paste" && clipboard) { mutate((bl) => { const c = bl.slice(); c.splice(i + 1, 0, { ...clipboard, id: makeBlock(clipboard.type).id, props: { ...clipboard.props } }); return c; }); } else if (a === "up") move(b.id, -1); else if (a === "down") move(b.id, 1); else if (a === "hide") setProp(b.id, "hidden", !b.props.hidden); else if (a === "lock") { setProp(b.id, "locked", !b.props.locked); if (!b.props.locked) setMode("select"); } else if (a === "delete") remove(b.id); else if (a === "history") { if (phone) setLeftRaw(false); setRightTab("history"); setRight(true); } else if (a === "pattern") { startPattern(b.id); say("Click the other components to put in the pattern"); } }}
                   onAi={(p) => { mutate((bl) => bl.map((x) => (x.id === b.id ? { ...x, props: { ...x.props, ...p.props } } : x))); say("AI changes applied"); }} />}
                 <RenderBlock b={b} /></div>; })()}</Fragment>; })
-              : <div className="m-7 p-11 border-2 border-dashed border-line-2 rounded-xl text-center text-ink-2 text-base">How do you want to start this page?<small className="block text-sm text-ink-3 mt-1.5">Pick a layout, or add components one by one from the left.</small><div className="grid grid-cols-3 gap-3 mt-4 text-left">{TEMPLATES.filter((t) => t.blocks.length).slice(0, 3).map((t) => <button key={t.id} className="border border-line-2 bg-surface p-3.5 text-left hover:border-ink" onClick={() => mutate(() => t.blocks.map((x) => makeBlock(x, x === "mast" ? { heading: title } : {})))}><b className="block text-sm">{t.name}</b><small className="text-ink-3">{t.desc}</small></button>)}</div></div>}
+              : <div className="m-7 p-11 border-2 border-dashed border-line-2 rounded-xl text-center text-ink-2 text-base">How do you want to start this page?<small className="block text-sm text-ink-3 mt-1.5">Pick a layout, or add components one by one from the left.</small><div className="grid grid-cols-3 gap-3 mt-4 text-left">{TEMPLATES.filter((t) => t.blocks.length).slice(0, 3).map((t) => <button key={t.id} className="border border-line-2 bg-surface p-3.5 text-left hover:border-ink" onClick={() => mutate(() => t.blocks.map((x) => makeBlock(x, x === "mast" ? { heading: title } : {})))}><b className="block text-sm">{t.name}</b><small className="text-xs text-ink-3">{t.desc}</small></button>)}</div></div>}
             {dropAt === blocks.length && blocks.length > 0 && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />}</SiteChrome></InlineEditContext.Provider></EntitiesContext.Provider></AssetsContext.Provider></div>; })()}
           </div>
           {editing && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 flex gap-1 bg-foreground rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}><span className="px-2 py-1.5 text-white/70">Editing text</span><button className="px-2.5 py-1.5 rounded hover:bg-white/15 inline-flex items-center" title="Choose content from an entity (or type {{ to insert at the cursor)" aria-label="Choose content from an entity" onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }}><ContentIcon /></button><button className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-good font-medium" onClick={() => { commitInline(true); say("Saved"); }}><Check className="size-3.5" strokeWidth={2} aria-hidden />Save</button><button className="inline-flex items-center gap-1 px-3 py-1.5 rounded hover:bg-white/15" onClick={() => commitInline(false)}><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>Cancel</button></div>}
@@ -793,8 +793,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {patMarkets && <PatternMarketsDialog name={patMarkets.name} value={patMarkets.markets ?? []} marketId={marketId} onClose={() => setPatMarkets(null)} onSave={async (m) => { try { await ucpApi.patternMarkets(marketId, patMarkets.id, m); say(m.length ? `${patMarkets.name}: only ${m.length} market${m.length === 1 ? "" : "s"}` : `${patMarkets.name}: all markets`); } catch { say("Could not change the markets"); } setPatMarkets(null); loadPatterns(); }} />}
           {ctaPop && selected && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 w-[min(420px,calc(100vw-24px))] bg-surface border border-line rounded-xl shadow-2xl z-20 p-3.5 text-sm" onMouseDown={(e) => { e.stopPropagation(); if (!(e.target as HTMLElement).closest("input, textarea")) e.preventDefault(); }}>
             <div className="flex items-center mb-2.5"><b>Button</b><button className="ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3" onClick={() => setCtaPop(null)} aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>
-            <label className="block text-xs text-ink-2 font-medium">Label<input autoFocus className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink font-normal" value={String(selected.props[ctaPop.labelKey] ?? "")} onChange={(e) => setProp(selected.id, ctaPop.labelKey, e.target.value)} /></label>
-            {ctaPop.linkKey && <label className="block text-xs text-ink-2 font-medium mt-2.5">URL<input className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink font-normal" value={String(selected.props[ctaPop.linkKey] ?? "")} onChange={(e) => setProp(selected.id, ctaPop.linkKey!, e.target.value)} placeholder="/borrowing/credit-cards/apply" /></label>}
+            <label className="block text-xs text-ink-2 font-medium">Label<input autoFocus className="bdl-field mt-1" value={String(selected.props[ctaPop.labelKey] ?? "")} onChange={(e) => setProp(selected.id, ctaPop.labelKey, e.target.value)} /></label>
+            {ctaPop.linkKey && <label className="block text-xs text-ink-2 font-medium mt-2.5">URL<input className="bdl-field mt-1" value={String(selected.props[ctaPop.linkKey] ?? "")} onChange={(e) => setProp(selected.id, ctaPop.linkKey!, e.target.value)} placeholder="/borrowing/credit-cards/apply" /></label>}
             <div className="flex justify-end mt-3"><button className="btn btn-sm btn-primary" onClick={() => setCtaPop(null)}>Done</button></div>
           </div>}
           {/* Ask AI: floating button → full-width bar at the bottom of the canvas. Read-only users get the hint instead. */}
@@ -855,12 +855,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
                 panels read the same way. Only Basics is open: the rest are reference, not edits. */}
             {rightTab === "page" ? <div className="flex flex-col">
               <Section t="Basics">
-                <label className="text-xs text-ink-2 font-medium">Page title<input className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm font-normal text-ink" value={title} onChange={(e) => setPageField("title", e.target.value)} /></label>
-                <label className="text-xs text-ink-2 font-medium">Meta description<textarea rows={3} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm font-normal text-ink" value={description} onChange={(e) => setPageField("description", e.target.value)} placeholder="One or two sentences shown in search results" /><small className={`font-normal ${description.length > 155 ? "text-crit" : "text-ink-3"}`}>{description.length}/155 characters</small></label>
+                <label className="text-xs text-ink-2 font-medium">Page title<input className="bdl-field mt-1" value={title} onChange={(e) => setPageField("title", e.target.value)} /></label>
+                <label className="text-xs text-ink-2 font-medium">Meta description<textarea rows={3} className="bdl-field mt-1" value={description} onChange={(e) => setPageField("description", e.target.value)} placeholder="One or two sentences shown in search results" /><small className={`text-xs font-normal ${description.length > 155 ? "text-crit" : "text-ink-3"}`}>{description.length}/155 characters</small></label>
               </Section>
               <Section t="Address" open={false}>
-                <div className="text-xs text-ink-2 font-medium">URL<div className="mt-1 text-xs bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">{domain}{rel}</div></div>
-                <div className="text-xs text-ink-2 font-medium">Template<div className="mt-1 bg-surface-2 border border-line rounded-md px-2.5 py-1.5 font-normal text-ink-2">{TEMPLATES.find((t) => t.id === page.template)?.name ?? page.template}</div><small className="text-ink-3 font-normal">Fixed after creation</small></div>
+                <div className="text-xs text-ink-2 font-medium">URL<ReadOnly title="The address this page will have. It follows the folder it lives in.">{domain}{rel}</ReadOnly></div>
+                <div className="text-xs text-ink-2 font-medium">Template<ReadOnly title="Fixed when the page was created.">{TEMPLATES.find((t) => t.id === page.template)?.name ?? page.template}</ReadOnly><small className="text-xs text-ink-3 font-normal">Fixed after creation</small></div>
               </Section>
               <Section t="Languages" open={false}>
                 <span className="text-xs text-ink-3">This page is {locale}. Create a translated copy in another locale.</span>
@@ -868,12 +868,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               </Section>
               <Section t="Tracking" open={false}>
                 <div className="text-xs text-ink-2 font-medium"><label htmlFor="pg-jira">Jira ticket</label>
-                  <form className="mt-1 flex gap-1.5" onSubmit={(e) => { e.preventDefault(); void saveJira(jiraDraft); }}><input id="pg-jira" className="flex-1 min-w-0 border border-line-2 rounded-md px-2.5 py-1.5 text-sm font-normal text-ink" value={jiraDraft} onChange={(e) => { setJiraDraft(e.target.value); setJiraErr(""); }} placeholder="UCP-123 or https://…/browse/UCP-123" />
+                  <form className="mt-1 flex gap-1.5" onSubmit={(e) => { e.preventDefault(); void saveJira(jiraDraft); }}><input id="pg-jira" className="bdl-field min-w-0 flex-1" value={jiraDraft} onChange={(e) => { setJiraDraft(e.target.value); setJiraErr(""); }} placeholder="UCP-123 or https://…/browse/UCP-123" />
                     {jiraDraft.trim() !== jira && <button className="btn btn-sm btn-primary">Save</button>}</form>
-                  {jiraErr ? <small className="block mt-1 text-crit font-normal">{jiraErr}</small> : jira ? <span className="mt-1.5 flex items-center gap-2 font-normal"><JiraChip url={jira} /><button type="button" className="text-xs text-ink-3 underline underline-offset-2 hover:text-ink" onClick={() => void saveJira("")}>Remove link</button></span> : <small className="block mt-1 text-ink-3 font-normal">The ticket this page is built for. Everyone can open it from the page.</small>}</div>
+                  {jiraErr ? <small className="text-xs block mt-1 text-crit font-normal">{jiraErr}</small> : jira ? <span className="mt-1.5 flex items-center gap-2 font-normal"><JiraChip url={jira} /><button type="button" className="text-xs text-ink-3 underline underline-offset-2 hover:text-ink" onClick={() => void saveJira("")}>Remove link</button></span> : <small className="text-xs block mt-1 text-ink-3 font-normal">The ticket this page is built for. Everyone can open it from the page.</small>}</div>
               </Section>
               <Section t="Technical" open={false}>
-                <div className="text-xs text-ink-2 font-medium">Repository path (JCR)<div className="mt-1 text-xs bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">{page.path}/jcr:content</div><small className="text-ink-3 font-normal">Components are stored under jcr:content/root as nodes with sling:resourceType</small></div>
+                <div className="text-xs text-ink-2 font-medium">Repository path (JCR)<ReadOnly>{page.path}/jcr:content</ReadOnly><small className="text-xs text-ink-3 font-normal">Components are stored under jcr:content/root as nodes with sling:resourceType</small></div>
                 <div className="text-xs text-ink-3">Created {page.created?.slice(0, 10)} · Last modified {page.lastModified?.slice(0, 16).replace("T", " ")}</div>
               </Section>
             </div>
@@ -975,7 +975,7 @@ function ContextBar({ block: b, index, count, mode, pop, setPop, clipboard, aiSe
         {Object.entries(proposal.props).length > 0 && <div className="border border-line rounded-md divide-y divide-line max-h-60 overflow-auto">{Object.entries(proposal.props).map(([k, v]) => <div key={k} className="p-2"><div className="text-xs uppercase tracking-[.06em] text-ink-3 font-medium">{k}</div><div className="line-through text-ink-3 text-xs break-words">{toPlain(b.props[k])}</div><div className="text-xs break-words">{toPlain(v)}</div></div>)}</div>}
         <div className="flex justify-end gap-2 mt-2.5"><button className="btn btn-sm btn-secondary" onClick={(e) => { e.stopPropagation(); setProposal(null); }}>Discard</button>{Object.keys(proposal.props).length > 0 && <button className="btn btn-sm btn-primary" onClick={(e) => { e.stopPropagation(); onAi(proposal); setProposal(null); setPop(null); }}>Apply</button>}</div>
       </div>}
-      <form className="flex gap-1.5" onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); if (prompt.trim()) ask(prompt.trim()); }}><input className="flex-1 border border-line-2 rounded-md px-2.5 py-1.5 text-sm" placeholder="Ask AI…" value={prompt} onChange={(e) => setPrompt(e.target.value)} /><button className="btn btn-sm btn-primary">Ask</button></form>
+      <form className="flex gap-1.5" onSubmit={(e) => { e.preventDefault(); e.stopPropagation(); if (prompt.trim()) ask(prompt.trim()); }}><input className="bdl-field flex-1" placeholder="Ask AI…" value={prompt} onChange={(e) => setPrompt(e.target.value)} /><button className="btn btn-sm btn-primary">Ask</button></form>
     </div>}
   </div>;
 }
@@ -985,7 +985,7 @@ type PropCtl = { P: Record<string, unknown>; setProp: (k: string, v: unknown) =>
 /* A single-choice control, so it is announced as one: radiogroup + radio, not a row of buttons. */
 function Seg({ P, setProp, k, opts, label }: PropCtl & { k: string; opts: string[]; label?: string }) {
   const value = String(P[k] ?? opts[0]);
-  return <div role="radiogroup" aria-label={label ?? k} className="flex gap-1">{opts.map((o) => <button key={o} type="button" role="radio" aria-checked={value === o} className={`bdl-chip capitalize ${value === o ? "bdl-chip-active" : ""}`} onClick={() => setProp(k, o)}>{o}</button>)}</div>;
+  return <div role="radiogroup" aria-label={label ?? k} className="flex gap-1">{opts.map((o) => <button key={o} type="button" role="radio" aria-checked={value === o} className={`bdl-chip flex-1 justify-center capitalize ${value === o ? "bdl-chip-active" : ""}`} onClick={() => setProp(k, o)}>{o}</button>)}</div>;
 }
 /* A real checkbox in BDL's own class, not a hand-rolled switch: it is the house control, it is
    reachable by keyboard and announced as a checkbox, and its label is properly associated. */
@@ -996,6 +996,24 @@ function Tog({ P, setProp, k, l }: PropCtl & { k: string; l: string }) {
 /* Configure's groups are collapsible now (same component as the left panel's groups), so a block
    with a long Content list no longer buries Layout, Behaviour and Metadata below the fold.
    Content is the one open by default — it is what the author came for. */
+/**
+ * A value you can read but not change — the URL, the template, the repository path.
+ *
+ * Built on `.bdl-field` so it is exactly the size of an editable field: these used to be 12px
+ * in a lighter box, which read as a smaller, different kind of control sitting among the real
+ * ones. The muted fill and the leading padlock are what say "read-only", not a change of scale.
+ */
+function ReadOnly({ children, title }: { children: React.ReactNode; title?: string }) {
+  return (
+    /* Padlock first, value after — the same icon-then-content order as the search fields, so
+       the mark that says "you cannot change this" is read before the thing you cannot change. */
+    <div className="bdl-field mt-1 flex items-center gap-2 !bg-surface-2 !text-ink-2" title={title}>
+      <Lock className="size-3.5 shrink-0 text-ink-4" strokeWidth={1.5} aria-label="Read-only" />
+      <span className="min-w-0 flex-1 break-all font-normal">{children}</span>
+    </div>
+  );
+}
+
 function Section({ t, children, open }: { t: string; children: React.ReactNode; open?: boolean }) {
   // An id so the header's `aria-controls` actually points at the region it expands.
   return <PanelSection id={`sec-${t.toLowerCase().replace(/\W+/g, "-")}`} title={t} defaultOpen={open ?? true}><div className="flex flex-col gap-3">{children}</div></PanelSection>;
@@ -1017,19 +1035,19 @@ function ConfigForm({ block: selected, index, count, marketId, setProp, entities
     <div className="px-4 py-3"><b className="text-sm">{def.name}</b><div className="text-xs text-ink-3">Block {index + 1} of {count} · {def.desc}</div></div>
     <Section t="Content">{def.fields.map((f) => { const v = selected.props[f.k]; const invalid = f.req && !toPlain(v).trim(); return <div key={f.k}><label className="flex items-center text-xs text-ink-2 font-medium mb-1">{f.l}{(f.t === "text" || f.t === "textarea") && canEdit ? <button type="button" className="ml-auto mr-2 w-6 h-6 rounded grid place-items-center text-info hover:bg-info-soft" onMouseDown={(e) => e.preventDefault()} onClick={() => onChoose(f.k, f.l)} title="Choose content from an entity" aria-label={`Choose content from an entity for ${f.l}`}><ContentIcon /></button> : <span className="ml-auto" />}{f.req && <small className="text-xs text-ink-4">required</small>}</label>
       {f.t === "text" && !f.mono ? <RichField inline value={v} label={f.l} invalid={invalid} disabled={!canEdit} onChange={(html) => setProp(f.k, html)} onFocus={() => onFieldFocus(f.k, f.l, 0, 0)} />
-      : f.t === "text" ? <input className={`w-full border rounded-md px-2.5 py-1.5 text-sm ${f.mono ? "" : ""} ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
+      : f.t === "text" ? <input className={`bdl-field ${invalid ? "!border-crit" : ""}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
       : f.t === "textarea" && f.rich ? <RichField value={v} label={f.l} invalid={invalid} disabled={!canEdit} onChange={(html) => setProp(f.k, html)} onFocus={() => onFieldFocus(f.k, f.l, 0, 0)} />
-      : f.t === "textarea" ? <textarea rows={4} className={`w-full border rounded-md px-2.5 py-1.5 text-sm ${invalid ? "border-crit" : "border-line-2"}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
+      : f.t === "textarea" ? <textarea rows={4} className={`bdl-field ${invalid ? "!border-crit" : ""}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
       : f.t === "lines" ? <ListEditor rows={lines(v)} hint={f.hint} onChange={(rows) => setProp(f.k, joinLines(rows))} />
       : f.t === "select" ? <div className="flex gap-1">{f.o!.map((o) => <button key={o} className={`bdl-chip capitalize ${v === o ? "bdl-chip-active" : ""}`} onClick={() => setProp(f.k, o)}>{o}</button>)}</div>
       : f.t === "bool" ? <button className={`w-9 h-5 rounded-full relative ${v ? "bg-good" : "bg-line-2"}`} aria-pressed={!!v} onClick={() => setProp(f.k, !v)}><i className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${v ? "left-4" : "left-0.5"}`} /></button>
       : f.t === "asset" ? <AssetPicker marketId={marketId} value={String(v ?? "")} invalid={invalid} onChange={(id) => setProp(f.k, id)} />
-      : <input className="w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm" value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} />}
+      : <input className="bdl-field" value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} />}
       {(f.t === "text" || f.t === "textarea") && <Inherited value={String(v ?? "")} entities={entities} onStop={(text) => setProp(f.k, text)} />}
       {invalid ? <div className="text-xs text-crit mt-1">Required before the page can be sent for review.</div> : f.hint && f.t !== "lines" ? <div className="text-xs text-ink-3 mt-1">{f.hint}</div> : null}</div>; })}</Section>
     <Section t="Layout" open={false}><div><label className="block text-xs text-ink-2 font-medium mb-1">Width</label><Seg P={P} setProp={setProp} k="layout" label="Width" opts={["full", "contained", "narrow"]} /></div><div><label className="block text-xs text-ink-2 font-medium mb-1">Spacing</label><Seg P={P} setProp={setProp} k="spacing" label="Spacing" opts={["default", "compact", "roomy"]} /></div></Section>
     <Section t="Behaviour" open={false}><Tog P={P} setProp={setProp} k="hidden" l="Hidden (not rendered on the live site)" /><Tog P={P} setProp={setProp} k="hideMobile" l="Hide on mobile" /><Tog P={P} setProp={setProp} k="locked" l="Locked (no edits until unlocked)" /><Tog P={P} setProp={setProp} k="personalise" l="Targeting enabled (Adobe Target segment)" /></Section>
-    <Section t="Metadata" open={false}><div className="text-xs text-ink-2 font-medium">Node<div className="mt-1 text-xs bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2 break-all">jcr:content/root/{selected.id}</div></div><div className="text-xs text-ink-2 font-medium">sling:resourceType<div className="mt-1 text-xs bg-surface-2 border border-line rounded-md px-2.5 py-1.5 text-ink-2">hsbc/components/{selected.type}</div></div></Section>
+    <Section t="Metadata" open={false}><div className="text-xs text-ink-2 font-medium">Node<ReadOnly>jcr:content/root/{selected.id}</ReadOnly></div><div className="text-xs text-ink-2 font-medium">sling:resourceType<ReadOnly>hsbc/components/{selected.type}</ReadOnly></div></Section>
   </div>;
 }
 
@@ -1038,7 +1056,7 @@ function ListEditor({ rows, hint, onChange }: { rows: string[][]; hint?: string;
   const set = (r: number, c: number, v: string) => { const n = rows.map((x) => x.slice()); while (n[r].length <= c) n[r].push(""); n[r][c] = cellSafe(v); onChange(n); };
   return <div className="flex flex-col gap-2">{rows.map((r, ri) => <div key={ri} className="border border-line bg-surface-2 p-2.5 rounded-md"><div className="flex justify-between items-center mb-1"><b className="text-xs">Item {ri + 1}</b><span className="flex gap-0.5"><button className="btn-ghost" disabled={ri === 0} onClick={() => { const n = rows.slice(); [n[ri - 1], n[ri]] = [n[ri], n[ri - 1]]; onChange(n); }} aria-label="Move up">↑</button><button className="btn-ghost" disabled={ri === rows.length - 1} onClick={() => { const n = rows.slice(); [n[ri + 1], n[ri]] = [n[ri], n[ri + 1]]; onChange(n); }} aria-label="Move down">↓</button><button className="btn-ghost" onClick={() => onChange(rows.filter((_, i) => i !== ri))} aria-label="Remove"><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button></span></div>
     {cols.map((c, ci) => { const n = c.toLowerCase(); const plain = /icon|style|link|url/.test(n); const block = n.includes("text") || n.includes("answer");
-      return <div key={ci} className="mt-1.5 text-xs text-ink-3">{plain ? <label className="block">{c}<input className="mt-0.5 w-full border border-line-2 rounded px-2 py-1 text-sm text-ink" value={r[ci] ?? ""} onChange={(e) => set(ri, ci, e.target.value)} /></label>
+      return <div key={ci} className="mt-1.5 text-xs text-ink-3">{plain ? <label className="block">{c}<input className="bdl-field mt-0.5" value={r[ci] ?? ""} onChange={(e) => set(ri, ci, e.target.value)} /></label>
         : <><span className="block mb-0.5">{c}</span><RichField inline={!block} compact value={r[ci] ?? ""} label={`${c}, item ${ri + 1}`} onChange={(html) => set(ri, ci, html)} /></>}</div>; })}</div>)}
     <button className="btn btn-sm btn-secondary justify-center" onClick={() => onChange([...rows, cols.map(() => "")])}>＋ Add item</button></div>;
 }
@@ -1075,7 +1093,7 @@ function AiPanel({ tasks, draft, setDraft, dirty, onAsk, onToggle, onRun, onUndo
             <Stage label="Understanding" state={st("Understanding")}><p className="text-ink-2 mt-0.5">{t.plan.understanding}</p>{t.stage === "understanding" && <p className="text-xs text-ink-3 mt-1">Reading the page and working out what could be better…</p>}</Stage>
             {t.stage !== "understanding" && <Stage label="Plan" state={st("Plan")}>
               {t.plan.note && <p className="text-xs text-ink-3 mt-0.5 mb-1.5">{t.plan.note}</p>}
-              {ops.length ? <ul className="flex flex-col gap-1 mt-1">{ops.map((o) => <li key={o.id}><label className={`flex gap-2 items-start ${t.stage === "plan" ? "cursor-pointer" : ""}`}><input type="checkbox" className="mt-1 accent-brand" checked={!!t.on[o.id]} disabled={t.stage !== "plan"} onChange={() => onToggle(t, o.id)} /><span className={t.on[o.id] ? "" : "line-through text-ink-3"}>{o.label}</span></label></li>)}</ul> : <p className="text-ink-3 mt-1">Nothing to change.</p>}
+              {ops.length ? <ul className="flex flex-col gap-1 mt-1">{ops.map((o) => <li key={o.id}><label className={`flex gap-2 items-start ${t.stage === "plan" ? "cursor-pointer" : ""}`}><input type="checkbox" className="bdl-checkbox bdl-checkbox-sm mt-0.5" checked={!!t.on[o.id]} disabled={t.stage !== "plan"} onChange={() => onToggle(t, o.id)} /><span className={t.on[o.id] ? "" : "line-through text-ink-3"}>{o.label}</span></label></li>)}</ul> : <p className="text-ink-3 mt-1">Nothing to change.</p>}
               {t.stage === "plan" && <div className="mt-2.5"><p className="text-xs text-ink-3 mb-2">Untick anything you don’t want. Nothing changes until you run the plan.</p><div className="flex gap-2"><button className="btn btn-sm btn-primary" onClick={() => onRun(t)} disabled={!enabled.length && ops.length > 0}>{enabled.length ? `Run plan · ${enabled.length} change${enabled.length === 1 ? "" : "s"}` : "Nothing selected"}</button></div></div>}
             </Stage>}
             {(t.stage === "executing" || t.stage === "done") && <Stage label="Executing" state={st("Executing")}><ul className="flex flex-col gap-0.5 mt-1">{enabled.map((o) => { const d = t.done.includes(o.id); return <li key={o.id} className={`flex gap-2 ${d ? "text-ink" : "text-ink-3"}`}><span className={`w-4 flex-none ${d ? "text-good" : ""}`}>{d ? <Check className="size-3.5" strokeWidth={2.5} aria-hidden /> : "…"}</span><span>{o.label}</span></li>; })}</ul></Stage>}
@@ -1091,7 +1109,7 @@ function AiPanel({ tasks, draft, setDraft, dirty, onAsk, onToggle, onRun, onUndo
         </div>; })}
     </div>
     <form className="px-3.5 py-3 border-t border-line bg-surface" onSubmit={(e) => { e.preventDefault(); if (draft.trim()) onAsk(draft); }}>
-      <div className="border border-line-2 rounded-xl bg-surface focus-within:border-ink focus-within:shadow-[0_0_0_3px_var(--brand-soft)]">
+      <div className="border border-line-2 bg-surface focus-within:ring-2 focus-within:ring-ring">
         <textarea rows={3} className="w-full resize-none bg-transparent px-3 pt-2.5 pb-1 text-sm leading-snug outline-none" placeholder={tasks.length ? "Ask a follow-up… e.g. “make the banner light” or “add an FAQ about fees”" : "What would you like to do with this page?\ne.g. “Make the intro shorter and add a call to action”"} value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); if (draft.trim()) onAsk(draft); } }} aria-label="Ask AI" />
         <div className="flex items-center gap-2 px-2 pb-2"><span className="text-xs text-ink-3">Enter to ask · Shift+Enter for a new line</span><button className="btn btn-sm btn-primary ml-auto" disabled={!draft.trim()}><Sparkles className="size-3.5" strokeWidth={1.5} aria-hidden />Ask</button></div>
       </div>

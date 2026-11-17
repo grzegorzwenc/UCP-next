@@ -34,7 +34,7 @@ export function SendForReviewModal({ marketId, pagePath, onClose, onSend }: { ma
       <div className="border border-line rounded-lg p-3 bg-surface-2"><b className="block font-medium">It goes to the Backlog · open to all reviewers</b>
         <span className="block text-xs text-ink-3 mt-0.5">{list === null ? "Checking who can review it…" : none ? "Nobody has Review on this folder yet. Ask a site admin to grant it." : `Nobody is assigned. Any of the ${list.length} reviewer${list.length === 1 ? "" : "s"} who can review this page takes it from My tasks → Backlog.`}</span>
         {list && list.length > 0 && <span className="flex items-center gap-1 mt-2" aria-label="Reviewers who can take it">{list.slice(0, 8).map((r) => <span key={r.id} title={r.name}><Avatar name={r.name} size={22} /></span>)}{list.length > 8 && <span className="text-xs text-ink-3 ml-1">+{list.length - 8}</span>}</span>}</div>
-      <label className="text-xs text-ink-2 font-medium">Note for the reviewer <span className="font-normal text-ink-3">(optional)</span><textarea rows={3} className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm font-normal text-ink bg-surface" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What should they look at?" /></label>
+      <label className="text-xs text-ink-2 font-medium">Note for the reviewer <span className="font-normal text-ink-3">(optional)</span><textarea rows={3} className="bdl-field mt-1" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What should they look at?" /></label>
       <Err err={err ?? loadErr} />
     </div>
   </ModalShell>;

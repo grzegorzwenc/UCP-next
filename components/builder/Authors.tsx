@@ -45,7 +45,7 @@ export function AuthorsChip({ authors, meId, admin, canEdit, people, onAction, t
     </span>}
     {at && <div className="fixed inset-0 z-[60]" onClick={() => setAt(null)}>
       <div role="dialog" aria-label="Authors of this page" className="absolute w-[300px] bg-surface border border-line rounded-xl shadow-2xl text-sm overflow-hidden" style={{ top: at.top, right: at.right }} onClick={(e) => e.stopPropagation()}>
-        <div className="px-3.5 pt-3 pb-2"><b className="block">Authors · Build the page</b><small className="block text-ink-3 leading-snug">Several people can build it together. Everyone assigned sees it in their tasks.</small></div>
+        <div className="px-3.5 pt-3 pb-2"><b className="block">Authors · Build the page</b><small className="text-xs block text-ink-3 leading-snug">Several people can build it together. Everyone assigned sees it in their tasks.</small></div>
         <ul className="border-t border-line divide-y divide-line max-h-[240px] overflow-auto">{authors.map((a) => <li key={a.id} className="flex items-center gap-2.5 px-3.5 py-2">
           <Avatar name={a.name} size={26} /><span className="min-w-0 flex-1"><b className="block font-medium truncate">{a.name}{a.id === meId ? " (you)" : ""}</b><small className="block text-xs text-ink-3">since {new Date(a.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}</small></span>
           {a.id === meId ? <button type="button" className="text-xs text-ink-2 underline underline-offset-2 hover:text-ink" disabled={!!busy} onClick={() => void run("leave")}>Leave</button>
@@ -53,7 +53,7 @@ export function AuthorsChip({ authors, meId, admin, canEdit, people, onAction, t
         </li>)}{!authors.length && <li className="px-3.5 py-3 text-ink-3">Nobody is assigned yet.</li>}</ul>
         {((canEdit && !mine) || admin) && <div className="border-t border-line p-3 grid gap-2">
           {canEdit && !mine && <button type="button" className="btn btn-sm btn-primary justify-center" disabled={!!busy} onClick={() => void run("join")}>Assign me too</button>}
-          {admin && <div className="flex gap-1.5"><select aria-label="Add an author" className="flex-1 min-w-0 border border-line-2 rounded-md px-2 py-1 text-xs bg-surface" value={adding} onChange={(e) => setAdding(e.target.value)}><option value="">Add a person…</option>{others.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
+          {admin && <div className="flex gap-1.5"><select aria-label="Add an author" className="bdl-field min-w-0 flex-1" value={adding} onChange={(e) => setAdding(e.target.value)}><option value="">Add a person…</option>{others.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
             <button type="button" className="btn btn-sm btn-secondary" disabled={!adding || !!busy} onClick={() => { void run("add", adding).then(() => setAdding("")); }}>Add</button></div>}
         </div>}
       </div>

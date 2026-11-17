@@ -1395,3 +1395,35 @@
 @media (prefers-reduced-motion: reduce) {
   .bld-frame { transition-duration: 1ms; }
 }
+
+/* ---- Panel form controls ----
+   This is the app's existing search field, written once as a class instead of repeated as
+   utilities. The Pages library search is:
+
+     h-9 border border-line-2 bg-surface text-sm outline-none focus-visible:ring-2 ring-ring
+
+   and every field in the builder is now exactly that. It previously had its own class with
+   BDL's document-scale input tokens (#767676 border, 13px) — a second implementation of the
+   same control, which is why the panels and the library never matched. One definition, so
+   there is nothing left to drift. Textareas keep `min-height` so they can still grow. */
+.bdl-field {
+  font-family: var(--font-sans);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  min-height: 2.25rem;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--color-line-2);
+  border-radius: 0;
+  background-color: var(--color-surface);
+  color: var(--color-ink);
+  width: 100%;
+  outline: none;
+}
+.bdl-field:focus-visible {
+  box-shadow: 0 0 0 2px var(--color-ring);
+}
+.bdl-field:disabled {
+  background-color: var(--color-surface-2);
+  color: var(--color-ink-3);
+}
+

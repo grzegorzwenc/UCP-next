@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
+import { Search } from "lucide-react";
 import type { Entity } from "@/lib/ucp/types";
 import { ucpApi } from "@/lib/api";
 import { errorText } from "@/lib/api/errors";
@@ -44,7 +45,7 @@ export function ContentPicker({ marketId, marketName, flag, locale, models, curr
       <span className="inline-flex items-center gap-1.5 bg-surface-2 border border-line rounded-full px-2.5 py-1"><span className="text-ink-3">Language root</span><b>{locale}</b></span>
       <span className="inline-flex items-center gap-1.5 bg-surface-2 border border-line rounded-full px-2.5 py-1 text-ink-3" title="Where these entities are stored">/content/entities/{marketId}</span>
     </div>
-    <label className="flex items-center gap-2 border border-line-2 rounded-md px-2.5 py-1.5 mb-3 bg-surface"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-sm bg-transparent" placeholder="Search all entities" autoFocus value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search all entities" /></label>
+    <label className="mb-3 flex items-center gap-2 border border-line-2 bg-surface px-2.5 py-1.5"><Search className="size-4 shrink-0 text-ink-3" strokeWidth={1.8} aria-hidden /><input className="flex-1 outline-none text-sm bg-transparent" placeholder="Search all entities" autoFocus value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search all entities" /></label>
     <div className="grid grid-cols-[200px_1fr_1.2fr] gap-3 h-[360px]">
       <div className={col} aria-label="Folders"><div className="px-2.5 pt-2 pb-1 text-xs uppercase tracking-[.08em] text-ink-3 font-medium">1 · Folder</div><div className="p-1">
         {models.filter((m) => count(m.id, null) > 0).map((m) => <div key={m.id}>
@@ -60,7 +61,7 @@ export function ContentPicker({ marketId, marketName, flag, locale, models, curr
       </div></div>
       <div className={col} aria-label="Fields"><div className="px-2.5 pt-2 pb-1 text-xs uppercase tracking-[.08em] text-ink-3 font-medium">3 · Field to show</div><div className="p-1">
         {chosen ? fields.map((x) => { const v = valueOf(chosen, x.k); return <button key={x.k} type="button" className={`${rowCls(field === x.k)} items-start`} onClick={() => setField(x.k)}>
-          <input type="radio" readOnly checked={field === x.k} className="mt-1 accent-[var(--brand)]" tabIndex={-1} aria-hidden /><span className="flex-1 min-w-0"><span className="block">{x.l}</span><span className={`block text-xs font-normal ${v ? "text-ink-3" : "text-ink-4 italic"}`}>{v ? cut(v) : "empty"}</span></span></button>; })
+          <input type="radio" readOnly checked={field === x.k} className="bdl-checkbox bdl-checkbox-sm mt-0.5 !rounded-full" tabIndex={-1} aria-hidden /><span className="flex-1 min-w-0"><span className="block">{x.l}</span><span className={`block text-xs font-normal ${v ? "text-ink-3" : "text-ink-4 italic"}`}>{v ? cut(v) : "empty"}</span></span></button>; })
           : <p className="text-xs text-ink-3 p-2">Choose an entity to see its fields.</p>}
       </div></div>
     </div>

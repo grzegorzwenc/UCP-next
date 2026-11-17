@@ -1,5 +1,7 @@
 "use client";
 import { useMemo, useState } from "react";
+import { CircleAlert, CircleCheck, TriangleAlert } from "lucide-react";
+import { PanelSection } from "./panels/PanelSection";
 import type { Block } from "@/lib/api/types";
 import { pageInsights, GROUP_TITLE, type Insight, type InsightLevel, type PageMeta } from "@/lib/ucp/insights";
 
@@ -21,10 +23,10 @@ function Row({ item, area, onFix, onSelectBlock }: { item: Insight; area?: strin
     <div className="min-w-0 flex-1">
       <div className={`text-sm leading-snug ${done ? "text-ink-2" : "font-medium text-ink"}`}><span className="sr-only">{LEVEL_WORD[item.level]}: </span>{item.title}</div>
       {!done && <div className="text-xs text-ink-3 mt-0.5 leading-relaxed">{item.detail}</div>}
-      {!done && (item.blockId || item.fix || area) && <div className="mt-1.5 flex items-center gap-1.5 flex-wrap">
+      {!done && area && <div className="mt-1 text-[11px] font-medium uppercase tracking-[.1em] text-ink-4">{area}</div>}
+      {!done && (item.blockId || item.fix) && <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
         {item.blockId && <button type="button" className="btn btn-sm btn-secondary" onClick={() => onSelectBlock(item.blockId!)}>Show on page</button>}
-        {item.fix && <button type="button" className="btn btn-sm btn-primary" onClick={() => onFix(item.fix!.apply, item.fix!.label)}>{item.fix.label}</button>}
-        {area && <span className="ml-auto text-xs uppercase tracking-[.06em] text-ink-4">{area}</span>}
+        {item.fix && <button type="button" className="btn btn-sm btn-secondary" onClick={() => onFix(item.fix!.apply, item.fix!.label)}>{item.fix.label}</button>}
       </div>}
     </div>
   </li>;
@@ -47,35 +49,45 @@ export function InsightsPanel({ blocks, page, onFix, onSelectBlock }: Props) {
     : should.length
       ? { tone: "warn", title: live ? "Live, with suggestions" : "Ready for review", text: `${should.length} suggestion${should.length === 1 ? "" : "s"} would make the page clearer or safer. They do not block publishing.` }
       : { tone: "good", title: live ? "Live and looking good" : "Ready to publish", text: "Content, compliance, accessibility and search checks all pass." };
-  const toneCls = verdict.tone === "crit" ? "bg-crit-soft border-crit/30" : verdict.tone === "warn" ? "bg-warn-soft border-warn/30" : "bg-good-soft border-good/30";
-  const toneTxt = verdict.tone === "crit" ? "text-crit" : verdict.tone === "warn" ? "text-warn" : "text-good";
+  /* BDL's own alert for the verdict, and the panel's collapsible sections for the groups, so
+     Insights is built from the same parts as every other tab. It used to invent both: a tinted
+     card with a stray "!" prefix, then red and amber uppercase headings over bordered lists —
+     four weights of emphasis where the rest of the panel uses one. */
+  const alertCls = verdict.tone === "crit" ? "alert-error" : verdict.tone === "warn" ? "alert-warning" : "alert-success";
+  const dot = (tone: string) => (tone === "crit" ? "bg-crit" : tone === "warn" ? "bg-warn" : "bg-good");
 
-  return <div className="grid gap-4 text-ink">
-    <p className="text-xs text-ink-3 -mb-1">{live ? "Checked against the live page" : "Checked as you edit"} · {passedN + must.length + should.length} checks</p>
-
-    <div role="status" className={`rounded-lg border px-3.5 py-3 ${toneCls}`}>
-      <div className={`text-sm font-medium ${toneTxt}`}>{verdict.tone === "good" ? "" : verdict.tone === "crit" ? "! " : ""}{verdict.title}</div>
-      <p className="text-xs text-ink-2 mt-0.5 leading-relaxed">{verdict.text}</p>
-      <div className="flex gap-3 mt-2 text-xs"><span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-crit" />{must.length} must fix</span><span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-warn" />{should.length} should fix</span><span className="inline-flex items-center gap-1.5"><i className="w-2 h-2 rounded-full bg-good" />{passedN} passed</span></div>
+  return <div className="-mx-4 -mt-4 flex flex-col text-ink">
+    <div className="px-4 pt-3.5">
+      <div role="status" className={`alert ${alertCls} !mb-0 !items-start !gap-2.5 !p-3`}>
+        {verdict.tone === "crit" ? <CircleAlert className="alert-icon" strokeWidth={1.6} aria-hidden />
+          : verdict.tone === "warn" ? <TriangleAlert className="alert-icon" strokeWidth={1.6} aria-hidden />
+            : <CircleCheck className="alert-icon" strokeWidth={1.6} aria-hidden />}
+        <div className="min-w-0">
+          <div className="text-sm font-medium">{verdict.title}</div>
+          <p className="mt-0.5 text-xs leading-relaxed text-ink-2">{verdict.text}</p>
+        </div>
+      </div>
+      <p className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-3">
+        <span className="inline-flex items-center gap-1.5"><i className={`size-2 rounded-full ${dot("crit")}`} />{must.length} must fix</span>
+        <span className="inline-flex items-center gap-1.5"><i className={`size-2 rounded-full ${dot("warn")}`} />{should.length} should fix</span>
+        <span className="inline-flex items-center gap-1.5"><i className={`size-2 rounded-full ${dot("good")}`} />{passedN} passed</span>
+      </p>
+      <p className="mt-1.5 mb-3 text-xs text-ink-4">{live ? "Checked against the live page" : "Checked as you edit"} · {passedN + must.length + should.length} checks</p>
     </div>
 
-    {must.length > 0 && <section aria-labelledby="ins-must">
-      <h3 id="ins-must" className="text-xs uppercase tracking-[.06em] text-crit font-medium mb-1">Must fix</h3>
-      <ul className="border border-line rounded-lg bg-surface px-3">{must.map(({ i, area }) => <Row key={i.id} item={i} area={area} onFix={onFix} onSelectBlock={onSelectBlock} />)}</ul>
-    </section>}
+    {must.length > 0 && <PanelSection id="ins-must" title="Must fix" count={must.length}>
+      <ul className="m-0 list-none p-0">{must.map(({ i, area }) => <Row key={i.id} item={i} area={area} onFix={onFix} onSelectBlock={onSelectBlock} />)}</ul>
+    </PanelSection>}
 
-    {should.length > 0 && <section aria-labelledby="ins-should">
-      <h3 id="ins-should" className="text-xs uppercase tracking-[.06em] text-warn font-medium mb-1">Should fix</h3>
-      <ul className="border border-line rounded-lg bg-surface px-3">{should.map(({ i, area }) => <Row key={i.id} item={i} area={area} onFix={onFix} onSelectBlock={onSelectBlock} />)}</ul>
-    </section>}
+    {should.length > 0 && <PanelSection id="ins-should" title="Should fix" count={should.length} defaultOpen={must.length === 0}>
+      <ul className="m-0 list-none p-0">{should.map(({ i, area }) => <Row key={i.id} item={i} area={area} onFix={onFix} onSelectBlock={onSelectBlock} />)}</ul>
+    </PanelSection>}
 
-    {passedN > 0 && <section className="border border-line rounded-lg bg-surface">
-      <button type="button" className="w-full flex items-center gap-2 px-3 py-2.5 text-left" aria-expanded={showPassed} onClick={() => setShowPassed(!showPassed)}>
-        <span className="text-ink-3 text-xs w-3" aria-hidden="true">{showPassed ? "–" : "+"}</span>
-        <span className="text-sm font-medium flex-1">Checks passed</span>
-        <span className="text-xs text-good font-medium tabular-nums">{passedN}</span>
-      </button>
-      {showPassed && <div className="px-3 pb-2 border-t border-line">{passed.map((g) => <div key={g.id} className="mt-2"><h4 className="text-xs uppercase tracking-[.06em] text-ink-3 font-medium">{g.title}</h4><ul>{g.items.map((i) => <Row key={i.id} item={i} onFix={onFix} onSelectBlock={onSelectBlock} />)}</ul></div>)}</div>}
-    </section>}
+    {passedN > 0 && <PanelSection id="ins-passed" title="Passed" count={passedN} defaultOpen={false} open={showPassed} onToggle={setShowPassed}>
+      {passed.map((g) => <div key={g.id} className="mb-2 last:mb-0">
+        <h4 className="text-[11px] font-medium uppercase tracking-[.1em] text-ink-4">{g.title}</h4>
+        <ul className="m-0 list-none p-0">{g.items.map((i) => <Row key={i.id} item={i} onFix={onFix} onSelectBlock={onSelectBlock} />)}</ul>
+      </div>)}
+    </PanelSection>}
   </div>;
 }
