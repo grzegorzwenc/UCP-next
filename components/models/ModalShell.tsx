@@ -23,18 +23,21 @@ export function ModalShell({ title, subtitle, width = 720, onClose, children, fo
   const close = () => { setOpen(false); window.setTimeout(onClose, EXIT_MS); };
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) close(); }}>
+      {/* Banded, after the mock's dialogs (`tree/new-folder-dialog.svelte`): the panel itself has no
+          padding, and a ruled header and footer hold the title and the buttons while the body
+          scrolls between them. The flat version — one 24px box with everything loose inside it —
+          gave a dialog no shape, so a short confirm and a full form looked like the same thing. */}
       <DialogContent
-        className="max-h-[92vh] grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-none"
+        className="max-h-[92vh] gap-0 p-0 grid-rows-[auto_minmax(0,1fr)_auto] sm:max-w-none"
         style={{ maxWidth: `min(${width}px, calc(100% - 2rem))` }}
         aria-labelledby={labelledBy}
       >
-        <DialogHeader className="pe-8">
-          <DialogTitle className="text-lg leading-tight font-medium">{title}</DialogTitle>
+        <DialogHeader className="gap-1 border-b border-line px-6 py-4 pe-12">
+          <DialogTitle className="text-base leading-tight font-medium">{title}</DialogTitle>
           {subtitle && <DialogDescription className="text-xs text-ink-3">{subtitle}</DialogDescription>}
         </DialogHeader>
-        {/* negative margin so the scrollbar sits at the panel edge while the content keeps its gutter */}
-        <div className="-mx-6 min-h-0 overflow-auto px-6">{children}</div>
-        {footer && <DialogFooter>{footer}</DialogFooter>}
+        <div className="min-h-0 overflow-auto px-6 py-5">{children}</div>
+        {footer && <DialogFooter className="gap-2 border-t border-line px-6 py-3">{footer}</DialogFooter>}
       </DialogContent>
     </Dialog>
   );
@@ -44,3 +47,16 @@ export const Err = ({ err }: { err: string | null }) => (err ? <div role="alert"
    every builder panel field use. This used to restate it with a `rounded-md` corner and its own
    padding, so dialog inputs were a second, slightly different control. */
 export const inputCls = "bdl-field mt-1";
+
+/**
+ * A labelled field in a dialog, as the mock writes them: the label in the body's own text size and
+ * weight rather than a faint caption, a red asterisk when it is required, and room under the
+ * control for a line that says what the value will do.
+ */
+export function Field({ label, htmlFor, required, hint, className = "", children }: { label: React.ReactNode; htmlFor?: string; required?: boolean; hint?: React.ReactNode; className?: string; children: React.ReactNode }) {
+  return <div className={`flex flex-col gap-1.5 ${className}`}>
+    <label className="text-sm font-medium text-ink" htmlFor={htmlFor}>{label}{required && <span className="text-brand" aria-hidden> *</span>}</label>
+    {children}
+    {hint && <p className="text-xs text-ink-3">{hint}</p>}
+  </div>;
+}

@@ -6,7 +6,8 @@ import { env } from "@/lib/markets";
 import { useRouter } from "next/navigation";
 import { useConfirm } from "@/components/ui/Confirm";
 import { Steps } from "@/components/ui/Steps";
-import { ModalShell as Dialog } from "@/components/models/ModalShell";
+import { ModalShell as Dialog, Err as SharedErr, inputCls } from "@/components/models/ModalShell";
+import { CreatePageDialog, type NewPageRequest } from "@/components/pages/CreatePageDialog";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { PageSummary } from "@/lib/api/types";
 import { repoApi, ucpApi } from "@/lib/api";
@@ -21,7 +22,6 @@ import { PageThumb } from "@/components/explorer/PageThumb";
 import { NewFolderButton } from "@/components/ui/NewFolderButton";
 import { inRange, rangeActive, sortRows, type Range, type Sort } from "@/lib/pages-filter";
 import { STATUS_LABEL } from "@/components/ui/Pill";
-import { Dialog as UIDialog, DialogContent as UIDialogContent, DialogFooter as UIDialogFooter, DialogHeader as UIDialogHeader, DialogTitle as UIDialogTitle } from "@/components/shadcn/dialog";
 import { useSession } from "@/components/shell/Session";
 import type { Template } from "@/lib/ucp/types";
 import { MARKETS, market as marketOf } from "@/lib/markets";
@@ -70,25 +70,11 @@ const componentsFor = (t: Template | undefined, title: string) => blocksToCompon
  * backdrop and the fade-and-zoom the source project uses, and with it a focus trap, Escape and a
  * portal — none of which the div had.
  */
-const DIALOG_EXIT_MS = 120;
-function ModalShell({ title, width = 720, onClose, children, footer }: { title: string; width?: number; onClose: () => void; children: React.ReactNode; footer: React.ReactNode }) {
-  /* Each modal is mounted by a parent condition, so telling the parent straight away would rip the
-     popup out before it could animate. Closing flips this local flag first — Base UI then plays the
-     fade-and-zoom out — and the parent is told once it has finished. */
-  const [open, setOpen] = useState(true);
-  const close = () => { setOpen(false); window.setTimeout(onClose, DIALOG_EXIT_MS); };
-  return (
-    <UIDialog open={open} onOpenChange={(next) => { if (!next) close(); }}>
-      <UIDialogContent className="sm:max-w-none" style={{ width: `min(${width}px, 94vw)` }}>
-        <UIDialogHeader><UIDialogTitle className="text-lg font-medium">{title}</UIDialogTitle></UIDialogHeader>
-        {children}
-        <UIDialogFooter>{footer}</UIDialogFooter>
-      </UIDialogContent>
-    </UIDialog>
-  );
-}
-const Err = ({ err }: { err: string | null }) => (err ? <div className="text-crit text-xs bg-crit-soft px-3 py-2 rounded mt-3">{err}</div> : null);
-const inputCls = "mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink";
+/* This file used to carry its own `ModalShell`, `Err` and `inputCls` beside the shared ones it
+   already imported, so the pages dialogs were a second, flatter dialog with a second input style —
+   which is why New page looked unlike every other dialog in the app. One of each now. */
+const ModalShell = Dialog;
+const Err = SharedErr;
 
 function FolderSelect({ value, onChange, root, marketName, tree, rel, exclude = [] }: { value: string; onChange: (v: string) => void; root: string; marketName: string; tree: Folder[]; rel: (p: string) => string; exclude?: string[] }) {
   const options: FolderOption[] = [
@@ -247,7 +233,7 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
   const movingKey = modal?.kind === "move" ? modal.pages.map((p) => p.path).join("|") : "";
   useEffect(() => { if (!movingKey) return; let on = true; ucpApi.pageReferences(marketId, movingKey.split("|")).then((r) => on && setMoveRefs(r), () => on && setMoveRefs([])); return () => { on = false; setMoveRefs(null); }; }, [movingKey, marketId]);
   const moveLinked = [...new Map((moveRefs ?? []).flatMap((r) => r.linkedFrom).map((x) => [x.path, x])).values()];
-  const [title, setTitle] = useState(""); const [slug, setSlug] = useState(""); const [tpl, setTpl] = useState(newTemplate && templates.some((t) => t.id === newTemplate) ? newTemplate : templates.some((t) => t.id === "product") ? "product" : templates[0]?.id ?? "blank"); const [parent, setParent] = useState(folder.path); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
+  const [title, setTitle] = useState(""); const [slug, setSlug] = useState(""); const [parent, setParent] = useState(folder.path); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
   const [sel, setSel] = useState<string[]>([]); const [toast, setToast] = useState<string | null>(null);
   const crumbs = useMemo(() => { const segs = folder.path.replace(root, "").split("/").filter(Boolean); return segs.map((s, i) => ({ name: s, path: root + "/" + segs.slice(0, i + 1).join("/") })); }, [folder.path, root]);
   /* Sorting and filtering, as their table has. Default newest-first on Updated on, like theirs. */
@@ -314,9 +300,9 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
   const say = (s: string) => { setToast(s); setTimeout(() => setToast(null), 2600); };
   const openModal = (m: Modal) => { setErr(null); setTitle(""); setSlug(""); setModal(m); };
 
-  async function create() {
+  async function create(req: NewPageRequest) {
     setBusy(true); setErr(null);
-    try { const t = templates.find((x) => x.id === tpl); const page = await repoApi.createPage({ parentPath: parent, name: slug || slugify(title), template: tpl, title, components: componentsFor(t, title) }); setModal(null); router.push(`${base}/page${rel(page.path)}`); router.refresh(); }
+    try { const t = templates.find((x) => x.id === req.templateId); const page = await repoApi.createPage({ parentPath: req.parentPath, name: req.slug, template: req.templateId, title: req.title, locale: req.locale, components: componentsFor(t, req.title) }); setModal(null); router.push(`${base}/page${rel(page.path)}`); router.refresh(); }
     catch (e) { setErr(errText(e)); } finally { setBusy(false); }
   }
   async function createFolder() {
@@ -588,13 +574,11 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
         </div>
       </div>
 
-      {modal?.kind === "new" && <ModalShell title="New page" onClose={() => setModal(null)} footer={<><button className="btn btn-sm btn-secondary" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!title.trim() || busy} onClick={create}>{busy ? "Creating…" : "Create and open"}</button></>}>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-          <label className="col-span-2 text-xs text-ink-3">Page title<input autoFocus className={inputCls} value={title} onChange={(e) => { setTitle(e.target.value); setSlug(slugify(e.target.value)); }} placeholder="e.g. Regular saver" /></label>
-          <label className="text-xs text-ink-3">Where should it live?<FolderSelect value={parent} onChange={setParent} root={root} marketName={marketName} tree={tree} rel={rel} /></label>
-          <label className="text-xs text-ink-3">URL name<input className={`${inputCls} `} value={slug} onChange={(e) => setSlug(slugify(e.target.value))} /><span className="block mt-1 text-xs">{rel(parent)}/{slug || "…"}</span></label>
-          <div className="col-span-2 text-xs text-ink-3">Template<div className="mt-1 grid grid-cols-5 gap-2">{templates.map((t) => <button type="button" key={t.id} onClick={() => setTpl(t.id)} className={`text-left border rounded-lg p-2.5 ${tpl === t.id ? "border-brand bg-brand-soft" : "border-line hover:border-ink-4"}`}><b className="block text-xs text-ink">{t.name}</b><small className="text-ink-3">{t.blocks.length} blocks</small></button>)}</div></div>
-        </div><Err err={err} /></ModalShell>}
+      {/* The mock's two-pane "Create page": templates on the left, details on the right. */}
+      {modal?.kind === "new" && <CreatePageDialog
+        defaultParent={parent} defaultTemplateId={newTemplate} locales={marketOf(marketId).locales} relPath={rel} marketName={marketName} busy={busy} err={<Err err={err} />}
+        folderSelect={(value, onChange) => <FolderSelect value={value} onChange={onChange} root={root} marketName={marketName} tree={tree} rel={rel} />}
+        onClose={() => setModal(null)} onCreate={create} />}
 
       {modal?.kind === "folder" && <ModalShell title="New folder" width={460} onClose={() => setModal(null)} footer={<><button className="btn btn-sm btn-secondary" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!title.trim() || busy} onClick={createFolder}>{busy ? "Creating…" : "Create folder"}</button></>}>
         <label className="text-xs text-ink-3">Folder name<input autoFocus className={inputCls} value={title} onChange={(e) => { setTitle(e.target.value); setSlug(slugify(e.target.value)); }} placeholder="e.g. Insurance" onKeyDown={(e) => { if (e.key === "Enter" && title.trim()) createFolder(); }} /></label>
