@@ -669,7 +669,6 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const insightMeta = useMemo(() => ({ title, description, template: page.template, status, locale, assets: assetMap, entities }), [title, description, page.template, status, locale, assetMap, entities]);
   const insightBadge = useMemo(() => pageInsights(blocks, insightMeta).groups.flatMap((g) => g.items).filter((i) => i.level === "crit").length, [blocks, insightMeta]);
   // On phones and tablets the panels float over the canvas instead of reserving space, so the 1:1 page keeps its width.
-  const siteW = DEVICE_W[device];
   const [avail, setAvail] = useState(0);
   /* The page is drawn at its real width (see lib/ucp/devices.ts) and `zoom`ed to fit the canvas.
      `zoom` rather than a transform, and one element rather than two: a scaled inner element needs
@@ -707,6 +706,15 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
      are opaque docked columns now, so the page simply disappeared behind them below 1100px. */
   const padL = focus ? 0 : !railsOn ? 24 : phone ? 12 : zen ? 24 : left && !leftFloating ? leftW + 24 : RAIL_W + 24;
   const padR = focus ? (floatingOpen ? 412 : 0) : !railsOn ? 24 : phone ? 12 : zen ? 24 : right && !rightFloat.floating ? panelW + 24 : RAIL_W + 24;
+
+  /* How the page is fitted into the canvas, matching the UCP mock's `canvas.svelte`:
+     Desktop works at 1:1 — it fills the canvas up to its 1280 breakpoint and never zooms, so type
+     stays its real size and the page is never a shrunken picture of itself. XL always renders the
+     full 1536 and zooms to fit, because a 1536 preview cannot exist on a 14" screen any other way.
+     Tablet and mobile render at their true width and only zoom if the canvas is narrower. */
+  const areaW = avail ? Math.max(0, avail - padL - padR - 2) : 0;
+  const siteW = device === "desktop" ? Math.min(DEVICE_W.desktop, areaW || DEVICE_W.desktop) : DEVICE_W[device];
+  const fit = areaW && areaW < siteW ? areaW / siteW : 1;
 
   return (
     <div className={`h-full grid ${focus ? "grid-rows-[1fr]" : STEPPER_HIDDEN ? "grid-rows-[54px_1fr]" : "grid-rows-[54px_48px_1fr]"} min-w-0 overflow-hidden`}>
@@ -819,7 +827,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {/* The hint / "1:1 · 1200 px" strip is gone: it was a light band sitting on the dark canvas
              ground, and it narrated what the canvas already shows. */}
           <div ref={canvasRef} className={`bld-pad ${focus ? "flex-1 overflow-auto p-0 bg-white" : "editor-ground flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""} ${patternMode ? "pattern-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onMouseMove={onCanvasMove} onDragOver={onCanvasDragOver} onDrop={onCanvasDrop} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropAt(null); }} onMouseLeave={() => { if (!qcPinned) setQcTarget(null); }} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
-            {(() => { const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / siteW)) : 1; return <div className="bld-frame" style={{ width: siteW, zoom: fit, margin: "0 auto", ["--bld-unzoom" as string]: 1 / fit }}>
+            {(() => { return <div className="bld-frame" style={{ width: siteW, zoom: fit, margin: "0 auto", ["--bld-unzoom" as string]: 1 / fit }}>
             <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
               {blocks.length ? blocks.map((b, i) => { const line = dropAt === i && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />; return <Fragment key={b.id}>{line}{(() => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id && !commentTarget.field ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""} ${multi.includes(b.id) ? "multi" : ""} ${movingId === b.id ? "opacity-40" : ""}`} tabIndex={0}>
                 {multi.includes(b.id) && <span className="multi-n" aria-hidden>{multiBlocks.findIndex((x) => x.id === b.id) + 1}</span>}
