@@ -78,8 +78,9 @@ type Props = {
   canEdit: boolean; onAdd: (type: string) => void; onClose: () => void; onOpenPanel?: () => void;
   /** Replays the editor tour. Lives on the panel's bottom bar, which is where the tour ends. */
   onHelp?: () => void;
-  /** dataTransfer type the canvas listens for, so a component can be dragged onto the page. */
-  dragType?: string; lockedReason?: string; onEdit?: () => void;
+  /** dataTransfer types the canvas listens for, so a component or a pattern can be dragged onto the page. */
+  dragType?: string;
+  patternDragType?: string; lockedReason?: string; onEdit?: () => void;
   /** Outline: the page's blocks in document order, and the selection, so the tree can mirror the canvas. */
   blocks?: Block[]; selected?: string | null; onSelect?: (id: string) => void;
   /** Dragging an outline row to a new position reorders the page itself. */
@@ -106,7 +107,7 @@ const tabCls = (on: boolean) =>
 const rowCls = "group/item flex h-7 w-full cursor-grab items-center gap-2 ps-7 pe-1.5 text-left active:cursor-grabbing transition-colors duration-150 ease-out hover:bg-surface-2 disabled:cursor-default disabled:opacity-50";
 
 export function LeftPanel({
-  phone, width = 280, canEdit, onAdd, onClose, onOpenPanel = noop, onHelp, dragType, lockedReason, onEdit,
+  phone, width = 280, canEdit, onAdd, onClose, onOpenPanel = noop, onHelp, dragType, patternDragType, lockedReason, onEdit,
   blocks = [], selected = null, onSelect = noop, onReorder,
   tab: tabIn = "components", onTab = noop, patterns, onAddPattern = noop, onRemovePattern = noop, onRestorePattern = noop,
   onDeletePattern = noop, onPatternMarkets = noop, mayManage = () => false, onStartPattern = noop, creating = false, onFloatChange, open = true, hidden = false, railItems = [],
@@ -286,8 +287,8 @@ export function LeftPanel({
                     <li key={p.id} className="group/item relative m-0 p-0" onMouseEnter={previewOn(p)} onMouseLeave={clearPreview}>
                       <button type="button" disabled={!canEdit} onClick={() => { clearPreview(); onAddPattern(p); }} onFocus={previewOn(p)} onBlur={clearPreview}
                         title={p.desc || p.name} className={rowCls}
-                        draggable={!!dragType && canEdit}
-                        onDragStart={(e) => { if (!dragType) return; e.dataTransfer.setData(`${dragType}+pattern`, p.id); e.dataTransfer.effectAllowed = "copy"; }}>
+                        draggable={!!patternDragType && canEdit}
+                        onDragStart={(e) => { if (!patternDragType) return; e.dataTransfer.setData(patternDragType, p.id); e.dataTransfer.effectAllowed = "copy"; clearPreview(); }}>
                         <Shapes className="size-3.5 shrink-0 text-ink-3" aria-hidden />
                         <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{p.name}</span>
                         {p.markets?.length ? <span className="flex-none text-[11px] leading-none" title={where(p)} aria-label={where(p)}>{p.markets.map((m) => MARKETS.find((k) => k.id === m)?.flag ?? m).join("")}</span> : null}

@@ -335,6 +335,8 @@
   box-shadow: 0 0 0 4px rgba(219, 0, 17, 0.12);
 }
 .cblk .tag {
+  /* Chrome, not content: cancel the frame's zoom so the chip reads the same at every breakpoint. */
+  zoom: var(--bld-unzoom, 1);
   position: absolute;
   top: -1px;
   left: -2px;

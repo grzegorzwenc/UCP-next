@@ -222,6 +222,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
      shows where it would land. No drag library — one list and one insertion point does not
      need one, and `dropAt` is the only state it takes. */
   const DRAG_TYPE = "application/x-ucp-block";
+  const PATTERN_TYPE = "application/x-ucp-pattern";
   const [dropAt, setDropAt] = useState<number | null>(null);
   const canDrop = canEdit && !locked && !preview && !focus;
   /** Index the pointer is closest to: above a block's middle means before it, below means after. */
@@ -232,15 +233,20 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     return els.length;
   };
   const onCanvasDragOver = (e: React.DragEvent) => {
-    if (!canDrop || !e.dataTransfer.types.includes(DRAG_TYPE)) return;
+    if (!canDrop || !(e.dataTransfer.types.includes(DRAG_TYPE) || e.dataTransfer.types.includes(PATTERN_TYPE))) return;
     e.preventDefault(); e.dataTransfer.dropEffect = "copy";
     const i = dropIndexAt(e.clientY); if (i !== dropAt) setDropAt(i);
   };
   const onCanvasDrop = (e: React.DragEvent) => {
     if (!canDrop) return;
-    const type = e.dataTransfer.getData(DRAG_TYPE); if (!type) return;
+    const type = e.dataTransfer.getData(DRAG_TYPE);
+    const patternId = type ? "" : e.dataTransfer.getData(PATTERN_TYPE);
+    if (!type && !patternId) return;
     e.preventDefault();
-    const at = dropAt ?? dropIndexAt(e.clientY); setDropAt(null); add(type, at);
+    const at = dropAt ?? dropIndexAt(e.clientY); setDropAt(null);
+    if (type) { add(type, at); return; }
+    const pat = (patterns ?? []).find((x) => x.id === patternId);
+    if (pat) addPattern(pat, at);
   };
   /** Move a block to an index in the page order. `to` is the gap it was dropped into. */
   const moveBlockTo = (id: string, to: number) => {
@@ -429,7 +435,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   useEffect(() => { loadPatterns(); }, [loadPatterns]);
   const multiBlocks = blocks.filter((b) => multi.includes(b.id)); // in page order
   const toggleMulti = (id: string) => setMulti((m) => { const base = m.length || patternMode ? m : sel && sel !== id ? [sel] : []; return base.includes(id) ? base.filter((x) => x !== id) : [...base, id]; });
-  const addPattern = (p: DesignPattern) => { const nb = fromPattern(p); if (!nb.length) return; mutate((b) => { const i = sel ? b.findIndex((x) => x.id === sel) + 1 : b.length; const c = b.slice(); c.splice(i, 0, ...nb); return c; }); select(nb[nb.length - 1].id); say(`${p.name} added · ${nb.length} components`); setTimeout(() => canvasRef.current?.querySelector(`.cblk[data-id="${nb[0].id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }), 50); };
+  const addPattern = (p: DesignPattern, at?: number) => { const nb = fromPattern(p); if (!nb.length) return; mutate((b) => { const i = at ?? (sel ? b.findIndex((x) => x.id === sel) + 1 : b.length); const c = b.slice(); c.splice(i, 0, ...nb); return c; }); select(nb[nb.length - 1].id); say(`${p.name} added · ${nb.length} components`); revealBlock(nb[0].id); };
   const mayManagePattern = (p: DesignPattern) => isAdmin || (!p.builtIn && p.by === user.id); // design-system ones: site admins only
   async function savePattern(v: { name: string; desc: string; markets: string[] }): Promise<string | null> {
     try { const p = await ucpApi.savePattern(marketId, { ...v, parts: toParts(multiBlocks) }); setSavingPattern(false); stopPattern(); await loadPatterns(); setLeftTab("patterns"); setLeft(true); say(`Saved · ${p.name} is in Design patterns${v.markets.length && !v.markets.includes(marketId) ? " (not shown in this market)" : ""}`); return null; }
@@ -692,14 +698,14 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {/* The hint / "1:1 · 1200 px" strip is gone: it was a light band sitting on the dark canvas
              ground, and it narrated what the canvas already shows. */}
           <div ref={canvasRef} className={`bld-pad ${focus ? "flex-1 overflow-auto p-0 bg-white" : "editor-ground flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""} ${patternMode ? "pattern-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onMouseMove={onCanvasMove} onDragOver={onCanvasDragOver} onDrop={onCanvasDrop} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropAt(null); }} onMouseLeave={() => { if (!qcPinned) setQcTarget(null); }} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
-            {(() => { const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / siteW)) : 1; return <div className="bld-frame" style={{ width: siteW, zoom: fit, margin: "0 auto" }}>
+            {(() => { const fit = avail ? Math.max(0.3, Math.min(1, (avail - padL - padR - 2) / siteW)) : 1; return <div className="bld-frame" style={{ width: siteW, zoom: fit, margin: "0 auto", ["--bld-unzoom" as string]: 1 / fit }}>
             <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
               {blocks.length ? blocks.map((b, i) => { const line = dropAt === i && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />; return <Fragment key={b.id}>{line}{(() => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id && !commentTarget.field ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""} ${multi.includes(b.id) ? "multi" : ""}`} tabIndex={0}>
                 {multi.includes(b.id) && <span className="multi-n" aria-hidden>{multiBlocks.findIndex((x) => x.id === b.id) + 1}</span>}
                 {reviewMode && <span className="cmt-pick" aria-hidden>{commentTarget?.id === b.id ? "Commenting here" : "Click a text or image to comment"}</span>}
                 {!!commentCounts[b.id] && <button type="button" data-ui className="cmt-badge" title={`${commentCounts[b.id]} comment${commentCounts[b.id] === 1 ? "" : "s"} on this component`} onClick={(e) => { e.stopPropagation(); if (focus) setFloatOpen(true); else { setRightTab("comments"); setRight(true); } }}><CommentIcon size={12} />{commentCounts[b.id]}</button>}
                 <span className="tag">{def.name}{b.props.locked ? " · locked" : ""}{b.props.hidden ? " · hidden" : ""}</span>
-                {isSel && !preview && !multi.length && <ContextBar block={b} index={i} count={blocks.length} mode={mode} pop={pop} setPop={setPop} clipboard={clipboard} aiSeed={aiSeed}
+                {isSel && !preview && !multi.length && <ContextBar unzoom={1 / fit} block={b} index={i} count={blocks.length} mode={mode} pop={pop} setPop={setPop} clipboard={clipboard} aiSeed={aiSeed}
                   onEdit={() => (mode === "edit" ? (commitInline(true), setMode("select")) : enterEdit(b.id))} onConfigure={phone ? () => configure(b.id) : undefined /* desktop: clicking the block already opens Configure */}
                   onMore={(a) => { setPop(null); if (a === "duplicate") duplicate(b); else if (a === "copy") { setClipboard(b); say("Copied"); } else if (a === "paste" && clipboard) { mutate((bl) => { const c = bl.slice(); c.splice(i + 1, 0, { ...clipboard, id: makeBlock(clipboard.type).id, props: { ...clipboard.props } }); return c; }); } else if (a === "up") move(b.id, -1); else if (a === "down") move(b.id, 1); else if (a === "hide") setProp(b.id, "hidden", !b.props.hidden); else if (a === "lock") { setProp(b.id, "locked", !b.props.locked); if (!b.props.locked) setMode("select"); } else if (a === "delete") remove(b.id); else if (a === "history") { if (phone) setLeftRaw(false); setRightTab("history"); setRight(true); } else if (a === "pattern") { startPattern(b.id); say("Click the other components to put in the pattern"); } }}
                   onAi={(p) => { mutate((bl) => bl.map((x) => (x.id === b.id ? { ...x, props: { ...x.props, ...p.props } } : x))); say("AI changes applied"); }} />}
@@ -729,7 +735,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         
         {railsOn && <LeftPanel open={left} hidden={zen} phone={phone} width={leftW} canEdit={canEdit} onAdd={add} onClose={() => setLeft(false)} onOpenPanel={() => setLeft(true)}
           railItems={LEFT_RAIL.map(([t, label, path]) => ({ key: t, label, path, active: leftTab === t, onClick: () => { setLeftTab(t); setLeft(true); } }))} lockedReason={lockReason || undefined} onEdit={veilEdit}
-          onHelp={runTour} dragType={DRAG_TYPE} onReorder={moveBlockTo} onFloatChange={setLeftFloating} blocks={blocks} selected={sel} onSelect={(id) => { select(id); canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }}
+          onHelp={runTour} dragType={DRAG_TYPE} patternDragType={PATTERN_TYPE} onReorder={moveBlockTo} onFloatChange={setLeftFloating} blocks={blocks} selected={sel} onSelect={(id) => { select(id); canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }}
           tab={leftTab} onTab={setLeftTab} patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onRestorePattern={async (p) => { try { await ucpApi.archivePattern(marketId, p.id, false); say(`${p.name} restored`); } catch { say("Could not restore"); } loadPatterns(); }} onDeletePattern={(p) => deletePatternForGood(p)} onPatternMarkets={setPatMarkets} mayManage={mayManagePattern} onStartPattern={() => startPattern()} creating={patternMode} />}
         {/* Right panel: Configure (contextual) or Page settings */}
         {railsOn && !focus && phone && <nav data-ui aria-label="Panels" className={phone ? "absolute left-0 right-0 bottom-0 h-12 bg-surface border-t border-line flex flex-row items-center justify-around px-2 z-[6]" : "absolute right-0 top-0 bottom-0 w-[52px] bg-surface border-l border-line flex flex-col items-center px-1.5 py-2.5 gap-1.5 z-[6] cursor-pointer"}>
@@ -868,7 +874,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
 /* ---- contextual toolbar at the selected block: Edit · AI · More (+ Configure on phones, where clicking only selects) ---- */
 function Btn({ children, on, onClick, disabled, title }: { children: React.ReactNode; on?: boolean; onClick: () => void; disabled?: boolean; title: string }) { return <button title={title} disabled={disabled} onMouseDown={(e) => e.preventDefault()} onClick={(e) => { e.stopPropagation(); onClick(); }} className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap disabled:opacity-40 ${on ? "bg-brand text-white" : "hover:bg-white/15"}`}>{children}</button>; }
 type MoreAction = "duplicate" | "copy" | "paste" | "up" | "down" | "hide" | "lock" | "delete" | "history" | "pattern";
-function ContextBar({ block: b, index, count, mode, pop, setPop, clipboard, aiSeed, onEdit, onConfigure, onMore, onAi }: { block: Block; index: number; count: number; mode: "select" | "edit"; pop: "ai" | "more" | null; setPop: (p: "ai" | "more" | null) => void; clipboard: Block | null; aiSeed?: string; onEdit: () => void; onConfigure?: () => void; onMore: (a: MoreAction) => void; onAi: (p: AiProposal) => void }) {
+function ContextBar({ block: b, index, count, mode, pop, setPop, clipboard, aiSeed, unzoom = 1, onEdit, onConfigure, onMore, onAi }: { block: Block; index: number; count: number; unzoom?: number; mode: "select" | "edit"; pop: "ai" | "more" | null; setPop: (p: "ai" | "more" | null) => void; clipboard: Block | null; aiSeed?: string; onEdit: () => void; onConfigure?: () => void; onMore: (a: MoreAction) => void; onAi: (p: AiProposal) => void }) {
   const locked = !!b.props.locked; const editing = mode === "edit";
   const [prompt, setPrompt] = useState(""); const [proposal, setProposal] = useState<AiProposal | null>(null);
   const ask = (p: string) => { setPrompt(p); setProposal(proposeAi(p, b)); };
@@ -876,7 +882,8 @@ function ContextBar({ block: b, index, count, mode, pop, setPop, clipboard, aiSe
   const [seenSeed, setSeenSeed] = useState(""); if (pop === "ai" && aiSeed && aiSeed !== seenSeed) { setSeenSeed(aiSeed); setPrompt(aiSeed); setProposal(proposeAi(aiSeed, b)); }
   const items: [MoreAction, string, boolean?][] = [["duplicate", "Duplicate"], ["copy", "Copy"], ["paste", "Paste after", !clipboard], ["hide", b.props.hidden ? "Show" : "Hide"], ["lock", locked ? "Unlock" : "Lock"], ["history", "Version history"], ["delete", "Delete"]];
   return <div data-ui className="absolute -top-5 left-3 z-[4]" onMouseDown={(e) => { e.stopPropagation(); if (!(e.target as HTMLElement).closest("input, textarea")) e.preventDefault(); }} onDoubleClick={(e) => e.stopPropagation()}>
-    <div role="toolbar" aria-label={`${BLOCK_BY_TYPE[b.type].name} actions`} className="flex items-center gap-0.5 bg-foreground text-background rounded-lg p-1 shadow-xl">
+    {/* `zoom` nests multiplicatively, so 1/fit inside the frame's `fit` lands back at 1:1. */}
+    <div role="toolbar" style={{ zoom: unzoom }} aria-label={`${BLOCK_BY_TYPE[b.type].name} actions`} className="flex items-center gap-0.5 bg-foreground text-background rounded-lg p-1 shadow-xl">
       <b className="px-2 text-xs text-white/70 border-r border-white/15 mr-0.5">{BLOCK_BY_TYPE[b.type].name}{locked ? " · locked" : ""}{b.props.hidden ? " · hidden" : ""}</b>
       <Btn title={editing ? "Finish editing text" : "Edit text, images and buttons in place"} on={editing} onClick={onEdit} disabled={locked}>{editing ? "Done" : "Edit"}</Btn>
       {onConfigure && <Btn title="All properties, layout and behaviour" onClick={onConfigure}>Configure</Btn>}
