@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { repo, RepoError } from "@/lib/repo";
 import { allPages } from "@/lib/server/pages";
-import { pageAuthors, listPatterns, savePattern, deletePattern, archivePattern, setPatternMarkets, compareSides, filesForPublish, publishAssets, pageReferences, relinkPages, guestMayDecide, createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, setCommentResolved, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
+import { jiraState, jiraComment, sendCommentToJira, setJiraIntegrate, syncJira, pageAuthors, listPatterns, savePattern, deletePattern, archivePattern, setPatternMarkets, compareSides, filesForPublish, publishAssets, pageReferences, relinkPages, guestMayDecide, createReviewLink, reviewGroups, shareWithGroup, reviewByToken, STAGE_LABEL, listComments, addComment, setCommentPin, setCommentResolved, deleteComment, KIND_OF_STATUS, permOfKind, listTasks, notifications, listAssets, listUsers, createAsset, logEvent, me, listTemplates, listModels, listVersions, restoreVersion, snapshotVersion, listModelVersions, readLogFor, publishPages, moveModel, moveEntity, createModelFolder, renameModelFolder, deleteModelFolder, listEntityFolders, createEntityFolder, renameEntityFolder, deleteEntityFolder, saveModelDraft, publishModel, restoreModelVersion, createModel, duplicateModel, deleteModel, listEntities, getEntity, createEntity, saveEntity, publishEntity, deleteEntity, entityUsage, resolveBindings, reviewerOptions, autoAssignee, userName } from "@/lib/server/ucp";
 import { can } from "@/lib/ucp/perms";
 import { jiraUrl, jiraLabel } from "@/lib/ucp/jira";
 import { SESSION_COOKIE, sessionUserId } from "@/lib/server/session";
@@ -82,7 +82,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       const u = await me(); const path = q.get("path") ?? ""; const root = market(mid).root; const admin = u.role === "admin" || !!u.perms.root?.manage;
       if (!(admin || can(u, "edit", path, root) || can(u, "review", path, root))) return problem(new RepoError(403, "Only people working on this page can share it for review"));
       const { team } = await req.json() as { team?: string }; const r = await shareWithGroup(mid, path, u, String(team ?? "")); const pg = await repo().getPage(path);
-      if (r.created) await logEvent(mid, { type: "content", text: `gave the ${team} group (${r.members.length} ${r.members.length === 1 ? "person" : "people"}) access to the business review of ${pg?.title ?? path}`, target: path, requestId: rid });
+      if (r.created) await logEvent(mid, { type: "content", text: `gave the ${team} group (${r.members.length} ${r.members.length === 1 ? "person" : "people"}) access to the ${r.stage === "draft" ? "draft" : "business review"} of ${pg?.title ?? path}`, target: path, requestId: rid });
       return ok({ ...r, url: `/review/${r.token}` });
     }
     /* ---- the business decides through the link (no UCP account needed): sign off, or back to the author ---- */
@@ -103,7 +103,7 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       const now = new Date().toISOString();
       await repo().setProps(`${path}/jcr:content`, signoff
         ? { "ucp:approvedBy": who.id, "ucp:approvedByName": who.name, "ucp:sentBy": who.id, "ucp:sentAt": now, "ucp:due": null }
-        : { "ucp:reauthorBy": who.id, "ucp:reauthorAt": now, "ucp:sentBy": who.id, "ucp:sentAt": now, "ucp:assignee": null, "ucp:authorReviewedBy": null, "ucp:taskAssignee": null, "ucp:taskKind": null, "ucp:reviewGroups": null, "ucp:remindedAt": null, "ucp:due": null });
+        : { "ucp:draftPhase": "build", "ucp:reauthorBy": who.id, "ucp:reauthorAt": now, "ucp:sentBy": who.id, "ucp:sentAt": now, "ucp:assignee": null, "ucp:authorReviewedBy": null, "ucp:taskAssignee": null, "ucp:taskKind": null, "ucp:reviewGroups": null, "ucp:remindedAt": null, "ucp:due": null });
       if (b.note?.trim()) await addComment(path, who, b.note, undefined, { stage: "bizreview", guest: !signed });
       await logEvent(hit.marketId, { type: signoff ? "publishing" : "content", who: signed ? undefined : "system", text: `${signed ? "" : `${name} (${mail}) `}${signoff ? "signed off" : "sent back to the author"} ${hit.page.title} through the business review link`, target: path, requestId: rid });
       return ok({ decision: signoff ? "signoff" : "reauthor", by: who.name, at: now });
@@ -159,6 +159,29 @@ async function handle(req: NextRequest, ctx: { params: Promise<{ op: string[] }>
       return ok({ assignee: u.id, assigneeName: u.name });
     }
     /* ---- Pages → Lock / Unlock: nobody else can change, move or delete a locked page (site admins can) ---- */
+    /* ---- Draft steps: Build the draft → Share with the business → Build the page ---- */
+    if (o === "pages/draft-phase" && req.method === "POST") {
+      const u = await me(); const path = q.get("path") ?? ""; const pg = await repo().getPage(path); if (!pg) return problem(new RepoError(404, "Page not found"));
+      if (!can(u, "edit", path, market(mid).root)) return problem(new RepoError(403, "You don't have Edit on this page", `Signed in as ${u.name}`));
+      if (pg.status !== "draft" && pg.status !== "failed") return problem(new RepoError(409, "The page is already in review", "Draft steps only change while the page is a draft"));
+      const { phase } = await req.json() as { phase?: string }; if (phase !== "draft" && phase !== "shared" && phase !== "build") return problem(new RepoError(400, "Unknown step"));
+      await repo().setProps(`${path}/jcr:content`, { "ucp:draftPhase": phase });
+      await logEvent(mid, { type: "content", text: phase === "build" ? `moved ${pg.title} on to Build the page` : phase === "shared" ? `shared the draft of ${pg.title} with the business` : `took ${pg.title} back to Build the draft`, target: path, requestId: rid });
+      return ok({ phase });
+    }
+    /* ---- Right rail → Jira: the ticket's comments and syncs, page comments sent to it, "Integrate" (prototype: kept on the page, nothing reaches Jira yet) ---- */
+    if (o.startsWith("pages/jira-") || (o === "pages/jira" && req.method === "GET")) {
+      const u = await me(); const admin = u.role === "admin" || !!u.perms.root?.manage; const path = q.get("path") ?? ""; const root = market(mid).root;
+      if (!admin && !can(u, "edit", path, root) && !can(u, "review", path, root)) return problem(new RepoError(403, "Only people working on this page can use its Jira ticket"));
+      if (o === "pages/jira") return ok(await jiraState(path));
+      if (req.method !== "POST") return problem(new RepoError(405, "Method not allowed"));
+      const b = await req.json() as { text?: string; step?: string; id?: string; on?: boolean }; const pg = await repo().getPage(path); const title = pg?.title ?? path;
+      if (o === "pages/jira-comment") { const st = await jiraComment(path, u, String(b.text ?? "")); await logEvent(mid, { type: "content", text: `commented on Jira ${st.key} from ${title}: “${String(b.text ?? "").trim().slice(0, 60)}”`, target: path, requestId: rid }); return ok(st); }
+      if (o === "pages/jira-send") { const list = await sendCommentToJira(path, String(b.id ?? "")); const st = await jiraState(path); await logEvent(mid, { type: "content", text: `sent a comment on ${title} to Jira ${st.key}`, target: path, requestId: rid }); return ok(list); }
+      if (o === "pages/jira-integrate") { const st = await setJiraIntegrate(path, !!b.on); await logEvent(mid, { type: "content", text: `${b.on ? "turned on" : "turned off"} Jira integration for ${title} (${st.key})`, target: path, requestId: rid }); return ok(st); }
+      if (o === "pages/jira-sync") { const r = await syncJira(path, u, String(b.step ?? "").trim().slice(0, 80) || (pg?.status ?? ""), path.replace(root, "") || "/"); await logEvent(mid, { type: "content", text: `synced ${title} with Jira ${r.state.key}${r.sent ? ` (${r.sent} comment${r.sent === 1 ? "" : "s"} sent)` : ""}`, target: path, requestId: rid }); return ok(r); }
+      return problem(new RepoError(404, "Unknown Jira action"));
+    }
     /* ---- Jira ticket linked to a page (ucp:jira): a link or a ticket key ---- */
     if (o === "pages/jira" && req.method === "POST") {
       const u = await me(); const admin = u.role === "admin" || !!u.perms.root?.manage; const path = q.get("path") ?? ""; const root = market(mid).root;

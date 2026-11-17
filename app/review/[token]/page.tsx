@@ -21,13 +21,13 @@ export default async function Page({ params }: { params: Promise<{ token: string
   const [ents, assets, comments, uid] = await Promise.all([resolveBindings(bindingsOf(meta)), listAssets(hit.marketId), listComments(page.path), sessionUserId()]);
   const user = uid ? await me() : null; const admin = !!user && (user.role === "admin" || !!user.perms.root?.manage);
   const str = (v: unknown) => (typeof v === "string" ? v : "");
-  const mayApprove = !!user && open && can(user, "review", page.path, market.root) && (admin || (link.stage === "review"
+  const mayApprove = !!user && open && link.stage !== "draft" && can(user, "review", page.path, market.root) && (admin || (link.stage === "review"
     ? !str(meta["ucp:assignee"]) || str(meta["ucp:assignee"]) === user.id
     : (meta["ucp:taskKind"] === "BizReview" && str(meta["ucp:taskAssignee"]) ? str(meta["ucp:taskAssignee"]) === user.id : str(meta["ucp:authorReviewedBy"]) !== user.id)));
   return <ReviewScreen token={token} open={open} stage={link.stage} stageLabel={STAGE_LABEL[link.stage]} path={page.path} title={page.title} status={page.status}
     market={{ name: market.name, flag: market.flag, domain: market.domain, route: page.path.replace(market.root, "") || "/" }}
     blocks={componentsToBlocks(page.components ?? [])} entities={ents} comments={comments} user={user ? { name: user.name } : null} mayApprove={mayApprove}
     /* guests decide only through a link that was sent to them (an e-mail or a group); a copied link is for comments */
-    inviteEmail={link.email} canDecide={user ? mayApprove : !!(link.email || link.group)} sentTo={link.email ?? (link.group ? `the ${link.group} group` : undefined)}
+    inviteEmail={link.email} canDecide={link.stage === "draft" ? false : user ? mayApprove : !!(link.email || link.group)} sentTo={link.email ?? (link.group ? `the ${link.group} group` : undefined)}
     assets={Object.fromEntries(assets.map((a) => [a.id, { data: a.data, alt: a.a11y?.alt?.[market.locales[0]], decorative: a.a11y?.decorative }]))} />;
 }

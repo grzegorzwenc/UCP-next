@@ -3,7 +3,9 @@ import type { Task, Notification, Asset, AuditEvent, User, Template, Model, Mode
 import type { ResolvedEntities } from "@/lib/ucp/tokens";
 import { ApiError } from "./types";
 import type { DesignPattern, PatternPart } from "@/lib/blocks/patterns";
-export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string }; stage?: string; guest?: boolean; block?: { id: string; label: string; field?: string }; resolved?: { by: string; name: string; at: string } };
+export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string }; stage?: string; guest?: boolean; block?: { id: string; label: string; field?: string }; resolved?: { by: string; name: string; at: string } ; jira?: { key: string; at: string } };
+export type JiraEntry = { id: string; who: string; whoName: string; time: string; text: string; kind: "comment" | "page" | "sync"; about?: string; origin?: string; commentId?: string };
+export type JiraState = { ticket: string; key: string; integrate: boolean; entries: JiraEntry[]; sync: { at: string; byName: string; step: string } | null };
 export * from "./types";
 
 type Query = Record<string, string | number | boolean | string[] | undefined>;
@@ -89,6 +91,11 @@ export const ucpApi = {
   reviewers: (market: string, path: string) => U<ReviewerOption[]>("reviewers", { query: { market, path } }),
   sendForReview: (market: string, path: string, body: { note?: string }) => U<{ assignee: string; assigneeName: string }>("review/send", { method: "POST", query: { market, path }, body: JSON.stringify(body) }),
   /** Link (and optional e-mail invite) for the current review stage; an e-mail of a UCP reviewer also assigns them. */
+  jira: (market: string, path: string) => U<JiraState>("pages/jira", { query: { market, path } }),
+  jiraSync: (market: string, path: string, step: string) => U<{ state: JiraState; sent: number }>("pages/jira-sync", { method: "POST", query: { market, path }, body: JSON.stringify({ step }) }),
+  jiraComment: (market: string, path: string, text: string) => U<JiraState>("pages/jira-comment", { method: "POST", query: { market, path }, body: JSON.stringify({ text }) }),
+  jiraIntegrate: (market: string, path: string, on: boolean) => U<JiraState>("pages/jira-integrate", { method: "POST", query: { market, path }, body: JSON.stringify({ on }) }),
+  sendCommentToJira: (market: string, path: string, id: string) => U<PageComment[]>("pages/jira-send", { method: "POST", query: { market, path }, body: JSON.stringify({ id }) }),
   pageJira: (market: string, path: string, value: string) => U<{ jira: string }>("pages/jira", { method: "POST", query: { market, path }, body: JSON.stringify({ value }) }),
   pageAuthors: (market: string, path: string, action: "join" | "leave" | "add" | "remove", id?: string) => U<{ authors: { id: string; name: string; at: string }[] }>("pages/authors", { method: "POST", query: { market, path }, body: JSON.stringify({ action, id }) }),
   archivePages: (market: string, paths: string[], archived: boolean) => U<{ count: number; offline: number }>("pages/archive", { method: "POST", query: { market }, body: JSON.stringify({ paths, archived }) }),
@@ -98,8 +105,9 @@ export const ucpApi = {
   savePattern: (market: string, p: { name: string; desc?: string; parts: PatternPart[]; markets?: string[] }) => U<DesignPattern>("patterns", { method: "POST", query: { market }, body: JSON.stringify(p) }),
   deletePattern: (market: string, id: string) => U<{ ok: boolean }>("patterns", { method: "DELETE", query: { market, id } }),
   reviewGroups: (market: string, path: string) => U<{ team: string; members: { id: string; name: string; email: string; canSignOff: boolean }[]; shared: boolean }[]>("review/groups", { query: { market, path } }),
-  shareWithGroup: (market: string, path: string, team: string) => U<{ token: string; url: string; members: { id: string; name: string; email: string; canSignOff: boolean }[]; created: boolean }>("review/group", { method: "POST", query: { market, path }, body: JSON.stringify({ team }) }),
-  reviewLink: (market: string, path: string, email?: string) => U<{ token: string; stage: "review" | "bizreview"; assigned?: string; url: string }>("review/link", { method: "POST", query: { market, path }, body: JSON.stringify({ email }) }),
+  shareWithGroup: (market: string, path: string, team: string) => U<{ token: string; stage: "draft" | "review" | "bizreview"; url: string; members: { id: string; name: string; email: string; canSignOff: boolean }[]; created: boolean }>("review/group", { method: "POST", query: { market, path }, body: JSON.stringify({ team }) }),
+  draftPhase: (market: string, path: string, phase: "draft" | "shared" | "build") => U<{ phase: string }>("pages/draft-phase", { method: "POST", query: { market, path }, body: JSON.stringify({ phase }) }),
+  reviewLink: (market: string, path: string, email?: string) => U<{ token: string; stage: "draft" | "review" | "bizreview"; assigned?: string; url: string }>("review/link", { method: "POST", query: { market, path }, body: JSON.stringify({ email }) }),
   /** Comment from the review screen (signed in, or a guest with name + e-mail). */
   reviewDecide: (token: string, body: { decision: "signoff" | "reauthor"; name?: string; email?: string; note?: string }) => U<{ decision: "signoff" | "reauthor"; by: string; at: string }>("review/decide", { method: "POST", query: { token }, body: JSON.stringify(body) }),
   reviewComment: (token: string, body: { text: string; name?: string; email?: string; block?: { id: string; label: string; field?: string } }) => U<PageComment[]>("review/comment", { method: "POST", query: { token }, body: JSON.stringify(body) }),

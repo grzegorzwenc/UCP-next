@@ -22,6 +22,8 @@ import { InsightsPanel, VersionHistory, TranslateModal, pageInsights } from "@/c
 import { LeftPanel, type LeftTab } from "./LeftPanel";
 import { AuthorsChip, type PageAuthor } from "./Authors";
 import { JiraChip } from "@/components/ui/JiraChip";
+import { JiraPanel } from "./JiraPanel";
+import { jiraLabel } from "@/lib/ucp/jira";
 import { SavePatternDialog, PatternMarketsDialog } from "./PatternDialog";
 import { toParts, fromPattern, type DesignPattern } from "@/lib/blocks/patterns";
 import { LockedVeil } from "./LockedVeil";
@@ -39,7 +41,7 @@ import { useRouter } from "next/navigation";
 import { permForStatus } from "@/lib/ucp/perms";
 
 type Props = { marketId: string; envId: string; marketName: string; flag: string; domain: string; locale: string; envName: string; root: string; page: PageView; names?: Record<string, string>; models?: ContentModelInfo[]; entities?: ResolvedEntities };
-type RightTab = "block" | "page" | "content" | "ai" | "insights" | "comments" | "history";
+type RightTab = "block" | "page" | "content" | "ai" | "insights" | "comments" | "jira" | "history";
 type PageField = "description" | "title";
 /** One page-level AI task: prompt → plan → run → review. `results` keeps the snapshot around each op so it can be undone alone. */
 type AiResult = { before: Block[]; after: Block[]; changes: Change[]; undone: boolean; pageBefore?: string };
@@ -52,10 +54,32 @@ const AI_EXAMPLES: { title: string; items: [string, string, string][] }[] = [
 ];
 const PATTERN_ICON = "M4 4h7v7H4zM13 4h7v7h-7zM4 13h16v7H4z"; // three components joined into one
 const LEFT_RAIL: [LeftTab, string, string][] = [["components", "Add a component", "M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM12 8.5v7M8.5 12h7"], ["patterns", "Design patterns", PATTERN_ICON]];
-const RAIL: [RightTab, string, string][] = [["block", "Component settings", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"], ["page", "Page settings", "M6 3h8l5 5v13H6zM14 3v5h5M9 13h6M9 17h6"], ["content", "Entities", "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"], ["ai", "AI assistant", "M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 15l.6 1.6L7.2 17l-1.6.6L5 19.2l-.6-1.6L2.8 17l1.6-.4z"], ["insights", "Page insights", "M12 3a9 9 0 1 0 9 9M12 3v9l6.4-6.4M12 12l4 4"], ["comments", "Comments", "M4 5h16v11H9l-5 4zM8 9h8M8 12.5h5"], ["history", "Version history", "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"]];
+const RAIL: [RightTab, string, string][] = [["block", "Component settings", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"], ["page", "Page settings", "M6 3h8l5 5v13H6zM14 3v5h5M9 13h6M9 17h6"], ["content", "Entities", "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"], ["ai", "AI assistant", "M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 15l.6 1.6L7.2 17l-1.6.6L5 19.2l-.6-1.6L2.8 17l1.6-.4z"], ["insights", "Page insights", "M12 3a9 9 0 1 0 9 9M12 3v9l6.4-6.4M12 12l4 4"], ["comments", "Comments", "M4 5h16v11H9l-5 4zM8 9h8M8 12.5h5"], ["jira", "Jira", "M3 7h18v3a2 2 0 0 0 0 4v3H3v-3a2 2 0 0 0 0-4zM15 7v2.5M15 12v0M15 14.5V17"], ["history", "Version history", "M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2"]];
 /** Short step names used when the stepper is narrow (same order as STEPS). */
-const STEP_SHORT = ["Build", "Preview", "Waiting", "Assigned", "In review", "Biz waiting", "Business", "Ready", "Live"];
-const STEPS = [["Build the page", "Add blocks and fill in the content"], ["Preview", "See it exactly as visitors will"], ["Waiting for author's review assignment", "Sent · no reviewer has taken it yet"], ["Assigned to reviewer", "A reviewer has taken it · not started yet"], ["In author's review", "The reviewer is checking it"], ["Waiting for business review assignment", "Reviewed · no business reviewer has taken it yet"], ["In business review", "Business sign-off"], ["Ready to publish", "Reviewed · click Publish"], ["Published", "Live for customers"]];
+const STEP_SHORT = ["Draft", "Share", "Build", "Preview", "Waiting", "Assigned", "In review", "Biz waiting", "Business", "Ready", "Live"];
+const STEPS = [["Build the draft", "A first version to show the business"], ["Share with the business", "The business sees the draft by link and comments"], ["Build the page", "Work in the feedback and finish the content"], ["Preview", "See it exactly as visitors will"], ["Waiting for a reviewer", "Sent · no reviewer has taken it yet"], ["Assigned to reviewer", "A reviewer has taken it · not started yet"], ["In author's review", "The reviewer is checking it"], ["Waiting for business review assignment", "Reviewed · no business reviewer has taken it yet"], ["In business review", "Business sign-off"], ["Ready to publish", "Reviewed · click Publish"], ["Published", "Live for customers"]];
+/** Page progress cells: one look for all of them, the accent colour says what the cell is. */
+type FlowTone = "prev" | "cur" | "act" | "next" | "todo";
+const FLOW_TONE: Record<FlowTone, { bar: string; cap: string; bg: string }> = {
+  prev: { bar: "bg-good", cap: "text-good", bg: "" },
+  cur: { bar: "bg-accent", cap: "text-accent", bg: "bg-accent-soft/60" },
+  act: { bar: "bg-ink-3", cap: "text-ink-3", bg: "bg-surface-2" },
+  next: { bar: "bg-info", cap: "text-info", bg: "" },
+  todo: { bar: "bg-line-2", cap: "text-ink-4", bg: "" },
+};
+function FlowCell({ tone, caption, className = "", current, group, title, children }: { tone: FlowTone; caption: string; className?: string; current?: boolean; group?: boolean; title?: string; children: React.ReactNode }) {
+  const t = FLOW_TONE[tone];
+  return <div role={group ? "group" : "listitem"} aria-label={group ? caption : undefined} aria-current={current ? "step" : undefined} title={title} className={`relative flex flex-col items-center justify-start gap-1 min-w-0 px-3 pt-2 text-center text-sm text-ink cursor-default select-none ${t.bg} ${className}`}>
+    <span aria-hidden className={`absolute inset-x-0 top-0 h-[3px] ${t.bar}`} />
+    <span className={`text-[10px] leading-none uppercase tracking-[.08em] font-semibold whitespace-nowrap ${t.cap}`}>{caption}</span>
+    <span className="flex items-center justify-center h-7 min-w-0 max-w-full">{children}</span>
+  </div>;
+}
+function StepDot({ n, done, tone }: { n: number; done: boolean; tone: FlowTone }) {
+  return <i className={`flex-none w-5 h-5 rounded-full grid place-items-center not-italic text-[11px] font-bold ${done ? "bg-good text-white" : tone === "cur" ? "bg-accent text-white" : tone === "next" ? "border-[1.5px] border-info text-info" : "border-[1.5px] border-line-2 text-ink-3"}`}>{done ? "✓" : n}</i>;
+}
+/** Phones show one action: the first step after Build the draft that has one, else Build the draft. */
+const MOBILE_ORDER = [...STEPS.keys()].slice(1, -1).concat(0);
 
 /**
  * Interaction model (three levels):
@@ -76,6 +100,15 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const canEdit = can("edit", page.path) && !lockedByOther; const mayStatus = (s: PageStatus) => can(permForStatus[s], page.path);
   const [blocks, setBlocks] = useState<Block[]>(() => componentsToBlocks(page.components));
   const [status, setStatus] = useState<PageStatus>(page.status);
+  /* A draft starts with Build the draft → Share with the business, then Build the page (reopened or reauthored pages go straight to Build the page) */
+  /* "Workflow · N of 11": a button that drops down the whole workflow as a list (done ✓, this step, what is still ahead) */
+  const [flowOpen, setFlowOpenRaw] = useState(false); const flowRef = useRef<HTMLDivElement>(null);
+  const [backTo, setBackTo] = useState<number | null>(null); const backToRef = useRef<number | null>(null); backToRef.current = backTo; // "Go back to this step?" shown inside the list (no dialog on top of the dropdown)
+  const setFlowOpen = (v: boolean) => { setFlowOpenRaw(v); setBackTo(null); };
+  useEffect(() => { if (!flowOpen) return; const off = (e: MouseEvent) => { if (!flowRef.current?.contains(e.target as Node)) { setFlowOpenRaw(false); setBackTo(null); } };
+    const esc = (e: KeyboardEvent) => { if (e.key !== "Escape") return; if (backToRef.current !== null) setBackTo(null); else setFlowOpenRaw(false); };
+    window.addEventListener("mousedown", off); window.addEventListener("keydown", esc); return () => { window.removeEventListener("mousedown", off); window.removeEventListener("keydown", esc); }; }, [flowOpen]);
+  const [draftPhase, setDraftPhase] = useState<"draft" | "shared" | "build">(() => { const v = page.meta?.["ucp:draftPhase"]; return v === "shared" || v === "build" ? v : "draft"; });
   const [title, setTitle] = useState(page.title);
   const [sel, setSel] = useState<string | null>(null);
   const [mode, setMode] = useState<"select" | "edit">("select");
@@ -161,7 +194,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [bizGroups, setBizGroups] = useState<string[]>(() => { try { return JSON.parse(String(page.meta?.["ucp:reviewGroups"] ?? "[]")) as string[]; } catch { return []; } });
   const bizAssigned = status === "bizreview" && (!!bizAssignee || bizGroups.length > 0);
   const [decide, setDecide] = useState(false); // "Reviewed": send to business review or reauthor
-  const cur = status === "published" ? 8 : status === "approved" || status === "scheduled" ? 7 : status === "bizreview" ? (bizAssigned ? 6 : 5) : status === "reviewed" || status === "inreview" ? 4 : status === "review" ? (assignee ? 3 : 2) : focus || previewCheck || previewed ? 1 : 0;
+  const early = (status === "draft" || status === "failed") && draftPhase !== "build"; // still at Build the draft / Share with the business
+  const cur = early ? (draftPhase === "shared" ? 1 : 0) : 2 + (status === "published" ? 8 : status === "approved" || status === "scheduled" ? 7 : status === "bizreview" ? (bizAssigned ? 6 : 5) : status === "reviewed" || status === "inreview" ? 4 : status === "review" ? (assignee ? 3 : 2) : focus || previewCheck || previewed ? 1 : 0);
+  const LAST = STEPS.length - 1;
   const bizName = bizAssignee ? names[bizAssignee] ?? bizAssignee : "";
   const mayBizSelf = mayStatus("approved") && (bizAssignee ? bizAssignee === user.id : authorReviewer !== user.id);
   const mayBizApprove = mayBizSelf || isAdmin;
@@ -329,6 +364,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   }
   /* Jira ticket for this page (Page settings), shown as a chip next to the title */
   const [jira, setJira] = useState(() => (typeof page.meta?.["ucp:jira"] === "string" ? String(page.meta["ucp:jira"]) : "")); const [jiraDraft, setJiraDraft] = useState(jira); const [jiraErr, setJiraErr] = useState("");
+  /** Jira panel: link, change or remove the ticket; returns the error text or "". */
+  async function linkJira(v: string): Promise<string> { try { const r = await ucpApi.pageJira(marketId, page.path, v); setJira(r.jira); setJiraDraft(r.jira); say(r.jira ? "Jira ticket linked" : "Jira link removed"); return ""; } catch (e) { return e instanceof ApiError ? e.problem.title : "Could not save the link"; } }
+  const [jiraOn, setJiraOn] = useState(() => page.meta?.["ucp:jiraIntegrate"] === "true"); const [commentsRev, setCommentsRev] = useState(0); // Jira panel changed the comments → Comments reloads
   async function saveJira(v: string) { setJiraErr(""); try { const r = await ucpApi.pageJira(marketId, page.path, v); setJira(r.jira); setJiraDraft(r.jira); say(r.jira ? "Jira ticket linked" : "Jira link removed"); } catch (e) { setJiraErr(e instanceof ApiError ? e.problem.title : "Could not save the link"); } }
   const [patternMode, setPatternMode] = useState(false); // "Create a design pattern": a plain click picks components instead of editing them
   const startPattern = (first?: string) => { if (editing) commitInline(true); setSel(null); setMode("select"); setPop(null); setMulti(first ? [first] : []); setPatternMode(true); };
@@ -356,7 +394,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   }
   async function reauthor(confirmed = false) {
     if (!confirmed && !(await ask({ title: "Send it back to the author?", body: <><b>{title}</b> goes back to the first step, Build the page. The author changes it and sends it for review again · both reviews start over.</>, confirmLabel: "Reauthor" }))) return;
-    setStatus("draft"); try { await save({ status: "draft" }); setAssignee(""); setAuthorReviewer(""); setBizTaken(""); setBizGroups([]); setPreviewed(false); say("Sent back to the author · the page is at Build the page again"); router.refresh(); } catch { setStatus(status); }
+    setStatus("draft"); try { await save({ status: "draft" }); setDraftPhase("build"); setAssignee(""); setAuthorReviewer(""); setBizTaken(""); setBizGroups([]); setPreviewed(false); say("Sent back to the author · the page is at Build the page again"); router.refresh(); } catch { setStatus(status); }
   }
   /** Reviewed → on to the business review (it then waits for a business reviewer to take it). */
   async function sendToBiz() {
@@ -469,7 +507,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (!canEdit) { say(READ_ONLY); return; }
     if (focus) leaveFocusState();
     // published: just start editing (the live version stays online until the next publish); in review / approved: confirm, it leaves the queue
-    if (locked) { if (status !== "published" && !confirm("Reopen this page for editing? It will leave the review queue.")) return; await transition("draft", status === "published" ? "Editing · the live version stays online until you publish again" : "Reopened for editing"); }
+    if (locked) { if (status !== "published" && !confirm("Reopen this page for editing? It will leave the review queue.")) return; await transition("draft", status === "published" ? "Editing · the live version stays online until you publish again" : "Reopened for editing"); setDraftPhase("build"); }
     setPreviewRaw(false); setStage(to);
     if (to === "blocks") { setLeftRaw(true); setRight(false); select(null); setMode("select"); }
     else { setLeftRaw(false); const b = blocks.find((x) => missingRequired(x).length) || blocks[0]; if (b) enterEdit(b.id); }
@@ -486,22 +524,57 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const seen = previewed || previewCheck;
   const remindBtn = (who: string) => <button className="btn btn-sm" onClick={() => setRemind(new Date().getTime())} title={`Remind ${who} that you are waiting`} aria-label={`Remind ${who}`}><svg viewBox="0 0 24 24" className="w-3.5 h-3.5 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6M10 19a2 2 0 0 0 4 0" /></svg><span className="hidden lg:inline">Remind</span></button>;
   const mayBizClaim = status === "bizreview" && !bizAssigned && mayStatus("approved") && (isAdmin || authorReviewer !== user.id);
-  const hasAct = (i: number) => (i === 0 && notYet && canEdit && !seen) || (i === 1 && notYet && mayStatus("review") && seen)
+  const hasAct0 = (i: number) => (i === 0 && notYet && canEdit && !seen) || (i === 1 && notYet && mayStatus("review") && seen)
     || (i === 2 && status === "review" && !assignee && mayClaim) || (i === 3 && status === "review" && !!assignee && (assignee === user.id || canEdit))
     || (i === 4 && ((status === "inreview" && (mayApprove || canEdit)) || (status === "reviewed" && (maySendBiz || mayStatus("review")))))
     || (i === 5 && status === "bizreview" && !bizAssigned && mayBizClaim) || (i === 6 && bizAssigned && (mayBizApprove || canEdit)) || (i === 7 && (status === "approved" || status === "scheduled") && mayStatus("published"));
   /** Author's review and business review: the page full screen, click a text or image and leave feedback in the floating comments. */
   const feedbackBtn = <button className="btn btn-sm" onClick={() => { setFloatOpen(true); setFocusMode(true); }} title="Open the page full screen: click a text or an image to comment on it"><svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg><span className="hidden xl:inline">Review &amp; feedback</span><span className="xl:hidden">Feedback</span></button>;
+  const stepAct0 = (i: number): React.ReactNode =>
+    i === 0 ? <button className="btn btn-sm btn-primary btn-next whitespace-nowrap" onClick={() => flowClick(1)} title="See the page exactly as visitors will">Go to preview</button>
+    : i === 1 ? <button className="btn btn-sm btn-primary btn-next" onClick={openSend} aria-label="Send to author's review"><span className="lg:hidden">Send for review</span><span className="hidden lg:inline">Send to author&apos;s review</span></button>
+    : i === 2 ? <button className="btn btn-sm btn-primary btn-next" onClick={() => void claim()} title="Take this review from the Backlog">Assign to me</button>
+    : i === 3 ? (assignee === user.id ? <button className="btn btn-sm btn-primary btn-next" onClick={() => transition("inreview", "Review started")} title="Start the review: the author sees that you are on it">Start review</button> : remindBtn(assigneeName || "the reviewer"))
+    : i === 4 ? (status === "reviewed" ? <button className="btn btn-sm btn-primary btn-next" onClick={() => setDecide(true)} title="Send it to the business review, or back to the author">Next step</button>
+      : <>{canEdit && !mayApproveSelf && remindBtn(assigneeName || "the reviewer")}{mayApprove && <button className="btn btn-sm btn-primary btn-next" onClick={() => setDecide(true)} title={onBehalf ? `Site admin: on behalf of ${assigneeName || "the reviewer"}` : "Done: send it on to the business review, or back to the author"}>Reviewed{onBehalf && assigneeName ? <span className="hidden 2xl:inline">for {assigneeName.split(" ")[0]}</span> : null}</button>}</>)
+    : i === 5 ? <>{mayBizClaim && <button className="btn btn-sm btn-primary btn-next" onClick={() => void claimBiz()} title="Take this business review">Assign to me</button>}</>
+    : i === 6 ? <>{mayBizApprove && <button className="btn btn-sm btn-primary btn-next" onClick={() => transition("approved", bizOnBehalf ? "Signed off as site admin · ready to publish" : "Business review done · ready to publish")} title={bizOnBehalf ? "Site admin: sign off on behalf of the business reviewer" : undefined}>Sign off{bizOnBehalf && bizName ? <span className="hidden 2xl:inline">for {bizName.split(" ")[0]}</span> : null}</button>}</>
+    : i === 7 ? <button className="btn btn-sm btn-primary btn-next" onClick={() => { if (dirty) save().catch(() => {}); setPublishing(true); }}>{status === "scheduled" ? "Publish / reschedule" : "Publish"}</button> : null;
+  /** Move a draft between Build the draft, Share with the business and Build the page. */
+  const setPhase = async (p: "draft" | "shared" | "build", msg?: string) => {
+    const was = draftPhase; setDraftPhase(p);
+    try { await ucpApi.draftPhase(marketId, page.path, p); if (msg) say(msg); } catch (e) { setDraftPhase(was); say(e instanceof ApiError ? e.problem.title : "Could not change the step"); }
+  };
+  /** "← Back" sits right before the current step: Share with the business → Build the draft, Build the page → Share with the business. */
+  const backOf = (i: number): (() => void) | null => !canEdit || !notYet ? null
+    : i === 1 && draftPhase === "shared" ? () => void setPhase("draft", "Back at Build the draft · the link keeps working")
+    : i === 2 && draftPhase === "build" ? () => void setPhase("shared", "Back at Share with the business") : null;
+  /* The two draft steps come first; every later step keeps its own actions (shifted by two) */
+  const hasAct = (i: number) => i === 0 ? notYet && canEdit && draftPhase === "draft" : i === 1 ? notYet && canEdit && draftPhase === "shared" : !(notYet && draftPhase !== "build") && hasAct0(i - 2);
   const stepAct = (i: number): React.ReactNode =>
-    i === 0 ? <button className="btn btn-sm btn-next" onClick={() => flowClick(1)} title="See the page exactly as visitors will">Go to preview</button>
-    : i === 1 ? <button className="btn btn-sm btn-next" onClick={openSend} aria-label="Send to author's review"><span className="lg:hidden">Send for review</span><span className="hidden lg:inline">Send to author&apos;s review</span></button>
-    : i === 2 ? <button className="btn btn-sm btn-next" onClick={() => void claim()} title="Take this review from the Backlog">Assign to me</button>
-    : i === 3 ? (assignee === user.id ? <button className="btn btn-sm btn-next" onClick={() => transition("inreview", "Review started")} title="Start the review: the author sees that you are on it">Start review</button> : remindBtn(assigneeName || "the reviewer"))
-    : i === 4 ? (status === "reviewed" ? <button className="btn btn-sm btn-next" onClick={() => setDecide(true)} title="Send it to the business review, or back to the author">Next step</button>
-      : <>{canEdit && !mayApproveSelf && remindBtn(assigneeName || "the reviewer")}{mayApprove && <button className="btn btn-sm btn-next" onClick={() => setDecide(true)} title={onBehalf ? `Site admin: on behalf of ${assigneeName || "the reviewer"}` : "Done: send it on to the business review, or back to the author"}>Reviewed{onBehalf && assigneeName ? <span className="hidden xl:inline">for {assigneeName.split(" ")[0]}</span> : null}</button>}</>)
-    : i === 5 ? <>{mayBizClaim && <button className="btn btn-sm btn-next" onClick={() => void claimBiz()} title="Take this business review">Assign to me</button>}</>
-    : i === 6 ? <>{(mayBizApprove || canEdit) && <button className="btn btn-sm" onClick={() => void reauthor()} title="Send it back to the author: the page returns to Build the page">Reauthor</button>}{mayBizApprove && <button className="btn btn-sm btn-next" onClick={() => transition("approved", bizOnBehalf ? "Signed off as site admin · ready to publish" : "Business review done · ready to publish")} title={bizOnBehalf ? "Site admin: sign off on behalf of the business reviewer" : undefined}>Sign off{bizOnBehalf && bizName ? <span className="hidden xl:inline">for {bizName.split(" ")[0]}</span> : null}</button>}</>
-    : i === 7 ? <button className="btn btn-sm btn-next" onClick={() => { if (dirty) save().catch(() => {}); setPublishing(true); }}>{status === "scheduled" ? "Publish / reschedule" : "Publish"}</button> : null;
+    i === 0 ? <><button className="btn btn-sm whitespace-nowrap" onClick={() => void setPhase("build", "Skipped sharing the draft · now at Build the page")} title="Go straight to Build the page without showing the draft to the business">Skip</button><button className="btn btn-sm btn-primary btn-next whitespace-nowrap" onClick={() => { if (dirty) save().catch(() => {}); void setPhase("shared"); setShare(true); }} title="Send the business a link to the draft so they can comment early"><span className="min-[1700px]:hidden">Share draft</span><span className="hidden min-[1700px]:inline">Share with the business</span></button></>
+    : i === 1 ? <><button className="btn btn-sm whitespace-nowrap" onClick={() => { if (dirty) save().catch(() => {}); setShare(true); }} title="Copy the link again, or send it to more people">Share link</button><button className="btn btn-sm btn-primary btn-next whitespace-nowrap" onClick={() => void setPhase("build", "Now at Build the page · the business can keep commenting until you send it for review")} title="Next: Build the page · work their comments into the page and finish it">Continue</button></>
+    : stepAct0(i - 2);
+  /* Workflow list → "Go back" to an earlier step. Author steps (0–3) reopen the page for editing; review steps undo one hand-over. */
+  const backPlan = (j: number): { why: string; run: () => Promise<void> } | null => {
+    if (j >= cur) return null; const reopen = status !== "draft" && status !== "failed"; const mine = isAdmin || assignee === user.id;
+    if (j <= 3) { if (!canEdit) return null; const phase = j === 0 ? "draft" : j === 1 ? "shared" : "build";
+      return { why: reopen ? "The page leaves the review queue and goes back to editing. Both reviews start again when you send it." : j === 1 ? "The business link keeps working." : "Nothing you built is lost.",
+        run: async () => { if (reopen) await transition("draft", "Back to editing"); setPreviewed(false); await setPhase(phase, `Back at ${STEPS[j][0]}`); if (j === 3) setFocusMode(true); } }; }
+    if (j === 4 && status === "review" && assignee && mine) return { why: `${assigneeName || "The reviewer"} is no longer assigned; the page waits in the Backlog for any reviewer.`, run: async () => { try { await ucpApi.releaseReview(marketId, page.path); setAssignee(""); say("Back in the Backlog"); } catch (e) { say(e instanceof ApiError ? e.problem.title : "Could not go back"); } } };
+    if (j === 5 && status === "inreview" && mine) return { why: `The review is paused; ${assigneeName || "the reviewer"} stays assigned and can start it again.`, run: () => transition("review", "Back at Assigned to reviewer") };
+    if (j === 6 && (status === "bizreview" || status === "reviewed") && isAdmin) return { why: "Site admin: the business review is cancelled and the author's review opens again.", run: () => transition("inreview", "Back in the author's review") };
+    if (j === 8 && (status === "approved" || status === "scheduled") && isAdmin) return { why: "Site admin: the sign-off is withdrawn and the business review opens again.", run: () => transition("bizreview", "Back in the business review") };
+    return null;
+  };
+  /** "‹ Back" left of the current step: back one step. Draft steps move at once; leaving a review stage asks first and says what happens. */
+  const backAny = (): (() => void) | null => {
+    const quick = backOf(cur); if (quick) return quick; if (cur < 1 || cur === LAST) return null; const plan = backPlan(cur - 1); if (!plan) return null;
+    if (status === "draft" || status === "failed") return () => void plan.run();
+    return () => void (async () => { if (await ask({ title: `Go back to ${STEPS[cur - 1][0]}?`, body: plan.why, confirmLabel: `Go back to ${STEPS[cur - 1][0]}` })) await plan.run(); })();
+  };
+  /** Actions that take the page back (left of the progress strip); stepAct holds the ones that move it on (right). */
+  const stepBack = (i: number): React.ReactNode => i - 2 === 6 && bizAssigned && (mayBizApprove || canEdit) ? <button className="btn btn-sm" onClick={() => void reauthor()} title="Send it back to the author: the page returns to Build the page">Reauthor</button> : null;
   /** Why the page cannot be changed right now (Add, Configure and AI are veiled; insights, settings, entities and history stay open); "" when it can. */
   const lockReason = lockedByOther ? `Locked by ${pageLock!.name}. Ask them or a site admin to unlock it in Pages.` : !canEdit ? "You don't have Edit on this folder. Ask a site admin to grant it." : inAuthor ? `The page is in the author's review${assigneeName ? ` with ${assigneeName}` : ""}. Editing takes it out of the review queue.` : status === "reviewed" ? "The author's review is done. Editing takes it back to a draft." : status === "bizreview" ? "The page is in business review. Editing takes it out of the review queue." : status === "approved" || status === "scheduled" ? "The page passed review and is ready to publish. Editing sends it back through review." : status === "published" ? "The page is live. Click Edit to change it; the live version stays online until you publish again." : "";
   const veilEdit = canEdit ? () => void goEdit("blocks") : undefined;
@@ -527,13 +600,13 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const hint = reviewMode ? "Or click a text or an image here to comment on it" : firstStage && otherAuthors.length ? (authors.some((a) => a.id === user.id) ? `Building it together with ${otherAuthors.map((a) => a.name).join(", ")} · ${baseHint}` : `${otherAuthors.map((a) => a.name).join(", ")} ${otherAuthors.length === 1 ? "is" : "are"} building this page${canEdit ? " · Assign me to work on it with them" : ""}`) : baseHint;
 
   return (
-    <div className={`h-full grid ${focus ? "grid-rows-[1fr]" : "grid-rows-[54px_48px_1fr]"} min-w-0 overflow-hidden`}>
+    <div className={`h-full grid ${focus ? "grid-rows-[1fr]" : "grid-rows-[54px_64px_1fr]"} min-w-0 overflow-hidden`}>
       {/* Toolbar (docked; gone in preview) */}
       {!focus && <div className="grid grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto_minmax(max-content,1fr)] items-center gap-3 px-2.5 bg-surface border-b border-line overflow-x-auto overflow-y-hidden">
         {/* left: back + page · centre: device width · right: status | panels + preview | next action */}
         <div className="flex items-center gap-3 min-w-0">
           {!focus && <Link href={`/${marketId}/${envId}/pages${rel.replace(/\/[^/]+$/, "")}`} className="btn btn-quiet btn-sm">‹ Pages</Link>}
-          <div className="min-w-0 flex-1"><span className="flex items-center gap-2 min-w-0"><b className="block text-[14.5px] truncate">{title}</b>{jira && <JiraChip url={jira} />}</span><span className="hidden sm:block text-[11.5px] text-ink-3 truncate font-mono">{flag} {locale} · {domain}{rel}</span></div>
+          <div className="min-w-0 flex-1"><span className="flex items-center gap-2 min-w-0"><b className="block text-[14.5px] truncate">{title}</b></span><span className="hidden sm:block text-[11.5px] text-ink-3 truncate font-mono">{flag} {locale} · {domain}{rel}</span></div>
         </div>
         <div className="hidden lg:inline-flex justify-self-center border border-line-2 rounded-lg overflow-hidden">{(["desktop", "tablet", "mobile"] as const).map((d) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink"}`} title={d} aria-label={`${d} view`} aria-pressed={device === d}><Ico d={d === "desktop" ? "M3 4.5h18v11.5H3zM8.5 20h7M12 16v4" : d === "tablet" ? "M5.5 3h13v18h-13zM11 18h2" : "M8 2.5h8v19H8zM11 18.5h2"} /></button>)}</div>
         <div className="flex items-center justify-end gap-2.5 min-w-0">
@@ -557,16 +630,61 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         </div>
       </div>}
       {/* Flow stepper (hidden in preview) */}
-      {!focus && <div className="flex items-center px-4 bg-surface border-b border-line overflow-hidden" role="list" aria-label="Page progress">
-        <div className="flex-1 min-w-0 flex items-center overflow-hidden h-12">
-          {STEPS.map((s, i) => { const done = i < cur || (cur === 8 && i === 8); const on = i === cur && cur !== 8; const act = hasAct(i); return <div key={s[0]} role="listitem" className={`items-center ${on ? "flex" : "hidden sm:flex"} ${i < STEPS.length - 1 ? "flex-auto" : "flex-none"}`}>
-            <div aria-current={on ? "step" : undefined} className={`flex items-center gap-2 py-1 rounded-full text-[12.5px] flex-none cursor-default select-none ${on ? "bg-accent-soft ring-1 ring-accent/35 pl-1 pr-3 text-accent-hover font-semibold" : "px-1.5 " + (done ? "text-ink-2" : "text-ink-3")}`} title={`${s[0]} · ${s[1]}`}><i className={`flex-none w-6 h-6 rounded-full border-2 grid place-items-center not-italic text-[11px] font-bold ${done ? "bg-good border-good text-white" : on ? "bg-accent border-accent text-white" : "border-line-2 bg-surface"}`}>{done ? "✓" : i + 1}</i><span className={`leading-tight whitespace-nowrap ${on ? "" : done ? "hidden min-[1700px]:inline" : "hidden min-[1400px]:inline"}`}>{on ? <><span className="lg:hidden">{STEP_SHORT[i]}</span><span className="hidden lg:inline">{s[0]}</span></> : <><span className="min-[1700px]:hidden">{STEP_SHORT[i]}</span><span className="hidden min-[1700px]:inline">{s[0]}</span></>}{on && <small className="hidden 2xl:block text-[10.5px] text-ink-3 font-normal">{s[1]}</small>}</span></div>
-            {/* steps only show where the page is; the next action sits on the line between this step and the next one */}
-            {i < STEPS.length - 1 && (act ? <><span className="hidden sm:flex items-center flex-auto min-w-0 mx-1 gap-1.5"><span className={`flex-1 min-w-1 h-0.5 ${i < cur ? "bg-good" : "bg-line"}`} />{stepAct(i)}<span className="flex-1 min-w-1 h-0.5 bg-line" /></span><span className={`sm:hidden flex-1 min-w-1 max-w-10 h-0.5 mx-1 ${i < cur ? "bg-good" : "bg-line"}`} /></>
-              : <span className={`flex-1 min-w-1 max-w-10 h-0.5 mx-1 ${i < cur ? "bg-good" : "bg-line"}`} />)}</div>; })}
-        </div>
-        {[1, 2, 3, 4, 5, 6, 7, 0].some(hasAct) && <div className="sm:hidden flex flex-none items-center pl-2">{stepAct([1, 2, 3, 4, 5, 6, 7, 0].find(hasAct)!)}</div>}
-      </div>}
+      {/* Page progress: [Workflow · N of 11 ▾] [‹ Back] CURRENT STEP [the step's actions]. Back and the actions have fixed widths, so the
+          current step never moves. "Workflow" drops down every step as a list: done, current, still to do. */}
+      {!focus && (() => {
+        const act = hasAct(cur) ? cur : (MOBILE_ORDER.find(hasAct) ?? -1);
+        const back = backAny(); const backBtn = back && <button type="button" onClick={back} className="btn btn-sm !pl-1.5" title={`Back to ${STEPS[cur - 1][0]}`} aria-label={`Back to ${STEPS[cur - 1][0]}`}><svg aria-hidden viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg>Back</button>;
+        const right = act >= 0 ? <>{stepBack(act)}{stepAct(act)}</> : null;
+        const step = (i: number, tone: FlowTone, cap: string, cls: string, desc = false) => { const s = STEPS[i]; const done = i < cur || (cur === LAST && i === LAST);
+          return <FlowCell key={s[0]} tone={tone} caption={cap} className={cls} current={i === cur} title={`${s[0]} · ${s[1]}`}>
+            <span className="flex items-center gap-2 min-w-0"><StepDot n={i + 1} done={done} tone={tone} /><span className="truncate">{i === cur ? <><span className="lg:hidden">{STEP_SHORT[i]}</span><span className="hidden lg:inline">{s[0]}</span></> : s[0]}{desc && <span className="hidden xl:inline font-normal text-ink-3"> · {s[1]}</span>}</span></span></FlowCell>; };
+        const cells = [step(cur, "cur", cur === LAST ? "Current step · done" : "Current step", "flex-1", true)];
+        return <div className="relative z-20 flex items-center gap-3 px-4 min-w-0 bg-surface border-b border-line">
+          {/* the whole workflow, dropped down as a list */}
+          <div ref={flowRef} className="relative hidden sm:block flex-none">
+            <button type="button" onClick={() => setFlowOpen(!flowOpen)} aria-expanded={flowOpen} aria-haspopup="true" title="See every step: what is done and what is still ahead"
+              className={`flex items-center gap-2 h-9 pl-3 pr-2 rounded-lg border text-xs font-medium whitespace-nowrap ${flowOpen ? "border-ink-3 bg-surface-2 text-ink" : "border-line-2 text-ink-2 hover:border-ink-3 hover:text-ink"}`}>
+              <svg aria-hidden viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" /></svg>
+              Workflow<span className="text-ink-3 tabular-nums">{cur + 1} of {STEPS.length}</span>
+              <svg aria-hidden viewBox="0 0 24 24" className={`w-3.5 h-3.5 stroke-current fill-none transition-transform ${flowOpen ? "rotate-180" : ""}`} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+            </button>
+            {flowOpen && <div role="dialog" aria-label="Workflow" className="absolute left-0 top-[calc(100%+6px)] w-[24rem] max-h-[70vh] overflow-auto rounded-xl border border-line bg-surface shadow-lg p-2">
+              <div className="flex items-baseline justify-between px-2 pt-1 pb-2"><b className="text-sm">Workflow</b><span className="text-xs text-ink-3 tabular-nums">{cur === LAST ? "All done" : `${cur} of ${STEPS.length} done`}</span></div>
+              <ol className="relative">
+                {STEPS.map((st, i) => { const done = i < cur || (cur === LAST && i === LAST); const now = i === cur && cur !== LAST;
+                  return <li key={st[0]} aria-current={now ? "step" : undefined} className={`relative flex flex-wrap gap-x-3 rounded-lg px-2 py-2 ${now ? "bg-accent-soft" : backTo === i ? "bg-surface-2" : ""}`}>
+                    {i < LAST && <span aria-hidden className={`absolute left-[19px] top-8 -bottom-2 w-0.5 ${i < cur ? "bg-good" : "bg-line"}`} />}
+                    <i className={`relative flex-none w-6 h-6 rounded-full grid place-items-center not-italic text-xs font-bold ${done ? "bg-good text-white" : now ? "bg-accent text-white" : "border-[1.5px] border-line-2 bg-surface text-ink-3"}`}>{done ? "✓" : i + 1}</i>
+                    <span className="min-w-0 flex-1"><span className={`flex items-center gap-2 text-sm ${now ? "font-semibold text-accent-hover" : done ? "text-ink" : "text-ink-2"}`}>{st[0]}{now && <span className="text-[10px] uppercase tracking-[.08em] font-semibold text-accent">Current</span>}</span>
+                      <span className="block text-xs text-ink-3 leading-snug">{st[1]}</span>
+                      {now && (() => { const a = hasAct(cur) ? cur : (MOBILE_ORDER.find(hasAct) ?? -1); const bk = backAny(); if (a < 0 && !bk) return null;
+                        /* the list closes first, then the action runs (some open their own dialog) */
+                        return <span role="group" aria-label="Actions for this step" onClickCapture={(e) => { if ((e.target as HTMLElement).closest("button")) setFlowOpen(false); }} className="flow-actions flex flex-wrap items-center gap-1.5 mt-2 [&_.btn]:whitespace-nowrap">
+                          {bk && <button type="button" onClick={bk} className="btn btn-sm !pl-1.5"><svg aria-hidden viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg>Back</button>}
+                          {a >= 0 && stepBack(a)}{a >= 0 && stepAct(a)}</span>; })()}</span>
+                    {(() => { const plan = i < cur ? backPlan(i) : null;
+                      return plan && backTo !== i ? <button type="button" onClick={() => setBackTo(i)} className="flex-none self-center inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium text-ink-2 border border-line hover:border-ink-3 hover:text-ink" title={`Go back to ${st[0]}`} aria-label={`Go back to ${st[0]}`}><svg aria-hidden viewBox="0 0 24 24" className="w-3.5 h-3.5 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" /></svg>Go back</button>
+                        : <span className={`flex-none self-center text-xs ${done ? "text-good" : "text-ink-4"}`}>{done ? "Done" : now ? "" : "To do"}</span>; })()}
+                    {backTo === i && (() => { const plan = backPlan(i); if (!plan) return null; return <div role="alertdialog" aria-label={`Go back to ${st[0]}?`} className="basis-full ml-9 mt-1 rounded-lg border-[1.5px] border-ink-3 bg-surface p-3">
+                      <b className="block text-sm">Go back to {st[0]}?</b>
+                      <p className="text-xs text-ink-2 mt-1 leading-snug">{plan.why}</p>
+                      <div className="flex justify-end gap-2 mt-2.5"><button type="button" className="btn btn-sm" onClick={() => setBackTo(null)}>Cancel</button><button type="button" autoFocus className="btn btn-sm btn-primary" onClick={async () => { setFlowOpen(false); await plan.run(); }}>Go back to {st[0]}</button></div>
+                    </div>; })()}
+                  </li>; })}
+              </ol>
+            </div>}
+          </div>
+          {/* left: actions that take the page back */}
+          <div className="hidden sm:flex flex-none w-[6rem] items-center justify-end">{backBtn}</div>
+          <div className="flex-1 min-w-0 py-1.5">
+            <div role="list" aria-label="Page progress" className="flex h-[52px] rounded-xl border border-line bg-surface overflow-hidden">{cells}</div>
+          </div>
+          {/* right: the action that moves the page on (and the ones next to it) */}
+          <div role="group" aria-label="Actions" className="flow-actions hidden sm:flex flex-none w-[19rem] 2xl:w-[22rem] items-center gap-1.5 [&_.btn]:whitespace-nowrap">{right}</div>
+          {(act >= 0 || backBtn) && <div className="sm:hidden flex flex-none items-center gap-1.5">{backBtn}{right}</div>}
+        </div>;
+      })()}
       {/* Body */}
       <div className="relative min-h-0 overflow-hidden bg-bg">
         <div className={`absolute inset-0 flex flex-col ${preview ? "preview" : ""}`}>
@@ -621,10 +739,11 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         </nav>}
         {right && railsOn && <aside data-ui style={phone ? undefined : { width: panelW }} className={phone ? "absolute inset-x-0 top-0 bottom-12 bg-surface flex flex-col z-[5]" : "absolute right-[52px] top-0 bottom-0 max-w-[calc(100%-52px)] bg-surface border-l border-line flex flex-col z-[5] shadow-xl md:shadow-none"}>
           {!phone && <div role="separator" aria-orientation="vertical" aria-label="Resize panel" title="Drag to resize" onMouseDown={startResize("right")} className="absolute -left-1 top-0 bottom-0 w-2 cursor-col-resize hover:bg-accent/30 active:bg-accent/40 z-10" />}
-          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">{rightTab === "block" ? (selected ? `Configure · ${BLOCK_BY_TYPE[selected.type].name}` : "Configure") : rightTab === "page" ? "Page settings" : rightTab === "content" ? "Entities" : rightTab === "ai" ? "✨ AI assistant" : rightTab === "insights" ? "Page insights" : rightTab === "comments" ? `Comments${commentTotal ? ` · ${commentTotal}` : ""}` : "Version history"}</b><button className={`ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3`} onClick={() => closeConfigure(true)} aria-label="Close">✕</button></div>
+          <div className="flex items-center gap-2 px-3.5 py-2.5 border-b border-line"><b className="text-[13.5px]">{rightTab === "block" ? (selected ? `Configure · ${BLOCK_BY_TYPE[selected.type].name}` : "Configure") : rightTab === "page" ? "Page settings" : rightTab === "content" ? "Entities" : rightTab === "ai" ? "✨ AI assistant" : rightTab === "insights" ? "Page insights" : rightTab === "comments" ? `Comments${commentTotal ? ` · ${commentTotal}` : ""}` : rightTab === "jira" ? "Jira" : "Version history"}</b><button className={`ml-auto w-7 h-7 rounded text-ink-3 hover:bg-surface-3`} onClick={() => closeConfigure(true)} aria-label="Close">✕</button></div>
           <LockedVeil on={!!lockReason && (rightTab === "block" || rightTab === "ai")} reason={lockReason} onEdit={veilEdit}>
           {rightTab === "insights" ? <div className="flex-1 overflow-auto p-3.5 text-[13px]"><InsightsPanel blocks={blocks} page={insightMeta} onFix={(apply, label) => { if (!canEdit) { say("Read-only: ask a site admin for Edit"); return; } mutate(apply); say(`Fixed: ${label}`); }} onSelectBlock={(id) => { select(id); const el = canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`); el?.scrollIntoView({ block: "center", behavior: "smooth" }); }} /></div>
-          : rightTab === "comments" ? <div className="flex-1 overflow-auto p-3.5 text-[13px]"><PageComments marketId={marketId} path={page.path} about={commentAbout} onClearAbout={() => setCommentAbout(null)} focusKey={commentFocus} bare {...reviewProps} /></div>
+          : rightTab === "comments" ? <div className="flex-1 overflow-auto p-3.5 text-[13px]"><PageComments key={`c${commentsRev}`} jira={jira ? jiraLabel(jira) : ""} jiraAuto={jiraOn} marketId={marketId} path={page.path} about={commentAbout} onClearAbout={() => setCommentAbout(null)} focusKey={commentFocus} bare {...reviewProps} /></div>
+          : rightTab === "jira" ? <JiraPanel marketId={marketId} path={page.path} jira={jira} step={STEPS[cur][0]} canWork={isAdmin || canEdit || can("review", page.path)} onLink={linkJira} onChange={(st) => { setJiraOn(st.integrate); setCommentsRev((n) => n + 1); }} />
           : rightTab === "history" ? <div className="flex-1 overflow-auto p-3.5 text-[13px]"><VersionHistory marketId={marketId} path={page.path} currentBlocks={blocks.length} onCommentVersion={(a) => { setCommentAbout(a); setCommentFocus((k) => k + 1); setRightTab("comments"); }} onRestored={() => { router.refresh(); say("Version restored · reloading"); setTimeout(() => window.location.reload(), 400); }} /></div>
           : rightTab === "content" ? <div className="flex-1 overflow-auto p-3.5 text-[13px]"><EntitiesPanel marketId={marketId} base={`/${marketId}/${envId}`} pagePath={page.path} bindings={bindings} entities={entities} models={models} blocks={blocks} canEdit={canEdit && !locked} onChange={setBindings} say={say} /></div>
           : rightTab === "ai" ? <AiPanel tasks={aiTasks} draft={aiDraft} setDraft={setAiDraft} dirty={dirty} onAsk={startAiTask} onToggle={(t, id) => patchTask(t.id, (x) => ({ ...x, on: { ...x.on, [id]: !x.on[id] } }))} onRun={runAiTask} onUndo={undoAiOp} onRedo={redoAiOp} onUndoAll={undoAllAi} onSave={() => save().then(() => say("Saved")).catch(() => {})} /> : <div className="flex-1 overflow-auto p-3.5 text-[13px]">
@@ -657,7 +776,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               : <div className="flex flex-wrap gap-2 mt-2"><button className="btn btn-sm btn-next" onClick={() => setAskingB("signoff")}>Sign off</button><button className="btn btn-sm" onClick={() => setAskingB("reauthor")}>Reauthor</button></div>}
           </div></section>}
           {status === "bizreview" && bizAssigned && mayBizApprove && <h3 className="text-[11px] font-semibold uppercase tracking-[.08em] text-ink-3 mb-2 pt-3 border-t border-line">Comments <span className="normal-case tracking-normal font-normal text-ink-4">· click a text or an image on the page to comment on it</span></h3>}
-          <PageComments marketId={marketId} path={page.path} about={null} onClearAbout={() => {}} focusKey={0} bare {...reviewProps} />
+          <PageComments key={`f${commentsRev}`} jira={jira ? jiraLabel(jira) : ""} jiraAuto={jiraOn} marketId={marketId} path={page.path} about={null} onClearAbout={() => {}} focusKey={0} bare {...reviewProps} />
         </FloatingPanel>}
         {qcMode && <FloatingPanel title="Quality checklist" open={qcOpen} onToggle={setQcOpen} icon={<svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="M3.5 6l1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" /></svg>}
           hint={qcPinned ? <span className="flex items-center gap-2">Pinned · this stays while you look<button type="button" className="ml-auto underline" onClick={() => { setQcPinned(false); setQcTarget(null); }}>Whole page</button></span> : qcTarget ? "Click to pin it" : undefined}>
@@ -689,6 +808,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {status === "scheduled" && publishAt && <p className="text-[13px] bg-warn-soft rounded-md px-3 py-2 mt-3">The scheduled publish on <b>{new Date(publishAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</b> is cancelled.</p>}
         </ModalShell>}
         {decide && <ReviewedChoice title={title} onBehalf={status === "inreview" && onBehalf ? assigneeName || "the reviewer" : undefined} onClose={() => setDecide(false)} onSend={sendToBiz} onReauthor={() => reauthor(true)} />}
+        {share && (status === "draft" || status === "failed") && <ShareReviewDialog key="draft" marketId={marketId} path={page.path} title={title} stage="draft" onClose={() => setShare(false)} />}
         {share && status === "bizreview" && <ShareReviewDialog key={status} marketId={marketId} path={page.path} title={title} stage="bizreview" onClose={() => setShare(false)} onAccess={(a) => { if (a.group) setBizGroups((g) => (g.includes(a.group!) ? g : [...g, a.group!])); if (a.person) setBizTaken(a.person); }}
           onApprove={isAdmin ? () => transition("approved", "Signed off as site admin · ready to publish") : undefined} />}
         {publishing && <PublishDialog marketId={marketId} envName={envName} pages={[{ path: page.path, title, status, publishAt }]} mayPublish={() => mayStatus("published")} onClose={() => setPublishing(false)}

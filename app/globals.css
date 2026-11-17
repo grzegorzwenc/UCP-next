@@ -53,6 +53,9 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-sans); 
 .btn-danger { background: var(--crit); border-color: var(--crit); color: #fff; } .btn-danger:hover { filter: brightness(.92); background: var(--crit); border-color: var(--crit); } .btn-danger:disabled { opacity: .45; cursor: not-allowed; filter: none; }
 .btn-primary:hover { background: var(--accent-hover); }
 .btn-quiet { border-color: transparent; background: none; color: var(--ink-2); }
+/* page progress → the step's own actions: the main button is dark, so it never shares the current step's red */
+.flow-actions .btn-primary, .flow-actions .btn-next { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.flow-actions .btn-primary:hover, .flow-actions .btn-next:hover { background: var(--ink-2); border-color: var(--ink-2); color: var(--surface); }
 .btn-sm { padding: 5px 10px; font-size: 12.5px; min-height: 32px; }
 .btn-icon { width: 34px; padding: 0; justify-content: center; }
 .btn.on { background: var(--ink); color: #fff; border-color: var(--ink); box-shadow: inset 0 -3px 0 var(--accent); }

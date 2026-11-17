@@ -14,6 +14,7 @@ import { can } from "@/lib/ucp/perms";
 import { BUILT_IN_PATTERNS, type DesignPattern, type PatternPart } from "@/lib/blocks/patterns";
 import { BLOCK_BY_TYPE } from "@/lib/blocks/registry";
 import { market as marketOf, MARKETS } from "@/lib/markets";
+import { jiraLabel } from "@/lib/ucp/jira";
 
 /**
  * Domain services over the repository port. Each object is one JCR node; these helpers only map properties.
@@ -214,16 +215,58 @@ export { modelSchema } from "@/lib/ucp/schema";
 export type PageVersion = { id: string; time: string; who: string; note: string; title: string; status: string; blocks: number };
 const VER = (path: string) => `${path}/jcr:content/ucp:versions`;
 /* ---------------- page comments: a thread on the page's history; pinned ones stay on top ---------------- */
-export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string }; stage?: string; guest?: boolean; /** the component (and the text or asset in it) the comment is about */ block?: { id: string; label: string; field?: string }; /** done: kept in Comments, no longer marked on the page */ resolved?: { by: string; name: string; at: string } };
+export type PageComment = { id: string; who: string; whoName: string; time: string; text: string; pinned?: boolean; pinnedBy?: string; version?: { id: string; label: string }; stage?: string; guest?: boolean; /** the component (and the text or asset in it) the comment is about */ block?: { id: string; label: string; field?: string }; /** done: kept in Comments, no longer marked on the page */ resolved?: { by: string; name: string; at: string }; /** also posted to the page's Jira ticket */ jira?: { key: string; at: string } };
 const readComments = async (path: string): Promise<PageComment[]> => { const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path); return json<PageComment[]>(pg.meta?.["ucp:comments"], []); };
 const writeComments = (path: string, list: PageComment[]) => repo().setProps(`${path}/jcr:content`, { "ucp:comments": JSON.stringify(list) });
 /** Pinned first (latest pin on top), then newest first. */
 export const sortComments = (l: PageComment[]) => l.slice().sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.time.localeCompare(a.time));
 export async function listComments(path: string): Promise<PageComment[]> { return sortComments(await readComments(path)); }
-export async function addComment(path: string, u: Pick<User, "id" | "name">, text: string, version?: { id: string; label: string }, extra: { stage?: string; guest?: boolean; block?: { id?: unknown; label?: unknown; field?: unknown } } = {}): Promise<PageComment[]> {
+export async function addComment(path: string, u: Pick<User, "id" | "name">, text: string, version?: { id: string; label: string }, extra: { stage?: string; guest?: boolean; block?: { id?: unknown; label?: unknown; field?: unknown }; /** written in the Jira panel */ jira?: boolean } = {}): Promise<PageComment[]> {
   const t = text.trim(); if (!t) throw new RepoError(400, "Write a comment first"); if (t.length > 2000) throw new RepoError(400, "Keep comments under 2,000 characters");
-  const list = await readComments(path); list.push({ id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, who: u.id, whoName: u.name, time: new Date().toISOString(), text: t, version: version?.id ? { id: version.id, label: String(version.label ?? "").slice(0, 80) } : undefined, stage: extra.stage, guest: extra.guest, block: typeof extra.block?.id === "string" && /^[\w-]{1,60}$/.test(extra.block.id) ? { id: extra.block.id, label: String(extra.block.label ?? "Component").slice(0, 90), field: typeof extra.block.field === "string" && /^[\w|:.-]{1,80}$/.test(extra.block.field) ? extra.block.field : undefined } : undefined });
+  const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path); const list = json<PageComment[]>(pg.meta?.["ucp:comments"], []);
+  list.push({ id: `c${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, who: u.id, whoName: u.name, time: new Date().toISOString(), text: t, version: version?.id ? { id: version.id, label: String(version.label ?? "").slice(0, 80) } : undefined, stage: extra.stage, guest: extra.guest, block: typeof extra.block?.id === "string" && /^[\w-]{1,60}$/.test(extra.block.id) ? { id: extra.block.id, label: String(extra.block.label ?? "Component").slice(0, 90), field: typeof extra.block.field === "string" && /^[\w|:.-]{1,80}$/.test(extra.block.field) ? extra.block.field : undefined } : undefined });
+  /* Jira integration on: every new comment also goes to the ticket (a comment written in the Jira panel is already there) */
+  const added = list[list.length - 1]; const j = jiraOf(pg.meta);
+  if (extra.jira && j.ticket) added.jira = { key: jiraLabel(j.ticket), at: added.time };
+  else if (j.ticket && j.integrate) { added.jira = { key: jiraLabel(j.ticket), at: added.time }; await writeJira(path, [toJira(added, "page"), ...j.entries]); }
   await writeComments(path, list); return sortComments(list);
+}
+/* ---------------- Jira: the page's ticket, its comments and syncs (prototype: kept on the page; the Jira API is not connected yet) ---------------- */
+export type JiraEntry = { id: string; who: string; whoName: string; time: string; text: string; /** comment: written in the Jira panel · page: a page comment sent to Jira · sync: Sync with Jira */ kind: "comment" | "page" | "sync"; /** what the comment is about (component, text or picture) */ about?: string; /** where it came from, e.g. "Business feedback on the draft · guest" */ origin?: string; commentId?: string };
+export type JiraState = { ticket: string; key: string; integrate: boolean; entries: JiraEntry[]; sync: { at: string; byName: string; step: string } | null };
+const jiraOf = (meta?: Record<string, unknown>) => { const ticket = typeof meta?.["ucp:jira"] === "string" ? String(meta["ucp:jira"]) : ""; return { ticket, integrate: meta?.["ucp:jiraIntegrate"] === "true", entries: json<JiraEntry[]>(meta?.["ucp:jiraComments"], []), sync: json<JiraState["sync"]>(meta?.["ucp:jiraSync"], null) }; };
+const writeJira = (path: string, entries: JiraEntry[], extra: NodeProps = {}) => repo().setProps(`${path}/jcr:content`, { "ucp:jiraComments": JSON.stringify(entries.slice(0, 80)), ...extra });
+const ORIGIN: Record<string, string> = { draft: "Business feedback on the draft", review: "Author's review", bizreview: "Business review" };
+const toJira = (c: PageComment, kind: JiraEntry["kind"]): JiraEntry => ({ id: `j${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, who: c.who, whoName: c.whoName, time: new Date().toISOString(), text: c.text, kind, commentId: c.id,
+  about: c.block?.label, origin: [kind === "page" ? "Page comment" : "", c.stage ? ORIGIN[c.stage] : "", c.guest ? "guest" : "", c.version ? `about the version from ${c.version.label}` : ""].filter(Boolean).join(" · ") || undefined });
+export async function jiraState(path: string): Promise<JiraState> {
+  const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path); const j = jiraOf(pg.meta);
+  return { ...j, key: j.ticket ? jiraLabel(j.ticket) : "" };
+}
+const needTicket = async (path: string) => { const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path); const j = jiraOf(pg.meta); if (!j.ticket) throw new RepoError(409, "Link a Jira ticket first"); return { pg, j }; };
+/** Written in the Jira panel: goes to the ticket and also shows in the page's Comments. */
+export async function jiraComment(path: string, u: Pick<User, "id" | "name">, text: string): Promise<JiraState> {
+  const { j } = await needTicket(path); const list = await addComment(path, u, text, undefined, { jira: true });
+  const c = list.filter((x) => x.who === u.id).sort((a, b) => b.time.localeCompare(a.time))[0];
+  await writeJira(path, [toJira(c, "comment"), ...j.entries]); return jiraState(path);
+}
+/** Send one page comment to the ticket (Comments → Send to Jira). */
+export async function sendCommentToJira(path: string, id: string): Promise<PageComment[]> {
+  const { pg, j } = await needTicket(path); const list = json<PageComment[]>(pg.meta?.["ucp:comments"], []); const c = list.find((x) => x.id === id);
+  if (!c) throw new RepoError(404, "Comment not found"); if (c.jira) throw new RepoError(409, `Already in ${c.jira.key}`);
+  c.jira = { key: jiraLabel(j.ticket), at: new Date().toISOString() }; await writeJira(path, [toJira(c, "page"), ...j.entries]); await writeComments(path, list); return sortComments(list);
+}
+/** Integrate: from now on every new page comment also goes to the ticket. */
+export async function setJiraIntegrate(path: string, on: boolean): Promise<JiraState> { await needTicket(path); await repo().setProps(`${path}/jcr:content`, { "ucp:jiraIntegrate": on ? "true" : null }); return jiraState(path); }
+/** Sync with Jira: posts the page's step and sends every open comment that is not in the ticket yet. */
+export async function syncJira(path: string, u: Pick<User, "id" | "name">, step: string, route: string): Promise<{ state: JiraState; sent: number }> {
+  const { pg, j } = await needTicket(path); const list = json<PageComment[]>(pg.meta?.["ucp:comments"], []); const key = jiraLabel(j.ticket); const now = new Date().toISOString();
+  const fresh = list.filter((c) => !c.resolved && !c.jira).sort((a, b) => a.time.localeCompare(b.time)); fresh.forEach((c) => { c.jira = { key, at: now }; });
+  const open = list.filter((c) => !c.resolved).length; const sync = { at: now, byName: u.name, step };
+  const note: JiraEntry = { id: `j${Date.now().toString(36)}s`, who: u.id, whoName: u.name, time: now, kind: "sync", text: `“${pg.title}” is at ${step} in UCP. ${open} open comment${open === 1 ? "" : "s"}${fresh.length ? `, ${fresh.length} sent now` : ", all already in the ticket"}. ${route}` };
+  await writeJira(path, [note, ...fresh.map((c) => toJira(c, "page")).reverse(), ...j.entries], { "ucp:jiraSync": JSON.stringify(sync) });
+  if (fresh.length) await writeComments(path, list);
+  return { state: await jiraState(path), sent: fresh.length };
 }
 export async function setCommentPin(path: string, u: User, id: string, pinned: boolean): Promise<PageComment[]> {
   const list = await readComments(path); const c = list.find((x) => x.id === id); if (!c) throw new RepoError(404, "Comment not found");
@@ -241,43 +284,50 @@ export async function deleteComment(path: string, u: User, id: string, admin: bo
   const next = list.filter((x) => x.id !== id); await writeComments(path, next); return sortComments(next);
 }
 /* ---------------- review links: send a page in review to someone by link or e-mail ---------------- */
-export type ReviewLink = { token: string; stage: "review" | "bizreview"; email?: string; /** a whole team got access with this link */ group?: string; by: string; at: string };
+export type ReviewLink = { token: string; /** draft = the business looks at an early draft and comments (no decision) */ stage: "draft" | "review" | "bizreview"; email?: string; /** a whole team got access with this link */ group?: string; by: string; at: string };
 export type ReviewGroup = { team: string; members: { id: string; name: string; email: string; canSignOff: boolean }[]; shared: boolean };
 /** Teams that can be given access to a page's business review (from the people directory); `shared` = already has access. */
 export async function reviewGroups(marketId: string, path: string): Promise<ReviewGroup[]> {
   const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path);
-  const have = json<string[]>(pg.meta?.["ucp:reviewGroups"], []); const root = marketOf(marketId).root; const by = new Map<string, ReviewGroup>();
+  const have = json<string[]>(pg.meta?.[pg.status === "draft" ? "ucp:draftGroups" : "ucp:reviewGroups"], []); const root = marketOf(marketId).root; const by = new Map<string, ReviewGroup>();
   const people = await listUsers();
   for (const grp of REVIEW_GROUPS) by.set(grp.name, { team: grp.name, shared: have.includes(grp.name), members: grp.members.map((id) => people.find((x) => x.id === id)).filter((x): x is User => !!x).map((x) => ({ id: x.id, name: x.name, email: x.email, canSignOff: can(x, "review", path, root) })) });
   return [...by.values()].sort((a, b) => Number(b.shared) - Number(a.shared) || a.team.localeCompare(b.team));
 }
 /** Give a whole team access to the business review: one link for the team, and the page shows up in every member's My tasks. */
-export async function shareWithGroup(marketId: string, path: string, u: User, team: string): Promise<{ token: string; members: ReviewGroup["members"]; created: boolean }> {
+export async function shareWithGroup(marketId: string, path: string, u: User, team: string): Promise<{ token: string; stage: ReviewLink["stage"]; members: ReviewGroup["members"]; created: boolean }> {
   const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path);
-  if (pg.status !== "bizreview") throw new RepoError(409, "Groups are for the business review", "Send the page to the business review first");
+  if (pg.status !== "bizreview" && pg.status !== "draft") throw new RepoError(409, "Groups are for the draft and the business review", "Send the page to the business review first");
+  /* a draft shared with a group only gives them the link (comments); the business review also puts it in their My tasks */
+  const stage = pg.status === "draft" ? "draft" : "bizreview"; const key = stage === "draft" ? "ucp:draftGroups" : "ucp:reviewGroups";
   const g = (await reviewGroups(marketId, path)).find((x) => x.team === team); if (!g?.members.length) throw new RepoError(400, "That group has nobody in it");
-  const links = json<ReviewLink[]>(pg.meta?.["ucp:reviewLinks"], []); const reuse = links.find((l) => l.stage === "bizreview" && l.group === team);
-  const link: ReviewLink = reuse ?? { token: crypto.randomUUID().replace(/-/g, ""), stage: "bizreview", group: team, by: u.id, at: new Date().toISOString() };
-  const groups = json<string[]>(pg.meta?.["ucp:reviewGroups"], []);
-  await repo().setProps(`${path}/jcr:content`, { "ucp:reviewLinks": JSON.stringify(reuse ? links : [...links, link]), "ucp:reviewGroups": JSON.stringify(groups.includes(team) ? groups : [...groups, team]) });
-  return { token: link.token, members: g.members, created: !reuse };
+  const links = json<ReviewLink[]>(pg.meta?.["ucp:reviewLinks"], []); const reuse = links.find((l) => l.stage === stage && l.group === team);
+  const link: ReviewLink = reuse ?? { token: crypto.randomUUID().replace(/-/g, ""), stage, group: team, by: u.id, at: new Date().toISOString() };
+  const groups = json<string[]>(pg.meta?.[key], []);
+  await repo().setProps(`${path}/jcr:content`, { "ucp:reviewLinks": JSON.stringify(reuse ? links : [...links, link]), [key]: JSON.stringify(groups.includes(team) ? groups : [...groups, team]), ...(stage === "draft" ? draftShared(pg.meta) : {}) });
+  return { token: link.token, stage, members: g.members, created: !reuse };
 }
-export const STAGE_LABEL: Record<string, string> = { review: "Author's review", bizreview: "Business review" };
+/** Draft pages go Build the draft → Share with the business → Build the page. Sharing moves a draft that is still at the first step on. */
+export type DraftPhase = "draft" | "shared" | "build";
+export const draftPhaseOf = (meta?: Record<string, unknown>): DraftPhase => { const v = meta?.["ucp:draftPhase"]; return v === "shared" || v === "build" ? v : "draft"; };
+const draftShared = (meta?: Record<string, unknown>): NodeProps => (draftPhaseOf(meta) === "draft" ? { "ucp:draftPhase": "shared" } : {});
+export const STAGE_LABEL: Record<string, string> = { draft: "Draft feedback", review: "Author's review", bizreview: "Business review" };
 /**
  * A link for the current review stage. The link opens a review screen (preview + comments) and stops working when the stage is over.
  * With an e-mail of a UCP user who may review the page, that person is also assigned, so the task shows up in their My tasks.
  */
 export async function createReviewLink(marketId: string, path: string, u: User, email?: string): Promise<{ token: string; stage: string; assigned?: string; created: boolean }> {
   const pg = await repo().getPage(path); if (!pg) throw new RepoError(404, "Page not found", path);
-  if (pg.status !== "review" && pg.status !== "inreview" && pg.status !== "bizreview") throw new RepoError(409, "Send the page for review first");
-  const stage: "review" | "bizreview" = pg.status === "bizreview" ? "bizreview" : "review";
+  if (pg.status !== "draft" && pg.status !== "review" && pg.status !== "inreview" && pg.status !== "bizreview") throw new RepoError(409, "Send the page for review first");
+  const stage: ReviewLink["stage"] = pg.status === "draft" ? "draft" : pg.status === "bizreview" ? "bizreview" : "review";
   const mail = email?.trim().toLowerCase() || undefined; if (mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) throw new RepoError(400, "That e-mail address does not look right");
   const links = json<ReviewLink[]>(pg.meta?.["ucp:reviewLinks"], []);
   const reuse = links.find((l) => l.stage === stage && (l.email ?? "") === (mail ?? ""));
   const link: ReviewLink = reuse ?? { token: crypto.randomUUID().replace(/-/g, ""), stage, email: mail, by: u.id, at: new Date().toISOString() };
   const props: NodeProps = { "ucp:reviewLinks": JSON.stringify(reuse ? links : [...links, link]) }; let assigned: string | undefined;
   const person = mail ? (await listUsers()).find((x) => x.email.toLowerCase() === mail) : undefined;
-  if (person && can(person, "review", path, marketOf(marketId).root)) {
+  if (stage === "draft") Object.assign(props, draftShared(pg.meta)); // a draft link is for comments: nobody is assigned
+  else if (person && can(person, "review", path, marketOf(marketId).root)) {
     if (stage === "review") props["ucp:assignee"] = person.id; else { props["ucp:taskAssignee"] = person.id; props["ucp:taskKind"] = "BizReview"; }
     props["ucp:assignedBy"] = u.id; assigned = person.name;
   }

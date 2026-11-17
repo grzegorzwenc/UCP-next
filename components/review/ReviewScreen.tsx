@@ -15,7 +15,7 @@ import { BLOCK_BY_TYPE } from "@/lib/blocks/registry";
 import { pickAt, flash, markTarget, type PickTarget } from "@/lib/review/pick";
 
 type Props = {
-  missing?: boolean; token?: string; open?: boolean; stage?: "review" | "bizreview"; stageLabel?: string; path?: string; title?: string; status?: string;
+  missing?: boolean; token?: string; open?: boolean; stage?: "draft" | "review" | "bizreview"; stageLabel?: string; path?: string; title?: string; status?: string;
   market?: { name: string; flag: string; domain: string; route: string }; blocks?: Block[]; entities?: ResolvedEntities; assets?: Record<string, { data?: string; alt?: string; decorative?: boolean }>;
   comments?: PageComment[]; user?: { name: string } | null; mayApprove?: boolean;
   /** the address an e-mailed link went to (prefilled, fixed) · whether this viewer may sign off / reauthor · who the link was sent to */ inviteEmail?: string; canDecide?: boolean; sentTo?: string;
@@ -125,7 +125,7 @@ export function ReviewScreen(p: Props) {
           <div className="flex items-start gap-2"><Avatar name={c.whoName} size={24} /><div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-x-2 text-[12px]"><b className="font-semibold">{c.whoName}</b>{c.guest && <span className="text-[10.5px] rounded-full bg-surface-3 px-1.5 text-ink-3">guest</span>}<time className="text-ink-3" dateTime={c.time} suppressHydrationWarning>{relativeTime(c.time)}</time>{c.pinned && <span className="text-[10.5px] font-semibold uppercase tracking-[.06em] text-warn">Pinned</span>}</div>
             {c.block && <TargetCard target={c.block} onShow={show} compact />}
-            {c.stage && <div className="text-[11px] text-info mt-0.5">During the {c.stage === "review" ? "author's review" : "business review"}</div>}
+            {c.stage && <div className="text-[11px] text-info mt-0.5">{c.stage === "draft" ? "On the draft" : `During the ${c.stage === "review" ? "author's review" : "business review"}`}</div>}
             <p className={`mt-0.5 text-[13px] whitespace-pre-wrap break-words ${c.resolved ? "text-ink-3" : ""}`}>{c.text}</p>{c.resolved && <div className="mt-1 text-[11.5px] text-good">✓ Resolved by {c.resolved.name}</div>}</div></div></li>)}</ul>}
       </div>
     </FloatingPanel>
