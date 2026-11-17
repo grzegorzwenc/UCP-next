@@ -20,6 +20,7 @@ import { errorText as errText } from "@/lib/api/errors";
 import { useSession } from "@/components/shell/Session";
 import { Pill } from "@/components/ui/Pill";
 import { Dialog, DialogContent, DialogTitle } from "@/components/shadcn/dialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/shadcn/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/shadcn/tooltip";
 import { FileTypeBadge } from "@/components/ui/FileTypeBadge";
 import { useConfirm } from "@/components/ui/Confirm";
@@ -106,6 +107,8 @@ export function AssetLibrary({ marketId, envId, marketName, root, assets, folder
   const pick = (id: string, on: boolean) => setPicked((p) => { const n = new Set(p); if (on) n.add(id); else n.delete(id); return n; });
   const [limit, setLimit] = useState(PAGE); const listKey = `${folder}|${view}|${q}|${types.join(",")}`; const [seenKey, setSeenKey] = useState(listKey); if (seenKey !== listKey) { setSeenKey(listKey); setLimit(PAGE); }
   const [sel, setSel] = useState<string | null>(null);
+  /** The details drawer: null closed, "view" read-only, "edit" the forms and actions. */
+  const [details, setDetails] = useState<"view" | "edit" | null>(null);
   const [toast, setToast] = useState<string | null>(null); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState<string | null>(null);
   const [newFolder, setNewFolder] = useState(false); const [folderName, setFolderName] = useState("");
   const [drag, setDrag] = useState(false);
@@ -250,7 +253,9 @@ export function AssetLibrary({ marketId, envId, marketName, root, assets, folder
         </div>
       </div>
 
-      {a && (
+      {/* One surface at a time: opening the details drawer closes the preview, as the mock's
+          `handOff` does, rather than stacking a drawer on top of an open modal. */}
+      {a && !details && (
         <Dialog open onOpenChange={(open) => { if (!open) setSel(null); }}>
           <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-5xl">
             <DialogTitle className="sr-only">{a.name}</DialogTitle>
@@ -260,26 +265,88 @@ export function AssetLibrary({ marketId, envId, marketName, root, assets, folder
                   ? <img src={srcOf(a)} alt={a.name} className="max-h-[85svh] w-full object-contain lg:max-h-[70svh]" />
                   : <Thumb a={a} badge={false} className="size-40" />}
               </div>
-              <div className="min-h-0 overflow-y-auto border-line p-4 lg:border-s">
-            <Thumb a={a} className="w-full h-[180px]" />
-            <b className="block mt-3 mb-0.5 break-all text-sm">{a.name}</b>
-            <div className="text-xs text-ink-3 tabular-nums">{a.width && a.height ? `${a.width}×${a.height} · ` : ""}{a.size} · {a.folder}</div>
-            {(a.uploadedBy || a.uploaded) && <div className="text-xs text-ink-3 mt-0.5">Uploaded{a.uploadedBy ? ` by ${who(a.uploadedBy)}` : ""}{a.uploaded ? ` ${when(a.uploaded)}` : ""}</div>}
-            <div className="mt-2 flex items-center gap-2 text-xs">{a.status === "published"
-              ? <span className="inline-flex items-center gap-1.5 text-good font-medium"><i className="w-2 h-2 rounded-full bg-good" />Published{a.publishedAt ? <span className="font-normal text-ink-3"> {when(a.publishedAt)}{a.publishedBy ? ` by ${who(a.publishedBy)}` : ""}</span> : null}</span>
-              : <><span className="inline-flex items-center gap-1.5 text-warn font-medium"><i className="w-2 h-2 rounded-full bg-warn" />Not published</span>{canPublish && <button className="btn btn-sm btn-primary ml-auto" disabled={!!busy} onClick={() => { const x = a; run("publish", async () => { await ucpApi.publishAssets(marketId, [x.id]); say(`Published ${x.name}`); }); }}>{busy === "publish" ? "Publishing…" : "Publish"}</button>}</>}</div>
-            <A11yPanel key={`${a.id}:${JSON.stringify(a.a11y ?? {})}`} asset={a} locales={locales} canEdit={canEdit} busy={busy === "a11y"} onSave={saveA11y} />
-            <UsedOnPages key={a.id} used={used} hrefOf={(p) => `${base}/page${p.replace(root, "")}`} />
-            <div className="flex flex-wrap gap-1.5 mt-4">
-              {canEdit && <><button className="btn btn-sm btn-secondary" disabled={!!busy} onClick={() => replRef.current?.click()}>{busy === "replace" ? "Replacing…" : "Replace"}</button>
-              <label className="btn btn-sm btn-secondary gap-1.5">Move to <select className="bg-transparent border-0 text-[inherit]" value={a.folder} disabled={!!busy} onChange={(e) => move(e.target.value)} aria-label="Move to folder">{folders.map((f) => <option key={f} value={f}>{f}</option>)}</select></label>
-              <button className="btn btn-sm btn-secondary" disabled={!!busy || !!used.length} title={used.length ? "Remove it from pages first" : undefined} onClick={del}>{busy === "delete" ? "Deleting…" : "Delete"}</button></>}
-              <button className="btn btn-sm btn-secondary" onClick={copyId} title={a.id}>Copy id</button>
-            </div>
+              {/* The preview column, after the mock's `asset-preview-dialog.svelte`: the name, where
+                  it is in its life, and the half-dozen facts you came to check. Everything else —
+                  the alt-text form, the pages that use it, and every action — is one click away in
+                  the details drawer, which opens read-only and turns into the form on Edit. It used
+                  to all live here: a second copy of the picture already on the stage, the whole
+                  accessibility form, the usage list and five controls, in 288px. */}
+              <div className="flex min-h-0 flex-col border-line lg:border-s">
+                <div className="border-b border-line px-5 py-4 pe-12">
+                  <h2 className="truncate text-base font-medium" title={a.name}>{a.name}</h2>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    {a.status === "published"
+                      ? <span className="inline-flex items-center gap-1.5 text-xs font-medium text-good"><i className="h-2 w-2 rounded-full bg-good" />Published</span>
+                      : <span className="inline-flex items-center gap-1.5 text-xs font-medium text-warn"><i className="h-2 w-2 rounded-full bg-warn" />Not published</span>}
+                    <span className="truncate text-xs text-ink-3" title={a.id}>{a.id}</span>
+                  </div>
+                </div>
+                <dl className="grid flex-1 grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 overflow-y-auto px-5 py-4 text-sm [&_dd]:m-0 [&_dd]:min-w-0 [&_dd]:truncate [&_dt]:text-ink-3">
+                  <dt>Type</dt><dd>{TYPE_LABEL[a.type] ?? "FILE"}</dd>
+                  <dt>Size</dt><dd className="tabular-nums">{a.size}</dd>
+                  {a.width && a.height ? <><dt>Dimensions</dt><dd className="tabular-nums">{a.width} × {a.height} px</dd></> : null}
+                  <dt>Folder</dt><dd>{a.folder}</dd>
+                  {a.uploadedBy && <><dt>Uploaded by</dt><dd>{who(a.uploadedBy)}</dd></>}
+                  {a.uploaded && <><dt>Uploaded</dt><dd>{when(a.uploaded)}</dd></>}
+                </dl>
+                {!!used.length && <p className="flex items-start gap-2 border-t border-line bg-surface-2/40 px-5 py-3 text-xs text-ink-3">
+                  <Lock className="mt-0.5 size-3.5 flex-none" aria-hidden />Used on {used.length} page{used.length === 1 ? "" : "s"}, so it cannot be deleted.</p>}
+                <div className="flex justify-end gap-2 border-t border-line px-5 py-3">
+                  <button type="button" className="btn btn-sm btn-secondary" onClick={() => { setDetails("view"); }}>Details</button>
+                  <button type="button" className="btn btn-sm btn-primary" onClick={() => { setDetails("edit"); }}>Edit</button>
+                </div>
               </div>
             </div>
           </DialogContent>
         </Dialog>
+      )}
+
+      {/* Details, in a right-hand drawer — the mock's `asset-details-dialog.svelte`, which is a Sheet
+          for the same reason every edit form in that app is: the file stays on screen behind it, and
+          one drawer serves both reading and editing instead of a second modal stacking on the first.
+          `view` shows the full record; `edit` turns the same drawer into the forms and the actions. */}
+      {a && details && (
+        <Sheet open onOpenChange={(open) => { if (!open) { setDetails(null); setSel(null); } }}>
+          <SheetContent side="right" className="flex w-[min(28rem,100vw)] flex-col gap-0 p-0 sm:max-w-none">
+            <SheetHeader className="gap-1.5 border-b border-line px-5 py-4 pe-12 text-left">
+              <SheetTitle className="truncate text-base font-medium" title={a.name}>{a.name}</SheetTitle>
+              <SheetDescription className="text-xs text-ink-3">{details === "edit" ? "Change the file, where it lives and how it is described." : "Everything recorded about this file."}</SheetDescription>
+            </SheetHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+              <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm [&_dd]:m-0 [&_dd]:min-w-0 [&_dd]:break-all [&_dt]:text-ink-3">
+                <dt>File</dt><dd>{a.name}</dd>
+                <dt>Id</dt><dd className="font-mono text-xs">{a.id}</dd>
+                <dt>Path</dt><dd className="font-mono text-xs">{a.path}</dd>
+                <dt>Type</dt><dd>{TYPE_LABEL[a.type] ?? "FILE"}</dd>
+                <dt>Size</dt><dd className="tabular-nums">{a.size}</dd>
+                {a.width && a.height ? <><dt>Dimensions</dt><dd className="tabular-nums">{a.width} × {a.height} px</dd></> : null}
+                <dt>Folder</dt><dd>{a.folder}</dd>
+                <dt>Status</dt><dd>{a.status === "published" ? <>Published{a.publishedAt ? ` ${when(a.publishedAt)}` : ""}{a.publishedBy ? ` by ${who(a.publishedBy)}` : ""}</> : "Not published"}</dd>
+                {a.uploadedBy && <><dt>Uploaded by</dt><dd>{who(a.uploadedBy)}</dd></>}
+                {a.uploaded && <><dt>Uploaded</dt><dd>{when(a.uploaded)}</dd></>}
+              </dl>
+              {details === "edit" && <div className="mt-4 border-t border-line pt-4">
+                <A11yPanel key={`${a.id}:${JSON.stringify(a.a11y ?? {})}`} asset={a} locales={locales} canEdit={canEdit} busy={busy === "a11y"} onSave={saveA11y} />
+              </div>}
+              <div className="mt-4 border-t border-line pt-4">
+                <UsedOnPages key={a.id} used={used} hrefOf={(p) => `${base}/page${p.replace(root, "")}`} />
+              </div>
+            </div>
+            <div className="flex flex-wrap justify-end gap-1.5 border-t border-line px-5 py-3">
+              <button className="btn btn-sm btn-secondary me-auto" onClick={copyId} title={a.id}>Copy id</button>
+              {details === "view"
+                ? <button className="btn btn-sm btn-primary" onClick={() => setDetails("edit")}>Edit</button>
+                : <>
+                    {canPublish && a.status !== "published" && <button className="btn btn-sm btn-primary" disabled={!!busy} onClick={() => { const x = a; run("publish", async () => { await ucpApi.publishAssets(marketId, [x.id]); say(`Published ${x.name}`); }); }}>{busy === "publish" ? "Publishing…" : "Publish"}</button>}
+                    {canEdit && <>
+                      <button className="btn btn-sm btn-secondary" disabled={!!busy} onClick={() => replRef.current?.click()}>{busy === "replace" ? "Replacing…" : "Replace"}</button>
+                      <span className="bdl-select w-[150px]"><select className="bdl-field" value={a.folder} disabled={!!busy} onChange={(e) => move(e.target.value)} aria-label="Move to folder">{folders.map((f) => <option key={f} value={f}>{f}</option>)}</select></span>
+                      <button className="btn btn-sm btn-secondary" disabled={!!busy || !!used.length} title={used.length ? "Remove it from pages first" : undefined} onClick={del}>{busy === "delete" ? "Deleting…" : "Delete"}</button>
+                    </>}
+                  </>}
+            </div>
+          </SheetContent>
+        </Sheet>
       )}
 
       {newFolder && canEdit && <div className="fixed inset-0 bg-black/45 grid place-items-center z-50" onClick={(e) => { if (e.target === e.currentTarget) setNewFolder(false); }}>
