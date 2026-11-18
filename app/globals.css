@@ -1457,3 +1457,6 @@
   opacity: 0.5;
 }
 
+/* page progress → the step's own actions: the main button is dark, so it never shares the current step's red */
+.flow-actions .btn-primary, .flow-actions .btn-next { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.flow-actions .btn-primary:hover, .flow-actions .btn-next:hover { background: var(--ink-2); border-color: var(--ink-2); color: var(--surface); }
