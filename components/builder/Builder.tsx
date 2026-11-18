@@ -440,7 +440,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const leaveFocusState = () => { setFocus(false); document.body.classList.remove("focus"); window.dispatchEvent(new CustomEvent("ucp:focus", { detail: { on: false } })); const b = panelsBeforeFocus.current; if (b) { setLeftRaw(b.left); setRight(b.right); setPreviewRaw(b.preview); panelsBeforeFocus.current = null; } };
   const setFocusMode = (on: boolean) => {
     // Preview = the page exactly as visitors see it, inside the browser tab: no toolbar, no block outlines, no panels. Esc brings the authoring layout back.
-    if (on) { panelsBeforeFocus.current = { left, right, preview }; setLeftRaw(false); setRight(false); setPop(null); if (editing) commitInline(true); select(null); setPreviewRaw(true); setFocus(true); document.body.classList.add("focus"); window.dispatchEvent(new CustomEvent("ucp:focus", { detail: { on: true } })); setFsHint(true); setTimeout(() => setFsHint(false), 3500); }
+    if (on) { panelsBeforeFocus.current = { left, right, preview }; setFlowOpen(false); setLeftRaw(false); setRight(false); setPop(null); if (editing) commitInline(true); select(null); setPreviewRaw(true); setFocus(true); document.body.classList.add("focus"); window.dispatchEvent(new CustomEvent("ucp:focus", { detail: { on: true } })); setFsHint(true); setTimeout(() => setFsHint(false), 3500); }
     else leaveFocusState();
 
   };
@@ -702,10 +702,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
        both ways out: go and fix them, or send regardless. Sending is still allowed; the reviewer
        sees the same list. */
     : i === 1 ? (insightBadge > 0
-      ? <><span className="inline-flex flex-none items-center gap-1.5 whitespace-nowrap text-xs text-warning" title={`Page insights found ${insightBadge} thing${insightBadge === 1 ? "" : "s"} that should be fixed before a reviewer sees this page`}>
-          <svg viewBox="0 0 24 24" aria-hidden className="size-3.5 flex-none fill-none stroke-current" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M12 4.5l8.5 15h-17z" /><path d="M12 10v4M12 16.8v.2" /></svg>
-          {insightBadge} to fix</span>
-        <button className="btn btn-sm btn-secondary" onClick={() => openRight("insights")} title="Open Page insights and work through the list">Fix the issues</button>
+      ? <><button className="btn btn-sm btn-secondary" onClick={() => openRight("insights")} title="Open Page insights and work through the list">Fix the issues</button>
         <button className="btn btn-sm btn-primary btn-next" onClick={openSend} aria-label="Send to author's review anyway">Send anyway</button></>
       : <button className="btn btn-sm btn-primary btn-next" onClick={openSend} aria-label="Send to author's review"><span className="lg:hidden">Send for review</span><span className="hidden lg:inline">Send to author&apos;s review</span></button>)
     : i === 2 ? <button className="btn btn-sm btn-primary btn-next" onClick={() => void claim()} title="Take this review from the Backlog">Assign to me</button>
@@ -756,6 +753,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const veilEdit = canEdit ? () => void goEdit("blocks") : undefined;
   const insightMeta = useMemo(() => ({ title, description, template: page.template, status, locale, assets: assetMap, entities }), [title, description, page.template, status, locale, assetMap, entities]);
   const insightBadge = useMemo(() => pageInsights(blocks, insightMeta).groups.flatMap((g) => g.items).filter((i) => i.level === "crit").length, [blocks, insightMeta]);
+  /** The unfixed-insight count, shown beside the step rather than among its buttons. */
+  const insightWarn = insightBadge > 0 ? <span className="inline-flex flex-none items-center gap-1 whitespace-nowrap text-xs text-warning" title={`Page insights found ${insightBadge} thing${insightBadge === 1 ? "" : "s"} that should be fixed before a reviewer sees this page`}>
+    <svg viewBox="0 0 24 24" aria-hidden className="size-3.5 flex-none fill-none stroke-current" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M12 4.5l8.5 15h-17z" /><path d="M12 10v4M12 16.8v.2" /></svg>{insightBadge} to fix</span> : null;
   // On phones and tablets the panels float over the canvas instead of reserving space, so the 1:1 page keeps its width.
   const [avail, setAvail] = useState(0);
   /* The page is drawn at its real width (see lib/ucp/devices.ts) and `zoom`ed to fit the canvas.
@@ -792,6 +792,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   /* The gutters reserve exactly what the docked panels occupy. They used to skip that on
      narrow viewports — from the days when the panels floated over the canvas — but the panels
      are opaque docked columns now, so the page simply disappeared behind them below 1100px. */
+  /* The width switch, defined once: the top bar has it while editing, and the preview overlay
+     has it too — checking the page at each width is most of what a preview is for, and it was
+     the one control that disappeared when the top bar did. */
+  const deviceSwitch = (cls = "") => <div role="group" aria-label="Preview width" className={`inline-flex overflow-hidden border border-line-2 ${cls}`}>{DEVICES.map(([d, label, path]) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center transition-colors duration-150 ease-out ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink hover:bg-surface-3"}`} title={`${label} · ${DEVICE_W[d]}px`} aria-label={`${label} view, ${DEVICE_W[d]} pixels`} aria-pressed={device === d}><Ico d={path} /></button>)}</div>;
   const padL = focus ? 0 : !railsOn ? 24 : phone ? 12 : zen ? 24 : left && !leftFloating ? leftW + 24 : RAIL_W + 24;
   const padR = focus ? (floatingOpen ? 412 : 0) : !railsOn ? 24 : phone ? 12 : zen ? 24 : right && !rightFloat.floating ? panelW + 24 : RAIL_W + 24;
 
@@ -822,7 +826,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {/* The save state sits here, beside the width switch. It used to be stacked above the
             "Waiting for a reviewer" line on the right, where the two read as one crowded block. */}
         <div className="hidden lg:flex items-center gap-2.5 justify-self-center">
-          <div role="group" aria-label="Preview width" className="inline-flex border border-line-2 rounded-lg overflow-hidden">{DEVICES.map(([d, label, path]) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center transition-colors duration-150 ease-out ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink hover:bg-surface-3"}`} title={`${label} · ${DEVICE_W[d]}px`} aria-label={`${label} view, ${DEVICE_W[d]} pixels`} aria-pressed={device === d}><Ico d={path} /></button>)}</div>
+          {deviceSwitch()}
           {saving === "Save failed" ? <button className="text-xs text-crit bg-crit-soft rounded-full px-2.5 py-1 hover:underline whitespace-nowrap" onClick={() => save().then(() => say("Saved")).catch(() => {})} title="Your last changes were not saved">Not saved · Retry</button>
             : canEdit && !locked && (status === "draft" || status === "failed") ? null /* the Save button says it */ : <span className="text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1 whitespace-nowrap" aria-live="polite" title="Changes are saved automatically">{saving === "Unsaved" ? "Saving…" : saving === "Saved just now" || saving === "Saved" ? "Saved" : saving}</span>}
         </div>
@@ -1037,6 +1041,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             preview, review included — gating it on `!reviewMode` left reviewers with nothing but
             the Esc key, which is exactly the state this was meant to fix. */}
         {focus && <div className="fixed top-4 left-4 z-[80] flex items-center gap-2">
+          {/* the width switch travels into the preview: on a white page it needs its own ground */}
+          {deviceSwitch("bg-surface shadow-lg")}
           <button type="button" className="btn btn-sm btn-primary shadow-lg" onClick={leavePreview} title="Leave the visitor preview (Esc)"><Ico d="M6 6l12 12M18 6L6 18" />Exit preview<kbd className="ml-1.5 border border-white/40 px-1 text-xs font-normal">Esc</kbd></button>
           <span aria-live="polite" className={`hidden text-xs text-white bg-bdl-charcoal px-2.5 py-1.5 transition-opacity duration-700 sm:block ${fsHint ? "opacity-100" : "opacity-0"}`}>This is what visitors see</span>
         </div>}
@@ -1091,7 +1097,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           onApprove={isAdmin ? () => transition("approved", "Signed off as site admin · ready to publish") : undefined} />}
         {publishing && <PublishDialog marketId={marketId} envName={envName} pages={[{ path: page.path, title, status, publishAt }]} mayPublish={() => mayStatus("published")} onClose={() => setPublishing(false)}
           onDone={(r, m) => { const x = r[0]; setPublishing(false); if (!x?.ok) { say(x?.reason ?? "Nothing was published"); return; } setStatus(x.status as PageStatus); setPublishAt(undefined); say(m === "cancel" ? "Schedule cancelled · back to Approved" : m === "schedule" ? "Scheduled for publishing" : `Published to ${envName}`); router.refresh(); }} />}
-        {sending && <SendForReviewModal marketId={marketId} pagePath={page.path} onClose={() => setSending(false)} onSend={sendForReview} />}
+        {sending && shareIn === "bar" && <SendForReviewModal marketId={marketId} pagePath={page.path} onClose={() => setSending(false)} onSend={sendForReview} />}
         {translating && <TranslateModal marketId={marketId} path={page.path} title={title} onClose={() => setTranslating(false)} onDone={(created) => { say(`Created ${created.length} translation${created.length === 1 ? "" : "s"}`); router.refresh(); }} />}
         {firstStage && <AuthorsChip trigger={false} anchorRef={actionsRef} openSignal={authorsSignal} authors={authors} meId={user.id} admin={isAdmin} canEdit={canEdit} people={names} onAction={authorAction} />}
         {toast && <div style={{ bottom: focus ? 24 : 60 }} className="fixed left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm shadow-xl z-50">{toast}</div>}
@@ -1112,8 +1118,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             <StepDot n={cur + 1} done={done} tone={done ? "prev" : "cur"} />
             <b className="truncate font-medium text-white">{STEPS[cur][0]}</b>
             <span className="hidden truncate text-xs text-white/55 lg:inline">{STEPS[cur][1]}</span>
+            {hasAct(cur) && insightWarn}
           </p>
-          <div className="flex flex-none items-center gap-2"><div className="flex w-[22rem] flex-none items-center justify-end gap-2" onClickCapture={() => setShareIn("bar")}>
+          <div className="flex flex-none items-center gap-2"><div className="flex w-[27rem] flex-none flex-nowrap items-center justify-end gap-2" onClickCapture={() => setShareIn("bar")}>
             {back && <button type="button" onClick={back} className="btn btn-sm btn-secondary" title={`Back to ${STEPS[cur - 1][0]}`}>‹ Back</button>}
             {act >= 0 && <>{stepBack(act)}{stepAct(act)}</>}
           </div>
@@ -1125,10 +1132,17 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           </button></div>
         </div>;
       })()}
-      {/* Every step, in a drawer */}
-      {(() => { const act = hasAct(cur) ? cur : (MOBILE_ORDER.find(hasAct) ?? -1);
+      {/* Every step, in a drawer. Not in preview: that belongs to the quality checklist. */}
+      {!focus && (() => { const act = hasAct(cur) ? cur : (MOBILE_ORDER.find(hasAct) ?? -1);
         /* the draft steps share by link, so the drawer carries the link itself */
-        const shareHere = (status === "draft" || status === "failed") && (cur === 0 || cur === 1);
+        /* Steps that hand the page to somebody by link share it inside the drawer, as step 2 does:
+           the draft steps share the draft link, and "Waiting for a reviewer" shares the review link
+           (stage "review" was supported by the dialog but had no call site, so while the page sat in
+           the queue there was no way to send the link on or chase anyone). */
+        const shareStage: "draft" | "review" | null =
+          (status === "draft" || status === "failed") && (cur === 0 || cur === 1) ? "draft"
+          : status === "review" && (cur === 4 || cur === 5) ? "review" : null;
+        const shareHere = shareStage !== null;
         return <Sheet open={flowOpen} onOpenChange={(o) => { if (!o) setFlowOpen(false); }}>
         <SheetContent side="right" className="flex w-[min(26rem,100vw)] flex-col gap-0 p-0 sm:max-w-none">
           <SheetHeader className="gap-1 border-b border-line px-5 py-4 pe-12 text-left">
@@ -1149,10 +1163,16 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
                     {now && <span className="ms-auto flex-none text-xs font-medium tracking-[.06em] text-brand uppercase">Now</span>}
                     {!was && !now && <span className="ms-auto flex-none text-xs text-ink-3">To do</span>}</span>
                   <span className="block text-xs leading-snug text-ink-3">{st[1]}</span>
+                  {now && hasAct(cur) && insightWarn && <span className="mt-1 block">{insightWarn}</span>}
                   {plan && <button type="button" className="btn btn-sm btn-secondary mt-1.5" onClick={() => { setFlowOpen(false); void plan.run(); }}>Go back to this step</button>}
-                  {now && act >= 0 && <span className="flow-actions mt-1.5 flex flex-wrap items-center gap-2" onClickCapture={() => setShareIn("drawer")}>{stepBack(act)}{stepAct(act)}</span>}
+                  {now && (act >= 0 || shareHere) && <span className="flow-actions mt-1.5 flex flex-wrap items-center gap-2 [&>span.text-warning]:basis-full" onClickCapture={() => setShareIn("drawer")}>
+                    {act >= 0 && <>{stepBack(act)}{stepAct(act)}</>}
+                    {shareStage === "review" && !share && <button type="button" className="btn btn-sm btn-secondary" onClick={() => { setShareIn("drawer"); setShare(true); }}>Share link</button>}</span>}
+                  {now && sending && shareIn === "drawer" && <span className="cmt-card-in mt-2.5 block border-t border-line pt-2.5">
+                    <SendForReviewModal inline marketId={marketId} pagePath={page.path} onClose={() => setSending(false)} onSend={sendForReview} />
+                  </span>}
                   {now && shareHere && share && shareIn === "drawer" && <span className={`${shareClosing ? "cmt-card-out" : "cmt-card-in"} mt-2.5 block border-t border-line pt-2.5`}>
-                    <ShareReviewDialog inline marketId={marketId} path={page.path} title={title} stage="draft" onClose={closeDrawerShare} />
+                    <ShareReviewDialog inline marketId={marketId} path={page.path} title={title} stage={shareStage!} onClose={closeDrawerShare} onAccess={(a) => { if (a.person) setAssignee(a.person); }} />
                     <button type="button" className="btn btn-sm btn-secondary mt-3" onClick={closeDrawerShare}>Done</button>
                   </span>}
                 </span>

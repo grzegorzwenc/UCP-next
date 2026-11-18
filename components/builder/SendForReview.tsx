@@ -19,7 +19,7 @@ function useReviewers(marketId: string, pagePath: string) {
 }
 
 /** "Send page for review": the page goes to the Backlog, open to every reviewer (nobody is assigned · a reviewer takes it in My tasks), plus an optional note. */
-export function SendForReviewModal({ marketId, pagePath, onClose, onSend }: { marketId: string; pagePath: string; onClose: () => void; onSend: (body: ReviewBody) => Promise<void> }) {
+export function SendForReviewModal({ marketId, pagePath, onClose, onSend, inline = false }: { /** render just the form, for embedding in a panel */ inline?: boolean; marketId: string; pagePath: string; onClose: () => void; onSend: (body: ReviewBody) => Promise<void> }) {
   const { list, err: loadErr } = useReviewers(marketId, pagePath);
   const [note, setNote] = useState(""); const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
   const none = list !== null && !list.length; const ready = !busy && !none && list !== null;
@@ -28,8 +28,9 @@ export function SendForReviewModal({ marketId, pagePath, onClose, onSend }: { ma
     try { await onSend({ note: note.trim() || undefined }); }
     catch (e) { setErr(errorText(e)); setBusy(false); }
   }
-  return <ModalShell title="Send page for review" subtitle="The page becomes read-only until the review is finished or someone reopens it." width={520} onClose={() => { if (!busy) onClose(); }}
-    footer={<><button className="btn btn-sm btn-secondary" onClick={onClose} disabled={busy}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => void send()} disabled={!ready}>{busy ? "Sending…" : "Send to the Backlog"}</button></>}>
+  /* `inline`: the workflow drawer shows this in place of a modal, the same as the share panel —
+     the actions live in the drawer now, so a dialog over it put two surfaces on one decision. */
+  const body = <>
     <div className="flex flex-col gap-3 text-sm">
       <div className="border border-line rounded-lg p-3 bg-surface-2"><b className="block font-medium">It goes to the Backlog · open to all reviewers</b>
         <span className="block text-xs text-ink-3 mt-0.5">{list === null ? "Checking who can review it…" : none ? "Nobody has Review on this folder yet. Ask a site admin to grant it." : `Nobody is assigned. Any of the ${list.length} reviewer${list.length === 1 ? "" : "s"} who can review this page takes it from My tasks → Backlog.`}</span>
@@ -37,6 +38,13 @@ export function SendForReviewModal({ marketId, pagePath, onClose, onSend }: { ma
       <label className="text-xs text-ink-2 font-medium">Note for the reviewer <span className="font-normal text-ink-3">(optional)</span><textarea rows={3} className="bdl-field mt-1" value={note} onChange={(e) => setNote(e.target.value)} placeholder="What should they look at?" /></label>
       <Err err={err ?? loadErr} />
     </div>
+  </>;
+  const actions = <div className="mt-3 flex items-center justify-end gap-2"><button className="btn btn-sm btn-secondary" onClick={onClose} disabled={busy}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => void send()} disabled={!ready}>{busy ? "Sending…" : "Send for review"}</button></div>;
+  if (inline) return <div className="flex flex-col">{body}{actions}</div>;
+
+  return <ModalShell title="Send page for review" subtitle="The page becomes read-only until the review is finished or someone reopens it." width={520} onClose={() => { if (!busy) onClose(); }}
+    footer={<><button className="btn btn-sm btn-secondary" onClick={onClose} disabled={busy}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => void send()} disabled={!ready}>{busy ? "Sending…" : "Send to the Backlog"}</button></>}>
+    {body}
   </ModalShell>;
 }
 
