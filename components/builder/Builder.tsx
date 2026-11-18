@@ -33,6 +33,7 @@ import { PanelRightOpen } from "lucide-react";
 import { GripStrip, panelClass, PanelBody, CollapsedRail, IconTabs, CollapseButton, RAIL_W } from "./panels/PanelFrame";
 import { useFloat } from "./panels/useFloat";
 import { EditorVeil } from "./EditorSkeleton";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/shadcn/sheet";
 import { JiraPanel } from "./JiraPanel";
 import { jiraLabel } from "@/lib/ucp/jira";
 import { ShareReviewDialog } from "@/components/tasks/ShareReviewDialog";
@@ -78,7 +79,7 @@ const STEPS = [["Build the draft", "A first version to show the business"], ["Sh
 type FlowTone = "prev" | "cur" | "act" | "next" | "todo";
 const FLOW_TONE: Record<FlowTone, { bar: string; cap: string; bg: string }> = {
   prev: { bar: "bg-good", cap: "text-good", bg: "" },
-  cur: { bar: "bg-accent", cap: "text-accent", bg: "bg-accent-soft/60" },
+  cur: { bar: "bg-brand", cap: "text-brand", bg: "bg-brand-soft/60" },
   act: { bar: "bg-ink-3", cap: "text-ink-3", bg: "bg-surface-2" },
   next: { bar: "bg-info", cap: "text-info", bg: "" },
   todo: { bar: "bg-line-2", cap: "text-ink-4", bg: "" },
@@ -87,12 +88,12 @@ function FlowCell({ tone, caption, className = "", current, group, title, childr
   const t = FLOW_TONE[tone];
   return <div role={group ? "group" : "listitem"} aria-label={group ? caption : undefined} aria-current={current ? "step" : undefined} title={title} className={`relative flex flex-col items-center justify-start gap-1 min-w-0 px-3 pt-2 text-center text-sm text-ink cursor-default select-none ${t.bg} ${className}`}>
     <span aria-hidden className={`absolute inset-x-0 top-0 h-[3px] ${t.bar}`} />
-    <span className={`text-[10px] leading-none uppercase tracking-[.08em] font-semibold whitespace-nowrap ${t.cap}`}>{caption}</span>
+    <span className={`text-xs leading-none uppercase tracking-[.08em] font-semibold whitespace-nowrap ${t.cap}`}>{caption}</span>
     <span className="flex items-center justify-center h-7 min-w-0 max-w-full">{children}</span>
   </div>;
 }
 function StepDot({ n, done, tone }: { n: number; done: boolean; tone: FlowTone }) {
-  return <i className={`flex-none w-5 h-5 rounded-full grid place-items-center not-italic text-[11px] font-bold ${done ? "bg-good text-white" : tone === "cur" ? "bg-accent text-white" : tone === "next" ? "border-[1.5px] border-info text-info" : "border-[1.5px] border-line-2 text-ink-3"}`}>{done ? "✓" : n}</i>;
+  return <i className={`flex-none w-5 h-5 rounded-full grid place-items-center not-italic text-xs font-bold ${done ? "bg-good text-white" : tone === "cur" ? "bg-brand text-white" : tone === "next" ? "border border-info text-info" : "border border-line-2 text-ink-3"}`}>{done ? "✓" : n}</i>;
 }
 /** Phones show one action: the first step after Build the draft that has one, else Build the draft. */
 const MOBILE_ORDER = [...STEPS.keys()].slice(1, -1).concat(0);
@@ -800,7 +801,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const fit = areaW && areaW < siteW ? areaW / siteW : 1;
 
   return (
-    <div className={`h-full grid ${focus ? "grid-rows-[1fr]" : BOTTOM_BAR ? "grid-rows-[54px_1fr_36px]" : "grid-rows-[54px_64px_1fr]"} min-w-0 overflow-hidden`}>
+    <div className={`h-full grid ${focus ? "grid-rows-[1fr]" : BOTTOM_BAR ? "grid-rows-[54px_1fr_36px]" : "grid-rows-[54px_1fr_44px]"} min-w-0 overflow-hidden`}>
       {/* Toolbar (docked; gone in preview) */}
       {!focus && <div className="grid grid-cols-[minmax(0,1fr)_auto] lg:grid-cols-[minmax(0,1fr)_auto_minmax(max-content,1fr)] items-center gap-3 px-2.5 bg-surface border-b border-line overflow-x-auto overflow-y-hidden">
         {/* left: back + page · centre: device width · right: status | panels + preview | next action */}
@@ -897,62 +898,6 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           </div>
         </div>
       </div>}
-      {/* Flow stepper (hidden in preview) */}
-      {/* Page progress: [Workflow · N of 11 ▾] [‹ Back] CURRENT STEP [the step's actions]. Back and the actions have fixed widths, so the
-          current step never moves. "Workflow" drops down every step as a list: done, current, still to do. */}
-      {!focus && (() => {
-        const act = hasAct(cur) ? cur : (MOBILE_ORDER.find(hasAct) ?? -1);
-        const back = backAny(); const backBtn = back && <button type="button" onClick={back} className="btn btn-sm !pl-1.5" title={`Back to ${STEPS[cur - 1][0]}`} aria-label={`Back to ${STEPS[cur - 1][0]}`}><svg aria-hidden viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg>Back</button>;
-        const right = act >= 0 ? <>{stepBack(act)}{stepAct(act)}</> : null;
-        const step = (i: number, tone: FlowTone, cap: string, cls: string, desc = false) => { const s = STEPS[i]; const done = i < cur || (cur === LAST && i === LAST);
-          return <FlowCell key={s[0]} tone={tone} caption={cap} className={cls} current={i === cur} title={`${s[0]} · ${s[1]}`}>
-            <span className="flex items-center gap-2 min-w-0"><StepDot n={i + 1} done={done} tone={tone} /><span className="truncate">{i === cur ? <><span className="lg:hidden">{STEP_SHORT[i]}</span><span className="hidden lg:inline">{s[0]}</span></> : s[0]}{desc && <span className="hidden xl:inline font-normal text-ink-3"> · {s[1]}</span>}</span></span></FlowCell>; };
-        const cells = [step(cur, "cur", cur === LAST ? "Current step · done" : "Current step", "flex-1", true)];
-        return <div className="relative z-20 flex items-center gap-3 px-4 min-w-0 bg-surface border-b border-line">
-          {/* the whole workflow, dropped down as a list */}
-          <div ref={flowRef} className="relative hidden sm:block flex-none">
-            <button type="button" onClick={() => setFlowOpen(!flowOpen)} aria-expanded={flowOpen} aria-haspopup="true" title="See every step: what is done and what is still ahead"
-              className={`flex items-center gap-2 h-9 pl-3 pr-2 rounded-lg border text-xs font-medium whitespace-nowrap ${flowOpen ? "border-ink-3 bg-surface-2 text-ink" : "border-line-2 text-ink-2 hover:border-ink-3 hover:text-ink"}`}>
-              <svg aria-hidden viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" /></svg>
-              Workflow<span className="text-ink-3 tabular-nums">{cur + 1} of {STEPS.length}</span>
-              <svg aria-hidden viewBox="0 0 24 24" className={`w-3.5 h-3.5 stroke-current fill-none transition-transform ${flowOpen ? "rotate-180" : ""}`} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-            </button>
-            {flowOpen && <div role="dialog" aria-label="Workflow" className="absolute left-0 top-[calc(100%+6px)] w-[24rem] max-h-[70vh] overflow-auto rounded-xl border border-line bg-surface shadow-lg p-2">
-              <div className="flex items-baseline justify-between px-2 pt-1 pb-2"><b className="text-sm">Workflow</b><span className="text-xs text-ink-3 tabular-nums">{cur === LAST ? "All done" : `${cur} of ${STEPS.length} done`}</span></div>
-              <ol className="relative">
-                {STEPS.map((st, i) => { const done = i < cur || (cur === LAST && i === LAST); const now = i === cur && cur !== LAST;
-                  return <li key={st[0]} aria-current={now ? "step" : undefined} className={`relative flex flex-wrap gap-x-3 rounded-lg px-2 py-2 ${now ? "bg-accent-soft" : backTo === i ? "bg-surface-2" : ""}`}>
-                    {i < LAST && <span aria-hidden className={`absolute left-[19px] top-8 -bottom-2 w-0.5 ${i < cur ? "bg-good" : "bg-line"}`} />}
-                    <i className={`relative flex-none w-6 h-6 rounded-full grid place-items-center not-italic text-xs font-bold ${done ? "bg-good text-white" : now ? "bg-accent text-white" : "border-[1.5px] border-line-2 bg-surface text-ink-3"}`}>{done ? "✓" : i + 1}</i>
-                    <span className="min-w-0 flex-1"><span className={`flex items-center gap-2 text-sm ${now ? "font-semibold text-accent-hover" : done ? "text-ink" : "text-ink-2"}`}>{st[0]}{now && <span className="text-[10px] uppercase tracking-[.08em] font-semibold text-accent">Current</span>}</span>
-                      <span className="block text-xs text-ink-3 leading-snug">{st[1]}</span>
-                      {now && (() => { const a = hasAct(cur) ? cur : (MOBILE_ORDER.find(hasAct) ?? -1); const bk = backAny(); if (a < 0 && !bk) return null;
-                        /* the list closes first, then the action runs (some open their own dialog) */
-                        return <span role="group" aria-label="Actions for this step" onClickCapture={(e) => { if ((e.target as HTMLElement).closest("button")) setFlowOpen(false); }} className="flow-actions flex flex-wrap items-center gap-1.5 mt-2 [&_.btn]:whitespace-nowrap">
-                          {bk && <button type="button" onClick={bk} className="btn btn-sm !pl-1.5"><svg aria-hidden viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6" /></svg>Back</button>}
-                          {a >= 0 && stepBack(a)}{a >= 0 && stepAct(a)}</span>; })()}</span>
-                    {(() => { const plan = i < cur ? backPlan(i) : null;
-                      return plan && backTo !== i ? <button type="button" onClick={() => setBackTo(i)} className="flex-none self-center inline-flex items-center gap-1 h-7 px-2 rounded-md text-xs font-medium text-ink-2 border border-line hover:border-ink-3 hover:text-ink" title={`Go back to ${st[0]}`} aria-label={`Go back to ${st[0]}`}><svg aria-hidden viewBox="0 0 24 24" className="w-3.5 h-3.5 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M9 14L4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" /></svg>Go back</button>
-                        : <span className={`flex-none self-center text-xs ${done ? "text-good" : "text-ink-4"}`}>{done ? "Done" : now ? "" : "To do"}</span>; })()}
-                    {backTo === i && (() => { const plan = backPlan(i); if (!plan) return null; return <div role="alertdialog" aria-label={`Go back to ${st[0]}?`} className="basis-full ml-9 mt-1 rounded-lg border-[1.5px] border-ink-3 bg-surface p-3">
-                      <b className="block text-sm">Go back to {st[0]}?</b>
-                      <p className="text-xs text-ink-2 mt-1 leading-snug">{plan.why}</p>
-                      <div className="flex justify-end gap-2 mt-2.5"><button type="button" className="btn btn-sm" onClick={() => setBackTo(null)}>Cancel</button><button type="button" autoFocus className="btn btn-sm btn-primary" onClick={async () => { setFlowOpen(false); await plan.run(); }}>Go back to {st[0]}</button></div>
-                    </div>; })()}
-                  </li>; })}
-              </ol>
-            </div>}
-          </div>
-          {/* left: actions that take the page back */}
-          <div className="hidden sm:flex flex-none w-[6rem] items-center justify-end">{backBtn}</div>
-          <div className="flex-1 min-w-0 py-1.5">
-            <div role="list" aria-label="Page progress" className="flex h-[52px] rounded-xl border border-line bg-surface overflow-hidden">{cells}</div>
-          </div>
-          {/* right: the action that moves the page on (and the ones next to it) */}
-          <div role="group" aria-label="Actions" className="flow-actions hidden sm:flex flex-none w-[19rem] 2xl:w-[22rem] items-center gap-1.5 [&_.btn]:whitespace-nowrap">{right}</div>
-          {(act >= 0 || backBtn) && <div className="sm:hidden flex flex-none items-center gap-1.5">{backBtn}{right}</div>}
-        </div>;
-      })()}
       {/* Body */}
       <div className="relative min-h-0 overflow-hidden bg-bg">
         <div className={`absolute inset-0 flex flex-col ${preview ? "preview" : ""}`}>
@@ -1088,7 +1033,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             preview, review included — gating it on `!reviewMode` left reviewers with nothing but
             the Esc key, which is exactly the state this was meant to fix. */}
         {focus && <div className="fixed top-4 left-4 z-[80] flex items-center gap-2">
-          <button type="button" className="btn btn-primary shadow-lg" onClick={leavePreview} title="Leave the visitor preview (Esc)"><Ico d="M6 6l12 12M18 6L6 18" />Exit preview<kbd className="ml-1.5 border border-white/40 px-1 text-xs font-normal">Esc</kbd></button>
+          <button type="button" className="btn btn-sm btn-primary shadow-lg" onClick={leavePreview} title="Leave the visitor preview (Esc)"><Ico d="M6 6l12 12M18 6L6 18" />Exit preview<kbd className="ml-1.5 border border-white/40 px-1 text-xs font-normal">Esc</kbd></button>
           <span aria-live="polite" className={`hidden text-xs text-white bg-bdl-charcoal px-2.5 py-1.5 transition-opacity duration-700 sm:block ${fsHint ? "opacity-100" : "opacity-0"}`}>This is what visitors see</span>
         </div>}
         {/* No Exit in this panel's header: the fixed "Exit preview" button above is on screen for
@@ -1146,6 +1091,58 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {/* Closing mirrors opening: the same spinner-over-label as the "Loading editor" skeleton, so the editor opens and shuts with one look. */}
         {closing && <EditorVeil label={closing} detail={title} />}
       </div>
+      {/* Page progress: one slim row — [Workflow · N of 11] · the step you are on · what to do next.
+          The list of every step lives in a drawer (the app's Sheet, as the asset details use), not a
+          floating card: eleven steps with descriptions is a panel's worth of reading, and a dropdown
+          hanging over the canvas had nothing holding it.
+          The action slot has a fixed width so the step name does not shift as the actions change. */}
+      {!focus && (() => {
+        const act = hasAct(cur) ? cur : (MOBILE_ORDER.find(hasAct) ?? -1);
+        const back = backAny();
+        const done = cur === LAST;
+        return <div className="flex items-center gap-3 border-t border-white bg-bdl-charcoal px-4 text-white">
+          <p className="flex min-w-0 flex-1 items-center gap-2 text-sm">
+            <StepDot n={cur + 1} done={done} tone={done ? "prev" : "cur"} />
+            <b className="truncate font-medium text-white">{STEPS[cur][0]}</b>
+            <span className="hidden truncate text-xs text-white/55 lg:inline">{STEPS[cur][1]}</span>
+          </p>
+          <div className="flex w-[22rem] flex-none items-center justify-end gap-2">
+            {back && <button type="button" onClick={back} className="btn btn-sm btn-secondary" title={`Back to ${STEPS[cur - 1][0]}`}>‹ Back</button>}
+            {act >= 0 && <>{stepBack(act)}{stepAct(act)}</>}
+          </div>
+          <button type="button" onClick={() => setFlowOpen(true)} aria-haspopup="dialog"
+            title="See every step: what is done and what is still ahead"
+            className="flex flex-none items-center gap-2 border border-white/30 px-2.5 py-1.5 text-xs leading-4 font-medium whitespace-nowrap text-white/80 hover:border-white hover:text-white">
+            <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" /></svg>
+            Workflow<span className="tabular-nums text-white/55">{cur + 1}/{STEPS.length}</span>
+          </button>
+        </div>;
+      })()}
+      {/* Every step, in a drawer */}
+      {(() => { const act = hasAct(cur) ? cur : (MOBILE_ORDER.find(hasAct) ?? -1); return <Sheet open={flowOpen} onOpenChange={(o) => { if (!o) setFlowOpen(false); }}>
+        <SheetContent side="right" className="flex w-[min(26rem,100vw)] flex-col gap-0 p-0 sm:max-w-none">
+          <SheetHeader className="gap-1 border-b border-line px-5 py-4 pe-12 text-left">
+            <SheetTitle className="text-base font-medium">Workflow</SheetTitle>
+            <SheetDescription className="text-xs text-ink-3">{cur === LAST ? "All done" : `Step ${cur + 1} of ${STEPS.length} · ${cur} done`}</SheetDescription>
+          </SheetHeader>
+          <ol className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            {STEPS.map((st, i) => { const was = i < cur || (cur === LAST && i === LAST); const now = i === cur && cur !== LAST;
+              const plan = i < cur ? backPlan(i) : null;
+              return <li key={st[0]} aria-current={now ? "step" : undefined} className={`relative flex gap-3 py-2.5 ${now ? "bg-brand-soft/50 -mx-2 px-2" : ""}`}>
+                {i < LAST && <span aria-hidden className={`absolute left-[11px] top-9 bottom-0 w-px ${was ? "bg-good" : "bg-line"}`} />}
+                <StepDot n={i + 1} done={was} tone={was ? "prev" : now ? "cur" : "todo"} />
+                <span className="min-w-0 flex-1">
+                  <span className={`flex items-center gap-2 text-sm ${now ? "font-medium text-brand-hover" : was ? "text-ink" : "text-ink-2"}`}>{st[0]}
+                    {now && <span className="text-xs font-medium tracking-[.06em] text-brand uppercase">Now</span>}
+                    {!was && !now && <span className="ms-auto flex-none text-xs text-ink-3">To do</span>}</span>
+                  <span className="block text-xs leading-snug text-ink-3">{st[1]}</span>
+                  {plan && <button type="button" className="btn btn-sm btn-secondary mt-1.5" onClick={() => { setFlowOpen(false); void plan.run(); }}>Go back to this step</button>}
+                  {now && act >= 0 && <span className="flow-actions mt-1.5 flex flex-wrap items-center gap-2">{stepBack(act)}{stepAct(act)}</span>}
+                </span>
+              </li>; })}
+          </ol>
+        </SheetContent>
+      </Sheet>; })()}
       {/* Both steppers live here while the new eleven-step one is tried out. `BOTTOM_BAR`
          back to true brings our charcoal status bar back and hides hers; nothing else changes. */}
       {BOTTOM_BAR && <>

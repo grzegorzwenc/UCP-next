@@ -29,8 +29,8 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
     {children}
     {st && <ModalShell title={st.title} width={520} onClose={() => close(false)}
       footer={<><button type="button" className="btn btn-sm btn-secondary" autoFocus={!st.typeToConfirm} onClick={() => close(false)}>Cancel</button>
-        {st.alt && <button type="button" className={`btn ${st.alt.danger ? "text-brand" : ""}`} onClick={() => close("alt")}>{st.alt.label}</button>}
-        <button type="button" className={`btn ${st.danger ? "btn-danger" : "btn-primary"}`} disabled={!ready} onClick={() => close(true)}>{st.confirmLabel ?? "Confirm"}</button></>}>
+        {st.alt && <button type="button" className={`btn btn-sm ${st.alt.danger ? "btn-secondary text-brand" : "btn-secondary"}`} onClick={() => close("alt")}>{st.alt.label}</button>}
+        <button type="button" className={`btn btn-sm ${st.danger ? "btn-danger" : "btn-primary"}`} disabled={!ready} onClick={() => close(true)}>{st.confirmLabel ?? "Confirm"}</button></>}>
       {st.body && <div className="text-sm text-ink-2 leading-relaxed">{st.body}</div>}
       {!!st.items?.length && <ul className="mt-3 grid gap-1 max-h-[220px] overflow-auto">{st.items.map((it, i) => <li key={i} className={`flex items-center gap-2 border rounded-md px-3 py-1.5 text-sm ${it.warn ? "border-crit/30 bg-crit-soft" : "border-line"}`}>
         <span className="truncate flex-1 font-medium">{it.label}</span>{it.note && <span className={`text-xs whitespace-nowrap ${it.warn ? "text-crit font-medium" : "text-ink-3"}`}>{it.note}</span>}</li>)}</ul>}

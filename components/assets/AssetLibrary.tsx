@@ -305,8 +305,8 @@ export function AssetLibrary({ marketId, envId, marketName, root, assets, folder
           for the same reason every edit form in that app is: the file stays on screen behind it, and
           one drawer serves both reading and editing instead of a second modal stacking on the first.
           `view` shows the full record; `edit` turns the same drawer into the forms and the actions. */}
-      {a && details && (
-        <Sheet open onOpenChange={(open) => { if (!open) { setDetails(null); setSel(null); } }}>
+      {a && (
+        <Sheet open={!!details} onOpenChange={(open) => { if (!open) { setDetails(null); setSel(null); } }}>
           <SheetContent side="right" className="flex w-[min(28rem,100vw)] flex-col gap-0 p-0 sm:max-w-none">
             <SheetHeader className="gap-1.5 border-b border-line px-5 py-4 pe-12 text-left">
               <SheetTitle className="truncate text-base font-medium" title={a.name}>{a.name}</SheetTitle>
