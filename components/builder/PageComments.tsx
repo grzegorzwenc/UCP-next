@@ -7,6 +7,7 @@ import { relativeTime } from "./VersionHistory";
 
 const FIRST = 5;
 const errText = (e: unknown) => (e instanceof ApiError ? e.problem.title : String(e));
+const JIRA = "M3 7h18v3a2 2 0 0 0 0 4v3H3v-3a2 2 0 0 0 0-4zM15 7v2.5M15 12v0M15 14.5V17"; // the ticket icon of the Jira rail button
 const PIN = "M9 4h6l-1 5 3 3v2h-4v6l-1 1-1-1v-6H7v-2l3-3z";
 
 /**
@@ -50,7 +51,7 @@ export function TargetCard({ target, onShow, onClear, compact = false }: { targe
 /** Kept for other screens: a one-line chip. */
 export const BlockChip = ({ block, onShow }: { block: Ref; onShow?: (r: Ref) => void }) => <TargetCard target={block} onShow={onShow} compact />;
 
-export function PageComments({ marketId, path, about, onClearAbout, focusKey, target, onClearTarget, onShowBlock, onList, bare }: { /** inside a panel that already says "Comments" */ bare?: boolean; marketId: string; path: string; about: { id: string; label: string } | null; onClearAbout: () => void; focusKey: number;
+export function PageComments({ marketId, path, about, onClearAbout, focusKey, target, onClearTarget, onShowBlock, onList, bare, jira = "", jiraAuto = false }: { /** inside a panel that already says "Comments" */ bare?: boolean; /** the page's Jira ticket key ("" = none): comments can be sent to it */ jira?: string; /** Integrate is on: every new comment goes to the ticket */ jiraAuto?: boolean; marketId: string; path: string; about: { id: string; label: string } | null; onClearAbout: () => void; focusKey: number;
   /** review: the component picked on the page (the next comment is about it) */ target?: Ref | null; onClearTarget?: () => void; onShowBlock?: (r: Ref) => void; onList?: (l: PageComment[]) => void }) {
   const { user, can } = useSession(); const admin = user.role === "admin" || !!user.perms.root?.manage;
   const mayWrite = admin || can("edit", path) || can("review", path);
@@ -79,13 +80,15 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-x-2 text-xs"><b className="font-medium text-ink">{c.whoName}</b><time className="text-ink-3" dateTime={c.time} title={new Date(c.time).toLocaleString("en-GB")} suppressHydrationWarning>{relativeTime(c.time)}</time>
                 {c.guest && <span className="text-xs rounded-full bg-surface-3 px-1.5 text-ink-3" title="Commented through a review link without a UCP account">guest</span>}
+                {c.jira && <span className="inline-flex items-center gap-1 text-xs rounded-full bg-info-soft text-info px-1.5" title={`Posted to Jira ${c.jira.key}`}><svg aria-hidden viewBox="0 0 24 24" className="w-3 h-3 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={JIRA} /></svg>In {c.jira.key}</span>}
                 {/* No "Pinned" marker here: the pin button on the right is already filled and amber when
                     pinned, and the row sits in the tinted strip at the top of the panel. The word, and then
                     the lone icon that replaced it, only wrapped onto a line of their own to repeat that. */}</div>
               {c.block && <TargetCard target={c.block} onShow={onShowBlock} compact />}
               {c.version && <div className="mt-0.5 text-xs text-info truncate">About the version from {c.version.label}</div>}
-              {c.stage && <div className="mt-0.5 text-xs text-info">During the {c.stage === "review" ? "author's review" : "business review"}</div>}
+              {c.stage && <div className="mt-0.5 text-xs text-info">{c.stage === "draft" ? "On the draft · business feedback" : `During the ${c.stage === "review" ? "author's review" : "business review"}`}</div>}
               <p className={`mt-0.5 text-sm whitespace-pre-wrap break-words ${c.resolved ? "text-ink-3" : "text-ink"}`}>{c.text}</p>
+              {jira && !c.jira && !c.resolved && mayWrite && <button type="button" disabled={busy} onClick={() => void run(() => ucpApi.sendCommentToJira(marketId, path, c.id))} className="mt-1 inline-flex items-center gap-1 text-xs text-ink-3 hover:text-info underline-offset-2 hover:underline" title={`Post this comment to Jira ${jira}`}><svg aria-hidden viewBox="0 0 24 24" className="w-3 h-3 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={JIRA} /></svg>Send to {jira}</button>}
               {c.resolved && <div className="mt-1 inline-flex items-center gap-1 text-xs text-good"><svg aria-hidden width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>Resolved by {c.resolved.by === user.id ? "you" : c.resolved.name} · <time dateTime={c.resolved.at} suppressHydrationWarning>{relativeTime(c.resolved.at)}</time></div>}
             </div>
             {mayWrite && <div className="flex flex-none items-center gap-0.5 -mr-1">
@@ -117,7 +120,7 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
       {about && <div className="flex items-center gap-2 px-2.5 pt-2 text-xs"><span className="inline-flex items-center gap-1 rounded-full bg-info-soft text-info px-2 py-0.5 min-w-0"><span className="truncate">About the version from {about.label}</span></span><button type="button" className="text-ink-3 hover:text-ink flex-none" onClick={onClearAbout} aria-label="Not about a version"><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button></div>}
       <textarea ref={box} rows={2} value={text} onChange={(e) => setText(e.target.value)} maxLength={2000} placeholder={target ? "What should change here?" : about ? "What about this version?" : target !== undefined ? "Click a text or an image on the page, or write a general comment…" : "Add a comment for the team…"} aria-label="New comment"
         onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); void add(); } }} className="block w-full resize-y border-0 bg-transparent px-2.5 pt-2.5 pb-2 text-sm outline-none" />
-      <div className="flex items-center gap-2 px-2.5 pt-1 pb-2.5"><span className="min-w-0 flex-1 truncate text-xs text-ink-3" title="Press Command (or Ctrl) and Enter together to post">⌘/Ctrl + Enter</span><button type="button" className="btn btn-sm btn-primary flex-none" disabled={!text.trim() || busy} onClick={add}>{busy ? "Posting…" : "Add comment"}</button></div>
+      <div className="flex items-center gap-2 px-2.5 pt-1 pb-2.5"><span className="min-w-0 flex-1 truncate text-xs text-ink-3" title={jira && jiraAuto ? `Also goes to Jira ${jira}. Command (or Ctrl) and Enter posts it.` : "Press Command (or Ctrl) and Enter together to post"}>{jira && jiraAuto ? `Also goes to ${jira}` : "⌘/Ctrl + Enter"}</span><button type="button" className="btn btn-sm btn-primary flex-none" disabled={!text.trim() || busy} onClick={add}>{busy ? "Posting…" : "Add comment"}</button></div>
     </div>}
     {undo && <div role="status" className="cmt-card-in flex items-center gap-2 bg-foreground text-background rounded-lg px-3 py-2 text-xs"><svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-good"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>Comment resolved · hidden from the page
       <button type="button" className="ml-auto font-medium underline underline-offset-2 hover:text-white/80" disabled={busy} onClick={async () => { const id = undo; setUndo(null); clearTimeout(undoTimer.current); await run(() => ucpApi.resolveComment(marketId, path, id, false)); }}>Undo</button></div>}

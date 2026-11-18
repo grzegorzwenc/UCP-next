@@ -33,6 +33,8 @@ import { PanelRightOpen } from "lucide-react";
 import { GripStrip, panelClass, PanelBody, CollapsedRail, IconTabs, CollapseButton, RAIL_W } from "./panels/PanelFrame";
 import { useFloat } from "./panels/useFloat";
 import { EditorVeil } from "./EditorSkeleton";
+import { JiraPanel } from "./JiraPanel";
+import { jiraLabel } from "@/lib/ucp/jira";
 import { ShareReviewDialog } from "@/components/tasks/ShareReviewDialog";
 import { useConfirm } from "@/components/ui/Confirm";
 import { ReviewedChoice } from "@/components/tasks/ReviewedChoice";
@@ -47,7 +49,7 @@ import { useRouter } from "next/navigation";
 import { permForStatus } from "@/lib/ucp/perms";
 
 type Props = { marketId: string; envId: string; marketName: string; flag: string; domain: string; locale: string; envName: string; root: string; page: PageView; /** Open straight into the visitor preview (?preview=1). */ startInPreview?: boolean; names?: Record<string, string>; models?: ContentModelInfo[]; entities?: ResolvedEntities };
-type RightTab = "block" | "page" | "content" | "ai" | "insights" | "comments" | "history";
+type RightTab = "block" | "page" | "content" | "ai" | "insights" | "comments" | "jira" | "history";
 type PageField = "description" | "title";
 /** One page-level AI task: prompt → plan → run → review. `results` keeps the snapshot around each op so it can be undone alone. */
 type AiResult = { before: Block[]; after: Block[]; changes: Change[]; undone: boolean; pageBefore?: string };
@@ -64,7 +66,7 @@ const LEFT_RAIL: [LeftTab, string, string][] = [["components", "Add a component"
 /* Page settings first: it is what the panel opens on, so it leads the rail. */
 /* Version history is not here: it opens from the Save-draft menu, with the other page-level
    actions. Page settings stays, and leads, because it is what the panel opens on. */
-const RAIL: [RightTab, string, string][] = [["page", "Page settings", "M6 3h8l5 5v13H6zM14 3v5h5M9 13h6M9 17h6"], ["block", "Component settings", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"], ["content", "Entities", "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"], ["ai", "AI assistant", "M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 15l.6 1.6L7.2 17l-1.6.6L5 19.2l-.6-1.6L2.8 17l1.6-.4z"], ["insights", "Page insights", "M12 3a9 9 0 1 0 9 9M12 3v9l6.4-6.4M12 12l4 4"], ["comments", "Comments", "M4 5h16v11H9l-5 4zM8 9h8M8 12.5h5"]];
+const RAIL: [RightTab, string, string][] = [["page", "Page settings", "M6 3h8l5 5v13H6zM14 3v5h5M9 13h6M9 17h6"], ["block", "Component settings", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"], ["content", "Entities", "M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"], ["ai", "AI assistant", "M12 3l1.8 4.7L18.5 9l-4.7 1.8L12 15.5l-1.8-4.7L5.5 9l4.7-1.3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8zM5 15l.6 1.6L7.2 17l-1.6.6L5 19.2l-.6-1.6L2.8 17l1.6-.4z"], ["insights", "Page insights", "M12 3a9 9 0 1 0 9 9M12 3v9l6.4-6.4M12 12l4 4"], ["comments", "Comments", "M4 5h16v11H9l-5 4zM8 9h8M8 12.5h5"], ["jira", "Jira", "M3 7h18v3a2 2 0 0 0 0 4v3H3v-3a2 2 0 0 0 0-4zM15 7v2.5M15 12v0M15 14.5V17"]];
 
 
 /** Short step names: nine full names do not fit one status-bar row (same order as STEPS). */
@@ -458,6 +460,14 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   /* Jira ticket for this page (Page settings), shown as a chip next to the title */
   const [jira, setJira] = useState(() => (typeof page.meta?.["ucp:jira"] === "string" ? String(page.meta["ucp:jira"]) : "")); const [jiraDraft, setJiraDraft] = useState(jira); const [jiraErr, setJiraErr] = useState("");
   async function saveJira(v: string) { setJiraErr(""); try { const r = await ucpApi.pageJira(marketId, page.path, v); setJira(r.jira); setJiraDraft(r.jira); say(r.jira ? "Jira ticket linked" : "Jira link removed"); } catch (e) { setJiraErr(e instanceof ApiError ? e.problem.title : "Could not save the link"); } }
+  /* Jira panel (from main): the same link as Page settings keeps, but it returns the error text
+     instead of setting `jiraErr`, because the panel shows its own. Keeping one `jira` state means
+     linking in either place updates both. `jiraOn` is the integration switch — with it on, every
+     page comment copies to the ticket — and `commentsRev` makes the Comments tab reload when the
+     panel has added one. */
+  async function linkJira(v: string): Promise<string> { try { const r = await ucpApi.pageJira(marketId, page.path, v); setJira(r.jira); setJiraDraft(r.jira); say(r.jira ? "Jira ticket linked" : "Jira link removed"); return ""; } catch (e) { return e instanceof ApiError ? e.problem.title : "Could not save the link"; } }
+  const [jiraOn, setJiraOn] = useState(() => page.meta?.["ucp:jiraIntegrate"] === "true");
+  const [commentsRev, setCommentsRev] = useState(0);
   const [patternMode, setPatternMode] = useState(false); // "Create a design pattern": a plain click picks components instead of editing them
   const startPattern = (first?: string) => { if (editing) commitInline(true); setSel(null); setMode("select"); setPop(null); setMulti(first ? [first] : []); setPatternMode(true); };
   const stopPattern = () => { setPatternMode(false); setMulti([]); };
@@ -703,7 +713,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const railBadge = (t: RightTab) => (t === "comments" ? commentCount : t === "insights" ? insightBadge : t === "content" ? Object.keys(bindings).length : t === "ai" ? aiTasks.filter((x) => x.stage !== "done").length : 0);
   const openRight = (t: RightTab) => { setZen(false); if (t === "block" && sel) configure(sel); else { setRightTab(t); setRight(true); } };
   const rightItems = RAIL.map(([t, label, path]) => ({ key: t, label, path, active: right && rightTab === t, badge: railBadge(t), onClick: () => openRight(t) }));
-  const rightTitle = rightTab === "block" ? (selected ? `Configure · ${BLOCK_BY_TYPE[selected.type].name}` : "Configure") : rightTab === "page" ? "Page settings" : rightTab === "content" ? "Entities" : rightTab === "ai" ? "AI assistant" : rightTab === "insights" ? "Page insights" : rightTab === "comments" ? `Comments${commentTotal ? ` · ${commentTotal}` : ""}` : "Version history";
+  const rightTitle = rightTab === "block" ? (selected ? `Configure · ${BLOCK_BY_TYPE[selected.type].name}` : "Configure") : rightTab === "page" ? "Page settings" : rightTab === "content" ? "Entities" : rightTab === "ai" ? "AI assistant" : rightTab === "insights" ? "Page insights" : rightTab === "comments" ? `Comments${commentTotal ? ` · ${commentTotal}` : ""}` : rightTab === "jira" ? "Jira" : "Version history";
   const panelW = rightW; // one width for every tab: a panel that jumps wider on Comments or History reads as a glitch
   const floatingOpen = focus && !phone && ((qcMode && qcOpen) || (reviewMode && floatOpen)); // full screen: keep the page clear of the floating panel
   /* The gutters reserve exactly what the docked panels occupy. They used to skip that on
@@ -904,7 +914,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           </h2>
           <LockedVeil on={!!lockReason && (rightTab === "block" || rightTab === "ai")} reason={lockReason} onEdit={veilEdit}>
           {rightTab === "insights" ? <div className="flex-1 overflow-auto p-4 text-sm"><InsightsPanel blocks={blocks} page={insightMeta} onFix={(apply, label) => { if (!canEdit) { say("Read-only: ask a site admin for Edit"); return; } mutate(apply); say(`Fixed: ${label}`); }} onSelectBlock={(id) => { select(id); const el = canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`); el?.scrollIntoView({ block: "center", behavior: "smooth" }); }} /></div>
-          : rightTab === "comments" ? <div className="flex-1 overflow-auto p-4 text-sm"><PageComments marketId={marketId} path={page.path} about={commentAbout} onClearAbout={() => setCommentAbout(null)} focusKey={commentFocus} bare {...reviewProps} /></div>
+          : rightTab === "jira" ? <JiraPanel marketId={marketId} path={page.path} jira={jira} step={STEPS[cur][0]} canWork={isAdmin || canEdit || can("review", page.path)} onLink={linkJira} onChange={(st) => { setJiraOn(st.integrate); setCommentsRev((n) => n + 1); }} />
+          : rightTab === "comments" ? <div className="flex-1 overflow-auto p-4 text-sm"><PageComments key={`c${commentsRev}`} jira={jira ? jiraLabel(jira) : ""} jiraAuto={jiraOn} marketId={marketId} path={page.path} about={commentAbout} onClearAbout={() => setCommentAbout(null)} focusKey={commentFocus} bare {...reviewProps} /></div>
           : rightTab === "history" ? <div className="flex-1 overflow-auto p-4 text-sm"><VersionHistory marketId={marketId} path={page.path} currentBlocks={blocks.length} onCommentVersion={(a) => { setCommentAbout(a); setCommentFocus((k) => k + 1); setRightTab("comments"); }} onRestored={() => { router.refresh(); say("Version restored · reloading"); setTimeout(() => window.location.reload(), 400); }} /></div>
           : rightTab === "content" ? <div className="flex-1 overflow-auto p-4 text-sm"><EntitiesPanel marketId={marketId} base={`/${marketId}/${envId}`} pagePath={page.path} bindings={bindings} entities={entities} models={models} blocks={blocks} canEdit={canEdit && !locked} onChange={setBindings} say={say} /></div>
           : rightTab === "ai" ? <AiPanel tasks={aiTasks} draft={aiDraft} setDraft={setAiDraft} dirty={dirty} onAsk={startAiTask} onToggle={(t, id) => patchTask(t.id, (x) => ({ ...x, on: { ...x.on, [id]: !x.on[id] } }))} onRun={runAiTask} onUndo={undoAiOp} onRedo={redoAiOp} onUndoAll={undoAllAi} onSave={() => save().then(() => say("Saved")).catch(() => {})} /> : <div className="flex-1 overflow-auto text-sm">
@@ -928,7 +939,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
                 <div className="text-xs text-ink-2 font-medium"><label htmlFor="pg-jira">Jira ticket</label>
                   <form className="mt-1 flex gap-1.5" onSubmit={(e) => { e.preventDefault(); void saveJira(jiraDraft); }}><input id="pg-jira" className="bdl-field min-w-0 flex-1" value={jiraDraft} onChange={(e) => { setJiraDraft(e.target.value); setJiraErr(""); }} placeholder="UCP-123 or https://…/browse/UCP-123" />
                     {jiraDraft.trim() !== jira && <button className="btn btn-sm btn-primary">Save</button>}</form>
-                  {jiraErr ? <small className="text-xs block mt-1 text-crit font-normal">{jiraErr}</small> : jira ? <span className="mt-1.5 flex items-center gap-2 font-normal"><JiraChip url={jira} /><button type="button" className="text-xs text-ink-3 underline underline-offset-2 hover:text-ink" onClick={() => void saveJira("")}>Remove link</button></span> : <small className="text-xs block mt-1 text-ink-3 font-normal">The ticket this page is built for. Everyone can open it from the page.</small>}</div>
+                  {jiraErr ? <small className="text-xs block mt-1 text-crit font-normal">{jiraErr}</small> : jira ? <span className="mt-1.5 flex items-center gap-2 font-normal"><JiraChip url={jira} /><button type="button" className="btn btn-sm btn-secondary" onClick={() => void saveJira("")}>Remove link</button></span> : <small className="text-xs block mt-1 text-ink-3 font-normal">The ticket this page is built for. Everyone can open it from the page.</small>}</div>
               </Section>
               <Section t="Technical" open={false}>
                 <div className="text-xs text-ink-2 font-medium">Repository path (JCR)<ReadOnly>{page.path}/jcr:content</ReadOnly><small className="text-xs text-ink-3 font-normal">Components are stored under jcr:content/root as nodes with sling:resourceType</small></div>
