@@ -1156,8 +1156,24 @@
 .cmt-card-in {
   animation: cmt-card-in 0.22s ease-out;
 }
+/* The reverse of cmt-card-in, for something that folds away rather than simply vanishing. The
+   caller keeps it mounted for the duration, then unmounts. */
+.cmt-card-out {
+  animation: cmt-card-out 0.18s ease-in forwards;
+}
+@keyframes cmt-card-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
 @media (prefers-reduced-motion: reduce) {
-  .cmt-card-in {
+  .cmt-card-in,
+  .cmt-card-out {
     animation: none;
   }
 }

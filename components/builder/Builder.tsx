@@ -118,12 +118,16 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const canEdit = can("edit", page.path) && !lockedByOther; const mayStatus = (s: PageStatus) => can(permForStatus[s], page.path);
   const [blocks, setBlocks] = useState<Block[]>(() => componentsToBlocks(page.components));
   const [status, setStatus] = useState<PageStatus>(page.status);
-  const [flowOpen, setFlowOpenRaw] = useState(false); const flowRef = useRef<HTMLDivElement>(null);
+  const [flowOpen, setFlowOpenRaw] = useState(false);
   const [backTo, setBackTo] = useState<number | null>(null); const backToRef = useRef<number | null>(null); backToRef.current = backTo; // "Go back to this step?" shown inside the list (no dialog on top of the dropdown)
   const setFlowOpen = (v: boolean) => { setFlowOpenRaw(v); setBackTo(null); };
-  useEffect(() => { if (!flowOpen) return; const off = (e: MouseEvent) => { if (!flowRef.current?.contains(e.target as Node)) { setFlowOpenRaw(false); setBackTo(null); } };
-    const esc = (e: KeyboardEvent) => { if (e.key !== "Escape") return; if (backToRef.current !== null) setBackTo(null); else setFlowOpenRaw(false); };
-    window.addEventListener("mousedown", off); window.addEventListener("keydown", esc); return () => { window.removeEventListener("mousedown", off); window.removeEventListener("keydown", esc); }; }, [flowOpen]);
+  /* Her dropdown closed itself on an outside mousedown via `flowRef`. The list is a Sheet now,
+     which brings its own outside-click and Escape handling — and `flowRef` is attached to
+     nothing, so `flowRef.current` was null and the handler closed the drawer on every click,
+     including the Share button inside it. */
+  const [shareIn, setShareIn] = useState<"bar" | "drawer">("bar"); // where "Share draft" was pressed
+  const [shareClosing, setShareClosing] = useState(false); // playing the fold-away before it unmounts
+  const closeDrawerShare = () => { setShareClosing(true); window.setTimeout(() => { setShareClosing(false); setShare(false); }, 180); };
   const [draftPhase, setDraftPhase] = useState<"draft" | "shared" | "build">(() => { const v = page.meta?.["ucp:draftPhase"]; return v === "shared" || v === "build" ? v : "draft"; });
   const [title, setTitle] = useState(page.title);
   const [sel, setSel] = useState<string | null>(null);
@@ -1080,6 +1084,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {status === "scheduled" && publishAt && <p className="text-sm bg-warn-soft rounded-md px-3 py-2 mt-3">The scheduled publish on <b>{new Date(publishAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}</b> is cancelled.</p>}
         </ModalShell>}
         {decide && <ReviewedChoice title={title} onBehalf={status === "inreview" && onBehalf ? assigneeName || "the reviewer" : undefined} onClose={() => setDecide(false)} onSend={sendToBiz} onReauthor={() => reauthor(true)} />}
+        {/* The draft share: without this the "Share draft" button set `share` and nothing rendered,
+            because the only ShareReviewDialog here was the business-review one. */}
+        {share && shareIn === "bar" && (status === "draft" || status === "failed") && <ShareReviewDialog key="draft" marketId={marketId} path={page.path} title={title} stage="draft" onClose={() => setShare(false)} />}
         {share && status === "bizreview" && <ShareReviewDialog key={status} marketId={marketId} path={page.path} title={title} stage="bizreview" onClose={() => setShare(false)} onAccess={(a) => { if (a.group) setBizGroups((g) => (g.includes(a.group!) ? g : [...g, a.group!])); if (a.person) setBizTaken(a.person); }}
           onApprove={isAdmin ? () => transition("approved", "Signed off as site admin · ready to publish") : undefined} />}
         {publishing && <PublishDialog marketId={marketId} envName={envName} pages={[{ path: page.path, title, status, publishAt }]} mayPublish={() => mayStatus("published")} onClose={() => setPublishing(false)}
@@ -1106,7 +1113,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             <b className="truncate font-medium text-white">{STEPS[cur][0]}</b>
             <span className="hidden truncate text-xs text-white/55 lg:inline">{STEPS[cur][1]}</span>
           </p>
-          <div className="flex w-[22rem] flex-none items-center justify-end gap-2">
+          <div className="flex flex-none items-center gap-2"><div className="flex w-[22rem] flex-none items-center justify-end gap-2" onClickCapture={() => setShareIn("bar")}>
             {back && <button type="button" onClick={back} className="btn btn-sm btn-secondary" title={`Back to ${STEPS[cur - 1][0]}`}>‹ Back</button>}
             {act >= 0 && <>{stepBack(act)}{stepAct(act)}</>}
           </div>
@@ -1115,11 +1122,14 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             className="flex flex-none items-center gap-2 border border-white/30 px-2.5 py-1.5 text-xs leading-4 font-medium whitespace-nowrap text-white/80 hover:border-white hover:text-white">
             <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" /></svg>
             Workflow<span className="tabular-nums text-white/55">{cur + 1}/{STEPS.length}</span>
-          </button>
+          </button></div>
         </div>;
       })()}
       {/* Every step, in a drawer */}
-      {(() => { const act = hasAct(cur) ? cur : (MOBILE_ORDER.find(hasAct) ?? -1); return <Sheet open={flowOpen} onOpenChange={(o) => { if (!o) setFlowOpen(false); }}>
+      {(() => { const act = hasAct(cur) ? cur : (MOBILE_ORDER.find(hasAct) ?? -1);
+        /* the draft steps share by link, so the drawer carries the link itself */
+        const shareHere = (status === "draft" || status === "failed") && (cur === 0 || cur === 1);
+        return <Sheet open={flowOpen} onOpenChange={(o) => { if (!o) setFlowOpen(false); }}>
         <SheetContent side="right" className="flex w-[min(26rem,100vw)] flex-col gap-0 p-0 sm:max-w-none">
           <SheetHeader className="gap-1 border-b border-line px-5 py-4 pe-12 text-left">
             <SheetTitle className="text-base font-medium">Workflow</SheetTitle>
@@ -1128,16 +1138,23 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           <ol className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
             {STEPS.map((st, i) => { const was = i < cur || (cur === LAST && i === LAST); const now = i === cur && cur !== LAST;
               const plan = i < cur ? backPlan(i) : null;
-              return <li key={st[0]} aria-current={now ? "step" : undefined} className={`relative flex gap-3 py-2.5 ${now ? "bg-brand-soft/50 -mx-2 px-2" : ""}`}>
+              const dim = share && shareIn === "drawer" && !shareClosing && i > cur; // the share has the floor
+              return <li key={st[0]} aria-current={now ? "step" : undefined} className={`relative flex gap-3 py-2.5 transition-opacity duration-200 ${now ? "bg-brand-soft/50 -mx-2 px-2" : ""} ${dim ? "opacity-35" : ""}`}>
                 {i < LAST && <span aria-hidden className={`absolute left-[11px] top-9 bottom-0 w-px ${was ? "bg-good" : "bg-line"}`} />}
                 <StepDot n={i + 1} done={was} tone={was ? "prev" : now ? "cur" : "todo"} />
                 <span className="min-w-0 flex-1">
-                  <span className={`flex items-center gap-2 text-sm ${now ? "font-medium text-brand-hover" : was ? "text-ink" : "text-ink-2"}`}>{st[0]}
-                    {now && <span className="text-xs font-medium tracking-[.06em] text-brand uppercase">Now</span>}
+                  <span className={`flex items-center gap-2 text-xs ${now ? "font-medium text-brand-hover" : was ? "text-ink" : "text-ink-2"}`}><span className="min-w-0 truncate" title={st[0]}>{st[0]}</span>
+                    {/* what the step is waiting on, once the draft link has gone out */}
+                    {i === 1 && draftPhase === "shared" && <span className="flex-none border border-bdl-rag-blue bg-bdl-info-bg px-1.5 text-xs text-bdl-charcoal">{commentTotal ? `${commentTotal} comment${commentTotal === 1 ? "" : "s"}` : "Awaiting"}</span>}
+                    {now && <span className="ms-auto flex-none text-xs font-medium tracking-[.06em] text-brand uppercase">Now</span>}
                     {!was && !now && <span className="ms-auto flex-none text-xs text-ink-3">To do</span>}</span>
                   <span className="block text-xs leading-snug text-ink-3">{st[1]}</span>
                   {plan && <button type="button" className="btn btn-sm btn-secondary mt-1.5" onClick={() => { setFlowOpen(false); void plan.run(); }}>Go back to this step</button>}
-                  {now && act >= 0 && <span className="flow-actions mt-1.5 flex flex-wrap items-center gap-2">{stepBack(act)}{stepAct(act)}</span>}
+                  {now && act >= 0 && <span className="flow-actions mt-1.5 flex flex-wrap items-center gap-2" onClickCapture={() => setShareIn("drawer")}>{stepBack(act)}{stepAct(act)}</span>}
+                  {now && shareHere && share && shareIn === "drawer" && <span className={`${shareClosing ? "cmt-card-out" : "cmt-card-in"} mt-2.5 block border-t border-line pt-2.5`}>
+                    <ShareReviewDialog inline marketId={marketId} path={page.path} title={title} stage="draft" onClose={closeDrawerShare} />
+                    <button type="button" className="btn btn-sm btn-secondary mt-3" onClick={closeDrawerShare}>Done</button>
+                  </span>}
                 </span>
               </li>; })}
           </ol>
