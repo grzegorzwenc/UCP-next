@@ -33,6 +33,7 @@ import { PanelRightOpen } from "lucide-react";
 import { GripStrip, panelClass, PanelBody, CollapsedRail, IconTabs, CollapseButton, RAIL_W } from "./panels/PanelFrame";
 import { useFloat } from "./panels/useFloat";
 import { EditorVeil } from "./EditorSkeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/shadcn/tooltip";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/shadcn/sheet";
 import { JiraPanel } from "./JiraPanel";
 import { jiraLabel } from "@/lib/ucp/jira";
@@ -745,6 +746,33 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     return () => void (async () => { if (await ask({ title: `Go back to ${STEPS[cur - 1][0]}?`, body: plan.why, confirmLabel: `Go back to ${STEPS[cur - 1][0]}` })) await plan.run(); })();
   };
   /** Actions that take the page back (left of the progress strip); stepAct holds the ones that move it on (right). */
+  /* Demo only: jump the page to the state the next step describes.
+     The handover steps belong to somebody else — a reviewer claims the review, a business reviewer
+     signs off — so an author walking a demo cannot reach them at all. This writes the same status
+     and meta the real buttons would and nothing else: no task, no audit entry, no notification.
+     Deliberately a small icon with a tooltip that says so, not a labelled action. */
+  const FF: Record<number, { label: string; via: PageStatus[]; meta?: Record<string, string> }> = {
+    4: { label: "Assigned to reviewer", via: [], meta: { "ucp:assignee": user.id } },
+    5: { label: "In author's review", via: ["inreview"] },
+    /* `bizreview` cannot follow `inreview` — the API insists the author's review is marked done
+       first — so this makes the same two hops a reviewer would. */
+    6: { label: "Waiting for business review assignment", via: ["reviewed", "bizreview"] },
+    7: { label: "In business review", via: [], meta: { "ucp:taskKind": "BizReview", "ucp:taskAssignee": user.id } },
+    8: { label: "Ready to publish", via: ["approved"] },
+    9: { label: "Published", via: ["published"] },
+  };
+  const ffJump = async (i: number) => {
+    const next = FF[i]; if (!next) return;
+    try {
+      for (const st of next.via) { await repoApi.updateContent(page.path, { status: st }); setStatus(st); }
+      if (next.meta) {
+        await repoApi.setProps(`${page.path}/jcr:content`, next.meta);
+        if (next.meta["ucp:assignee"]) setAssignee(next.meta["ucp:assignee"]);
+        if (next.meta["ucp:taskAssignee"]) setBizTaken(next.meta["ucp:taskAssignee"]);
+      }
+      say(`Demo: moved to ${next.label}`); router.refresh();
+    } catch (e) { say(e instanceof ApiError ? e.problem.title : "That did not work"); }
+  };
   const stepBack = (i: number): React.ReactNode => i - 2 === 6 && bizAssigned && (mayBizApprove || canEdit) ? <button className="btn btn-sm" onClick={() => void reauthor()} title="Send it back to the author: the page returns to Build the page">Reauthor</button> : null;
   /** Our bottom bar's single action (only used while BOTTOM_BAR is on). */
   const actStep = [cur, ...MOBILE_ORDER].find(hasAct);
@@ -1100,7 +1128,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {sending && shareIn === "bar" && <SendForReviewModal marketId={marketId} pagePath={page.path} onClose={() => setSending(false)} onSend={sendForReview} />}
         {translating && <TranslateModal marketId={marketId} path={page.path} title={title} onClose={() => setTranslating(false)} onDone={(created) => { say(`Created ${created.length} translation${created.length === 1 ? "" : "s"}`); router.refresh(); }} />}
         {firstStage && <AuthorsChip trigger={false} anchorRef={actionsRef} openSignal={authorsSignal} authors={authors} meId={user.id} admin={isAdmin} canEdit={canEdit} people={names} onAction={authorAction} />}
-        {toast && <div style={{ bottom: focus ? 24 : 60 }} className="fixed left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm shadow-xl z-50">{toast}</div>}
+        {toast && <div style={{ bottom: focus ? 24 : 60 }} className="fixed left-1/2 z-[90] -translate-x-1/2 rounded-lg bg-foreground px-4 py-2.5 text-sm text-background shadow-xl">{toast}</div>}
         {/* Closing mirrors opening: the same spinner-over-label as the "Loading editor" skeleton, so the editor opens and shuts with one look. */}
         {closing && <EditorVeil label={closing} detail={title} />}
       </div>
@@ -1157,7 +1185,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
                 {i < LAST && <span aria-hidden className={`absolute left-[11px] top-9 bottom-0 w-px ${was ? "bg-good" : "bg-line"}`} />}
                 <StepDot n={i + 1} done={was} tone={was ? "prev" : now ? "cur" : "todo"} />
                 <span className="min-w-0 flex-1">
-                  <span className={`flex items-center gap-2 text-xs ${now ? "font-medium text-brand-hover" : was ? "text-ink" : "text-ink-2"}`}><span className="min-w-0 truncate" title={st[0]}>{st[0]}</span>
+                  <span className={`flex items-center gap-2 text-xs ${now ? "font-medium text-brand-hover" : was ? "text-ink" : "text-ink-2"}`}><span className="min-w-0 truncate" title={st[0]}>{st[0]}</span>{now && FF[i] && <Tooltip><TooltipTrigger render={<button type="button" aria-label={`Demo only: skip to ${FF[i].label}`} onClick={() => void ffJump(i)} className="grid h-5 w-5 flex-none place-items-center border border-line-2 text-ink-3 hover:border-ink-4 hover:text-ink" />}><svg viewBox="0 0 24 24" aria-hidden className="h-3 w-3 fill-current"><path d="M4 5l8 7-8 7zM13 5l8 7-8 7z" /></svg></TooltipTrigger><TooltipContent>Demo only · skips to “{FF[i].label}” without the real handover</TooltipContent></Tooltip>}
                     {/* what the step is waiting on, once the draft link has gone out */}
                     {i === 1 && draftPhase === "shared" && <span className="flex-none border border-bdl-rag-blue bg-bdl-info-bg px-1.5 text-xs text-bdl-charcoal">{commentTotal ? `${commentTotal} comment${commentTotal === 1 ? "" : "s"}` : "Awaiting"}</span>}
                     {now && <span className="ms-auto flex-none text-xs font-medium tracking-[.06em] text-brand uppercase">Now</span>}
