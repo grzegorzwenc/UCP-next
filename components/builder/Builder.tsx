@@ -79,8 +79,14 @@ const JIRA_TAB = false;
 /** The right rail as shown: the Jira tab is held back for now. */
 const RAIL_SHOWN = () => RAIL.filter(([t]) => JIRA_TAB || t !== "jira");
 /** Short step names used when the stepper is narrow (same order as STEPS). */
-const STEP_SHORT = ["Draft", "Share", "Build", "Preview", "Waiting", "Assigned", "In review", "Biz waiting", "Business", "Ready", "Live"];
-const STEPS = [["Build the draft", "A first version to show the business"], ["Share with the business", "The business sees the draft by link and comments"], ["Build the page", "Work in the feedback and finish the content"], ["Preview", "See it exactly as visitors will"], ["Waiting for a reviewer", "Sent · no reviewer has taken it yet"], ["Assigned to reviewer", "A reviewer has taken it · not started yet"], ["In author's review", "The reviewer is checking it"], ["Waiting for business review assignment", "Reviewed · no business reviewer has taken it yet"], ["In business review", "Business sign-off"], ["Ready to publish", "Reviewed · click Publish"], ["Published", "Live for customers"]];
+const STEP_SHORT = ["Build", "Preview", "Share", "Waiting", "Assigned", "In review", "Biz waiting", "Business", "Ready", "Live"];
+/* Build it, check it yourself, optionally show the business, then the two reviews and publish.
+   "Build the draft" and "Build the page" used to be separate steps either side of the business
+   share; they are the same activity, so they are one step and sharing moved after Preview — you
+   look at it before anyone else does. Share and the business review are both optional. */
+const STEPS = [["Build the page", "Add blocks and fill in the content"], ["Preview", "See it exactly as visitors will"], ["Share with the business", "Optional · the business sees the draft by link and comments"], ["Waiting for a reviewer", "Sent · no reviewer has taken it yet"], ["Assigned to reviewer", "A reviewer has taken it · not started yet"], ["In author's review", "The reviewer is checking it"], ["Waiting for business review assignment", "Optional · no business reviewer has taken it yet"], ["In business review", "Business sign-off"], ["Ready to publish", "Reviewed · click Publish"], ["Published", "Live for customers"]];
+/** Steps a page can skip: sharing the draft, and the business review. */
+const OPTIONAL = new Set([2, 6, 7]);
 /** Page progress cells: one look for all of them, the accent colour says what the cell is. */
 type FlowTone = "prev" | "cur" | "act" | "next" | "todo";
 const FLOW_TONE: Record<FlowTone, { bar: string; cap: string; bg: string }> = {
@@ -198,7 +204,17 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [, setStage] = useState<"blocks" | "content">(() => (page.components.length ? "content" : "blocks"));
   const locked = status === "review" || status === "inreview" || status === "reviewed" || status === "bizreview" || status === "approved" || status === "scheduled" || status === "published";
   /* one step at a time: a draft is on Build until it has been previewed, then on Preview (changing the content sends it back to Build) */
-  const [previewed, setPreviewed] = useState(false);
+  /* "The author has looked at it" is a step in the workflow, so it lives on the page, not in this
+     component. It used to be plain component state: a reload put the page back to Build, and a
+     reviewer opening it saw a different step from the author. Editing clears it — a page changed
+     since it was last previewed has not really been previewed. */
+  const [previewed, setPreviewedRaw] = useState(() => page.meta?.["ucp:previewed"] === "true");
+  const previewedRef = useRef(previewed);
+  const setPreviewed = useCallback((v: boolean) => {
+    if (previewedRef.current === v) return;
+    previewedRef.current = v; setPreviewedRaw(v);
+    void repoApi.setProps(`${page.path}/jcr:content`, { "ucp:previewed": v ? "true" : null }).catch(() => {});
+  }, [page.path]);
   const inAuthor = status === "review" || status === "inreview"; // waiting for / in the author's review
   const [lockedSeen, setLockedSeen] = useState(false); // locked stages are read-only: switch to preview and drop the selection when the status changes
   if (lockedSeen !== locked) { setLockedSeen(locked); if (locked) { setPreviewRaw(true); setSel(null); setMode("select"); setPop(null); } else if (canEdit) setPreviewRaw(false); }
@@ -229,8 +245,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [bizGroups, setBizGroups] = useState<string[]>(() => { try { return JSON.parse(String(page.meta?.["ucp:reviewGroups"] ?? "[]")) as string[]; } catch { return []; } });
   const bizAssigned = status === "bizreview" && (!!bizAssignee || bizGroups.length > 0);
   const [decide, setDecide] = useState(false); // "Reviewed": send to business review or reauthor
-  const early = (status === "draft" || status === "failed") && draftPhase !== "build"; // still at Build the draft / Share with the business
-  const cur = early ? (draftPhase === "shared" ? 1 : 0) : 2 + (status === "published" ? 8 : status === "approved" || status === "scheduled" ? 7 : status === "bizreview" ? (bizAssigned ? 6 : 5) : status === "reviewed" || status === "inreview" ? 4 : status === "review" ? (assignee ? 3 : 2) : focus || previewCheck || previewed ? 1 : 0);
+  const early = status === "draft" || status === "failed"; // still the author's: build, preview, share
+  /* Build (0) → Preview (1) → Share (2), then the review chain from 3. `draftPhase` only
+     distinguishes "the business has the link" from the rest; previewing moves 0 → 1. */
+  const cur = early
+    ? (draftPhase === "shared" ? 2 : focus || previewCheck || previewed ? 1 : 0)
+    : 3 + (status === "published" ? 6 : status === "approved" || status === "scheduled" ? 5 : status === "bizreview" ? (bizAssigned ? 4 : 3) : status === "reviewed" || status === "inreview" ? 2 : status === "review" ? (assignee ? 1 : 0) : 0);
   const LAST = STEPS.length - 1;
   const bizName = bizAssignee ? names[bizAssignee] ?? bizAssignee : "";
   const mayBizSelf = mayStatus("approved") && (bizAssignee ? bizAssignee === user.id : authorReviewer !== user.id);
@@ -734,14 +754,20 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   };
   /** "← Back" sits right before the current step: Share with the business → Build the draft, Build the page → Share with the business. */
   const backOf = (i: number): (() => void) | null => !canEdit || !notYet ? null
-    : i === 1 && draftPhase === "shared" ? () => void setPhase("draft", "Back at Build the draft · the link keeps working")
-    : i === 2 && draftPhase === "build" ? () => void setPhase("shared", "Back at Share with the business") : null;
-  /* The two draft steps come first; every later step keeps its own actions (shifted by two) */
-  const hasAct = (i: number) => i === 0 ? notYet && canEdit && draftPhase === "draft" : i === 1 ? notYet && canEdit && draftPhase === "shared" : !(notYet && draftPhase !== "build") && hasAct0(i - 2);
+    : i === 2 && draftPhase === "shared" ? () => void setPhase("draft", "Back at Preview · the business link keeps working") : null;
+  /* Build, Preview and Share are the author's; everything from 3 is the old review chain, shifted
+     by one because the two build steps became one. */
+  const hasAct = (i: number) =>
+    i === 0 ? notYet && canEdit && !seen
+    : i === 1 ? notYet && canEdit && seen && draftPhase !== "shared"
+    : i === 2 ? notYet && canEdit && draftPhase === "shared"
+    : !notYet && hasAct0(i - 1);
   const stepAct = (i: number): React.ReactNode =>
-    i === 0 ? <><button className="btn btn-sm whitespace-nowrap" onClick={() => void setPhase("build", "Skipped sharing the draft · now at Build the page")} title="Go straight to Build the page without showing the draft to the business">Skip</button><button className="btn btn-sm btn-primary btn-next whitespace-nowrap" onClick={() => { if (dirty) save().catch(() => {}); void setPhase("shared"); setShare(true); }} title="Send the business a link to the draft so they can comment early"><span className="min-[1700px]:hidden">Share draft</span><span className="hidden min-[1700px]:inline">Share with the business</span></button></>
-    : i === 1 ? <><button className="btn btn-sm whitespace-nowrap" onClick={() => { if (dirty) save().catch(() => {}); setShare(true); }} title="Copy the link again, or send it to more people">Share link</button><button className="btn btn-sm btn-primary btn-next whitespace-nowrap" onClick={() => void setPhase("build", "Now at Build the page · the business can keep commenting until you send it for review")} title="Next: Build the page · work their comments into the page and finish it">Continue</button></>
-    : stepAct0(i - 2);
+    i === 0 ? stepAct0(0)
+    /* Preview: show the business first, or go straight to review — sharing is optional. */
+    : i === 1 ? <><button className="btn btn-sm whitespace-nowrap" onClick={() => { if (dirty) save().catch(() => {}); void setPhase("shared", "The business can see the draft"); }} title="Let the business see the draft and comment before it goes for review">Share with the business</button>{stepAct0(1)}</>
+    : i === 2 ? <><button className="btn btn-sm whitespace-nowrap" onClick={() => { if (dirty) save().catch(() => {}); setShare(true); }} title="Copy the link again, or send it to more people">Share link</button>{stepAct0(1)}</>
+    : stepAct0(i - 1);
   /* Workflow list → "Go back" to an earlier step. Author steps (0–3) reopen the page for editing; review steps undo one hand-over. */
   const backPlan = (j: number): { why: string; run: () => Promise<void> } | null => {
     if (j >= cur) return null; const reopen = status !== "draft" && status !== "failed"; const mine = isAdmin || assignee === user.id;
@@ -767,14 +793,14 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
      and meta the real buttons would and nothing else: no task, no audit entry, no notification.
      Deliberately a small icon with a tooltip that says so, not a labelled action. */
   const FF: Record<number, { label: string; via: PageStatus[]; meta?: Record<string, string> }> = {
-    4: { label: "Assigned to reviewer", via: [], meta: { "ucp:assignee": user.id } },
-    5: { label: "In author's review", via: ["inreview"] },
+    3: { label: "Assigned to reviewer", via: [], meta: { "ucp:assignee": user.id } },
+    4: { label: "In author's review", via: ["inreview"] },
     /* `bizreview` cannot follow `inreview` — the API insists the author's review is marked done
        first — so this makes the same two hops a reviewer would. */
-    6: { label: "Waiting for business review assignment", via: ["reviewed", "bizreview"] },
-    7: { label: "In business review", via: [], meta: { "ucp:taskKind": "BizReview", "ucp:taskAssignee": user.id } },
-    8: { label: "Ready to publish", via: ["approved"] },
-    9: { label: "Published", via: ["published"] },
+    5: { label: "Waiting for business review assignment", via: ["reviewed", "bizreview"] },
+    6: { label: "In business review", via: [], meta: { "ucp:taskKind": "BizReview", "ucp:taskAssignee": user.id } },
+    7: { label: "Ready to publish", via: ["approved"] },
+    8: { label: "Published", via: ["published"] },
   };
   const ffJump = async (i: number) => {
     const next = FF[i]; if (!next) return;
@@ -1200,8 +1226,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
            (stage "review" was supported by the dialog but had no call site, so while the page sat in
            the queue there was no way to send the link on or chase anyone). */
         const shareStage: "draft" | "review" | null =
-          (status === "draft" || status === "failed") && (cur === 0 || cur === 1) ? "draft"
-          : status === "review" && (cur === 4 || cur === 5) ? "review" : null;
+          (status === "draft" || status === "failed") && (cur === 1 || cur === 2) ? "draft"
+          : status === "review" && (cur === 3 || cur === 4) ? "review" : null;
         const shareHere = shareStage !== null;
         return <Sheet open={flowOpen} onOpenChange={(o) => { if (!o) setFlowOpen(false); }}>
         <SheetContent side="right" className="flex w-[min(26rem,100vw)] flex-col gap-0 p-0 sm:max-w-none">
@@ -1219,9 +1245,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
                 <span className="min-w-0 flex-1">
                   <span className={`flex items-center gap-2 text-xs ${now ? "font-medium text-brand-hover" : was ? "text-ink" : "text-ink-2"}`}><span className="min-w-0 truncate" title={st[0]}>{st[0]}</span>{now && FF[i] && <Tooltip><TooltipTrigger render={<button type="button" aria-label={`Demo only: skip to ${FF[i].label}`} onClick={() => void ffJump(i)} className="grid h-5 w-5 flex-none place-items-center border border-line-2 text-ink-3 hover:border-ink-4 hover:text-ink" />}><svg viewBox="0 0 24 24" aria-hidden className="h-3 w-3 fill-current"><path d="M4 5l8 7-8 7zM13 5l8 7-8 7z" /></svg></TooltipTrigger><TooltipContent>Demo only · skips to “{FF[i].label}” without the real handover</TooltipContent></Tooltip>}
                     {/* what the step is waiting on, once the draft link has gone out */}
-                    {i === 1 && draftPhase === "shared" && <span className="flex-none border border-bdl-rag-blue bg-bdl-info-bg px-1.5 text-xs text-bdl-charcoal">{commentTotal ? `${commentTotal} comment${commentTotal === 1 ? "" : "s"}` : "Awaiting"}</span>}
+                    {i === 2 && draftPhase === "shared" && <span className="flex-none border border-bdl-rag-blue bg-bdl-info-bg px-1.5 text-xs text-bdl-charcoal">{commentTotal ? `${commentTotal} comment${commentTotal === 1 ? "" : "s"}` : "Awaiting"}</span>}
                     {now && <span className="ms-auto flex-none text-xs font-medium tracking-[.06em] text-brand uppercase">Now</span>}
-                    {!was && !now && <span className="ms-auto flex-none text-xs text-ink-3">To do</span>}</span>
+                    {!was && !now && <span className="ms-auto flex-none text-xs text-ink-3">{OPTIONAL.has(i) ? "Optional" : "To do"}</span>}</span>
                   <span className="block text-xs leading-snug text-ink-3">{st[1]}</span>
                   {now && hasAct(cur) && insightWarn && <span className="mt-1 block">{insightWarn}</span>}
                   {plan && <button type="button" className="btn btn-sm btn-secondary mt-1.5" onClick={() => { setFlowOpen(false); void plan.run(); }}>Go back to this step</button>}
