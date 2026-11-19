@@ -1153,6 +1153,56 @@
     transform: none;
   }
 }
+/* Preview: where the Must-fix problems are.
+   Only inside `body.focus` — the editor already points at them through Page insights and the block
+   toolbars, and outlining them on the editing canvas as well would be noise on top of noise. The
+   preview is the one place the author is looking at the page as a whole with nothing marked up. */
+/* The block the quality checklist was just clicked for: a short pulse so the eye lands on it. */
+.qc-flash {
+  animation: qc-flash 1.5s ease-out 1;
+}
+@keyframes qc-flash {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(219, 0, 17, 0);
+  }
+  15%,
+  55% {
+    box-shadow: 0 0 0 4px rgba(219, 0, 17, 0.45);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .qc-flash {
+    animation: none;
+    outline: 2px solid var(--crit);
+  }
+}
+
+body.focus .crit-blk {
+  position: relative;
+  outline: 2px solid var(--crit);
+  outline-offset: -2px;
+}
+body.focus .crit-blk::after {
+  content: "Must fix";
+  position: absolute;
+  top: 0;
+  inset-inline-start: 0;
+  z-index: 5;
+  padding: 2px 8px;
+  background: var(--crit);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1rem;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  body.focus .crit-blk {
+    transition: outline-color 160ms var(--ease-out);
+  }
+}
 .cmt-card-in {
   animation: cmt-card-in 0.22s ease-out;
 }

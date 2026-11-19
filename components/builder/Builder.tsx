@@ -278,6 +278,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const reviewProps = reviewMode ? { target: commentTarget, onClearTarget: () => setCommentTarget(null), onShowBlock: showBlock, onList: onCommentList } : { onShowBlock: showBlock, onList: onCommentList };
   const select = (id: string | null) => { setSel(id); setMode("select"); setPop(null); setMulti([]); if (id) setZen(false); if (id && right && rightTab === "block") setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
   /** Scroll a block into view once React has painted it. */
+  const [qcFlash, setQcFlash] = useState(""); // the block the quality checklist just pointed at
   const revealBlock = (id: string) => requestAnimationFrame(() => requestAnimationFrame(() => {
     canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" });
   }));
@@ -794,7 +795,14 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const lockReason = lockedByOther ? `Locked by ${pageLock!.name}. Ask them or a site admin to unlock it in Pages.` : !canEdit ? "You don't have Edit on this folder. Ask a site admin to grant it." : inAuthor ? `The page is in the author's review${assigneeName ? ` with ${assigneeName}` : ""}. Editing takes it out of the review queue.` : status === "reviewed" ? "The author's review is done. Editing takes it back to a draft." : status === "bizreview" ? "The page is in business review. Editing takes it out of the review queue." : status === "approved" || status === "scheduled" ? "The page passed review and is ready to publish. Editing sends it back through review." : status === "published" ? "The page is live. Click Edit to change it; the live version stays online until you publish again." : "";
   const veilEdit = canEdit ? () => void goEdit("blocks") : undefined;
   const insightMeta = useMemo(() => ({ title, description, template: page.template, status, locale, assets: assetMap, entities }), [title, description, page.template, status, locale, assetMap, entities]);
-  const insightBadge = useMemo(() => pageInsights(blocks, insightMeta).groups.flatMap((g) => g.items).filter((i) => i.level === "crit").length, [blocks, insightMeta]);
+  /* One pass over the insights: how many Must-fix items there are, and which blocks they point at.
+     The second is what the preview marks, so the author can see where the problems are on the page
+     instead of reading a list and hunting for them. */
+  const crit = useMemo(() => {
+    const items = pageInsights(blocks, insightMeta).groups.flatMap((g) => g.items).filter((i) => i.level === "crit");
+    return { count: items.length, blocks: new Set(items.map((i) => i.blockId).filter(Boolean) as string[]) };
+  }, [blocks, insightMeta]);
+  const insightBadge = crit.count;
   critRef.current = insightBadge;
   /** The unfixed-insight count, shown beside the step rather than among its buttons. */
   /** The Must-fix count, beside the step rather than among its buttons — and a way into the list. */
@@ -961,7 +969,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           <div ref={canvasRef} className={`bld-pad ${focus ? "flex-1 overflow-auto p-0 bg-white" : "editor-ground flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""} ${patternMode ? "pattern-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onMouseMove={onCanvasMove} onDragOver={onCanvasDragOver} onDrop={onCanvasDrop} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropAt(null); }} onMouseLeave={() => { if (!qcPinned) setQcTarget(null); }} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
             {(() => { return <div className="bld-frame" style={{ width: siteW, zoom: fit, margin: "0 auto", ["--bld-unzoom" as string]: 1 / fit }}>
             <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
-              {blocks.length ? blocks.map((b, i) => { const line = dropAt === i && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />; return <Fragment key={b.id}>{line}{(() => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id && !commentTarget.field ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""} ${multi.includes(b.id) ? "multi" : ""} ${movingId === b.id ? "opacity-40" : ""}`} tabIndex={0}>
+              {blocks.length ? blocks.map((b, i) => { const line = dropAt === i && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />; return <Fragment key={b.id}>{line}{(() => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id && !commentTarget.field ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""} ${multi.includes(b.id) ? "multi" : ""} ${movingId === b.id ? "opacity-40" : ""} ${crit.blocks.has(b.id) ? "crit-blk" : ""} ${qcFlash === b.id ? "qc-flash" : ""}`} tabIndex={0}>
                 {multi.includes(b.id) && <span className="multi-n" aria-hidden>{multiBlocks.findIndex((x) => x.id === b.id) + 1}</span>}
                 {reviewMode && <span className="cmt-pick" aria-hidden>{commentTarget?.id === b.id ? "Commenting here" : "Click a text or image to comment"}</span>}
                 {!!commentCounts[b.id] && <button type="button" data-ui className="cmt-badge" title={`${commentCounts[b.id]} comment${commentCounts[b.id] === 1 ? "" : "s"} on this component`} onClick={(e) => { e.stopPropagation(); if (focus) setFloatOpen(true); else { setRightTab("comments"); setRight(true); } }}><CommentIcon size={12} />{commentCounts[b.id]}</button>}
@@ -1109,7 +1117,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             bottom right, this panel and its folded button covered the bar's next-step button. */}
         {qcMode && <FloatingPanel title="Quality checklist" bottom={focus ? 16 : 52} open={qcOpen} onToggle={setQcOpen} icon={<svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="M3.5 6l1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" /></svg>}
           hint={qcPinned ? <span className="flex items-center gap-2">Pinned · this stays while you look<button type="button" className="ml-auto underline" onClick={() => { setQcPinned(false); setQcTarget(null); }}>Whole page</button></span> : qcTarget ? "Click to pin it" : undefined}>
-          <QualityChecklist blocks={blocks} meta={insightMeta} url={`https://${domain}${rel}`} templateName={TEMPLATES.find((t) => t.id === page.template)?.name ?? page.template ?? "Page"} target={qcTarget} />
+          <QualityChecklist blocks={blocks} meta={insightMeta} url={`https://${domain}${rel}`} templateName={TEMPLATES.find((t) => t.id === page.template)?.name ?? page.template ?? "Page"} target={qcTarget} onShow={(id) => { revealBlock(id); setQcFlash(id); window.setTimeout(() => setQcFlash((v) => (v === id ? "" : v)), 1600); }} />
         </FloatingPanel>}
         {decidedB && <DecisionOverlay decision={decidedB.decision} title={title} by={user.name} at={decidedB.at} action={<button className="btn btn-sm btn-primary" onClick={() => { setDecidedB(null); if (focus) setFocusMode(false); }}>Back to the builder</button>} />}
         {/* formatting bar over the text being edited (long text fields only) */}

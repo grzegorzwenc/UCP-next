@@ -7,17 +7,25 @@ import { pageInsights, HEADING_MAX, PARAGRAPH_MAX, VAGUE_CTAS, COMPLIANCE_WORDS,
 
 /** What the pointer is on in the author's preview: a text (field key), an asset ("asset:n") or a whole component. */
 export type QcTarget = { id: string; field?: string; text?: string; kind: "text" | "image" | "block" };
-type Check = { ok: boolean | "warn"; label: string; value?: string };
+type Check = { ok: boolean | "warn"; label: string; value?: string; /** the block this row is about, when it is about one: the row then takes you there */ blockId?: string };
 
 const Mark = ({ ok }: { ok: Check["ok"] }) => ok === true
   ? <svg aria-label="Passed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--good)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
   : ok === "warn" ? <svg aria-label="Check this" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" strokeWidth="2.4" strokeLinecap="round"><path d="M12 7v6M12 17h.01" /><circle cx="12" cy="12" r="9" /></svg>
   : <svg aria-label="Needs fixing" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" strokeWidth="2.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>;
 
-function Rows({ checks }: { checks: Check[] }) {
-  return <ul className="divide-y divide-line">{checks.map((c, i) => <li key={i} className="flex items-start gap-2.5 py-2.5">
-    <span className="min-w-0 flex-1"><span className="block text-sm font-medium text-ink">{c.label}</span>{c.value && <span className="block text-xs text-ink-2 mt-0.5 break-words">{c.value}</span>}</span>
-    <span className="flex-none mt-0.5"><Mark ok={c.ok} /></span></li>)}</ul>;
+function Rows({ checks, onShow }: { checks: Check[]; onShow?: (blockId: string) => void }) {
+  /* A row that is not passing and names a block takes you to it. A passing row, or one about the
+     page rather than a place on it (the title tag, say), stays plain text — nothing should look
+     clickable unless there is somewhere to go. */
+  return <ul className="divide-y divide-line">{checks.map((c, i) => {
+    const body = <>
+      <span className="min-w-0 flex-1"><span className="block text-sm font-medium text-ink">{c.label}</span>{c.value && <span className="mt-0.5 block text-xs break-words text-ink-2">{c.value}</span>}</span>
+      <span className="mt-0.5 flex-none"><Mark ok={c.ok} /></span></>;
+    const go = c.ok !== true && c.blockId && onShow;
+    return <li key={i}>{go
+      ? <button type="button" onClick={() => onShow!(c.blockId!)} title={`${c.label} — show it on the page`} className="flex w-full cursor-pointer items-start gap-2.5 py-2.5 text-left [&>span:first-child>span:first-child]:underline-offset-2 hover:[&>span:first-child>span:first-child]:underline">{body}</button>
+      : <span className="flex items-start gap-2.5 py-2.5">{body}</span>}</li>; })}</ul>;
 }
 
 const fieldOf = (key?: string) => key?.split("|")[1];
@@ -46,7 +54,7 @@ function elementChecks(b: Block, t: QcTarget, assets: PageMeta["assets"], found:
   return out;
 }
 
-export function QualityChecklist({ blocks, meta, url, templateName, target }: { blocks: Block[]; meta: PageMeta; url: string; templateName: string; target: QcTarget | null }) {
+export function QualityChecklist({ blocks, meta, url, templateName, target, onShow }: { blocks: Block[]; meta: PageMeta; url: string; templateName: string; target: QcTarget | null; /** show a block on the page: scroll to it and flash it */ onShow?: (blockId: string) => void }) {
   const insights = useMemo(() => pageInsights(blocks, meta), [blocks, meta]);
   const found = useMemo(() => insights.groups.flatMap((g) => g.items), [insights]);
   const b = target ? blocks.find((x) => x.id === target.id) : undefined;
@@ -61,19 +69,25 @@ export function QualityChecklist({ blocks, meta, url, templateName, target }: { 
   }
   const t = meta.title.trim(); const d = (meta.description ?? "").trim();
   const must = found.filter((i) => i.level === "crit"); const should = found.filter((i) => i.level === "warn");
+  const masts = blocks.filter((x) => !x.props.hidden && x.type === "mast");
+  const firstMissing = blocks.find((x) => missingRequired(x).length);
+  const needsFields = firstMissing ? { block: firstMissing, label: BLOCK_BY_TYPE[firstMissing.type]?.name ?? firstMissing.type } : null;
   const page: Check[] = [
     { ok: !!t && t.length <= 60 ? true : t ? "warn" : false, label: "Title tag", value: t ? `${t} · ${t.length} characters` : "Missing" },
     { ok: !!d && d.length <= 160 ? true : d ? "warn" : "warn", label: "Meta description", value: d ? `${d} · ${d.length} characters` : "Missing · search results show text from the page instead" },
     { ok: true, label: "Canonical URL", value: url },
     { ok: true, label: "Page type", value: templateName },
-    { ok: blocks.filter((x) => !x.props.hidden && x.type === "mast").length === 1 ? true : "warn", label: "One main heading (masthead)", value: undefined },
-    { ok: !blocks.some((x) => missingRequired(x).length), label: "Required fields filled" },
-    { ok: must.length === 0 ? (should.length ? "warn" : true) : false, label: "Page insights", value: must.length ? `${must.length} to fix · ${should.length} to check` : should.length ? `${should.length} to check` : "All checks pass" },
+    { ok: masts.length === 1 ? true : "warn", label: "One main heading (masthead)", value: masts.length ? undefined : "No masthead on the page", blockId: masts[1]?.id ?? masts[0]?.id },
+    { ok: !needsFields, label: "Required fields filled", value: needsFields ? `${needsFields.label}: ${missingRequired(needsFields.block).map((f) => f.l).join(", ")}` : undefined, blockId: needsFields?.block.id },
+    { ok: must.length === 0 ? (should.length ? "warn" : true) : false, label: "Page insights", value: must.length ? `${must.length} to fix · ${should.length} to check` : should.length ? `${should.length} to check` : "All checks pass", blockId: (must[0] ?? should[0])?.blockId },
   ];
   return <div>
     <p className="text-xs text-ink-3 mb-1">Point at a text, a picture or a component to check it.</p>
-    <Rows checks={page} />
+    <Rows checks={page} onShow={onShow} />
     {[...must, ...should].length > 0 && <div className="mt-2 border-t border-line pt-2"><b className="block text-xs uppercase tracking-[.06em] text-ink-3 mb-1">To look at</b>
-      <ul className="grid gap-1">{[...must, ...should].slice(0, 8).map((i) => <li key={i.id + (i.blockId ?? "")} className="flex gap-2 text-xs"><span aria-hidden className={`mt-1.5 w-2 h-2 rounded-full flex-none ${i.level === "crit" ? "bg-crit" : "bg-warn"}`} /><span>{i.title}</span></li>)}</ul></div>}
+      <ul className="grid gap-1">{[...must, ...should].slice(0, 8).map((i) => { const dot = <span aria-hidden className={`mt-1.5 h-2 w-2 flex-none rounded-full ${i.level === "crit" ? "bg-crit" : "bg-warn"}`} />;
+        return <li key={i.id + (i.blockId ?? "")}>{i.blockId && onShow
+          ? <button type="button" onClick={() => onShow(i.blockId!)} title={`${i.title} — show it on the page`} className="flex w-full cursor-pointer gap-2 text-left text-xs underline-offset-2 hover:underline focus-visible:underline">{dot}<span>{i.title}</span></button>
+          : <span className="flex gap-2 text-xs">{dot}<span>{i.title}</span></span>}</li>; })}</ul></div>}
   </div>;
 }
