@@ -176,7 +176,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [translating, setTranslating] = useState(false); const router = useRouter();
   const [description, setDescription] = useState(page.description ?? "");
   const [aiTasks, setAiTasks] = useState<AiTask[]>([]); const [aiDraft, setAiDraft] = useState("");
-  const [focus, setFocus] = useState(false); const [previewCheck, setPreviewCheck] = useState(false); // after leaving Preview: "does it look right?"
+  const [focus, setFocus] = useState(false);
   const [cfgSnapshot, setCfgSnapshot] = useState<Record<string, unknown> | null>(null);
   const [clipboard, setClipboard] = useState<Block | null>(null);
   const [dirty, setDirty] = useState(false); const [saving, setSaving] = useState<string>("Saved");
@@ -249,7 +249,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   /* Build (0) → Preview (1) → Share (2), then the review chain from 3. `draftPhase` only
      distinguishes "the business has the link" from the rest; previewing moves 0 → 1. */
   const cur = early
-    ? (draftPhase === "shared" ? 2 : focus || previewCheck || previewed ? 1 : 0)
+    ? (draftPhase === "shared" ? 2 : focus || previewed ? 1 : 0)
     : 3 + (status === "published" ? 6 : status === "approved" || status === "scheduled" ? 5 : status === "bizreview" ? (bizAssigned ? 4 : 3) : status === "reviewed" || status === "inreview" ? 2 : status === "review" ? (assignee ? 1 : 0) : 0);
   const LAST = STEPS.length - 1;
   const bizName = bizAssignee ? names[bizAssignee] ?? bizAssignee : "";
@@ -457,7 +457,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     say(`This text now shows ${c.entity.title} · ${c.field.l}. Press Save.`);
   }
   /** Leaving Preview on a draft asks whether the page is right: yes → Send for review, no → back to the content. */
-  const leavePreview = () => { setFocusMode(false); if (canEdit && (status === "draft" || status === "failed")) setPreviewCheck(true); };
+  const leavePreview = () => { setFocusMode(false); if (canEdit && (status === "draft" || status === "failed")) setPreviewed(true); };
   /* ---- Focus mode (⌘⇧F): hides the editor's own toolbar, stepper and panels (the `focus` branches
      in the grid below). The app sidebar and top bar no longer need hiding — the editor is in its own
      `(editor)` route group and never renders them. `body.focus` and the `ucp:focus` event stay so
@@ -692,7 +692,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   }
   function onCanvasDouble(e: React.MouseEvent) { if (preview) return; const t = e.target as HTMLElement; if (t.closest("[data-ui]")) return; const blk = t.closest<HTMLElement>(".cblk"); if (!blk) return; if (editing && editingEl.current?.contains(t)) return; /* double-click inside the text being edited selects a word */ if (editing) commitInline(true); enterEdit(blk.dataset.id!, t); }
   function onCanvasKey(e: React.KeyboardEvent) {
-    if (contentPick || previewCheck) return; // a dialog is open: it handles its own keys
+    if (contentPick) return; // a dialog is open: it handles its own keys
     if (e.key === "Escape") { e.preventDefault(); if (editing) commitInline(false); else if (ctaPop || pop) { setCtaPop(null); setPop(null); } else if (mode === "edit") setMode("select"); else select(null); return; }
     if (!editing) return;
     const rich = editingEl.current?.dataset.rich === "block"; // one-line texts save on Enter; paragraphs and lists need ⌘/Ctrl+Enter
@@ -718,7 +718,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
      Build → Go to preview → Preview → Send to author's review → Waiting for assignment → Assign to me → Assigned → Remind · Start review → In author's review
      → Remind · Reviewed → Reviewed → Send to business review → Waiting for business review → Remind · Sign off → Ready to publish → Publish */
   const notYet = status === "draft" || status === "failed";
-  const seen = previewed || previewCheck;
+  const seen = previewed;
   const remindBtn = (who: string) => <button className="btn btn-sm btn-secondary" onClick={() => setRemind(new Date().getTime())} title={`Remind ${who} that you are waiting`} aria-label={`Remind ${who}`}><svg viewBox="0 0 24 24" className="w-3.5 h-3.5 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 9a6 6 0 0 1 12 0c0 5 2 6 2 6H4s2-1 2-6M10 19a2 2 0 0 0 4 0" /></svg><span className="hidden lg:inline">Remind</span></button>;
   const mayBizClaim = status === "bizreview" && !bizAssigned && mayStatus("approved") && (isAdmin || authorReviewer !== user.id);
   /* The nine-step run as it was, kept under these names: the eleven-step `hasAct`/`stepAct`
@@ -1143,23 +1143,13 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             bottom right, this panel and its folded button covered the bar's next-step button. */}
         {qcMode && <FloatingPanel title="Quality checklist" bottom={focus ? 16 : 52} open={qcOpen} onToggle={setQcOpen} icon={<svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="M3.5 6l1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" /></svg>}
           hint={qcPinned ? <span className="flex items-center gap-2">Pinned · this stays while you look<button type="button" className="ml-auto underline" onClick={() => { setQcPinned(false); setQcTarget(null); }}>Whole page</button></span> : qcTarget ? "Click to pin it" : undefined}>
-          <QualityChecklist blocks={blocks} meta={insightMeta} url={`https://${domain}${rel}`} templateName={TEMPLATES.find((t) => t.id === page.template)?.name ?? page.template ?? "Page"} target={qcTarget} onShow={(id) => { revealBlock(id); setQcFlash(id); window.setTimeout(() => setQcFlash((v) => (v === id ? "" : v)), 1600); }} />
+          <QualityChecklist blocks={blocks} meta={insightMeta} url={`https://${domain}${rel}`} templateName={TEMPLATES.find((t) => t.id === page.template)?.name ?? page.template ?? "Page"} target={qcTarget} onShow={(id) => { revealBlock(id); setQcFlash(id); window.setTimeout(() => setQcFlash((v) => (v === id ? "" : v)), 1600); }} onSend={canEdit && (status === "draft" || status === "failed") ? () => { leavePreview(); openSend(); } : undefined} />
         </FloatingPanel>}
         {decidedB && <DecisionOverlay decision={decidedB.decision} title={title} by={user.name} at={decidedB.at} action={<button className="btn btn-sm btn-primary" onClick={() => { setDecidedB(null); if (focus) setFocusMode(false); }}>Back to the builder</button>} />}
         {/* formatting bar over the text being edited (long text fields only) */}
         {editing && inlinePos?.rich && !contentPick && <div data-ui className="fixed z-30 bg-foreground rounded-lg p-1 shadow-xl" style={{ top: inlinePos.barTop, left: inlinePos.barLeft }}><FormatBar getRoot={getEditingEl} state={fmt} dark lists={inlinePos.lists} /></div>}
         {editing && inlinePos && !contentPick && <button type="button" data-ui className="fixed z-30 w-7 h-7 rounded-full grid place-items-center bg-info text-white shadow-lg hover:scale-105 transition-transform" style={{ top: inlinePos.top, left: inlinePos.left }} onMouseDown={(e) => e.preventDefault()} onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }} title="Choose content from an entity" aria-label="Choose content from an entity"><ContentIcon className="w-3.5 h-3.5" /></button>}
-        {previewCheck && <ModalShell title={insightBadge > 0 ? `${insightBadge} thing${insightBadge === 1 ? "" : "s"} to fix first` : "Does everything look right?"} width={480} onClose={() => { setPreviewCheck(false); setPreviewed(true); }}
-          footer={insightBadge > 0
-            ? <button className="btn btn-sm btn-primary" onClick={() => { setPreviewCheck(false); setPreviewed(true); openRight("insights"); }}>Fix the issues</button>
-            : <><button className="btn btn-sm btn-secondary" onClick={() => { setPreviewCheck(false); setPreviewed(false); void goEdit("content"); }}>No, keep editing</button><button className="btn btn-sm btn-primary" onClick={() => { setPreviewCheck(false); setPreviewed(true); openSend(); }}>Yes, send for review</button></>}>
-          {insightBadge > 0
-            ? <><p className="text-sm">You have just seen <b>{title}</b> the way customers will — but Page insights found {insightBadge} <b>Must fix</b> thing{insightBadge === 1 ? "" : "s"}, so it cannot go for review yet.</p>
-                <p className="mt-2 text-sm text-ink-2">These are things only you can put right, such as an empty required field, an image with no alt text or a broken content link. A reviewer cannot resolve them.</p></>
-            : <><p className="text-sm">You have just seen <b>{title}</b> the way customers will.</p>
-                <ul className="text-sm text-ink-2 mt-2 grid gap-1 list-disc pl-5"><li>Texts, prices and rates are correct</li><li>Images and buttons are in the right place</li><li>Nothing is missing on phone and tablet</li></ul></>}
-          
-        </ModalShell>}
+        
         {contentPick && <ContentPicker marketId={marketId} marketName={marketName} flag={flag} locale={locale} models={models} current={contentPick.target === "field" ? contentPick.l : undefined} onClose={() => { setContentPick(null); setTokTyped(false); editingEl.current?.focus({ preventScroll: true }); }} onPick={(c) => void applyContent(c)} />}
         {remind > 0 && (() => { const rvName = status === "bizreview" ? bizName : assigneeName; const stageWord = status === "bizreview" ? "sign it off" : "review it"; const sent = typeof page.meta?.["ucp:sentAt"] === "string" ? String(page.meta["ucp:sentAt"]) : ""; const recent = !!remindedAt && remind - Date.parse(remindedAt) < 15 * 60_000; const who = rvName || (status === "bizreview" ? "the business reviewers" : "the reviewers");
           const sendIt = async () => { setReminding(true); try { const r = await ucpApi.remindReviewer(marketId, page.path); setRemindedAt(r.remindedAt); setRemind(0); say(`Reminder sent to ${r.reviewer}`); } catch (e) { say(e instanceof ApiError ? e.message : "Could not send the reminder"); } finally { setReminding(false); } };

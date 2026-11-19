@@ -14,6 +14,15 @@ const Mark = ({ ok }: { ok: Check["ok"] }) => ok === true
   : ok === "warn" ? <svg aria-label="Check this" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" strokeWidth="2.4" strokeLinecap="round"><path d="M12 7v6M12 17h.01" /><circle cx="12" cy="12" r="9" /></svg>
   : <svg aria-label="Needs fixing" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" strokeWidth="2.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>;
 
+/** One band of the checklist: the heading says how serious these are, the rows say what they are. */
+function Section({ title, tone, rows, onShow }: { title: string; tone: "crit" | "warn" | "good"; rows: Check[]; onShow?: (blockId: string) => void }) {
+  if (!rows.length) return null;
+  return <section className="mt-3 first:mt-0">
+    <h3 className={`mb-1 flex items-center gap-2 text-xs font-medium tracking-[.06em] uppercase ${tone === "crit" ? "text-crit" : tone === "warn" ? "text-warn" : "text-ink-3"}`}>
+      <span aria-hidden className={`h-2 w-2 flex-none rounded-full ${tone === "crit" ? "bg-crit" : tone === "warn" ? "bg-warn" : "bg-good"}`} />{title}<span className="text-ink-3">{rows.length}</span></h3>
+    <Rows checks={rows} onShow={onShow} />
+  </section>;
+}
 function Rows({ checks, onShow }: { checks: Check[]; onShow?: (blockId: string) => void }) {
   /* A row that is not passing and names a block takes you to it. A passing row, or one about the
      page rather than a place on it (the title tag, say), stays plain text — nothing should look
@@ -54,7 +63,7 @@ function elementChecks(b: Block, t: QcTarget, assets: PageMeta["assets"], found:
   return out;
 }
 
-export function QualityChecklist({ blocks, meta, url, templateName, target, onShow }: { blocks: Block[]; meta: PageMeta; url: string; templateName: string; target: QcTarget | null; /** show a block on the page: scroll to it and flash it */ onShow?: (blockId: string) => void }) {
+export function QualityChecklist({ blocks, meta, url, templateName, target, onShow, onSend }: { blocks: Block[]; meta: PageMeta; url: string; templateName: string; target: QcTarget | null; /** show a block on the page: scroll to it and flash it */ onShow?: (blockId: string) => void; /** send the page for review from here, when nothing blocks it */ onSend?: () => void }) {
   const insights = useMemo(() => pageInsights(blocks, meta), [blocks, meta]);
   const found = useMemo(() => insights.groups.flatMap((g) => g.items), [insights]);
   const b = target ? blocks.find((x) => x.id === target.id) : undefined;
@@ -72,6 +81,10 @@ export function QualityChecklist({ blocks, meta, url, templateName, target, onSh
   const masts = blocks.filter((x) => !x.props.hidden && x.type === "mast");
   const firstMissing = blocks.find((x) => missingRequired(x).length);
   const needsFields = firstMissing ? { block: firstMissing, label: BLOCK_BY_TYPE[firstMissing.type]?.name ?? firstMissing.type } : null;
+  /* One list, split by what it asks of you: Must fix, Should fix, Passed. It used to be a flat run
+     of checks with a tick or a cross, followed by a separate "To look at" list — so a Must-fix item
+     appeared twice (once as "Page insights · 1 to fix", once by name) and the two lists disagreed
+     about how serious anything was. The "Page insights" summary row is gone: the items are here. */
   const page: Check[] = [
     { ok: !!t && t.length <= 60 ? true : t ? "warn" : false, label: "Title tag", value: t ? `${t} · ${t.length} characters` : "Missing" },
     { ok: !!d && d.length <= 160 ? true : d ? "warn" : "warn", label: "Meta description", value: d ? `${d} · ${d.length} characters` : "Missing · search results show text from the page instead" },
@@ -79,15 +92,22 @@ export function QualityChecklist({ blocks, meta, url, templateName, target, onSh
     { ok: true, label: "Page type", value: templateName },
     { ok: masts.length === 1 ? true : "warn", label: "One main heading (masthead)", value: masts.length ? undefined : "No masthead on the page", blockId: masts[1]?.id ?? masts[0]?.id },
     { ok: !needsFields, label: "Required fields filled", value: needsFields ? `${needsFields.label}: ${missingRequired(needsFields.block).map((f) => f.l).join(", ")}` : undefined, blockId: needsFields?.block.id },
-    { ok: must.length === 0 ? (should.length ? "warn" : true) : false, label: "Page insights", value: must.length ? `${must.length} to fix · ${should.length} to check` : should.length ? `${should.length} to check` : "All checks pass", blockId: (must[0] ?? should[0])?.blockId },
   ];
+  const asCheck = (i: Insight): Check => ({ ok: i.level === "crit" ? false : "warn", label: i.title, value: i.detail, blockId: i.blockId });
+  const mustRows = [...page.filter((c) => c.ok === false), ...must.map(asCheck)];
+  const shouldRows = [...page.filter((c) => c.ok === "warn"), ...should.map(asCheck)];
+  const passedRows = page.filter((c) => c.ok === true);
+
   return <div>
-    <p className="text-xs text-ink-3 mb-1">Point at a text, a picture or a component to check it.</p>
-    <Rows checks={page} onShow={onShow} />
-    {[...must, ...should].length > 0 && <div className="mt-2 border-t border-line pt-2"><b className="block text-xs uppercase tracking-[.06em] text-ink-3 mb-1">To look at</b>
-      <ul className="grid gap-1">{[...must, ...should].slice(0, 8).map((i) => { const dot = <span aria-hidden className={`mt-1.5 h-2 w-2 flex-none rounded-full ${i.level === "crit" ? "bg-crit" : "bg-warn"}`} />;
-        return <li key={i.id + (i.blockId ?? "")}>{i.blockId && onShow
-          ? <button type="button" onClick={() => onShow(i.blockId!)} title={`${i.title} — show it on the page`} className="flex w-full cursor-pointer gap-2 text-left text-xs underline-offset-2 hover:underline focus-visible:underline">{dot}<span>{i.title}</span></button>
-          : <span className="flex gap-2 text-xs">{dot}<span>{i.title}</span></span>}</li>; })}</ul></div>}
+    <p className="mb-2 text-xs text-ink-3">Point at a text, a picture or a component to check it.</p>
+    {/* The decision lives here rather than in a dialog after the preview: the list of what is wrong
+        and the button that acts on it are the same panel, so there is nothing to remember. */}
+    {onSend && (mustRows.length
+      ? <p role="status" className="alert alert-error mb-3 text-sm"><span>This page cannot go for review until the {mustRows.length} <b>Must fix</b> {mustRows.length === 1 ? "item is" : "items are"} done.</span></p>
+      : <div className="mb-3 flex items-center gap-2"><button type="button" className="btn btn-sm btn-primary" onClick={onSend}>Send for review</button>
+          <span className="text-xs text-ink-3">{shouldRows.length ? `${shouldRows.length} thing${shouldRows.length === 1 ? "" : "s"} to check, none blocking` : "Nothing is blocking it"}</span></div>)}
+    <Section title="Must fix" tone="crit" rows={mustRows} onShow={onShow} />
+    <Section title="Should fix" tone="warn" rows={shouldRows} onShow={onShow} />
+    <Section title="Passed" tone="good" rows={passedRows} onShow={onShow} />
   </div>;
 }
