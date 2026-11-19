@@ -704,7 +704,24 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (!canEdit) { say(READ_ONLY); return; }
     if (focus) leaveFocusState();
     // published: just start editing (the live version stays online until the next publish); in review / approved: confirm, it leaves the queue
-    if (locked) { if (status !== "published" && !confirm("Reopen this page for editing? It will leave the review queue.")) return; await transition("draft", status === "published" ? "Editing · the live version stays online until you publish again" : "Reopened for editing"); }
+    /* Reopening a page that is in review puts it back to Build the page, which means whoever is
+       holding it loses it and will be asked again when it is re-sent. That is worth saying plainly,
+       with their names — and it was a browser `confirm()`, the one dialog in the editor that was
+       not the app's own. The hand-over state is cleared too: a draft that still records a reviewer
+       would leave the bar showing a step the page is no longer on. */
+    if (locked) {
+      if (status !== "published") {
+        const who = [assigneeName && `${assigneeName} (author's review)`, bizName && `${bizName} (business review)`, ...bizGroups].filter(Boolean) as string[];
+        const ok = await ask({
+          title: "Reopen this page for editing?",
+          body: <>It leaves the review queue and goes back to <b>Build the page</b>.{who.length ? <><br /><br />{who.length === 1 ? "This person is" : "These people are"} reviewing it now and will be asked again when you send it: <b>{who.join(", ")}</b>.</> : null}</>,
+          confirmLabel: "Reopen for editing",
+        });
+        if (!ok) return;
+      }
+      await transition("draft", status === "published" ? "Editing · the live version stays online until the next publish" : "Reopened for editing · back at Build the page");
+      setAssignee(""); setAuthorReviewer(""); setBizTaken(""); setBizGroups([]); setPreviewed(false); void setPhase("draft");
+    }
     setPreviewRaw(false); setStage(to);
     if (to === "blocks") { setLeftRaw(true); setRight(false); select(null); setMode("select"); }
     else { setLeftRaw(false); const b = blocks.find((x) => missingRequired(x).length) || blocks[0]; if (b) enterEdit(b.id); }
@@ -1240,6 +1257,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
                     {!was && !now && <span className="ms-auto flex-none text-xs text-ink-3">{OPTIONAL.has(i) ? "Optional" : "To do"}</span>}</span>
                   <span className="block text-xs leading-snug text-ink-3">{st[1]}</span>
                   {now && hasAct(cur) && insightWarn && <span className="mt-1 block">{insightWarn}</span>}
+                  {/* the same refusal the quality checklist gives, where the send would otherwise be */}
+                  {now && i === 1 && insightBadge > 0 && <span role="status" className="alert alert-error mt-2 text-xs"><span>This page cannot go for review until the {insightBadge} <b>Must fix</b> {insightBadge === 1 ? "item is" : "items are"} done.</span></span>}
                   {plan && <button type="button" className="btn btn-sm btn-secondary mt-1.5" onClick={() => { setFlowOpen(false); void plan.run(); }}>Go back to this step</button>}
                   {now && (act >= 0 || shareHere) && <span className="flow-actions mt-1.5 flex flex-wrap items-center gap-2 [&>span.text-warning]:basis-full" onClickCapture={() => setShareIn("drawer")}>
                     {act >= 0 && <>{stepBack(act)}{stepAct(act)}</>}
