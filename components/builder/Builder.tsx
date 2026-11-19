@@ -482,7 +482,17 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   }
   useEffect(() => { if (!dirty || !canEdit || locked || editing) return; const id = setTimeout(() => { saveRef.current().catch(() => {}); }, 1200); return () => clearTimeout(id); }, [dirty, blocks, title, description, canEdit, locked, editing]);
   /** Why the page cannot move to `next` (permission, or required fields before review); says it and returns true when blocked. */
+  const critRef = useRef(0); // kept current below, so `blocked` can see the insight count
   function blocked(next: PageStatus) {
+    /* A page with unfixed critical insights cannot go to review. Every one of them is the author's
+       to fix and the reviewer cannot: an empty required field, a broken content link, an image with
+       no alt text, a missing page title, an empty page. Sending anyway only moved the work to
+       somebody who would have to send it straight back. */
+    if (next === "review" && critRef.current > 0) {
+      say(`Fix ${critRef.current} issue${critRef.current === 1 ? "" : "s"} before sending it for review`);
+      openRight("insights");
+      return true;
+    }
     if (!mayStatus(next)) { say(`You don't have ${permForStatus[next] === "publish" ? "Publish" : permForStatus[next] === "review" ? "Review & approve" : "Edit"} on this folder`); return true; }
     if (next === "review" && missing) { say(`Fill in ${missing} required field${missing === 1 ? "" : "s"} first`); const b = blocks.find((x) => missingRequired(x).length); if (b) configure(b.id); return true; }
     return false;
@@ -708,8 +718,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
        both ways out: go and fix them, or send regardless. Sending is still allowed; the reviewer
        sees the same list. */
     : i === 1 ? (insightBadge > 0
-      ? <><button className="btn btn-sm btn-secondary" onClick={() => openRight("insights")} title="Open Page insights and work through the list">Fix the issues</button>
-        <button className="btn btn-sm btn-primary btn-next" onClick={openSend} aria-label="Send to author's review anyway">Send anyway</button></>
+      ? <button className="btn btn-sm btn-primary btn-next" onClick={() => openRight("insights")} title="Open Page insights and work through the list">Fix the issues</button>
       : <button className="btn btn-sm btn-primary btn-next" onClick={openSend} aria-label="Send to author's review"><span className="lg:hidden">Send for review</span><span className="hidden lg:inline">Send to author&apos;s review</span></button>)
     : i === 2 ? <button className="btn btn-sm btn-primary btn-next" onClick={() => void claim()} title="Take this review from the Backlog">Assign to me</button>
     : i === 3 ? (assignee === user.id ? <button className="btn btn-sm btn-primary btn-next" onClick={() => transition("inreview", "Review started")} title="Start the review: the author sees that you are on it">Start review</button> : remindBtn(assigneeName || "the reviewer"))
@@ -786,9 +795,14 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const veilEdit = canEdit ? () => void goEdit("blocks") : undefined;
   const insightMeta = useMemo(() => ({ title, description, template: page.template, status, locale, assets: assetMap, entities }), [title, description, page.template, status, locale, assetMap, entities]);
   const insightBadge = useMemo(() => pageInsights(blocks, insightMeta).groups.flatMap((g) => g.items).filter((i) => i.level === "crit").length, [blocks, insightMeta]);
+  critRef.current = insightBadge;
   /** The unfixed-insight count, shown beside the step rather than among its buttons. */
-  const insightWarn = insightBadge > 0 ? <span className="inline-flex flex-none items-center gap-1 whitespace-nowrap text-xs text-warning" title={`Page insights found ${insightBadge} thing${insightBadge === 1 ? "" : "s"} that should be fixed before a reviewer sees this page`}>
-    <svg viewBox="0 0 24 24" aria-hidden className="size-3.5 flex-none fill-none stroke-current" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M12 4.5l8.5 15h-17z" /><path d="M12 10v4M12 16.8v.2" /></svg>{insightBadge} to fix</span> : null;
+  /** The Must-fix count, beside the step rather than among its buttons — and a way into the list. */
+  const insightWarn = insightBadge > 0 ? <button type="button" onClick={() => openRight("insights")}
+    title={`Page insights found ${insightBadge} thing${insightBadge === 1 ? "" : "s"} you must fix before this page can go for review · open the list`}
+    className="inline-flex flex-none cursor-pointer items-center gap-1 whitespace-nowrap text-xs text-warning underline-offset-2 hover:underline focus-visible:underline">
+    <svg viewBox="0 0 24 24" aria-hidden className="size-3.5 flex-none fill-none stroke-current" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round"><path d="M12 4.5l8.5 15h-17z" /><path d="M12 10v4M12 16.8v.2" /></svg>
+    {insightBadge} to fix</button> : null;
   // On phones and tablets the panels float over the canvas instead of reserving space, so the 1:1 page keeps its width.
   const [avail, setAvail] = useState(0);
   /* The page is drawn at its real width (see lib/ucp/devices.ts) and `zoom`ed to fit the canvas.
@@ -1101,11 +1115,16 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {/* formatting bar over the text being edited (long text fields only) */}
         {editing && inlinePos?.rich && !contentPick && <div data-ui className="fixed z-30 bg-foreground rounded-lg p-1 shadow-xl" style={{ top: inlinePos.barTop, left: inlinePos.barLeft }}><FormatBar getRoot={getEditingEl} state={fmt} dark lists={inlinePos.lists} /></div>}
         {editing && inlinePos && !contentPick && <button type="button" data-ui className="fixed z-30 w-7 h-7 rounded-full grid place-items-center bg-info text-white shadow-lg hover:scale-105 transition-transform" style={{ top: inlinePos.top, left: inlinePos.left }} onMouseDown={(e) => e.preventDefault()} onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }} title="Choose content from an entity" aria-label="Choose content from an entity"><ContentIcon className="w-3.5 h-3.5" /></button>}
-        {previewCheck && <ModalShell title="Does everything look right?" width={480} onClose={() => { setPreviewCheck(false); setPreviewed(true); }}
-          footer={<><button className="btn btn-sm btn-secondary" onClick={() => { setPreviewCheck(false); setPreviewed(false); void goEdit("content"); }}>No, keep editing</button><button className="btn btn-sm btn-primary" onClick={() => { setPreviewCheck(false); setPreviewed(true); openSend(); }}>Yes, send for review</button></>}>
-          <p className="text-sm">You have just seen <b>{title}</b> the way customers will.</p>
-          <ul className="text-sm text-ink-2 mt-2 grid gap-1 list-disc pl-5"><li>Texts, prices and rates are correct</li><li>Images and buttons are in the right place</li><li>Nothing is missing on phone and tablet</li></ul>
-          {insightBadge > 0 && <p className="text-xs bg-warn-soft rounded-md px-3 py-2 mt-3">Page insights found {insightBadge} thing{insightBadge === 1 ? "" : "s"} to fix. You can still send it, but the reviewer will see them.</p>}
+        {previewCheck && <ModalShell title={insightBadge > 0 ? `${insightBadge} thing${insightBadge === 1 ? "" : "s"} to fix first` : "Does everything look right?"} width={480} onClose={() => { setPreviewCheck(false); setPreviewed(true); }}
+          footer={insightBadge > 0
+            ? <button className="btn btn-sm btn-primary" onClick={() => { setPreviewCheck(false); setPreviewed(true); openRight("insights"); }}>Fix the issues</button>
+            : <><button className="btn btn-sm btn-secondary" onClick={() => { setPreviewCheck(false); setPreviewed(false); void goEdit("content"); }}>No, keep editing</button><button className="btn btn-sm btn-primary" onClick={() => { setPreviewCheck(false); setPreviewed(true); openSend(); }}>Yes, send for review</button></>}>
+          {insightBadge > 0
+            ? <><p className="text-sm">You have just seen <b>{title}</b> the way customers will — but Page insights found {insightBadge} <b>Must fix</b> thing{insightBadge === 1 ? "" : "s"}, so it cannot go for review yet.</p>
+                <p className="mt-2 text-sm text-ink-2">These are things only you can put right, such as an empty required field, an image with no alt text or a broken content link. A reviewer cannot resolve them.</p></>
+            : <><p className="text-sm">You have just seen <b>{title}</b> the way customers will.</p>
+                <ul className="text-sm text-ink-2 mt-2 grid gap-1 list-disc pl-5"><li>Texts, prices and rates are correct</li><li>Images and buttons are in the right place</li><li>Nothing is missing on phone and tablet</li></ul></>}
+          
         </ModalShell>}
         {contentPick && <ContentPicker marketId={marketId} marketName={marketName} flag={flag} locale={locale} models={models} current={contentPick.target === "field" ? contentPick.l : undefined} onClose={() => { setContentPick(null); setTokTyped(false); editingEl.current?.focus({ preventScroll: true }); }} onPick={(c) => void applyContent(c)} />}
         {remind > 0 && (() => { const rvName = status === "bizreview" ? bizName : assigneeName; const stageWord = status === "bizreview" ? "sign it off" : "review it"; const sent = typeof page.meta?.["ucp:sentAt"] === "string" ? String(page.meta["ucp:sentAt"]) : ""; const recent = !!remindedAt && remind - Date.parse(remindedAt) < 15 * 60_000; const who = rvName || (status === "bizreview" ? "the business reviewers" : "the reviewers");
