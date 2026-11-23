@@ -37,14 +37,16 @@
 .m-screen.dark { background: linear-gradient(#3a4a5c, #12161c); color: #fff; }
 .m-notch { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 96px; height: 24px; background: #000; border-radius: 99px; z-index: 3; }
 .m-sms-top { padding: 48px 0 10px; text-align: center; background: rgba(255,255,255,.85); border-bottom: 1px solid rgba(0,0,0,.08); font-size: 12px; }
-.m-sms-top .av { display: grid; place-items: center; width: 40px; height: 40px; margin: 0 auto 4px; border-radius: 99px; background: #db0011; color: #fff; font-weight: 700; font-size: 11px; }
+.m-sms-top .av { display: grid; place-items: center; width: 40px; height: 40px; margin: 0 auto 4px; border-radius: 99px; background: #fff; border: 1px solid #d7d8d6; }
+.m-sms-top .av img { width: 28px; height: auto; display: block; }
 .m-sms { padding: 12px; } .m-sms i { display: block; text-align: center; font-size: 10px; color: rgba(0,0,0,.4); font-style: normal; margin-bottom: 8px; }
 .m-bubble { max-width: 85%; background: #e9e9eb; font-size: 13px; line-height: 1.4; border-radius: 18px 18px 18px 4px; padding: 8px 12px; white-space: pre-line; word-break: break-word; }
 .m-count { position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 11px; color: rgba(0,0,0,.55); }
 .m-lock { padding-top: 64px; text-align: center; } .m-lock div { font-size: 14px; opacity: .8; } .m-lock b { font-size: 60px; font-weight: 300; }
 .m-notif { margin: 32px 12px 0; border-radius: 16px; background: rgba(255,255,255,.88); color: #000; padding: 12px; }
 .m-notif .a { display: flex; align-items: center; gap: 8px; font-size: 11px; color: rgba(0,0,0,.55); } .m-notif .a i { margin-left: auto; font-style: normal; }
-.m-notif .ic { width: 20px; height: 20px; border-radius: 6px; background: #db0011; }
+.m-notif .ic { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.08); }
+.m-notif .ic img { width: 16px; height: auto; display: block; }
 .m-notif .c { display: flex; gap: 8px; margin-top: 6px; font-size: 13px; line-height: 1.35; } .m-notif .c > div { flex: 1; min-width: 0; }
 .m-notif .th { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; flex: none; }
 .m-tap { position: absolute; bottom: 18px; left: 0; right: 0; text-align: center; font-size: 11px; opacity: .7; }
