@@ -44,7 +44,7 @@ export async function startEditorTour(host: TourHost) {
 
   const d = driver({
     popoverClass: "bdl-tour-popover",
-    showProgress: true,
+    showProgress: false,
     stagePadding: 6,
     overlayColor: "#000",
     overlayOpacity: 0.8,

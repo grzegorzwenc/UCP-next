@@ -8,3 +8,80 @@
     transform: translateX(2px);
   }
 }
+
+/* ===== Messaging: e-mail and phone frames used by the builder for pages under Messaging ===== */
+.msg-chrome { font-family: Arial, Helvetica, sans-serif; color: #000; }
+.msg-chrome.email { background: #f3f3f3; padding: 24px 0 40px; min-height: 100%; }
+.msg-chrome .m-mail { background: #fff; max-width: 600px; margin: 0 auto; }
+.m-env { background: #fafafa; border-bottom: 1px solid #e5e5e5; padding: 12px 20px; font-size: 13px; display: grid; gap: 4px; }
+.m-env > div { display: flex; gap: 10px; align-items: baseline; }
+.m-env span { color: #767676; width: 64px; flex: none; }
+.m-env i { margin-left: auto; color: #767676; font-style: normal; font-size: 11px; }
+.m-head { padding: 18px 32px; border-top: 6px solid #db0011; border-bottom: 1px solid #e5e5e5; }
+.m-head img { height: 28px; display: block; }
+.m-head div { font-size: 12px; color: #575757; margin-top: 6px; }
+.m-hero { display: block; width: 100%; height: 220px; object-fit: cover; }
+.m-noimg { display: grid; place-items: center; height: 160px; background: #e5e5e5; color: #575757; font-size: 12px; }
+.m-h1 { margin: 0; padding: 28px 32px 6px; font-size: 26px; line-height: 1.25; font-weight: 400; }
+.m-p { padding: 12px 32px; font-size: 15px; line-height: 1.6; color: #333; white-space: pre-line; }
+.m-pad { padding: 14px 32px; }
+.m-btn { display: inline-block; background: #db0011; color: #fff; font-size: 15px; padding: 12px 22px; }
+.m-prod { border: 1px solid #d7d8d6; padding: 18px 20px; }
+.m-prod .n { font-size: 13px; color: #575757; } .m-prod .r { font-size: 30px; margin: 4px 0; } .m-prod .d { font-size: 14px; color: #333; line-height: 1.5; } .m-prod .l { display: inline-block; margin-top: 10px; font-size: 14px; text-decoration: underline; }
+.m-hr { border: 0; border-top: 1px solid #e5e5e5; margin: 0; }
+.m-foot { background: #f3f3f3; padding: 24px 32px; font-size: 11px; line-height: 1.6; color: #575757; }
+.m-foot .u { display: block; margin-top: 12px; text-decoration: underline; }
+.msg-chrome.sms, .msg-chrome.push, .msg-chrome.inapp { background: #e9e9ec; padding: 32px 0; min-height: 100%; }
+.m-phone { width: 300px; margin: 0 auto; border-radius: 38px; border: 10px solid #1d1d1f; background: #1d1d1f; box-shadow: 0 12px 30px rgba(0,0,0,.25); }
+.m-screen { position: relative; height: 580px; border-radius: 28px; overflow: hidden; background: #f2f2f7; }
+.m-screen.dark { background: linear-gradient(#3a4a5c, #12161c); color: #fff; }
+.m-notch { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 96px; height: 24px; background: #000; border-radius: 99px; z-index: 3; }
+.m-sms-top { padding: 48px 0 10px; text-align: center; background: rgba(255,255,255,.85); border-bottom: 1px solid rgba(0,0,0,.08); font-size: 12px; }
+.m-sms-top .av { display: grid; place-items: center; width: 40px; height: 40px; margin: 0 auto 4px; border-radius: 99px; background: #db0011; color: #fff; font-weight: 700; font-size: 11px; }
+.m-sms { padding: 12px; } .m-sms i { display: block; text-align: center; font-size: 10px; color: rgba(0,0,0,.4); font-style: normal; margin-bottom: 8px; }
+.m-bubble { max-width: 85%; background: #e9e9eb; font-size: 13px; line-height: 1.4; border-radius: 18px 18px 18px 4px; padding: 8px 12px; white-space: pre-line; word-break: break-word; }
+.m-count { position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; font-size: 11px; color: rgba(0,0,0,.55); }
+.m-lock { padding-top: 64px; text-align: center; } .m-lock div { font-size: 14px; opacity: .8; } .m-lock b { font-size: 60px; font-weight: 300; }
+.m-notif { margin: 32px 12px 0; border-radius: 16px; background: rgba(255,255,255,.88); color: #000; padding: 12px; }
+.m-notif .a { display: flex; align-items: center; gap: 8px; font-size: 11px; color: rgba(0,0,0,.55); } .m-notif .a i { margin-left: auto; font-style: normal; }
+.m-notif .ic { width: 20px; height: 20px; border-radius: 6px; background: #db0011; }
+.m-notif .c { display: flex; gap: 8px; margin-top: 6px; font-size: 13px; line-height: 1.35; } .m-notif .c > div { flex: 1; min-width: 0; }
+.m-notif .th { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; flex: none; }
+.m-tap { position: absolute; bottom: 18px; left: 0; right: 0; text-align: center; font-size: 11px; opacity: .7; }
+.m-app { padding: 44px 16px 0; } .m-app img { height: 20px; } .m-app span { display: block; height: 70px; margin-top: 12px; border-radius: 12px; background: #fff; }
+.m-overlay { position: absolute; inset: 0; background: rgba(0,0,0,.45); display: flex; justify-content: center; padding: 12px; }
+.m-overlay.c { align-items: center; } .m-overlay.b { align-items: flex-end; }
+.m-pop { width: 100%; background: #fff; border-radius: 16px; overflow: hidden; }
+.m-pop .im { width: 100%; height: 110px; object-fit: cover; display: block; }
+.m-pop .in { padding: 16px; display: grid; gap: 8px; font-size: 13px; } .m-pop .in b { font-size: 16px; } .m-pop .t { color: rgba(0,0,0,.75); line-height: 1.4; }
+.m-pop .m-btn { text-align: center; font-size: 13px; padding: 10px; margin-top: 6px; } .m-pop .x { text-align: center; color: rgba(0,0,0,.7); }
+.m-pop em { font-style: normal; font-size: 10px; color: rgba(0,0,0,.4); text-align: center; }
+.m-env > div > :nth-child(2) { flex: 1; min-width: 0; }
+
+/* ===== Forms: the form as the Forms solution renders it, on its host page ===== */
+.f-host { background: #f3f3f3; padding: 28px 0 40px; }
+.f-host-t { max-width: 760px; margin: 0 auto 14px; font-size: 28px; font-weight: 300; padding: 0 20px; }
+.f-wrap { max-width: 760px; margin: 0 auto; background: #fff; padding: 8px 32px 28px; }
+.f-step { padding-top: 22px; } .f-step .bar { display: block; height: 4px; background: #db0011; width: 72px; margin-bottom: 10px; }
+.f-step h2 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
+.f-field { padding: 10px 0; position: relative; } .f-field label { display: block; font-weight: 700; font-size: 15px; margin-bottom: 4px; } .f-field .opt { font-weight: 400; color: #575757; }
+.f-help { font-size: 13px; color: #575757; margin: -2px 0 6px; }
+.f-in { border: 1px solid #767676; height: 40px; padding: 9px 12px; font-size: 14px; color: #767676; background: #fff; } .f-in.tall { height: 96px; } .f-sel::after { content: "⌄"; float: right; color: #000; }
+.f-opts { display: grid; gap: 8px; font-size: 15px; } .f-opts span, .f-consent { display: flex; gap: 10px; align-items: flex-start; }
+.f-opts i, .f-consent i { width: 20px; height: 20px; border: 1px solid #000; flex: none; display: inline-block; } .f-opts i.dot { border-radius: 99px; }
+.f-consent { border: 1px solid #d7d8d6; background: #fafafa; padding: 12px; font-size: 14px; line-height: 1.45; } .f-consent small { display: block; color: #767676; font-size: 11px; margin-top: 4px; }
+.f-file { border: 1px dashed #767676; padding: 16px; font-size: 14px; } .f-file small { display: block; color: #575757; font-size: 12px; }
+.f-info { background: #f3f3f3; border-left: 4px solid #000; padding: 12px; font-size: 14px; line-height: 1.5; margin: 8px 0; }
+.f-name { position: absolute; top: 10px; right: 0; font-size: 10px; color: #767676; background: #f3f3f3; padding: 1px 6px; }
+.f-result { margin-top: 18px; border: 1px dashed #767676; padding: 20px; text-align: center; display: grid; gap: 8px; justify-items: center; font-size: 14px; }
+.f-result em { font-style: normal; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #767676; } .f-result b { font-size: 20px; }
+.f-result.ok { border-color: #00847f; } .f-result.bad { border-color: #a8000b; } .f-result .ref { font-size: 13px; }
+.m-notif.over { position: absolute; top: 40px; left: 0; right: 0; margin: 0 10px; box-shadow: 0 8px 24px rgba(0,0,0,.25); background: rgba(255,255,255,.96); z-index: 2; }
+.m-banner { position: absolute; top: 40px; left: 10px; right: 10px; background: #fff; border-left: 4px solid #db0011; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+.m-banner .in { padding: 12px; display: grid; gap: 6px; font-size: 13px; } .m-banner .in b { font-size: 14px; } .m-banner .m-btn { padding: 8px; text-align: center; font-size: 12px; } .m-banner em { font-style: normal; font-size: 10px; color: rgba(0,0,0,.4); }
+.m-app .m-card { margin-top: 12px; border: 1px solid #e5e5e5; }
+/* e-mail regions in the builder (hidden in preview) */
+.m-region { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: #eef2f7; border-top: 1px dashed #9aa7b6; border-bottom: 1px dashed #9aa7b6; font: 600 11px/1.2 system-ui, sans-serif; color: #253038; text-transform: uppercase; letter-spacing: .06em; }
+.m-region span { text-transform: none; letter-spacing: 0; font-weight: 400; color: #5f6470; }
+.m-region-empty { margin: 12px 32px; padding: 22px; border: 2px dashed #c9ced6; text-align: center; color: #5f6470; font: 13px system-ui, sans-serif; }
+.preview .m-region, .preview .m-region-empty { display: none; }

@@ -1,5 +1,8 @@
 import type { Block } from "@/lib/api/types";
 import { BLOCK_BY_TYPE, lines } from "./registry";
+import { useContext } from "react";
+import { smsSegments } from "./sms";
+import { stockPhoto } from "./photo";
 import { AssetsContext, EntitiesContext, InlineEditContext, MastSurface, RichInline, RichText } from "./AssetsContext";
 export { AssetsContext, EntitiesContext, InlineEditContext };
 
@@ -49,9 +52,78 @@ export function RenderBlock({ b }: { b: Block }) {
       return <div>{p.heading && <h2 className="s-h2"><T id={id} f="heading">{p.heading}</T></h2>}<div className="s-form"><div><label>First name</label><i /></div><div><label>Last name</label><i /></div><div><label>Email</label><i /></div><div><label>Phone</label><i /></div><div className="full"><span className="s-cta">Continue</span></div><div className="full s-disc" style={{ fontFamily: "var(--font-sans)" }}>Forms service · {p.form}</div></div></div>;
     case "disclaimer":
       return <RichText k={`${id}|text`} value={p.text} className="s-disc" />;
+    /* ---- e-mail components: table-free markup with the inline look of the HSBC e-mail template ---- */
+    case "envelope":
+      return <div className="m-env"><div><span>From</span><b><T id={id} f="fromName">{p.fromName}</T></b></div><div><span>Subject</span><b><T id={id} f="subject">{p.subject}</T></b><i>{String(p.subject ?? "").length}/90</i></div><div><span>Preview</span><T id={id} f="preheader">{p.preheader || ""}</T></div></div>;
+    case "emailheader":
+      return <div className="m-head"><img src="/hsbc-logo.svg" alt="HSBC" />{p.tagline && <div><T id={id} f="tagline">{p.tagline}</T></div>}</div>;
+    case "emailhero":
+      return <AssetImg id={p.image} alt={p.alt} className="m-hero" />;
+    case "emailheading":
+      return <h1 className="m-h1"><T id={id} f="heading">{p.heading}</T></h1>;
+    case "emailtext":
+      return <div className="m-p"><T id={id} f="body" block>{p.body}</T></div>;
+    case "emailbutton":
+      return <div className="m-pad"><span className="m-btn s-cta"><T id={id} f="cta">{p.cta}</T></span></div>;
+    case "emailproduct":
+      return <div className="m-pad"><div className="m-prod"><div className="n"><T id={id} f="name">{p.name}</T></div>{p.rate && <div className="r"><T id={id} f="rate">{p.rate}</T></div>}{p.detail && <div className="d"><T id={id} f="detail">{p.detail}</T></div>}{p.link && <span className="l">View product ›</span>}</div></div>;
+    case "emaildivider":
+      return <div className="m-pad"><hr className="m-hr" /></div>;
+    case "emailfooter":
+      return <div className="m-foot"><T id={id} f="legal" block>{p.legal}</T><span className="u"><T id={id} f="unsubscribe">{p.unsubscribe}</T></span></div>;
+    /* ---- simple channels: shown on a phone ---- */
+    case "sms": { const final = `${p.text ?? ""}${String(p.optout ?? "").startsWith("Add") ? " Reply STOP to opt out" : ""}`; const seg = smsSegments(final);
+      return <Phone><div className="m-sms-top"><span className="av" aria-hidden>{String(p.sender ?? "").slice(0, 4)}</span><b><T id={id} f="sender">{p.sender}</T></b></div><div className="m-sms"><i>Today 09:41</i><div className="m-bubble"><T id={id} f="text" block>{p.text}</T>{String(p.optout ?? "").startsWith("Add") && <> Reply STOP to opt out</>}</div></div><div className="m-count">{seg.length} characters · {seg.encoding} · {seg.segments} segment{seg.segments === 1 ? "" : "s"}</div></Phone>; }
+    case "push":
+      if (p.shown === "Over the open app") return <Phone><div className="m-app" aria-hidden><img src="/hsbc-logo.svg" alt="" /><span /><span /><span /></div><div className="m-notif over"><div className="a"><span className="ic" />HSBC UK<i>now</i></div><div className="c"><div><b><T id={id} f="title">{p.title}</T></b><div><T id={id} f="body" block>{p.body}</T></div></div>{p.image && <AssetImg id={p.image} alt="" className="th" />}</div></div></Phone>;
+      return <Phone dark><div className="m-lock"><div>Tuesday 12 December</div><b>9:41</b></div><div className="m-notif"><div className="a"><span className="ic" />HSBC UK<i>now</i></div><div className="c"><div><b><T id={id} f="title">{p.title}</T></b><div><T id={id} f="body" block>{p.body}</T></div></div>{p.image && <AssetImg id={p.image} alt="" className="th" />}</div></div>{p.link && <div className="m-tap">Tap opens {p.link}</div>}</Phone>;
+    case "inapp": { const fmt = String(p.placement ?? "Bottom sheet"); const inner = <>{p.image && <AssetImg id={p.image} alt="" className="im" />}<div className="in"><b><T id={id} f="heading">{p.heading}</T></b><div className="t"><T id={id} f="body" block>{p.body}</T></div>{p.cta && <span className="m-btn s-cta"><T id={id} f="cta">{p.cta}</T></span>}{p.dismiss && <span className="x"><T id={id} f="dismiss">{p.dismiss}</T></span>}<em>{fmt} · shown: {p.trigger}</em></div></>;
+      if (fmt === "Top banner") return <Phone><div className="m-app" aria-hidden><img src="/hsbc-logo.svg" alt="" /><span /><span /><span /></div><div className="m-banner">{inner}</div></Phone>;
+      if (fmt === "Card in the feed") return <Phone><div className="m-app"><img src="/hsbc-logo.svg" alt="" /><span aria-hidden /><div className="m-pop m-card">{inner}</div><span aria-hidden /></div></Phone>;
+      return <Phone><div className="m-app" aria-hidden><img src="/hsbc-logo.svg" alt="" /><span /><span /><span /></div><div className={`m-overlay ${fmt === "Modal" ? "c" : "b"}`}><div className="m-pop">{inner}</div></div></Phone>; }
+    /* ---- form components: how the Forms solution renders them for customers ---- */
+    case "formstep":
+      return <div className="f-step"><span className="bar" /><h2><T id={id} f="title">{p.title}</T></h2></div>;
+    case "ftext": case "femail": case "fphone": case "fnumber": case "fdate":
+      return <FField p={p} id={id}>{p.lines === "Several lines" ? <div className="f-in tall">{p.placeholder}</div> : <div className="f-in">{b.type === "fdate" ? "dd / mm / yyyy" : p.placeholder}</div>}</FField>;
+    case "fchoice": { const opts = lines(p.options).map((r) => r[0]);
+      return <FField p={p} id={id}>{p.style === "Drop-down" ? <div className="f-in f-sel">Select</div> : <div className="f-opts">{opts.map((o, i) => <span key={i}><i className={p.style === "Checkboxes" ? "box" : "dot"} />{o}</span>)}</div>}</FField>; }
+    case "ffile":
+      return <FField p={p} id={id}><div className="f-file">Choose a file<small>{p.types} · up to {p.size}</small></div></FField>;
+    case "fconsent":
+      return <div className="f-field"><div className="f-consent"><i className="box" /><span>{CONSENT_TEXT[p.consent] ?? p.consent}<small>{p.consent} · {CONSENT_VER[p.consent] ?? "v1"}{p.required === "Optional" ? " · optional" : ""}</small></span></div></div>;
+    case "finfo":
+      return <div className="f-info"><T id={id} f="text" block>{p.text}</T></div>;
+    case "fsuccess":
+      return <div className="f-result ok"><em>Success page · shown after submit</em><b><T id={id} f="heading">{p.heading}</T></b><div><T id={id} f="text" block>{p.text}</T></div>{p.reference?.startsWith("Show") && <div className="ref">Your reference: <b>UCP-7Q2K9D</b></div>}{p.cta && <span className="s-cta"><T id={id} f="cta">{p.cta}</T></span>}</div>;
+    case "ffailure":
+      return <div className="f-result bad"><em>Failure page · shown when the form can’t be sent</em><b><T id={id} f="heading">{p.heading}</T></b><div><T id={id} f="text" block>{p.text}</T></div>{p.cta && <span className="s-cta"><T id={id} f="cta">{p.cta}</T></span>}</div>;
     default:
       return <div className="s-disc">Unknown block: {b.type}</div>;
   }
+}
+
+function AssetImg({ id, alt, className }: { id?: string; alt?: string; className?: string }) {
+  const a = useContext(AssetsContext)[id ?? ""];
+  const src = a?.data ?? (id ? stockPhoto(id) : ""); return src ? <img src={src} alt={alt ?? a?.alt ?? ""} className={className} /> : <div className={`${className ?? ""} m-noimg`}>No image</div>;
+}
+function Phone({ children, dark = false }: { children: React.ReactNode; dark?: boolean }) {
+  return <div className="m-phone"><div className={`m-screen ${dark ? "dark" : ""}`}><span className="m-notch" />{children}</div></div>;
+}
+
+/** The frame a message is built in: an e-mail on the inbox background, SMS / push / pop-up on a phone. Replaces the website chrome for pages under Messaging. */
+export function MessageChrome({ channel, children }: { channel: string; children: React.ReactNode }) {
+  return <div className={`msg-chrome ${channel}`}>{channel === "email" ? <div className="m-mail">{children}</div> : children}</div>;
+}
+
+const CONSENT_TEXT: Record<string, string> = { "Privacy notice": "I have read the HSBC UK Privacy Notice, which explains how my information is used.", "Marketing preferences": "I'd like to hear about HSBC products and offers by e-mail, phone and post. I can change this at any time.", "Credit search": "I agree that HSBC can carry out a credit search, which will leave a footprint on my credit file." };
+const CONSENT_VER: Record<string, string> = { "Privacy notice": "v4", "Marketing preferences": "v2", "Credit search": "v3" };
+function FField({ p, id, children }: { p: Record<string, string>; id: string; children: React.ReactNode }) {
+  return <div className="f-field"><label><T id={id} f="label">{p.label}</T>{p.required === "Optional" && <span className="opt"> (optional)</span>}</label>{p.help && <div className="f-help"><T id={id} f="help">{p.help}</T></div>}{children}<code className="f-name" data-ui>{p.name}</code></div>;
+}
+/** A form is always built on the page that hosts it: the canvas shows that page's chrome and title, with the form where the Form component sits. */
+export function FormChrome({ marketName, crumbs, hostTitle, device, children }: { marketName: string; crumbs: string[]; hostTitle: string; device: string; children: React.ReactNode }) {
+  return <SiteChrome marketName={marketName} crumbs={crumbs} device={device}><div className="f-host"><div className="f-host-t">{hostTitle}</div><div className="f-wrap">{children}</div></div></SiteChrome>;
 }
 
 export function SiteChrome({ marketName, crumbs, children, device }: { marketName: string; crumbs: string[]; children: React.ReactNode; device: string }) {

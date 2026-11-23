@@ -95,11 +95,11 @@ export function FieldPanel({ models, own, taken, initial, onClose, onSubmit }: P
   const linkable = (m: Model) => !own || sharedFields(own, m).length > 0 || initial?.validation?.referenceModel === m.id;
   const fieldLbl = "text-xs text-ink-3 block"; const showErr = (s: string) => (tried && s ? <small className="block text-crit mt-1">{s}</small> : null);
 
-  if (!type) return <ModalShell title={title} subtitle="Step 1 of 2 · pick a type" width={760} onClose={onClose} footer={<button type="button" className="btn btn-sm btn-secondary" onClick={onClose}>Cancel</button>}>
+  if (!type) return <ModalShell title={title} subtitle="Pick a type" width={760} onClose={onClose} footer={<button type="button" className="btn btn-sm btn-secondary" onClick={onClose}>Cancel</button>}>
     <div className="grid grid-cols-2 md:grid-cols-3 gap-2 py-1">{FIELD_TYPES.map((t) => <button type="button" key={t} onClick={() => setType(t)} className="text-left border border-line rounded-lg p-3 hover:border-brand hover:bg-brand-soft/40 focus:outline-none focus:ring-2 focus:ring-brand"><span className="flex items-center gap-2.5"><span className="w-8 h-8 rounded-md bg-surface-3 grid place-items-center text-xs text-ink-2 flex-none">{TYPE_META[t]?.icon ?? "·"}</span><span className="min-w-0"><b className="block text-sm">{t}</b><small className="block text-ink-3 text-xs leading-snug">{TYPE_META[t]?.hint}</small></span></span></button>)}</div>
   </ModalShell>;
 
-  return <ModalShell title={title} subtitle={editing ? <>Type <b className="text-ink">{type}</b> · changing the type is a breaking change, so it is fixed while editing</> : <>Step 2 of 2 · configure the field · <button type="button" className="underline" onClick={() => setType("")}>change type</button></>} width={760} onClose={onClose}
+  return <ModalShell title={title} subtitle={editing ? <>Type <b className="text-ink">{type}</b> · changing the type is a breaking change, so it is fixed while editing</> : <>Configure the field · <button type="button" className="underline" onClick={() => setType("")}>change type</button></>} width={760} onClose={onClose}
     footer={<><button type="button" className="btn btn-sm btn-secondary" onClick={onClose}>Cancel</button><button type="submit" form="field-form" className="btn btn-sm btn-primary" disabled={tried && !valid}>{editing ? "Save field" : "Add field"}</button></>}>
     <form id="field-form" onSubmit={submit} className="grid grid-cols-2 gap-x-4 gap-y-3 py-1" noValidate>
       <label className={fieldLbl}>Label<input autoFocus className={inputCls} value={label} onChange={(e) => { setLabel(e.target.value); if (!keyTouched) setKey(camel(e.target.value)); }} placeholder="e.g. Interest rate" aria-invalid={tried && !!lErr} />{showErr(lErr)}</label>

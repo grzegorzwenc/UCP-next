@@ -7,8 +7,12 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import type { Block, PageView, PageStatus } from "@/lib/api/types";
 import { repoApi, ucpApi, ApiError } from "@/lib/api";
 import { blocksToComponents, componentsToBlocks } from "@/lib/repo/mapping";
-import { BLOCK_BY_TYPE, makeBlock, lines, joinLines, missingRequired, TEMPLATES } from "@/lib/blocks/registry";
-import { RenderBlock, SiteChrome, AssetsContext, EntitiesContext, InlineEditContext } from "@/lib/blocks/Render";
+import { BLOCK_BY_TYPE, makeBlock, lines, joinLines, missingRequired, TEMPLATES, channelOf, groupsFor, isMessagingPath, emailRegion, arrangeEmail, MESSAGING_FOLDER, isFormTemplate, isFormsPath, FORMS_FOLDER } from "@/lib/blocks/registry";
+import { FormSettings } from "./panels/FormSettings";
+import { MessageSettings } from "./panels/MessageSettings";
+import { FormContract } from "@/components/forms/FormContract";
+import { MessageContract } from "@/components/messaging/MessageContract";
+import { RenderBlock, SiteChrome, MessageChrome, FormChrome, AssetsContext, EntitiesContext, InlineEditContext } from "@/lib/blocks/Render";
 import { bindingsOf, hasTokens, type ResolvedEntities } from "@/lib/ucp/tokens";
 import type { Bindings } from "@/lib/ucp/types";
 import { ContentPicker, ContentIcon, type ContentChoice } from "./ContentPicker";
@@ -50,7 +54,7 @@ import { normalizeRich, cellSafe, toPlain } from "@/lib/blocks/richtext";
 import { useRouter } from "next/navigation";
 import { permForStatus } from "@/lib/ucp/perms";
 
-type Props = { marketId: string; envId: string; marketName: string; flag: string; domain: string; locale: string; envName: string; root: string; page: PageView; /** Open straight into the visitor preview (?preview=1). */ startInPreview?: boolean; names?: Record<string, string>; models?: ContentModelInfo[]; entities?: ResolvedEntities };
+type Props = { marketId: string; envId: string; marketName: string; flag: string; domain: string; locale: string; envName: string; root: string; page: PageView; /** Open straight into the visitor preview (?preview=1). */ startInPreview?: boolean; names?: Record<string, string>; models?: ContentModelInfo[]; entities?: ResolvedEntities; /** forms only: the page the form is shown on */ host?: { path: string; title: string } };
 type RightTab = "block" | "page" | "content" | "ai" | "insights" | "comments" | "jira" | "history";
 type PageField = "description" | "title";
 /** One page-level AI task: prompt → plan → run → review. `results` keeps the snapshot around each op so it can be undone alone. */
@@ -122,7 +126,7 @@ const EMPTY_NAMES: Record<string, string> = {}; const EMPTY_MODELS: ContentModel
 /** Line icon in the rail style (1.7 stroke, round joins) for the top bar buttons. */
 function Ico({ d }: { d: string }) { return <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none flex-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>; }
 
-export function Builder({ marketId, envId, marketName, flag, domain, locale, envName, root, page, startInPreview = false, names = EMPTY_NAMES, models = EMPTY_MODELS, entities: initialEntities = EMPTY_ENTS }: Props) {
+export function Builder({ marketId, envId, marketName, flag, domain, locale, envName, root, page, startInPreview = false, names = EMPTY_NAMES, models = EMPTY_MODELS, entities: initialEntities = EMPTY_ENTS, host }: Props) {
   const { can, user } = useSession(); const isAdmin = user.role === "admin" || !!user.perms.root?.manage;
   /* Pages → Lock: nobody else changes a locked page (whoever locked it and site admins still can) */
   const pageLock = (() => { const raw = page.meta?.["ucp:pageLock"]; if (typeof raw !== "string" || !raw) return null; try { return JSON.parse(raw) as { by: string; name: string; at: string }; } catch { return null; } })();
@@ -197,6 +201,11 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const rel = page.path.replace(root, "");
+  /* Messages (pages under Messaging) use this same builder and workflow; only the frame, the palette and the way back differ. */
+  const channel = channelOf(page.template); const isMsg = isMessagingPath(page.path, root);
+  /* Forms too: built on the page that hosts them, with the Form settings panel for rules, flow and submission. */
+  const isForm = isFormTemplate(page.template) && isFormsPath(page.path, root); const kindLabel = isForm ? "Form" : isMsg ? "Message" : "Page";
+  const [contractOpen, setContractOpen] = useState(false);
   const selected = blocks.find((b) => b.id === sel);
   const missing = useMemo(() => blocks.reduce((n, b) => n + missingRequired(b).length, 0), [blocks]);
   /* Page lifecycle. Draft pages move between "blocks" (structure), "content" (fill in) and "preview" (visitor view) by clicking the steps;
@@ -273,9 +282,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const mutate = useCallback((fn: (b: Block[]) => Block[]) => {
     past.current = [...past.current.slice(-(HISTORY_MAX - 1)), blocksRef.current];
     future.current = [];
-    setBlocks((b) => fn(b));
+    /* e-mails: the header and footer stay put (edit only); everything else lives in the body between them */
+    setBlocks((b) => (channel === "email" ? arrangeEmail(fn(b), b) : fn(b)));
     setDirty(true); setSaving("Unsaved"); setPreviewed(false); setHistTick((k) => k + 1);
-  }, [setPreviewed]);
+  }, [setPreviewed, channel]);
   const canUndo = past.current.length > 0, canRedo = future.current.length > 0;
   void histTick; // the counter exists to re-render the buttons when the stacks change
   const undo = () => {
@@ -304,7 +314,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   }));
   /* `at` is where a drag dropped it; without one the block goes after the selection, or at the
      end when nothing is selected — which is off-screen on a long page, so we scroll to it. */
-  const add = (type: string, at?: number) => { const nb = makeBlock(type); mutate((b) => { const i = at ?? (sel ? b.findIndex((x) => x.id === sel) + 1 : b.length); const c = b.slice(); c.splice(i, 0, nb); return c; }); select(nb.id); revealBlock(nb.id); say(`${BLOCK_BY_TYPE[type].name} added · click Edit to fill it in`); };
+  const add = (type: string, at?: number) => { if (channel === "email" && emailRegion(type) !== "body") { const ex = blocksRef.current.find((x) => x.type === type); if (ex) { select(ex.id); revealBlock(ex.id); openCfgPanel(ex.id); say(`${BLOCK_BY_TYPE[type].name} is part of the fixed ${emailRegion(type)}: edit it here`); return; } }
+    const nb = makeBlock(type); mutate((b) => { const i = at ?? (sel ? b.findIndex((x) => x.id === sel) + 1 : b.length); const c = b.slice(); c.splice(i, 0, nb); return c; }); select(nb.id); revealBlock(nb.id); say(`${BLOCK_BY_TYPE[type].name} added · click Edit to fill it in`); };
 
   /* ---- Drag a component from the palette onto the page ----
      Native HTML5 drag: the palette rows are the source, the canvas is the target, and a line
@@ -354,9 +365,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     });
     select(id); revealBlock(id);
   };
-  const move = (id: string, d: number) => mutate((b) => { const i = b.findIndex((x) => x.id === id); const j = i + d; if (j < 0 || j >= b.length) return b; const c = b.slice(); [c[i], c[j]] = [c[j], c[i]]; return c; });
-  const remove = (id: string) => { mutate((b) => b.filter((x) => x.id !== id)); select(null); };
-  const duplicate = (b: Block) => mutate((bl) => { const i = bl.findIndex((x) => x.id === b.id); const c = bl.slice(); c.splice(i + 1, 0, { ...b, id: makeBlock(b.type).id, props: { ...b.props } }); return c; });
+  const move = (id: string, d: number) => fixedPart(blocksRef.current.find((x) => x.id === id)?.type ?? "") ? say("The e-mail header and footer stay in place") : mutate((b) => { const i = b.findIndex((x) => x.id === id); const j = i + d; if (j < 0 || j >= b.length) return b; const c = b.slice(); [c[i], c[j]] = [c[j], c[i]]; return c; });
+  const fixedPart = (type: string) => channel === "email" && emailRegion(type) !== "body";
+  const remove = (id: string) => { const t = blocksRef.current.find((x) => x.id === id)?.type ?? ""; if (fixedPart(t)) { say(`The e-mail ${emailRegion(t)} is fixed: you can edit it, not remove it`); return; } mutate((b) => b.filter((x) => x.id !== id)); select(null); };
+  const duplicate = (b: Block) => fixedPart(b.type) ? say(`The e-mail ${emailRegion(b.type)} is fixed: you can edit it, not copy it`) : mutate((bl) => { const i = bl.findIndex((x) => x.id === b.id); const c = bl.slice(); c.splice(i + 1, 0, { ...b, id: makeBlock(b.type).id, props: { ...b.props } }); return c; });
   const configure = (id: string) => { setSel(id); setMode("select"); setPop(null); setZen(false); setRightTab("block"); setRight(true); setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
   /** Clicking a component opens Configure with its fields right away (not on phones, where the panel would cover the page). */
   const openCfgPanel = (id: string) => { if (phone || !canEdit || locked) return; setRightTab("block"); setRight(true); setCfgSnapshot(blocksRef.current.find((b) => b.id === id)?.props ?? null); };
@@ -489,7 +501,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
      veil says so, because `save()` is a real round trip and a dead button would read as a
      hang. A failed save keeps the author in the editor — `save()` has already said why. */
   const [closing, setClosing] = useState<string | null>(null);
-  const libraryHref = `/${marketId}/${envId}/pages${rel.replace(/\/[^/]+$/, "")}`;
+  const libraryHref = isForm ? `/${marketId}/${envId}/forms${rel.slice(FORMS_FOLDER.length + 1).replace(/\/[^/]+$/, "")}` : isMsg ? `/${marketId}/${envId}/messaging${rel.slice(MESSAGING_FOLDER.length + 1).replace(/\/[^/]+$/, "")}` : `/${marketId}/${envId}/pages${rel.replace(/\/[^/]+$/, "")}`;
   async function closeEditor() {
     if (closing) return;
     if (editing) commitInline(true);
@@ -883,8 +895,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const railsOn = !preview || !!lockReason; // a locked page keeps the rails (panels open read-only or veiled); a plain preview hides them
   const railBadge = (t: RightTab) => (t === "comments" ? commentCount : t === "insights" ? insightBadge : t === "content" ? Object.keys(bindings).length : t === "ai" ? aiTasks.filter((x) => x.stage !== "done").length : 0);
   const openRight = (t: RightTab) => { setZen(false); if (t === "block" && sel) configure(sel); else { setRightTab(t); setRight(true); } };
-  const rightItems = RAIL_SHOWN().map(([t, label, path]) => ({ key: t, label, path, active: right && rightTab === t, badge: railBadge(t), onClick: () => openRight(t) }));
-  const rightTitle = rightTab === "block" ? (selected ? `Configure · ${BLOCK_BY_TYPE[selected.type].name}` : "Configure") : rightTab === "page" ? "Page settings" : rightTab === "content" ? "Entities" : rightTab === "ai" ? "AI assistant" : rightTab === "insights" ? "Page insights" : rightTab === "comments" ? `Comments${commentTotal ? ` · ${commentTotal}` : ""}` : rightTab === "jira" ? "Jira" : "Version history";
+  const rightItems = RAIL_SHOWN().map(([t, label, path]) => ({ key: t, label: t === "page" ? `${kindLabel} settings` : label, path, active: right && rightTab === t, badge: railBadge(t), onClick: () => openRight(t) }));
+  const rightTitle = rightTab === "block" ? (selected ? `Configure · ${BLOCK_BY_TYPE[selected.type].name}` : "Configure") : rightTab === "page" ? `${kindLabel} settings` : rightTab === "content" ? "Entities" : rightTab === "ai" ? "AI assistant" : rightTab === "insights" ? "Page insights" : rightTab === "comments" ? `Comments${commentTotal ? ` · ${commentTotal}` : ""}` : rightTab === "jira" ? "Jira" : "Version history";
   const panelW = rightW; // one width for every tab: a panel that jumps wider on Comments or History reads as a glitch
   const floatingOpen = focus && !phone && ((qcMode && qcOpen) || (reviewMode && floatOpen)); // full screen: keep the page clear of the floating panel
   /* The gutters reserve exactly what the docked panels occupy. They used to skip that on
@@ -903,7 +915,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
      full 1536 and zooms to fit, because a 1536 preview cannot exist on a 14" screen any other way.
      Tablet and mobile render at their true width and only zoom if the canvas is narrower. */
   const areaW = avail ? Math.max(0, avail - padL - padR - 2) : 0;
-  const siteW = device === "desktop" ? Math.min(DEVICE_W.desktop, areaW || DEVICE_W.desktop) : DEVICE_W[device];
+  const siteW = channel === "email" ? (device === "mobile" ? DEVICE_W.mobile : 640) : channel ? 380 : device === "desktop" ? Math.min(DEVICE_W.desktop, areaW || DEVICE_W.desktop) : DEVICE_W[device];
   const fit = areaW && areaW < siteW ? areaW / siteW : 1;
 
   return (
@@ -964,6 +976,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             </button>}
             {/* No `focus` branch here: this whole bar is `{!focus && …}`, so an "Exit preview" button
                 placed in it could never render. The preview's way out is the fixed control below. */}
+            {(isForm || (isMsg && channel)) && status === "published" && <button type="button" className="btn btn-sm btn-secondary" onClick={() => setContractOpen(true)} title={isForm ? "The definition the Forms solution reads" : "How MDP fetches this published message"}>API contract</button>}
             {!canEdit
                 ? <span className="inline-flex items-center gap-1 whitespace-nowrap px-1.5 text-xs text-ink-3" title={lockedByOther ? `Locked by ${pageLock!.name}` : "Ask a site admin for Edit on this folder"}><Lock className="size-3" strokeWidth={1.5} aria-hidden />Read-only</span>
                 : locked
@@ -1011,8 +1024,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
              ground, and it narrated what the canvas already shows. */}
           <div ref={canvasRef} className={`bld-pad ${focus ? "flex-1 overflow-auto p-0 bg-white" : "editor-ground flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""} ${patternMode ? "pattern-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onMouseMove={onCanvasMove} onDragOver={onCanvasDragOver} onDrop={onCanvasDrop} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropAt(null); }} onMouseLeave={() => { if (!qcPinned) setQcTarget(null); }} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
             {(() => { return <div className="bld-frame" style={{ width: siteW, zoom: fit, margin: "0 auto", ["--bld-unzoom" as string]: 1 / fit }}>
-            <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
-              {blocks.length ? blocks.map((b, i) => { const line = dropAt === i && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />; return <Fragment key={b.id}>{line}{(() => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id && !commentTarget.field ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""} ${multi.includes(b.id) ? "multi" : ""} ${movingId === b.id ? "opacity-40" : ""} ${crit.blocks.has(b.id) ? "crit-blk" : ""} ${qcFlash === b.id ? "qc-flash" : ""}`} tabIndex={0}>
+            <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><ChromeFor channel={channel} host={isForm ? { title: host?.title ?? "Host page", crumbs: (host?.path.replace(root, "") ?? "").split("/").filter(Boolean) } : undefined} marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
+              {blocks.length ? blocks.map((b, i) => { const line = dropAt === i && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />; return <Fragment key={b.id}>{channel === "email" && <EmailRegionLabel blocks={blocks} i={i} />}{line}{(() => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id && !commentTarget.field ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""} ${multi.includes(b.id) ? "multi" : ""} ${movingId === b.id ? "opacity-40" : ""} ${crit.blocks.has(b.id) ? "crit-blk" : ""} ${qcFlash === b.id ? "qc-flash" : ""}`} tabIndex={0}>
                 {multi.includes(b.id) && <span className="multi-n" aria-hidden>{multiBlocks.findIndex((x) => x.id === b.id) + 1}</span>}
                 {reviewMode && <span className="cmt-pick" aria-hidden>{commentTarget?.id === b.id ? "Commenting here" : "Click a text or image to comment"}</span>}
                 {!!commentCounts[b.id] && <button type="button" data-ui className="cmt-badge" title={`${commentCounts[b.id]} comment${commentCounts[b.id] === 1 ? "" : "s"} on this component`} onClick={(e) => { e.stopPropagation(); if (focus) setFloatOpen(true); else { setRightTab("comments"); setRight(true); } }}><CommentIcon size={12} />{commentCounts[b.id]}</button>}
@@ -1023,7 +1036,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
                   onAi={(p) => { mutate((bl) => bl.map((x) => (x.id === b.id ? { ...x, props: { ...x.props, ...p.props } } : x))); say("AI changes applied"); }} />}
                 <RenderBlock b={b} /></div>; })()}</Fragment>; })
               : <div className="m-7 p-11 border-2 border-dashed border-line-2 rounded-xl text-center text-ink-2 text-base">How do you want to start this page?<small className="block text-sm text-ink-3 mt-1.5">Pick a layout, or add components one by one from the left.</small><div className="grid grid-cols-3 gap-3 mt-4 text-left">{TEMPLATES.filter((t) => t.blocks.length).slice(0, 3).map((t) => <button key={t.id} className="border border-line-2 bg-surface p-3.5 text-left hover:border-ink" onClick={() => mutate(() => t.blocks.map((x) => makeBlock(x, x === "mast" ? { heading: title } : {})))}><b className="block text-sm">{t.name}</b><small className="text-xs text-ink-3">{t.desc}</small></button>)}</div></div>}
-            {dropAt === blocks.length && blocks.length > 0 && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />}</SiteChrome></InlineEditContext.Provider></EntitiesContext.Provider></AssetsContext.Provider></div>; })()}
+            {dropAt === blocks.length && blocks.length > 0 && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />}</ChromeFor></InlineEditContext.Provider></EntitiesContext.Provider></AssetsContext.Provider></div>; })()}
           </div>
           {editing && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 flex gap-1 bg-foreground rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}><span className="px-2 py-1.5 text-white/70">Editing text</span><button className="px-2.5 py-1.5 rounded hover:bg-white/15 inline-flex items-center" title="Choose content from an entity (or type {{ to insert at the cursor)" aria-label="Choose content from an entity" onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }}><ContentIcon /></button><button className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-good font-medium" onClick={() => { commitInline(true); say("Saved"); }}><Check className="size-3.5" strokeWidth={2} aria-hidden />Save</button><button className="inline-flex items-center gap-1 px-3 py-1.5 rounded hover:bg-white/15" onClick={() => commitInline(false)}><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>Cancel</button></div>}
           {(patternMode || multi.length > 0) && !preview && <div data-ui role="toolbar" aria-label="Design pattern selection" className="absolute left-1/2 -translate-x-1/2 bottom-6 flex items-center gap-1 bg-foreground rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}>
@@ -1045,7 +1058,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {/* The left rail is gone: its three icons duplicated the panel's own Components / Patterns /
             Outline tabs. The top bar's "Components panel" toggle reopens the panel when it is closed. */}
         
-        {railsOn && <LeftPanel open={left} hidden={zen} phone={phone} width={leftW} canEdit={canEdit} onAdd={add} onClose={() => setLeft(false)} onOpenPanel={() => setLeft(true)}
+        {railsOn && <LeftPanel allowedGroups={groupsFor(channel, isForm)} open={left} hidden={zen} phone={phone} width={leftW} canEdit={canEdit} onAdd={add} onClose={() => setLeft(false)} onOpenPanel={() => setLeft(true)}
           railItems={LEFT_RAIL.map(([t, label, path]) => ({ key: t, label, path, active: leftTab === t, onClick: () => { setLeftTab(t); setLeft(true); } }))} lockedReason={lockReason || undefined} onEdit={veilEdit}
           onHelp={runTour} dragType={DRAG_TYPE} patternDragType={PATTERN_TYPE} onReorder={moveBlockTo} onFloatChange={setLeftFloating} blocks={blocks} selected={sel} onSelect={(id) => { select(id); canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }}
           tab={leftTab} onTab={setLeftTab} patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onRestorePattern={async (p) => { try { await ucpApi.archivePattern(marketId, p.id, false); say(`${p.name} restored`); } catch { say("Could not restore"); } loadPatterns(); }} onDeletePattern={(p) => deletePatternForGood(p)} onPatternMarkets={setPatMarkets} mayManage={mayManagePattern} onStartPattern={() => startPattern()} creating={patternMode} />}
@@ -1096,7 +1109,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             {/* Page settings was a flat wall of nine fields — the one tab on this side that really
                 needed grouping. Same collapsible sections as Configure and the left panel, so both
                 panels read the same way. Only Basics is open: the rest are reference, not edits. */}
-            {rightTab === "page" ? <div className="flex flex-col">
+            {rightTab === "page" && isForm ? <FormSettings marketId={marketId} base={`/${marketId}/${envId}`} path={page.path} meta={page.meta} blocks={blocks} host={host ? { ...host, rel: host.path.replace(root, "") } : undefined} editable={canEdit && !locked} status={status} title={title} />
+            : rightTab === "page" && channel ? <MessageSettings channel={channel} template={page.template} title={title} onTitle={(v) => setPageField("title", v)} blocks={blocks} status={status} marketId={marketId} id={rel.slice(MESSAGING_FOLDER.length + 2)} path={page.path} editable={canEdit && !locked} onContract={() => setContractOpen(true)} />
+            : rightTab === "page" ? <div className="flex flex-col">
               <Section t="Basics">
                 <label className="text-xs text-ink-2 font-medium">Page title<input className="bdl-field mt-1" value={title} onChange={(e) => setPageField("title", e.target.value)} /></label>
                 <label className="text-xs text-ink-2 font-medium">Meta description<textarea rows={3} className="bdl-field mt-1" value={description} onChange={(e) => setPageField("description", e.target.value)} placeholder="One or two sentences shown in search results" /><small className={`text-xs font-normal ${description.length > 155 ? "text-crit" : "text-ink-3"}`}>{description.length}/155 characters</small></label>
@@ -1191,6 +1206,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {publishing && <PublishDialog marketId={marketId} envName={envName} pages={[{ path: page.path, title, status, publishAt }]} mayPublish={() => mayStatus("published")} onClose={() => setPublishing(false)}
           onDone={(r, m) => { const x = r[0]; setPublishing(false); if (!x?.ok) { say(x?.reason ?? "Nothing was published"); return; } setStatus(x.status as PageStatus); setPublishAt(undefined); say(m === "cancel" ? "Schedule cancelled · back to Approved" : m === "schedule" ? "Scheduled for publishing" : `Published to ${envName}`); router.refresh(); }} />}
         {sending && shareIn === "bar" && <SendForReviewModal marketId={marketId} pagePath={page.path} onClose={() => setSending(false)} onSend={sendForReview} />}
+        {contractOpen && isForm && <FormContract marketId={marketId} id={page.name} name={title} onClose={() => setContractOpen(false)} />}
+        {contractOpen && channel && <MessageContract marketId={marketId} id={rel.slice(MESSAGING_FOLDER.length + 2)} name={title} channel={channel} onClose={() => setContractOpen(false)} />}
         {translating && <TranslateModal marketId={marketId} path={page.path} title={title} onClose={() => setTranslating(false)} onDone={(created) => { say(`Created ${created.length} translation${created.length === 1 ? "" : "s"}`); router.refresh(); }} />}
         {firstStage && <AuthorsChip trigger={false} anchorRef={actionsRef} openSignal={authorsSignal} authors={authors} meId={user.id} admin={isAdmin} canEdit={canEdit} people={names} onAction={authorAction} />}
         {toast && <div style={{ bottom: focus ? 24 : 60 }} className="fixed left-1/2 z-[90] -translate-x-1/2 rounded-lg bg-foreground px-4 py-2.5 text-sm text-background shadow-xl">{toast}</div>}
@@ -1412,7 +1429,7 @@ function ConfigForm({ block: selected, index, count, marketId, setProp, entities
   // The intro carries the panel's standard 16px inset; the sections below are flush to the
   // panel and add their own, so Configure lines up with Page settings exactly.
   return <div className="flex flex-col">
-    <div className="px-4 py-3"><b className="text-sm">{def.name}</b><div className="text-xs text-ink-3">Block {index + 1} of {count} · {def.desc}</div></div>
+    <div className="px-4 py-3"><b className="text-sm">{def.name}</b><div className="text-xs text-ink-3">{def.desc}</div></div>
     <Section t="Content">{def.fields.map((f) => { const v = selected.props[f.k]; const invalid = f.req && !toPlain(v).trim(); return <div key={f.k}><label className="flex items-center text-xs text-ink-2 font-medium mb-1">{f.l}{(f.t === "text" || f.t === "textarea") && canEdit ? <button type="button" className="ml-auto mr-2 w-6 h-6 rounded grid place-items-center text-info hover:bg-info-soft" onMouseDown={(e) => e.preventDefault()} onClick={() => onChoose(f.k, f.l)} title="Choose content from an entity" aria-label={`Choose content from an entity for ${f.l}`}><ContentIcon /></button> : <span className="ml-auto" />}{f.req && <small className="text-xs text-ink-4">required</small>}</label>
       {f.t === "text" && !f.mono ? <RichField inline value={v} label={f.l} invalid={invalid} disabled={!canEdit} onChange={(html) => setProp(f.k, html)} onFocus={() => onFieldFocus(f.k, f.l, 0, 0)} />
       : f.t === "text" ? <input className={`bdl-field ${invalid ? "!border-crit" : ""}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
@@ -1503,4 +1520,19 @@ function AiPanel({ tasks, draft, setDraft, dirty, onAsk, onToggle, onRun, onUndo
       </div>
     </form>
   </>;
+}
+
+/** Website chrome for pages; the inbox or phone frame for messages. */
+function ChromeFor({ channel, host, children, ...site }: { channel?: string; host?: { title: string; crumbs: string[] }; marketName: string; crumbs: string[]; device: string; children: React.ReactNode }) {
+  if (host) return <FormChrome marketName={site.marketName} crumbs={host.crumbs} hostTitle={host.title} device={site.device}>{children}</FormChrome>;
+  return channel ? <MessageChrome channel={channel}>{children}</MessageChrome> : <SiteChrome {...site}>{children}</SiteChrome>;
+}
+
+/** Region dividers on an e-mail canvas: Header and Footer are fixed (edit only), Body takes components. */
+function EmailRegionLabel({ blocks, i }: { blocks: Block[]; i: number }) {
+  const r = emailRegion(blocks[i].type); const prev = i > 0 ? emailRegion(blocks[i - 1].type) : null; if (prev === r) return null;
+  const tag = (t: string, d: string) => <div data-ui className="m-region"><b>{t}</b><span>{d}</span></div>;
+  if (r === "header") return tag("Header", "fixed · edit only");
+  if (r === "body") return tag("Body", "add, move and remove components here");
+  return <>{prev === "header" && <>{tag("Body", "add, move and remove components here")}<div data-ui className="m-region-empty">Add components from the left: they go into the body.</div></>}{tag("Footer", "fixed · edit only")}</>;
 }

@@ -43,7 +43,8 @@ export function ViewToggle({ view, onChange, modes = ALL_VIEWS }: { view: View; 
   );
 }
 
-export function FolderTiles({ folders, base, rel, counts, scopeName, upHref, upName }: {
+export function FolderTiles({ section = "pages", folders, base, rel, counts, scopeName, upHref, upName }: {
+  section?: string;
   folders: PageSummary[];
   base: string;
   rel: (p: string) => string;
@@ -71,7 +72,7 @@ export function FolderTiles({ folders, base, rel, counts, scopeName, upHref, upN
         {folders.map((f) => (
           <Link
             key={f.path}
-            href={`${base}/pages${rel(f.path)}`}
+            href={`${base}/${section}${rel(f.path)}`}
             className="group flex cursor-pointer items-center gap-2 border border-line bg-surface px-3 py-2 text-start text-sm no-underline transition-[background-color,box-shadow] duration-160 ease-out hover:bg-accent/40 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
             <Folder className="size-4 shrink-0 text-ink-3 transition-colors group-hover:text-brand" />

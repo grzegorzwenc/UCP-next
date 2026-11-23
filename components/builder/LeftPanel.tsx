@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { THUMB_W } from "@/lib/ucp/devices";
 import { AlignLeft, CircleHelp, GripVertical, Lock, CreditCard, FileText, Image, LayoutGrid, Link2, MessageSquareQuote, Megaphone, ScrollText, Shapes, Table2, Type } from "lucide-react";
 import type { Block } from "@/lib/api/types";
-import { BLOCKS, BLOCK_BY_TYPE, GROUPS } from "@/lib/blocks/registry";
+import { BLOCKS, BLOCK_BY_TYPE, GROUPS, PAGE_EXCLUDED, FIXED_GROUPS } from "@/lib/blocks/registry";
 import { RenderBlock } from "@/lib/blocks/Render";
 import { LockedVeil } from "./LockedVeil";
 import { partNames, type DesignPattern } from "@/lib/blocks/patterns";
@@ -76,6 +76,8 @@ function PatternPreview({ p, top, left }: { p: DesignPattern; top: number; left:
 type Props = {
   phone?: boolean; width?: number;
   canEdit: boolean; onAdd: (type: string) => void; onClose: () => void; onOpenPanel?: () => void;
+  /** Component groups to offer (Messaging limits the palette per channel); default: every page group. */
+  allowedGroups?: string[];
   /** Replays the editor tour. Lives on the panel's bottom bar, which is where the tour ends. */
   onHelp?: () => void;
   /** dataTransfer types the canvas listens for, so a component or a pattern can be dragged onto the page. */
@@ -107,7 +109,7 @@ const tabCls = (on: boolean) =>
 const rowCls = "group/item flex h-7 w-full cursor-grab items-center gap-2 ps-7 pe-1.5 text-left active:cursor-grabbing transition-colors duration-150 ease-out hover:bg-surface-2 disabled:cursor-default disabled:opacity-50";
 
 export function LeftPanel({
-  phone, width = 280, canEdit, onAdd, onClose, onOpenPanel = noop, onHelp, dragType, patternDragType, lockedReason, onEdit,
+  phone, width = 280, canEdit, onAdd, allowedGroups, onClose, onOpenPanel = noop, onHelp, dragType, patternDragType, lockedReason, onEdit,
   blocks = [], selected = null, onSelect = noop, onReorder,
   tab: tabIn = "components", onTab = noop, patterns, onAddPattern = noop, onRemovePattern = noop, onRestorePattern = noop,
   onDeletePattern = noop, onPatternMarkets = noop, mayManage = () => false, onStartPattern = noop, creating = false, onFloatChange, open = true, hidden = false, railItems = [],
@@ -150,10 +152,10 @@ export function LeftPanel({
   };
   const needle = q.trim().toLowerCase();
 
-  const groups = useMemo(() => GROUPS.map((g) => ({
+  const groups = useMemo(() => (allowedGroups ?? GROUPS.filter((g) => !PAGE_EXCLUDED.includes(g))).map((g) => ({
     id: g,
     items: BLOCKS.filter((b) => b.group === g && (!needle || b.name.toLowerCase().includes(needle) || b.desc.toLowerCase().includes(needle))),
-  })).filter((g) => g.items.length > 0), [needle]);
+  })).filter((g) => g.items.length > 0), [needle, allowedGroups]);
   const total = groups.reduce((n, g) => n + g.items.length, 0);
 
   const match = (p: DesignPattern) => !needle || `${p.name} ${p.desc} ${partNames(p)}`.toLowerCase().includes(needle);
@@ -217,18 +219,19 @@ export function LeftPanel({
               : groups.map((g, gi) => (
                 /* Only the first group starts open, so the panel opens tidy instead of as one long list.
                    While searching every group is forced open — a hit hidden inside a collapsed group reads as "no results". */
-                <PanelSection key={g.id} id={`grp-${g.id}`} title={g.id} count={g.items.length} defaultOpen={gi === 0} {...(searching ? { open: true } : {})}>
+                <PanelSection key={g.id} id={`grp-${g.id}`} title={FIXED_GROUPS.includes(g.id) ? `${g.id} · fixed` : g.id} count={g.items.length} defaultOpen={gi === 0 || !!allowedGroups?.includes("Body")} {...(searching ? { open: true } : {})}>
                   <ul className="m-0 list-none p-0">
-                    {g.items.map((b) => { const Icon = iconFor(b.type); return (
+                    {FIXED_GROUPS.includes(g.id) && <li className="px-3 pb-1 text-[11px] text-ink-3">Comes with the template. Click to edit it.</li>}
+                    {g.items.map((b) => { const Icon = iconFor(b.type); const fixed = FIXED_GROUPS.includes(g.id); return (
                       <li key={b.type} className="m-0 p-0">
                         {/* Click to add after the selection, or drag onto the page to choose where it lands. */}
-                        <button type="button" disabled={!canEdit} onClick={() => onAdd(b.type)} title={b.desc} className={rowCls}
-                          draggable={!!dragType && canEdit}
+                        <button type="button" disabled={!canEdit} onClick={() => onAdd(b.type)} title={fixed ? `${b.desc} · edit only` : b.desc} className={rowCls}
+                          draggable={!!dragType && canEdit && !fixed}
                           onDragStart={(e) => { if (!dragType) return; e.dataTransfer.setData(dragType, b.type); e.dataTransfer.effectAllowed = "copy"; }}>
                           <Icon className="size-3.5 shrink-0 text-ink-3" aria-hidden />
                           <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{b.name}</span>
                           <span aria-hidden className="grid size-5 shrink-0 place-items-center rounded text-ink-3 opacity-0 transition-opacity duration-150 ease-out group-hover/item:opacity-100 group-focus-visible/item:opacity-100">
-                            <svg viewBox="0 0 24 24" className="size-3.5 fill-none stroke-current" strokeWidth={2} strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                            <svg viewBox="0 0 24 24" className="size-3.5 fill-none stroke-current" strokeWidth={2} strokeLinecap="round"><path d={fixed ? "M4 20h4L19 9l-4-4L4 16z" : "M12 5v14M5 12h14"} /></svg>
                           </span>
                         </button>
                       </li>

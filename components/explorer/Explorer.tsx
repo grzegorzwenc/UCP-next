@@ -26,14 +26,14 @@ import { STATUS_LABEL } from "@/components/ui/Pill";
 import { useSession } from "@/components/shell/Session";
 import type { Template } from "@/lib/ucp/types";
 import { MARKETS, market as marketOf } from "@/lib/markets";
-import { makeBlock } from "@/lib/blocks/registry";
+import { makeBlock, templateBlocks, TEMPLATES as REGISTRY_TEMPLATES } from "@/lib/blocks/registry";
 import { blocksToComponents } from "@/lib/repo/mapping";
 import { Pill } from "@/components/ui/Pill";
 import { FolderTree } from "@/components/explorer/FolderTree";
 import { FolderIcon, PageIcon } from "@/components/ui/Icons";
 
 type Folder = { path: string; title: string };
-type Props = { marketId: string; envId: string; root: string; marketName: string; folder: Folder; items: PageSummary[]; tree: Folder[]; allPages: PageSummary[]; names: Record<string, string>; templates: Template[]; openNew?: boolean; newTemplate?: string; archived?: Archived[] };
+type Props = { /** "messaging": the same explorer over the market's Messaging tree (messages are pages built in the page builder). */ section?: "pages" | "messaging" | "forms"; /** the whole market's folders (pages, Messaging, Forms) for the shared tree */ market?: { root: string; name: string; folders: Folder[] }; /** forms: the site pages a form can be shown on */ hostPages?: { path: string; title: string; rel: string; folder?: boolean }[]; /** the market root, when `root` is a sub-tree such as Messaging */ marketRoot?: string; marketId: string; envId: string; root: string; marketName: string; folder: Folder; items: PageSummary[]; tree: Folder[]; allPages: PageSummary[]; names: Record<string, string>; templates: Template[]; openNew?: boolean; newTemplate?: string; archived?: Archived[] };
 type Archived = PageSummary & { archive: { by: string; name: string; at: string; from?: string } };
 /** Line icons for the selection bar (HSBC style: 1.8 stroke, round caps). */
 const BAR_ICONS: Record<string, string[]> = {
@@ -208,11 +208,14 @@ function useView(): [View, (v: View) => void] {
 }
 
 /* ---------------- explorer ---------------- */
-export function Explorer({ marketId, envId, root, marketName, folder, items, tree, allPages, names, templates, openNew, newTemplate, archived = [] }: Props) {
+export function Explorer({ section = "pages", market, hostPages, marketRoot, marketId, envId, root, marketName, folder, items, tree, allPages, names, templates, openNew, newTemplate, archived = [] }: Props) {
   const router = useRouter(); const ask = useConfirm(); const [showArchive, setShowArchive] = useState(false);
   const { can } = useSession();
   const base = `/${marketId}/${envId}`;
   const rel = (p: string) => p.replace(root, "") || "/";
+  /** editor links are relative to the market root (the builder route), list links to this explorer's root */
+  const erel = (p: string) => p.replace(marketRoot ?? root, "") || "/";
+  const msg = section === "messaging"; const frm = section === "forms";
   const [q, setQ] = useState("");
   /* Compact / grid / list, as the source project offers. It keeps the choice in the URL; this
      keeps it in local storage so switching view costs no server round trip, the same idiom the
@@ -271,7 +274,7 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
   const shownPages = shown.filter((n) => !isFolder(n));
   /* The card views have no breadcrumb of their own, so the folder tiles carry the way back up. */
   const upParent = folder.path === root ? null : parentOf(folder.path);
-  const upHref = upParent === null ? undefined : upParent === root ? `${base}/pages` : `${base}/pages${rel(upParent)}`;
+  const upHref = upParent === null ? undefined : upParent === root ? `${base}/${section}` : `${base}/${section}${rel(upParent)}`;
   /* Name where you are going rather than the direction: "Up to Borrowing" beats "Up one level",
      and at the top it is the market, which is what the tree calls the root too. */
   const upName = upParent === null ? undefined : upParent === root ? marketName : tree.find((f) => f.path === upParent)?.title ?? upParent.split("/").pop();
@@ -303,7 +306,29 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
 
   async function create(req: NewPageRequest) {
     setBusy(true); setErr(null);
-    try { const t = templates.find((x) => x.id === req.templateId); const page = await repoApi.createPage({ parentPath: req.parentPath, name: req.slug, template: req.templateId, title: req.title, locale: req.locale, components: componentsFor(t, req.title) }); setModal(null); router.push(`${base}/page${rel(page.path)}`); router.refresh(); }
+    try {
+      let parentPath = req.parentPath; const meta: Record<string, unknown> = {};
+      if (frm) {
+        /* A form is built for a page (req.parentPath is that page): it lives in Forms in folders that mirror the page's place in the site. */
+        const host = req.parentPath; const mr = marketRoot ?? ""; let cur = root;
+        for (const seg of host.slice(mr.length).split("/").filter(Boolean)) {
+          const next = `${cur}/${seg}`;
+          if (!tree.some((f) => f.path === next)) {
+            const title = hostPages?.find((h) => h.path === `${mr}${next.slice(root.length)}`)?.title ?? seg;
+            try { const f = await repoApi.createPage({ parentPath: cur, name: seg, template: "folder", title }); await repoApi.setProps(`${f.path}/jcr:content`, { "sling:resourceType": "hsbc/components/folder" }); }
+            catch (e) { if (!/exist/i.test(errText(e))) throw e; }
+          }
+          cur = next;
+        }
+        parentPath = cur; meta["ucp:hostPage"] = host;
+      }
+      const reg = REGISTRY_TEMPLATES.find((x) => x.id === req.templateId);
+      const t = templates.find((x) => x.id === req.templateId) ?? (reg as Template | undefined);
+      const components = reg && (reg.form || reg.channel) ? blocksToComponents(templateBlocks(req.templateId, req.title)) : componentsFor(t, req.title);
+      const page = await repoApi.createPage({ parentPath, name: req.slug, template: req.templateId, title: req.title, locale: req.locale, components });
+      if (Object.keys(meta).length) await repoApi.setProps(`${page.path}/jcr:content`, meta);
+      setModal(null); router.push(`${base}/page${erel(page.path)}`); router.refresh();
+    }
     catch (e) { setErr(errText(e)); } finally { setBusy(false); }
   }
   async function rename() {
@@ -426,8 +451,8 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
     catch { say("Copy did not work · open the page and copy the address by hand"); }
   }
   function onAction(a: RowAction, p: PageSummary) {
-    if (a === "open") router.push(p.isFolder ? `${base}/pages${rel(p.path)}` : `${base}/page${rel(p.path)}`);
-    else if (a === "preview") window.open(`${base}/page${rel(p.path)}?preview=1`, "_blank", "noopener");
+    if (a === "open") router.push(p.isFolder ? `${base}/${section}${rel(p.path)}` : `${base}/page${erel(p.path)}`);
+    else if (a === "preview") window.open(`${base}/page${erel(p.path)}?preview=1`, "_blank", "noopener");
     else if (a === "copyurl") void copyUrl(p);
     else if (a === "rename") { openModal({ kind: "rename", page: p }); setTitle(p.title); }
     else if (a === "move") { openModal({ kind: "move", pages: [p] }); setParent(parentOf(p.path)); }
@@ -437,7 +462,7 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
   }
   const cell = "px-4 py-2 border-b border-line";
   const scopeName = q ? `Search results for “${q}”` : folder.title;
-  const empty = <div className="border border-dashed border-line-2 p-10 text-center text-ink-3">{q ? "No pages match." : canEditHere ? <>This folder is empty. <button className="cursor-pointer underline" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}>New page</button>.</> : "This folder is empty."}</div>;
+  const empty = <div className="border border-dashed border-line-2 p-10 text-center text-ink-3">{q ? (msg ? "No messages match." : "No pages match.") : canEditHere ? <>This folder is empty. <button className="cursor-pointer underline" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}>{frm ? "Create a form" : msg ? "Create a message" : "New page"}</button>.</> : "This folder is empty."}</div>;
   const barBtn = "btn btn-sm gap-1.5 hover:brightness-125"; const barStyle = { background: "transparent", borderColor: "rgba(255,255,255,.3)", color: "#fff" } as const;
 
   /* Sized like their page root (page-builder/+page.svelte): the viewport minus the top bar,
@@ -451,11 +476,11 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
             <h2 className="text-sm font-medium text-ink-2">Folders</h2>
             {canEditHere && <NewFolderButton onClick={() => { setParent(folder.path); openModal({ kind: "folder" }); }} />}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto py-1"><FolderTree root={root} marketName={marketName} base={base} current={folder.path} folders={tree} counts={counts} /></div>
+          <div className="min-h-0 flex-1 overflow-y-auto py-1"><FolderTree market={market} section={section} root={root} marketName={marketName} base={base} current={folder.path} folders={tree} counts={counts} /></div>
         </div>
 
         <div className="flex min-w-0 shrink-0 items-center justify-end">
-          {canEditHere && <button type="button" className="btn btn-primary inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 px-4 text-sm" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}><Plus className="size-4" />New page</button>}
+          {canEditHere && <button type="button" className="btn btn-primary inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 px-4 text-sm" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}><Plus className="size-4" />{frm ? "Create form" : msg ? "Create" : "New page"}</button>}
         </div>
 
         {/* @container: the columns must respond to this pane, which is the viewport minus the app
@@ -467,8 +492,8 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
               <h2 className="truncate text-base font-medium" title={scopeName}>{scopeName}</h2>
               {!q && crumbs.length > 0 && (
                 <nav aria-label="Folder path" className="hidden truncate text-xs text-ink-3 xl:block">
-                  <Link href={`${base}/pages`} className="cursor-pointer no-underline hover:text-ink hover:underline">{marketName}</Link>
-                  {crumbs.map((c, i) => <span key={c.path}><ChevronRight className="mx-0.5 inline size-3 align-[-2px]" />{i === crumbs.length - 1 ? <span>{c.name}</span> : <Link href={`${base}/pages${rel(c.path)}`} className="cursor-pointer no-underline hover:text-ink hover:underline">{c.name}</Link>}</span>)}
+                  <Link href={`${base}/${section}`} className="cursor-pointer no-underline hover:text-ink hover:underline">{marketName}</Link>
+                  {crumbs.map((c, i) => <span key={c.path}><ChevronRight className="mx-0.5 inline size-3 align-[-2px]" />{i === crumbs.length - 1 ? <span>{c.name}</span> : <Link href={`${base}/${section}${rel(c.path)}`} className="cursor-pointer no-underline hover:text-ink hover:underline">{c.name}</Link>}</span>)}
                 </nav>
               )}
             </div>
@@ -490,12 +515,12 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
           <div className="relative min-h-0 flex-1 overflow-auto">
             {view !== "list" ? (
               <div className="flex flex-col gap-4 p-4">
-                {!q && <FolderTiles folders={items.filter(isFolder)} base={base} rel={rel} counts={counts} scopeName={scopeName} upHref={upHref} upName={upName} />}
+                {!q && <FolderTiles section={section} folders={items.filter(isFolder)} base={base} rel={rel} counts={counts} scopeName={scopeName} upHref={upHref} upName={upName} />}
                 {shownPages.length ? (
                   <section aria-label={`Pages in ${scopeName}`}>
                     {!q && items.some(isFolder) && <h3 className="mb-2 text-xs font-medium text-ink-3">Pages</h3>}
                     <div className={`grid ${view === "compact" ? "gap-2 [grid-template-columns:repeat(auto-fill,minmax(9rem,1fr))]" : "gap-3 [grid-template-columns:repeat(auto-fill,minmax(13.5rem,1fr))]"}`}>
-                      {shownPages.map((n) => <PageCard key={n.path} page={n} href={`${base}/page${rel(n.path)}`} compact={view === "compact"} rel={rel} onCopyUrl={() => void copyUrl(n)} menu={<RowMenu page={n} canEdit={can("edit", n.path)} onAction={onAction} />} />)}
+                      {shownPages.map((n) => <PageCard key={n.path} page={n} href={`${base}/page${erel(n.path)}`} compact={view === "compact"} rel={rel} onCopyUrl={() => void copyUrl(n)} menu={<RowMenu page={n} canEdit={can("edit", n.path)} onAction={onAction} />} />)}
                     </div>
                   </section>
                 ) : empty}
@@ -518,16 +543,16 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
                   <td className={cell}><input type="checkbox" className="bdl-checkbox bdl-checkbox-sm" aria-label={`Select ${n.title}`} checked={on} onChange={(e) => setSel(e.target.checked ? [...sel, n.path] : sel.filter((x) => x !== n.path))} /></td>
                   <td className={cell}>
                     <div className="flex min-w-0 items-center gap-2.5">
-                      <Link href={`${base}/page${rel(n.path)}`} aria-label={`Edit ${n.title}`} className="shrink-0 border border-line focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+                      <Link href={`${base}/page${erel(n.path)}`} aria-label={`Edit ${n.title}`} className="shrink-0 border border-line focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
                         <PageThumb template={n.template} className="h-9 w-12" />
                       </Link>
                       <div className="min-w-0">
-                        <Link href={`${base}/page${rel(n.path)}`} className="flex min-w-0 items-center gap-1.5 font-medium no-underline hover:underline">
+                        <Link href={`${base}/page${erel(n.path)}`} className="flex min-w-0 items-center gap-1.5 font-medium no-underline hover:underline">
                           <span className="truncate">{n.title}</span>
                           {lockOf(n) && <span className="inline-flex shrink-0 items-center text-ink-3" title={`Locked by ${lockOf(n)!.name}`} aria-label={`Locked by ${lockOf(n)!.name}`}><BarIcon n="lock" /></span>}
                         </Link>
                         <span className="block truncate text-xs text-ink-3">{rel(n.path)}</span>
-                        {src && <span className="block truncate text-xs text-ink-3">Source: <Link href={`${base}/page${rel(src)}`} className="hover:underline">{rel(src)}</Link></span>}
+                        {src && <span className="block truncate text-xs text-ink-3">Source: <Link href={`${base}/page${erel(src)}`} className="hover:underline">{rel(src)}</Link></span>}
                       </div>
                     </div>
                   </td>
@@ -539,7 +564,7 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
                   <td className={`${cell} text-right whitespace-nowrap`}><RowMenu page={n} canEdit={editable} onAction={onAction} /></td>
                 </tr>; })}</tbody>
               </table>
-            ) : empty}
+            ) : !q && items.some(isFolder) ? <div className="p-4"><FolderTiles section={section} folders={items.filter(isFolder)} base={base} rel={rel} counts={counts} scopeName={scopeName} upHref={upHref} upName={upName} /></div> : empty}
             {rows.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-xs text-ink-3">Showing {shown.length} of {rows.length}<button className="btn btn-sm btn-secondary" onClick={() => setLimit(limit + PAGE)}>Show {Math.min(PAGE, rows.length - shown.length)} more</button></div>}
             <div className="px-4">
         {(() => { const here = archived.filter((a) => a.path.startsWith(`${folder.path}/`) && !archived.some((b) => b !== a && a.path.startsWith(`${b.path}/`))); if (!here.length || q) return null;
@@ -569,7 +594,7 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
       </div>
 
       {/* The mock's two-pane "Create page": templates on the left, details on the right. */}
-      {modal?.kind === "new" && <CreatePageDialog
+      {modal?.kind === "new" && <CreatePageDialog messaging={msg} hostPages={frm ? hostPages ?? [] : undefined}
         defaultParent={parent} defaultTemplateId={newTemplate} locales={marketOf(marketId).locales} relPath={rel} marketName={marketName} busy={busy} err={<Err err={err} />}
         folderSelect={(value, onChange) => <FolderSelect value={value} onChange={onChange} root={root} marketName={marketName} tree={tree} rel={rel} />}
         onClose={() => setModal(null)} onCreate={create} />}
