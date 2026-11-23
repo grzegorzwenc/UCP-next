@@ -39,6 +39,28 @@ const plain = (v: unknown) => str(v).replace(/<[^>]+>/g, "").replace(/&nbsp;/g, 
 const parse = <T,>(v: unknown, d: T): T => { if (typeof v !== "string" || !v) return d; try { return JSON.parse(v) as T; } catch { return d; } };
 export const formRules = (meta?: Record<string, unknown>) => parse<FormRule[]>(meta?.["ucp:formRules"], []);
 export const formSubmit = (meta?: Record<string, unknown>) => parse<FormSubmit>(meta?.["ucp:formSubmit"], DEFAULT_SUBMIT);
+
+/** The page before sending: a summary of the answers, the submit button, and what runs around the submit. */
+export type SubmitPage = { heading: string; intro: string; button: string; summary: boolean; before: string[]; after: string[]; confirmMessage: string };
+export const DEFAULT_SUBMIT_PAGE: SubmitPage = { heading: "Check your answers", intro: "Check your answers before you send them. You can change anything you need to.", button: "Submit", summary: true, before: ["bot-check"], after: [], confirmMessage: "" };
+export const formSubmitPage = (meta?: Record<string, unknown>) => ({ ...DEFAULT_SUBMIT_PAGE, ...parse<Partial<SubmitPage>>(meta?.["ucp:formSubmitPage"], {}) });
+/** Integrations the Forms solution can run when the customer presses Submit, before the answers are sent on. A failure shows the Failure page. */
+export const BEFORE_SUBMIT: Record<string, { name: string; desc: string }> = {
+  "bot-check": { name: "Bot check", desc: "reCAPTCHA Enterprise score; blocks automated submissions" },
+  "address-lookup": { name: "Address validation", desc: "Checks the address against the postcode file (Loqate)" },
+  "fraud-screening": { name: "Fraud screening", desc: "Device and behaviour risk score (ThreatMetrix)" },
+  "sanctions": { name: "Sanctions and PEP screening", desc: "Name and date of birth against the sanctions lists" },
+  "eligibility": { name: "Eligibility check", desc: "Calls the product eligibility API; ineligible answers go to the Failure page" },
+  "duplicate": { name: "Duplicate check", desc: "Stops a second application from the same customer within 24 hours" },
+};
+/** What runs after a successful submit. */
+export const AFTER_SUBMIT: Record<string, { name: string; desc: string }> = {
+  "confirm-email": { name: "Confirmation e-mail", desc: "Sent by MDP using a message from Messaging" },
+  "confirm-sms": { name: "Confirmation SMS", desc: "Sent by MDP using a message from Messaging" },
+  "documents": { name: "Store uploaded documents", desc: "Files go to the document store with the case reference" },
+  "analytics": { name: "Conversion event", desc: "form_submit event to analytics, with no personal data" },
+  "webhook": { name: "Webhook", desc: "POSTs the submission id to a registered endpoint" },
+};
 export const formLayout = (meta?: Record<string, unknown>) => (meta?.["ucp:formLayout"] === "single" ? "single" : "wizard");
 
 /** Checks shown before a form goes to review: what a reviewer would send back. */
@@ -79,6 +101,7 @@ export function formDefinition(f: { id: string; title: string; status: string; l
     layout: formLayout(f.meta) === "wizard" ? "core/fd/components/form/wizard/v2/wizard" : "core/fd/components/form/panelcontainer/v1/panelcontainer",
     items: panels, rules: formRules(f.meta),
     submit: { action: { id: submit.action, name: SUBMIT_ACTIONS[submit.action]?.name ?? submit.action }, mapping: submit.mapping, retentionPolicy: submit.retention, endpoint: `{formsSolution}/api/v1/forms/${f.id}/submissions` },
+    submitPage: (() => { const sp = formSubmitPage(f.meta); return { title: sp.heading, description: sp.intro, showSummary: sp.summary, button: { label: sp.button }, beforeSubmit: sp.before.map((id) => ({ id, name: BEFORE_SUBMIT[id]?.name ?? id })), afterSubmit: sp.after.map((id) => ({ id, name: AFTER_SUBMIT[id]?.name ?? id, ...(id.startsWith("confirm-") && sp.confirmMessage ? { message: `/v1/messages/${sp.confirmMessage}` } : {}) })) }; })(),
     thankYou: success, error: failure,
     _links: { self: `/v1/forms/${f.id}?market=${f.market}` },
   };

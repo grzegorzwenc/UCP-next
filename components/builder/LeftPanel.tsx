@@ -24,7 +24,7 @@ import { useFloat } from "./panels/useFloat";
  * The thumbnails are gone deliberately (Leon's call): the names carry the catalogue, and the
  * canvas shows the real thing the moment a component is added.
  */
-export type LeftTab = "components" | "outline" | "patterns";
+export type LeftTab = "components" | "outline" | "patterns" | "flow";
 
 /** One icon per block type so a row reads at a glance without a preview. Grouped fallback for anything new. */
 const ICONS: Record<string, typeof Type> = {
@@ -88,6 +88,8 @@ type Props = {
   /** Dragging an outline row to a new position reorders the page itself. */
   onReorder?: (id: string, to: number) => void;
   /** without `patterns` (e.g. the template editor) only the component library shows */
+  /** Forms: the Steps & pages tab (pages, steps, rules), shown first. */
+  flow?: React.ReactNode;
   patterns?: DesignPattern[] | null; tab?: LeftTab; onTab?: (t: LeftTab) => void;
   onAddPattern?: (p: DesignPattern) => void; onRemovePattern?: (p: DesignPattern) => void; onRestorePattern?: (p: DesignPattern) => void;
   onDeletePattern?: (p: DesignPattern) => void; onPatternMarkets?: (p: DesignPattern) => void; mayManage?: (p: DesignPattern) => boolean;
@@ -103,19 +105,19 @@ type Props = {
 };
 const noop = () => {};
 
-const tabCls = (on: boolean) =>
-  `relative cursor-pointer px-2.5 py-2 text-xs font-medium transition-colors duration-150 ease-out ${on ? "text-ink after:absolute after:inset-x-1.5 after:bottom-0 after:h-0.5 after:bg-brand" : "text-ink-3 hover:text-ink"}`;
+const tabCls = (on: boolean, tight = false) =>
+  `relative cursor-pointer whitespace-nowrap ${tight ? "px-1.5" : "px-2.5"} py-2 text-xs font-medium transition-colors duration-150 ease-out ${on ? "text-ink after:absolute after:inset-x-1.5 after:bottom-0 after:h-0.5 after:bg-brand" : "text-ink-3 hover:text-ink"}`;
 /** Row affordances appear only on the row under the pointer, which is what keeps a long list quiet. */
 const rowCls = "group/item flex h-7 w-full cursor-grab items-center gap-2 ps-7 pe-1.5 text-left active:cursor-grabbing transition-colors duration-150 ease-out hover:bg-surface-2 disabled:cursor-default disabled:opacity-50";
 
 export function LeftPanel({
   phone, width = 280, canEdit, onAdd, allowedGroups, onClose, onOpenPanel = noop, onHelp, dragType, patternDragType, lockedReason, onEdit,
-  blocks = [], selected = null, onSelect = noop, onReorder,
+  blocks = [], selected = null, onSelect = noop, onReorder, flow,
   tab: tabIn = "components", onTab = noop, patterns, onAddPattern = noop, onRemovePattern = noop, onRestorePattern = noop,
   onDeletePattern = noop, onPatternMarkets = noop, mayManage = () => false, onStartPattern = noop, creating = false, onFloatChange, open = true, hidden = false, railItems = [],
 }: Props) {
   const withPatterns = patterns !== undefined;
-  const tab: LeftTab = withPatterns || tabIn !== "patterns" ? tabIn : "components";
+  const tab: LeftTab = tabIn === "flow" ? (flow ? "flow" : "components") : withPatterns || tabIn !== "patterns" ? tabIn : "components";
   const [showArchived, setShowArchived] = useState(false);
   const [q, setQ] = useState("");
   const float = useFloat(onFloatChange);
@@ -178,9 +180,10 @@ export function LeftPanel({
     <div role="tablist" aria-label="Left panel" className="flex min-w-0 flex-1 items-center">
       {/* Order is deliberate: the two things you add from come first, and Outline — which is
           about what is already on the page — sits last. */}
-      <button role="tab" aria-selected={tab === "components"} className={tabCls(tab === "components")} onClick={() => onTab("components")}>Components</button>
+      {flow && <button role="tab" aria-selected={tab === "flow"} className={tabCls(tab === "flow", true)} onClick={() => onTab("flow")}>Steps &amp; pages</button>}
+      <button role="tab" aria-selected={tab === "components"} className={tabCls(tab === "components", !!flow)} onClick={() => onTab("components")}>Components</button>
       {withPatterns && <button role="tab" aria-selected={tab === "patterns"} className={tabCls(tab === "patterns")} onClick={() => onTab("patterns")}>Patterns</button>}
-      <button role="tab" aria-selected={tab === "outline"} className={tabCls(tab === "outline")} onClick={() => onTab("outline")}>Outline</button>
+      <button role="tab" aria-selected={tab === "outline"} className={tabCls(tab === "outline", !!flow)} onClick={() => onTab("outline")}>Outline</button>
     </div>
   );
 
@@ -195,7 +198,7 @@ export function LeftPanel({
       <PanelBody open={open} width={width} floating={float.floating}>
       {float.floating && <GripStrip float={float} />}
       <PanelHeader tabs={tabs} float={float} onClose={onClose} side="left" />
-      {tab !== "outline" && <div className="flex shrink-0 items-center gap-1 border-b border-line p-2.5">
+      {tab !== "outline" && tab !== "flow" && <div className="flex shrink-0 items-center gap-1 border-b border-line p-2.5">
         {(
           <div className="relative min-w-0 flex-1">
             <svg viewBox="0 0 24 24" aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 fill-none stroke-current text-ink-3" strokeWidth={1.8} strokeLinecap="round"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4 4" /></svg>
@@ -210,6 +213,8 @@ export function LeftPanel({
 
       <LockedVeil on={!!lockedReason && tab !== "outline"} reason={lockedReason ?? ""} onEdit={onEdit}>
         {!canEdit && tab !== "outline" && <div className="shrink-0 border-b border-line bg-surface-3 px-3 py-2 text-xs text-ink-3">Read-only: you can look, but not add.</div>}
+
+        {tab === "flow" && flow}
 
         {/* ---- Components: one line each, inside collapsible groups ---- */}
         {tab === "components" && (
