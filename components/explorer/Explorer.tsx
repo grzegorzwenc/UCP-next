@@ -26,7 +26,8 @@ import { STATUS_LABEL } from "@/components/ui/Pill";
 import { useSession } from "@/components/shell/Session";
 import type { Template } from "@/lib/ucp/types";
 import { MARKETS, market as marketOf } from "@/lib/markets";
-import { makeBlock, templateBlocks, TEMPLATES as REGISTRY_TEMPLATES } from "@/lib/blocks/registry";
+import { makeBlock, templateBlocks, TEMPLATES as REGISTRY_TEMPLATES, channelOf, CHANNEL_LABEL, CHANNEL_ORDER } from "@/lib/blocks/registry";
+import { ChannelBadge } from "@/components/messaging/ChannelIcon";
 import { blocksToComponents } from "@/lib/repo/mapping";
 import { Pill } from "@/components/ui/Pill";
 import { FolderTree } from "@/components/explorer/FolderTree";
@@ -244,8 +245,9 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
   const [sort, setSort] = useState<Sort>({ id: "updatedAt", desc: true });
   const [statusF, setStatusF] = useState<string[]>([]);
   const [langF, setLangF] = useState<string[]>([]);
+  const [typeF, setTypeF] = useState<string[]>([]);
   const [range, setRange] = useState<Range>({});
-  const filtersOn = statusF.length > 0 || langF.length > 0 || rangeActive(range);
+  const filtersOn = statusF.length > 0 || langF.length > 0 || typeF.length > 0 || rangeActive(range);
   const tplName = (id?: string) => templates.find((t) => t.id === id)?.name ?? id ?? "";
   const localeOf = (p: PageSummary) => p.locale ?? "en-GB";
 
@@ -257,19 +259,21 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
       ? !filtersOn
       : (!statusF.length || statusF.includes(p.status))
         && (!langF.length || langF.includes(p.locale ?? "en-GB"))
+        && (!typeF.length || typeF.includes(channelOf(p.template) ?? ""))
         && inRange(p.lastModified, range));
     const key = (p: PageSummary) => {
       switch (sort.id) {
         case "title": return (p.title ?? "").toLowerCase();
         case "language": return p.locale ?? "en-GB";
         case "status": return p.status ?? "";
+        case "type": return CHANNEL_ORDER.indexOf(channelOf(p.template) ?? "email").toString();
         case "template": return (templates.find((t) => t.id === p.template)?.name ?? p.template ?? "").toLowerCase();
         case "updatedBy": return (p.lastModifiedBy ? names[p.lastModifiedBy] ?? p.lastModifiedBy : "").toLowerCase();
         default: return p.lastModified ?? "";
       }
     };
     return sortRows(kept, isFolder, key, sort.desc);
-  }, [matching, filtersOn, statusF, langF, range, sort, names, templates]);
+  }, [matching, filtersOn, statusF, langF, typeF, range, sort, names, templates]);
   const shown = rows.slice(0, limit);
   const shownPages = shown.filter((n) => !isFolder(n));
   /* The card views have no breadcrumb of their own, so the folder tiles carry the way back up. */
@@ -292,10 +296,11 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
   }, [items]);
   const chips = [
     ...statusF.map((v) => ({ key: "s:" + v, label: `Status: ${STATUS_LABEL[v] ?? v}`, remove: () => setStatusF(statusF.filter((x) => x !== v)) })),
+    ...typeF.map((v) => ({ key: "t:" + v, label: `Type: ${CHANNEL_LABEL[v as keyof typeof CHANNEL_LABEL] ?? v}`, remove: () => setTypeF(typeF.filter((x) => x !== v)) })),
     ...langF.map((v) => ({ key: "l:" + v, label: `Language: ${v}`, remove: () => setLangF(langF.filter((x) => x !== v)) })),
     ...(rangeActive(range) ? [{ key: "r", label: `Updated ${range.from ?? "…"} to ${range.to ?? "…"}`, remove: () => setRange({}) }] : []),
   ];
-  const clearFilters = () => { setStatusF([]); setLangF([]); setRange({}); };
+  const clearFilters = () => { setStatusF([]); setLangF([]); setTypeF([]); setRange({}); };
   const selected = rows.filter((r) => sel.includes(r.path));
   const canEditSelected = selected.length > 0 && selected.every((r) => can("edit", r.path));
   /* Folders are not rows in the list view — theirs has none either; the tree and the folder
@@ -509,6 +514,7 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
             </div>
           </div>
 
+          {msg && <QuickChips label="Type" all={items.filter((p) => !isFolder(p)).length} options={CHANNEL_ORDER.map((c) => ({ value: c, label: CHANNEL_LABEL[c], count: items.filter((p) => !isFolder(p) && channelOf(p.template) === c).length }))} value={typeF} onChange={setTypeF} />}
           <QuickChips label="Language" all={items.filter((p) => !isFolder(p)).length} options={langs} value={langF} onChange={setLangF} />
           <FilterChips shown={rows.length} total={matching.length} noun="pages" chips={chips} onClear={clearFilters} />
 
@@ -520,7 +526,7 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
                   <section aria-label={`Pages in ${scopeName}`}>
                     {!q && items.some(isFolder) && <h3 className="mb-2 text-xs font-medium text-ink-3">Pages</h3>}
                     <div className={`grid ${view === "compact" ? "gap-2 [grid-template-columns:repeat(auto-fill,minmax(9rem,1fr))]" : "gap-3 [grid-template-columns:repeat(auto-fill,minmax(13.5rem,1fr))]"}`}>
-                      {shownPages.map((n) => <PageCard key={n.path} page={n} href={`${base}/page${erel(n.path)}`} compact={view === "compact"} rel={rel} onCopyUrl={() => void copyUrl(n)} menu={<RowMenu page={n} canEdit={can("edit", n.path)} onAction={onAction} />} />)}
+                      {shownPages.map((n) => <PageCard key={n.path} page={n} href={`${base}/page${erel(n.path)}`} compact={view === "compact"} rel={rel} onCopyUrl={() => void copyUrl(n)} badge={msg && channelOf(n.template) ? <ChannelBadge channel={channelOf(n.template)!} /> : undefined} menu={<RowMenu page={n} canEdit={can("edit", n.path)} onAction={onAction} />} />)}
                     </div>
                   </section>
                 ) : empty}
@@ -531,6 +537,7 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
                   <tr className="text-left text-xs text-ink-3">
                     <th className="h-11 w-11 border-b border-line-2 px-4"><input type="checkbox" className="bdl-checkbox bdl-checkbox-sm" aria-label="Select all" checked={allChecked} onChange={(e) => setSel(e.target.checked ? shownPages.map((r) => r.path) : [])} /></th>
                     <th className="h-11 border-b border-line-2 px-4"><SortHeader id="title" label="Name" sort={sort} onSort={setSort} /></th>
+                    {msg && <th className="h-11 w-36 border-b border-line-2 px-4"><SortHeader id="type" label="Type" sort={sort} onSort={setSort} /></th>}
                     <th className="hidden h-11 w-24 border-b border-line-2 px-4 @3xl:table-cell"><SortHeader id="language" label="Language" sort={sort} onSort={setSort} /></th>
                     <th className="h-11 w-32 border-b border-line-2 px-4"><SortHeader id="status" label="Status" sort={sort} onSort={setSort} /></th>
                     <th className="hidden h-11 w-32 border-b border-line-2 px-4 @5xl:table-cell"><SortHeader id="template" label="Template" sort={sort} onSort={setSort} /></th>
@@ -556,6 +563,7 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
                       </div>
                     </div>
                   </td>
+                  {msg && <td className={cell}>{channelOf(n.template) ? <ChannelBadge channel={channelOf(n.template)!} /> : "—"}</td>}
                   <td className={`${cell} hidden text-ink-3 @3xl:table-cell`}>{localeOf(n)}</td>
                   <td className={cell}><Pill status={n.status} /></td>
                   <td className={`${cell} hidden truncate text-ink-3 @5xl:table-cell`}>{tplName(n.template) || "—"}</td>

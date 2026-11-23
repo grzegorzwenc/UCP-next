@@ -87,7 +87,9 @@ export function FolderTiles({ section = "pages", folders, base, rel, counts, sco
 
 const ACTION = "inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-ink no-underline transition-colors duration-160 ease-out hover:text-brand focus-visible:underline focus-visible:outline-none";
 
-export function PageCard({ page, href, compact, folderName, menu, rel, onCopyUrl }: {
+export function PageCard({ page, href, compact, folderName, menu, rel, onCopyUrl, badge }: {
+  /** e.g. the message type in Messaging */
+  badge?: React.ReactNode;
   page: PageSummary;
   href: string;
   compact: boolean;
@@ -99,10 +101,11 @@ export function PageCard({ page, href, compact, folderName, menu, rel, onCopyUrl
 }) {
   const meta = [rel(page.path), compact ? null : ukDate(page.lastModified), folderName].filter(Boolean).join(" · ");
   return (
-    <div className="group flex flex-col border border-line bg-surface transition-[box-shadow] duration-160 ease-out hover:shadow-sm">
+    <div className="group relative flex flex-col border border-line bg-surface transition-[box-shadow] duration-160 ease-out hover:shadow-sm">
       <Link href={href} aria-label={`Edit ${page.title}`} className="block w-full border-b border-line focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none">
         <PageThumb template={page.template} className="aspect-[16/10] w-full" />
       </Link>
+      {badge && <span className="pointer-events-none absolute start-2 top-2 bg-surface">{badge}</span>}
       <div className={`flex flex-col ${compact ? "gap-0.5 p-2" : "gap-1 p-3"}`}>
         <div className="flex items-center gap-2">
           <Pill status={page.status} />
