@@ -1,5 +1,9 @@
 "use client";
 import { SideTree } from "@/components/ui/SideTree";
+import { MultiFilter, SortHeader, type Sort as ColSort } from "@/components/explorer/PagesFilters";
+import { NewFolderButton } from "@/components/ui/NewFolderButton";
+import { NewFolderDialog } from "@/components/ui/NewFolderDialog";
+import { Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -30,7 +34,6 @@ export type { ModelTab, UsedPage } from "./fieldMeta";
 export { camel } from "./fieldMeta";
 
 export type Props = { folders: string[]; base: string; marketId: string; marketName: string; flag?: string; marketRoot: string; locales: string[]; models: Model[]; selectedId: string; tab: ModelTab; edit: boolean; group: string; usage: Record<string, UsedPage[]>; entityCounts: Record<string, number>; templatesByModel: Record<string, { id: string; name: string }[]>; names: Record<string, string>; versions: ModelVersion[]; schema: unknown; config: unknown; viewerId: string };
-type Sort = "name" | "modified" | "status" | "fields";
 const STATUS_ORDER: Record<Model["status"], number> = { draft: 0, modified: 1, published: 2 };
 
 export function Models(p: Props) {
@@ -77,33 +80,36 @@ export function Models(p: Props) {
   let body: React.ReactNode;
   if (md && p.edit) body = <Editor key={`${md.id}:${md.version}:${md.lastModified ?? ""}:${md.status}`} p={p} md={md} isAdmin={isAdmin} go={go} say={say} setDirty={setDirty} saveRef={saveRef} onDuplicate={() => duplicate(md)} onDelete={() => remove(md)} />;
   else if (md) body = <ModelDetail p={p} md={md} isAdmin={isAdmin} go={go} />;
-  else body = <Overview key={p.group} p={p} isAdmin={isAdmin} go={go} say={say} onCreate={() => setWizard(true)} onNewFolder={() => setFolderDlg({ mode: "create" })} />;
+  else body = <Overview key={p.group} p={p} isAdmin={isAdmin} go={go} say={say} onCreate={() => setWizard(true)} />;
 
   return (
-    <div className="grid h-[calc(100svh-4rem)] min-h-0 grid-cols-1 gap-4 overflow-hidden p-4 pt-0 lg:grid-cols-[16rem_minmax(0,1fr)] group-has-data-[collapsible=icon]/sidebar-wrapper:h-[calc(100svh-3rem)]">
-      <SideTree label="Models">
-        <h6 className="text-xs tracking-[.1em] uppercase text-ink-3 font-medium px-2 mb-2">Content models</h6>
+    <div className="grid h-[calc(100svh-4rem)] min-h-0 grid-cols-1 gap-4 overflow-hidden p-4 pt-0 lg:grid-cols-[16rem_minmax(0,1fr)] lg:grid-rows-[auto_minmax(0,1fr)] group-has-data-[collapsible=icon]/sidebar-wrapper:h-[calc(100svh-3rem)]">
+      <SideTree label="Models" className="lg:row-span-2" action={isAdmin ? <NewFolderButton onClick={() => setFolderDlg({ mode: "create" })} /> : undefined}>
 
         <FolderList key={ql ? `q:${ql}` : `sel:${md?.id ?? ""}:${p.group}`} root={{ label: "All models", count: p.models.length, active: !md && !p.group, onClick: () => go(`${p.base}/models`) }} items={items} extra={ql && !items.length ? <div className="text-xs text-ink-4 px-2 py-1">Nothing matches “{q}”</div> : undefined} />
       </SideTree>
-      <div className="min-h-0 overflow-auto border border-line bg-surface min-w-0">{body}</div>
+      {md ? <div className="min-h-0 min-w-0 overflow-auto border border-line bg-surface lg:row-span-2">{body}</div> : body}
       {wizard && isAdmin && <CreateWizard models={p.models} folders={groups} marketId={p.marketId} onClose={() => setWizard(false)} onDone={onCreated} />}
       {pending && <UnsavedModal busy={busy === "guard"} onStay={() => setPending(null)} onDiscard={() => { const h = pending; setPending(null); setDirty(false); router.push(h); }} onSave={async () => { setBusy("guard"); const ok = await saveRef.current?.(); setBusy(""); if (ok) { const h = pending; setPending(null); setDirty(false); router.push(h); } }} />}
       {moving && <MoveDialog title={`Move ${moving.name}`} what={moving.name} current={moving.group} targets={groups.filter((g) => g !== "Block types").map((g) => ({ id: g, label: g, hint: `${p.models.filter((m) => m.group === g).length} models` }))} allowNew onClose={() => setMoving(null)}
         onMove={async (g) => { const n = await ucpApi.moveModel(p.marketId, moving.id, { group: g }); setMoving(null); say(`Moved ${n.name} to ${n.group}`); router.refresh(); }} />}
-      {folderDlg && <NameDialog title={folderDlg.mode === "create" ? "New folder" : `Rename ${folderDlg.name}`} subtitle={folderDlg.mode === "create" ? "Group content models. Drag models into it afterwards." : "Models in this folder move with it."} label="Folder name" initial={folderDlg.mode === "rename" ? folderDlg.name : ""} action={folderDlg.mode === "create" ? "Create folder" : "Rename"} onClose={() => setFolderDlg(null)}
-        onSubmit={async (name) => { if (folderDlg.mode === "create") { await ucpApi.modelFolder(p.marketId, "create", { name }); say(`Created folder ${name}`); } else { await ucpApi.modelFolder(p.marketId, "rename", { from: folderDlg.name, to: name }); say(`Renamed to ${name}`); if (p.group === folderDlg.name) router.push(groupLink(p.base, name)); } setFolderDlg(null); router.refresh(); }} />}
+      {folderDlg && (() => { const d = folderDlg;
+        const submit = async (name: string) => { if (d.mode === "create") { await ucpApi.modelFolder(p.marketId, "create", { name }); say(`Created folder ${name}`); } else { await ucpApi.modelFolder(p.marketId, "rename", { from: d.name, to: name }); say(`Renamed to ${name}`); if (p.group === d.name) router.push(groupLink(p.base, name)); } setFolderDlg(null); router.refresh(); };
+        return d.mode === "rename"
+          ? <NameDialog title={`Rename ${d.name}`} subtitle="Models in this folder move with it." label="Folder name" initial={d.name} action="Rename" onClose={() => setFolderDlg(null)} onSubmit={submit} />
+          : <NewFolderDialog subtitle="Group content models. Drag models into it afterwards." placeholder="e.g. Marketing"
+              where={<span className="text-ink-3">Content models</span>}
+              preview={(name) => <>Content models / {name || "\u2026"}</>}
+              onClose={() => setFolderDlg(null)} onSubmit={submit} />; })()}
       {toast && <Toast text={toast} />}
     </div>
   );
 }
 
 /* ---------------- overview list / category ---------------- */
-function Th({ k, s, d, on, children, className = "" }: { k?: Sort; s?: Sort; d?: "asc" | "desc"; on?: (k: Sort) => void; children: React.ReactNode; className?: string }) {
-  const active = !!k && s === k;
-  return <th className={`px-4 py-2.5 border-b border-line ${className}`} aria-sort={k ? (active ? (d === "asc" ? "ascending" : "descending") : "none") : undefined}>{k ? <button type="button" onClick={() => on?.(k)} className={`inline-flex items-center gap-1 uppercase tracking-[.08em] text-xs hover:text-ink ${active ? "text-ink font-medium" : ""}`}>{children}<span aria-hidden className={`text-xs ${active ? "opacity-100" : "opacity-30"}`}>{active && d === "desc" ? "▼" : "▲"}</span></button> : children}</th>;
-}
-function Overview({ p, isAdmin, go, say, onCreate, onNewFolder }: { p: Props; isAdmin: boolean; go: (href: string) => void; say: (t: string) => void; onCreate: () => void; onNewFolder: () => void }) {
+const STATUS_OPTIONS = [{ value: "draft", label: "Draft" }, { value: "published", label: "Published" }, { value: "modified", label: "Modified" }];
+
+function Overview({ p, isAdmin, go, say, onCreate }: { p: Props; isAdmin: boolean; go: (href: string) => void; say: (t: string) => void; onCreate: () => void }) {
   const ask = useConfirm();
   const router = useRouter();
   const sp = useSearchParams(); const pathname = usePathname(); const view = sp.get("view") === "map" ? "map" : "table";
@@ -111,33 +117,52 @@ function Overview({ p, isAdmin, go, say, onCreate, onNewFolder }: { p: Props; is
   const saveFields = async (m: Model, fields: ModelField[], msg: string) => { try { await ucpApi.saveModel(p.marketId, m.id, { fields }); say(msg); router.refresh(); } catch (e) { say(errorText(e)); } };
   const removeRel = async (r: Relation) => { const m = p.models.find((x) => x.id === r.from); if (!m) return; const to = p.models.find((x) => x.id === r.to)?.name ?? r.to; if (!(await ask({ title: `Remove the connection ${m.name} → ${to}?`, danger: true, confirmLabel: "Remove connection" }))) return; saveFields(m, m.fields.filter((f) => f.k !== r.key), `Removed the connection ${m.name} → ${to}`); };
   const cat = p.folders.includes(p.group) || p.models.some((m) => m.group === p.group) ? p.group : "";
-  const [q, setQ] = useState(""); const [status, setStatus] = useState(""); const [group, setGroup] = useState(cat); const [sort, setSort] = useState<Sort>("name"); const [dir, setDir] = useState<"asc" | "desc">("asc");
+  const [q, setQ] = useState(""); const [status, setStatus] = useState<string[]>([]); const [group, setGroup] = useState<string[]>(cat ? [cat] : []); const [sort, setSort] = useState<ColSort>({ id: "name", desc: false });
   const groups = [...new Set([...p.folders, ...p.models.map((m) => m.group)])];
   const rows = useMemo(() => { const s = q.trim().toLowerCase();
-    const r = p.models.filter((m) => (!status || m.status === status) && (!group || m.group === group) && (!s || `${m.name} ${m.id} ${m.displayName ?? ""} ${m.description ?? ""}`.toLowerCase().includes(s)));
-    const cmp = (a: Model, b: Model) => sort === "modified" ? (b.lastModified ?? "").localeCompare(a.lastModified ?? "") || a.name.localeCompare(b.name) : sort === "status" ? STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || a.name.localeCompare(b.name) : sort === "fields" ? b.fields.length - a.fields.length || a.name.localeCompare(b.name) : a.name.localeCompare(b.name);
-    return r.sort((a, b) => (dir === "asc" ? cmp(a, b) : -cmp(a, b)));
-  }, [p.models, q, status, group, sort, dir]);
-  const sortBy = (k: Sort) => { if (sort === k) setDir((d) => (d === "asc" ? "desc" : "asc")); else { setSort(k); setDir("asc"); } };
-  const filtered = !!(q || status || (group && group !== cat)); const sel = "border border-line-2 rounded-md px-2.5 py-1.5 text-sm bg-surface";
+    const r = p.models.filter((m) => (!status.length || status.includes(m.status)) && (!group.length || group.includes(m.group)) && (!s || `${m.name} ${m.id} ${m.displayName ?? ""} ${m.description ?? ""}`.toLowerCase().includes(s)));
+    const cmp = (a: Model, b: Model) => sort.id === "modified" ? (b.lastModified ?? "").localeCompare(a.lastModified ?? "") || a.name.localeCompare(b.name) : sort.id === "status" ? STATUS_ORDER[a.status] - STATUS_ORDER[b.status] || a.name.localeCompare(b.name) : sort.id === "fields" ? b.fields.length - a.fields.length || a.name.localeCompare(b.name) : a.name.localeCompare(b.name);
+    return r.sort((a, b) => (sort.desc ? -cmp(a, b) : cmp(a, b)));
+  }, [p.models, q, status, group, sort]);
+  const filtered = !!(q || status.length || (group.length && group.join() !== cat));
   const inCat = cat ? p.models.filter((m) => m.group === cat).length : p.models.length;
-  return <div className="p-4 md:p-7">
-    {cat && <Crumbs items={[{ label: "Content models", href: `${p.base}/models`, onClick: () => go(`${p.base}/models`) }, { label: cat }]} />}
-    <div className="flex flex-wrap items-end gap-4 mb-5"><div><h1 className="text-2xl font-medium">{cat || "Content models"}</h1><p className="text-ink-3 text-sm mt-1">{cat ? `Category · ${inCat} model${inCat === 1 ? "" : "s"}` : `${p.models.length} model${p.models.length === 1 ? "" : "s"}`}</p></div>
-      <div className="ml-auto flex gap-2 items-center">{isAdmin ? <><button className="btn btn-sm btn-secondary" onClick={onNewFolder}>＋ New folder</button><button className="btn btn-sm btn-primary" onClick={onCreate}>＋ New content model</button></> : <span className="inline-flex items-center gap-1.5 text-xs text-ink-3 bg-surface-3 border border-line rounded-full px-3 py-1.5" title="Only site admins can change content models."><span aria-hidden="true">🔒</span>Read-only · documentation view</span>}</div></div>
-    {p.models.length > 0 && <div className="flex flex-wrap items-center gap-2 mb-3">
-      <label className="flex items-center gap-2 bg-surface border border-line-2 rounded-md px-2.5 py-1.5 min-w-[260px]"><span className="text-ink-3">⌕</span><input className="flex-1 outline-none text-sm" placeholder="Search models" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search models" /></label>
-      <select className={sel} value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status"><option value="">All statuses</option><option value="draft">Draft</option><option value="published">Published</option><option value="modified">Modified</option></select>
-      {!cat && <select className={sel} value={group} onChange={(e) => setGroup(e.target.value)} aria-label="Category"><option value="">All categories</option>{groups.map((g) => <option key={g}>{g}</option>)}</select>}
-      <select className={sel} value={sort} onChange={(e) => setSort(e.target.value as Sort)} aria-label="Sort by"><option value="name">Sort: name</option><option value="modified">Sort: last modified</option><option value="status">Sort: status</option><option value="fields">Sort: fields</option></select>
-      {rows.length !== inCat && <span className="ml-auto text-xs text-ink-3">{rows.length} of {inCat}</span>}
-      <div role="group" aria-label="View" className="inline-flex border border-line-2 rounded-lg overflow-hidden bg-surface">{([["table", "Table"], ["map", "Map"]] as const).map(([v, l]) => <button key={v} type="button" aria-pressed={view === v} onClick={() => pickView(v)} className={`px-3 h-8 text-sm font-medium ${view === v ? "bg-ink text-white" : "text-ink-2 hover:bg-surface-2"}`}>{l}</button>)}</div></div>}
+  return <>
+    <div className="flex min-w-0 shrink-0 items-center gap-3">
+      <div className="min-w-0 flex-1">{cat && <Crumbs items={[{ label: "Content models", href: `${p.base}/models`, onClick: () => go(`${p.base}/models`) }, { label: cat }]} />}</div>
+      <div className="flex shrink-0 items-center gap-2">
+        <div role="group" aria-label="View" className="bdl-tabs h-9 shrink-0">{([["table", "Table"], ["map", "Map"]] as const).map(([v, l]) => <button key={v} type="button" className={`bdl-tab h-full ${view === v ? "bdl-tab-active" : ""}`} aria-pressed={view === v} onClick={() => pickView(v)}>{l}</button>)}</div>
+        {isAdmin && <button className="btn btn-primary inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 px-4 text-sm" onClick={onCreate}>＋ New content model</button>}</div>
+    </div>
+    <div className="bdl-card flex min-h-0 flex-col">
+      <div className="flex shrink-0 items-center gap-4 border-b border-line px-4 py-3">
+        <div className="min-w-28 flex-1">
+          <h2 className="truncate text-base font-medium">{cat || "Content models"}</h2>
+          <p className="truncate text-xs text-ink-3">{filtered ? `${rows.length} of ${inCat}` : inCat} model{inCat === 1 ? "" : "s"}{cat ? " in this category" : ""}</p>
+        </div>
+        {p.models.length > 0 && <div className="flex shrink-0 items-center gap-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-ink-3" aria-hidden />
+            <input className="bdl-field w-44 ps-8! pe-8! xl:w-56" placeholder="Find a model" aria-label="Find a model by name" value={q} onChange={(e) => setQ(e.target.value)} />
+            {q && <button type="button" className="absolute end-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center text-ink-3 transition-colors hover:text-ink" aria-label="Clear search" onClick={() => setQ("")}><X className="size-4" /></button>}
+          </div>
+          <MultiFilter label="Status" noun="models" options={STATUS_OPTIONS} value={status} onChange={setStatus} />
+          {!cat && <MultiFilter label="Category" noun="models" options={groups.map((g) => ({ value: g, label: g }))} value={group} onChange={setGroup} />}
+        </div>}
+      </div>
+      <div className={`relative min-h-0 flex-1 overflow-auto ${view === "table" && rows.length ? "" : "p-4"}`}>
+
     {view === "map" && rows.length ? <ModelMap models={rows} onOpen={(id) => go(detailLink(p.base, id))} storageKey={`ucp-model-map:${cat || "all"}`}
         canConnect={isAdmin ? (id) => !isBlockModel(p.models.find((m) => m.id === id) ?? { id, locked: true }) : undefined} onConnect={isAdmin ? (a, b) => { const from = p.models.find((m) => m.id === a), to = p.models.find((m) => m.id === b); if (!from || !to) return; if (from.fields.some((f) => f.validation?.referenceModel === b)) { say(`${from.name} is already connected to ${to.name}`); return; } const common = sharedFields(from, to); if (!common.length) { say(`${from.name} and ${to.name} have no fields in common, so they can't be connected`); return; } saveFields(from, [...from.fields, linkField(from, to)], `Connected ${from.name} → ${to.name} (shared: ${common.join(", ")})`); } : undefined}
         canLink={(a, b) => { const x = p.models.find((m) => m.id === a), y = p.models.find((m) => m.id === b); return !!x && !!y && sharedFields(x, y).length > 0; }} onRemove={isAdmin ? removeRel : undefined} />
 
-    : rows.length ? <div className="bg-surface border border-line rounded-xl overflow-hidden"><div className="overflow-auto"><table className="w-full text-sm [&_tr>*:nth-child(3)]:hidden md:[&_tr>*:nth-child(3)]:table-cell [&_tr>*:nth-child(4)]:hidden 2xl:[&_tr>*:nth-child(4)]:table-cell [&_tr>*:nth-child(5)]:hidden 2xl:[&_tr>*:nth-child(5)]:table-cell [&_tr>*:nth-child(6)]:hidden 2xl:[&_tr>*:nth-child(6)]:table-cell">
-      <thead className="bg-surface-2"><tr className="text-left text-xs uppercase tracking-[.08em] text-ink-3"><Th k="name" s={sort} d={dir} on={sortBy}>Model</Th><Th k="status" s={sort} d={dir} on={sortBy} className="w-[120px]">Status</Th><Th k="fields" s={sort} d={dir} on={sortBy} className="w-[80px]">Fields</Th><Th k="modified" s={sort} d={dir} on={sortBy} className="w-[150px]">Last modified</Th><Th className="w-[170px]">By</Th><Th className="w-[150px]">Used on</Th></tr></thead>
+    : rows.length ? <div className="min-w-0"><table className="w-full table-fixed text-sm [&_tr>*:nth-child(3)]:hidden md:[&_tr>*:nth-child(3)]:table-cell [&_tr>*:nth-child(4)]:hidden 2xl:[&_tr>*:nth-child(4)]:table-cell [&_tr>*:nth-child(5)]:hidden 2xl:[&_tr>*:nth-child(5)]:table-cell [&_tr>*:nth-child(6)]:hidden 2xl:[&_tr>*:nth-child(6)]:table-cell">
+      <thead className="sticky top-0 z-10 bg-surface-2"><tr className="text-left text-xs text-ink-3">
+        <th className="h-11 border-b border-line-2 px-4"><SortHeader id="name" label="Model" sort={sort} onSort={setSort} /></th>
+        <th className="h-11 w-[120px] border-b border-line-2 px-4"><SortHeader id="status" label="Status" sort={sort} onSort={setSort} /></th>
+        <th className="h-11 w-[80px] border-b border-line-2 px-4"><SortHeader id="fields" label="Fields" sort={sort} onSort={setSort} /></th>
+        <th className="h-11 w-[150px] border-b border-line-2 px-4"><SortHeader id="modified" label="Last modified" sort={sort} onSort={setSort} /></th>
+        <th className="h-11 w-[170px] border-b border-line-2 px-4">By</th>
+        <th className="h-11 w-[150px] border-b border-line-2 px-4">Used on</th></tr></thead>
       <tbody>{rows.map((m) => { const used = p.usage[m.id] ?? []; const tpl = p.templatesByModel[m.id] ?? []; const by = m.lastModifiedBy ? whoName(m.lastModifiedBy, p.names) : ""; const href = detailLink(p.base, m.id);
         return <tr key={m.id} className="hover:bg-surface-2 cursor-pointer border-t border-line" onClick={() => go(href)}>
           <td className="px-4 py-3"><div className="flex items-center gap-2.5 min-w-0"><ModelIcon m={m} /><div className="min-w-0"><Link href={href} onClick={(e) => { e.preventDefault(); e.stopPropagation(); go(href); }} className="font-medium hover:underline">{m.name}</Link><span className="text-xs text-ink-3 ml-2">{m.id}</span>{m.locked && <span className="ml-2 text-xs uppercase tracking-[.06em] text-ink-4" title="Translated from the Sling component dialog; read-only">read-only</span>}{m.description && <div className="text-xs text-ink-3 line-clamp-2 sm:line-clamp-none sm:truncate max-w-[420px]">{m.description}</div>}</div></div></td>
@@ -146,10 +171,12 @@ function Overview({ p, isAdmin, go, say, onCreate, onNewFolder }: { p: Props; is
           <td className="px-4 py-3 text-ink-2"><When iso={m.lastModified} /></td>
           <td className="px-4 py-3">{by ? <span className="inline-flex items-center gap-2"><Avatar name={by} size={22} /><span className="text-sm truncate">{m.lastModifiedBy === p.viewerId ? "You" : by}</span></span> : <span className="text-ink-4">—</span>}</td>
           <td className="px-4 py-3 text-ink-2 text-xs">{used.length} page{used.length === 1 ? "" : "s"}{tpl.length ? ` · ${tpl.length} template${tpl.length === 1 ? "" : "s"}` : ""}</td>
-        </tr>; })}</tbody></table></div></div>
-      : <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl">{filtered ? <><b className="block text-base">No models match</b><p className="text-ink-3 text-sm mt-1"><button className="underline text-ink" onClick={() => { setQ(""); setStatus(""); setGroup(cat); }}>Clear filters</button></p></>
+        </tr>; })}</tbody></table></div>
+      : <div className="p-12 text-center bg-surface border border-dashed border-line-2 rounded-xl">{filtered ? <><b className="block text-base">No models match</b><p className="text-ink-3 text-sm mt-1"><button className="underline text-ink" onClick={() => { setQ(""); setStatus([]); setGroup(cat ? [cat] : []); }}>Clear filters</button></p></>
         : cat && p.models.length ? <><b className="block text-base">This folder is empty</b><p className="text-ink-3 text-sm mt-1">{isAdmin ? "Drag models onto it in the tree, or use “Move to…” in a model’s menu." : "No models here yet."}</p></> : isAdmin ? <><b className="block text-base">No Content Models yet</b><p className="text-ink-3 text-sm mt-1 mb-4">Create your first Content Model to define the structure of your content.</p><button className="btn btn-sm btn-primary" onClick={onCreate}>＋ New content model</button></> : <><b className="block text-base">No Content Models available.</b><p className="text-ink-3 text-sm mt-1">Ask a site admin to define the first one.</p></>}</div>}
-  </div>;
+      </div>
+    </div>
+  </>;
 }
 
 /** The Reference field a connection drawn on the map becomes: named after the target model, key kept unique. */
@@ -193,7 +220,6 @@ function Editor({ p, md, isAdmin, go, say, setDirty, saveRef, onDuplicate, onDel
           <Menu label="More ▾" ariaLabel="More actions" buttonClassName="btn" items={[{ id: "dup", label: "Duplicate", onSelect: onDuplicate }, { id: "restore", label: "Restore published schema into draft", disabled: !editable || !md.publishedFields, onSelect: restoreDraft }, { id: "del", label: "Delete", danger: true, disabled: !editable, onSelect: onDelete }]} /></>}
       </div></div>
     {block && <div className="bg-info-soft text-info px-3 py-2 rounded-md text-xs mb-3">This block type is translated from the Sling component dialog. Fields are read-only here; change the source dialog to update them.</div>}
-    {!isAdmin && !block && <div className="bg-info-soft text-info px-3 py-2 rounded-md text-xs mb-3">Only site admins can change content models. This is the documentation view of the current draft.</div>}
     <div className="flex gap-1 border-b border-line mb-4" role="tablist">{TABS_UI.map(([t, l]) => <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`px-3 py-2 text-sm -mb-px border-b-2 ${tab === t ? "border-brand text-ink font-medium" : "border-transparent text-ink-3 hover:text-ink"}`}>{l}</button>)}</div>
 
     {tab === "fields" && <div className="grid gap-4">

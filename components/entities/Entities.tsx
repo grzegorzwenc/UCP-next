@@ -5,7 +5,7 @@ import { NewFolderButton } from "@/components/ui/NewFolderButton";
 
 import { LocationSelect } from "@/components/explorer/LocationSelect";
 import { Badge } from "@/components/shadcn/badge";
-import { Lock, Search, X } from "lucide-react";
+import { Search, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -161,11 +161,11 @@ function Overview({ p, md, byModel, canEdit, go, onCreate }: OverviewProps) {
   const title = md ? (p.folder ? p.folder : `${md.name} entities`) : "Content entities";
 
   return <>
-    <div className="flex min-w-0 shrink-0 items-center gap-3">
+    {(createBtn || md) && <div className="flex min-w-0 shrink-0 items-center gap-3">
       <div className="min-w-0 flex-1">{md && <Crumbs items={[{ label: "Content entities", href: entitiesLink(p.base), onClick: () => go(entitiesLink(p.base)) }, ...(p.folder ? [{ label: md.name, href: entitiesLink(p.base, md.id), onClick: () => go(entitiesLink(p.base, md.id)) }, { label: p.folder }] : [{ label: md.name }])]} />}</div>
-      <div className="flex shrink-0 items-center gap-2">{createBtn ?? <span className="inline-flex shrink-0 items-center gap-1.5 border border-line bg-surface-3 px-3 py-1.5 text-xs text-ink-3" title="You need Edit on this site to create content."><Lock className="size-3.5" aria-hidden />Read-only</span>}</div>
-    </div>
-    <div className="flex min-h-0 flex-col overflow-hidden border border-line bg-surface">
+      <div className="flex shrink-0 items-center gap-2">{createBtn}</div>
+    </div>}
+    <div className={`bdl-card flex min-h-0 flex-col ${createBtn || md ? "" : "lg:row-span-2"}`}>
       <div className="flex shrink-0 items-center gap-4 border-b border-line px-4 py-3">
         <div className="min-w-28 flex-1">
           <h2 className="truncate text-base font-medium" title={title}>{title}</h2>
@@ -174,7 +174,7 @@ function Overview({ p, md, byModel, canEdit, go, onCreate }: OverviewProps) {
         {p.entities.length > 0 && <div className="flex shrink-0 items-center gap-2">
           <div className="relative">
             <Search className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-ink-3" aria-hidden />
-            <input className="h-9 w-44 border border-input bg-surface ps-8 pe-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring xl:w-56" placeholder="Find an entity" aria-label="Find an entity by name" value={q} onChange={(e) => setQ(e.target.value)} />
+            <input className="bdl-field w-44 ps-8! pe-8! xl:w-56" placeholder="Find an entity" aria-label="Find an entity by name" value={q} onChange={(e) => setQ(e.target.value)} />
             {q && <button type="button" className="absolute end-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center text-ink-3 transition-colors hover:text-ink" aria-label="Clear search" onClick={() => setQ("")}><X className="size-4" /></button>}
           </div>
           <MultiFilter label="Status" noun="entities" options={STATUS_OPTIONS} value={status} onChange={setStatus} />

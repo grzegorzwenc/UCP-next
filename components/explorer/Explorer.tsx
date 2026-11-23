@@ -13,7 +13,7 @@ import type { PageSummary } from "@/lib/api/types";
 import { repoApi, ucpApi } from "@/lib/api";
 import { errorText as errText } from "@/lib/api/errors";
 import { ukDateTime } from "@/lib/dates";
-import { Archive, ChevronRight, Copy, EllipsisVertical, ExternalLink, FolderInput, Link as LinkIcon, Lock, Pencil, Plus, Search, Trash2, Type, X } from "lucide-react";
+import { Archive, ChevronRight, Copy, EllipsisVertical, ExternalLink, FolderInput, Link as LinkIcon, Pencil, Plus, Search, Trash2, Type, X } from "lucide-react";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/shadcn/dropdown-menu";
 import { FolderTiles, PageCard, ViewToggle, type View } from "@/components/explorer/PagesViews";
 import { LocationSelect, type FolderOption } from "@/components/explorer/LocationSelect";
@@ -455,9 +455,7 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
         </div>
 
         <div className="flex min-w-0 shrink-0 items-center justify-end">
-          {canEditHere
-            ? <button type="button" className="btn btn-primary inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 px-4 text-sm" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}><Plus className="size-4" />New page</button>
-            : <span className="inline-flex shrink-0 items-center gap-1.5 border border-line bg-surface-3 px-3 py-1.5 text-xs text-ink-3" title="You don't have Edit on this folder. Ask a site admin."><Lock className="size-3.5" />Read-only in this folder</span>}
+          {canEditHere && <button type="button" className="btn btn-primary inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 px-4 text-sm" onClick={() => { setParent(folder.path); openModal({ kind: "new" }); }}><Plus className="size-4" />New page</button>}
         </div>
 
         {/* @container: the columns must respond to this pane, which is the viewport minus the app
@@ -477,7 +475,7 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
             <div className="flex shrink-0 items-center gap-2">
               <div className="relative">
                 <Search className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-ink-3" aria-hidden />
-                <input className="h-9 w-48 border border-line-2 bg-surface ps-8 pe-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring xl:w-60" placeholder="Find a page by title or URL" aria-label="Find a page by title or URL" value={q} onChange={(e) => setQ(e.target.value)} />
+                <input className="bdl-field w-48 ps-8! pe-8! xl:w-60" placeholder="Find a page by title or URL" aria-label="Find a page by title or URL" value={q} onChange={(e) => setQ(e.target.value)} />
                 {q && <button type="button" className="absolute end-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center text-ink-3 transition-colors hover:text-ink" aria-label="Clear search" onClick={() => setQ("")}><X className="size-4" /></button>}
               </div>
               {statusOptions.length > 1 && <MultiFilter label="Status" noun="pages" options={statusOptions} value={statusF} onChange={setStatusF} />}

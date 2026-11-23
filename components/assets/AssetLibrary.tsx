@@ -168,12 +168,10 @@ export function AssetLibrary({ marketId, envId, marketName, root, assets, folder
         <FolderList root={{ label: "Needs attention", count: unusedCount + noAlt.length }} items={[{ key: "unused", label: "Not used on any page", count: unusedCount, active: view === "unused", onClick: () => go("?view=unused"), icon: "page" }, { key: "noalt", label: "Missing accessibility info", count: noAlt.length, active: view === "noalt", onClick: () => go("?view=noalt"), icon: "page" }]} />
       </SideTree>
 
-      <div className="flex min-w-0 shrink-0 items-center justify-end">
-        {canEdit
-          ? <button type="button" className="btn btn-primary inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 px-4 text-sm" disabled={busy === "upload"} onClick={() => uplRef.current?.click()}><Upload className="size-4" />{busy === "upload" ? "Uploading…" : "Upload files"}</button>
-          : <span className="inline-flex shrink-0 items-center gap-1.5 border border-line bg-surface-3 px-3 py-1.5 text-xs text-ink-3" title="You don't have Edit on this site. Ask a site admin."><Lock className="size-3.5" />Read-only library</span>}
-      </div>
-      <div className={`flex min-h-0 flex-col overflow-hidden border border-line bg-surface ${drag ? "outline outline-2 outline-dashed outline-brand -outline-offset-8" : ""}`} onDragOver={(e) => { if (canEdit && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDrag(true); } }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false); }} onDrop={onDrop}>
+      {canEdit && <div className="flex min-w-0 shrink-0 items-center justify-end">
+        {canEdit && <button type="button" className="btn btn-primary inline-flex h-9 shrink-0 cursor-pointer items-center gap-2 px-4 text-sm" disabled={busy === "upload"} onClick={() => uplRef.current?.click()}><Upload className="size-4" />{busy === "upload" ? "Uploading…" : "Upload files"}</button>}
+      </div>}
+      <div className={`bdl-card flex min-h-0 flex-col ${canEdit ? "" : "lg:row-span-2"} ${drag ? "outline outline-2 outline-dashed outline-brand -outline-offset-8" : ""}`} onDragOver={(e) => { if (canEdit && e.dataTransfer.types.includes("Files")) { e.preventDefault(); setDrag(true); } }} onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false); }} onDrop={onDrop}>
         <input ref={uplRef} type="file" multiple accept="image/*,.pdf,.svg" className="hidden" onChange={(e) => { upload(Array.from(e.target.files ?? []), folder || "Uploads"); e.target.value = ""; }} />
         <input ref={replRef} type="file" accept="image/*,.pdf,.svg" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) replace(f); e.target.value = ""; }} />
         <div className="flex shrink-0 items-center gap-4 border-b border-line px-4 py-3">
@@ -184,7 +182,7 @@ export function AssetLibrary({ marketId, envId, marketName, root, assets, folder
           <div className="flex shrink-0 items-center gap-2">
             <div className="relative">
               <Search className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-ink-3" aria-hidden />
-              <input className="h-9 w-44 border border-input bg-surface ps-8 pe-8 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring xl:w-56" placeholder="Find a file" aria-label="Find a file by name" value={q} onChange={(e) => setQ(e.target.value)} />
+              <input className="bdl-field w-44 ps-8! pe-8! xl:w-56" placeholder="Find a file" aria-label="Find a file by name" value={q} onChange={(e) => setQ(e.target.value)} />
               {q && <button type="button" className="absolute end-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center text-ink-3 transition-colors hover:text-ink" aria-label="Clear search" onClick={() => setQ("")}><X className="size-4" /></button>}
             </div>
             <MultiFilter label="Type" noun="files" options={TYPE_OPTIONS} value={types} onChange={setTypes} />
