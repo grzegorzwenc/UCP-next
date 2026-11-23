@@ -20,6 +20,7 @@ import { LocationSelect, type FolderOption } from "@/components/explorer/Locatio
 import { FilterChips, MultiFilter, QuickChips, RangeFilter, SortHeader } from "@/components/explorer/PagesFilters";
 import { PageThumb } from "@/components/explorer/PageThumb";
 import { NewFolderButton } from "@/components/ui/NewFolderButton";
+import { NewFolderDialog } from "@/components/ui/NewFolderDialog";
 import { inRange, rangeActive, sortRows, type Range, type Sort } from "@/lib/pages-filter";
 import { STATUS_LABEL } from "@/components/ui/Pill";
 import { useSession } from "@/components/shell/Session";
@@ -233,7 +234,7 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
   const movingKey = modal?.kind === "move" ? modal.pages.map((p) => p.path).join("|") : "";
   useEffect(() => { if (!movingKey) return; let on = true; ucpApi.pageReferences(marketId, movingKey.split("|")).then((r) => on && setMoveRefs(r), () => on && setMoveRefs([])); return () => { on = false; setMoveRefs(null); }; }, [movingKey, marketId]);
   const moveLinked = [...new Map((moveRefs ?? []).flatMap((r) => r.linkedFrom).map((x) => [x.path, x])).values()];
-  const [title, setTitle] = useState(""); const [slug, setSlug] = useState(""); const [parent, setParent] = useState(folder.path); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
+  const [title, setTitle] = useState(""); const [parent, setParent] = useState(folder.path); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState(false);
   const [sel, setSel] = useState<string[]>([]); const [toast, setToast] = useState<string | null>(null);
   const crumbs = useMemo(() => { const segs = folder.path.replace(root, "").split("/").filter(Boolean); return segs.map((s, i) => ({ name: s, path: root + "/" + segs.slice(0, i + 1).join("/") })); }, [folder.path, root]);
   /* Sorting and filtering, as their table has. Default newest-first on Updated on, like theirs. */
@@ -298,16 +299,11 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
      tiles are where folders live. Select-all therefore covers the pages actually on screen. */
   const allChecked = shownPages.length > 0 && shownPages.every((r) => sel.includes(r.path));
   const say = (s: string) => { setToast(s); setTimeout(() => setToast(null), 2600); };
-  const openModal = (m: Modal) => { setErr(null); setTitle(""); setSlug(""); setModal(m); };
+  const openModal = (m: Modal) => { setErr(null); setTitle(""); setModal(m); };
 
   async function create(req: NewPageRequest) {
     setBusy(true); setErr(null);
     try { const t = templates.find((x) => x.id === req.templateId); const page = await repoApi.createPage({ parentPath: req.parentPath, name: req.slug, template: req.templateId, title: req.title, locale: req.locale, components: componentsFor(t, req.title) }); setModal(null); router.push(`${base}/page${rel(page.path)}`); router.refresh(); }
-    catch (e) { setErr(errText(e)); } finally { setBusy(false); }
-  }
-  async function createFolder() {
-    setBusy(true); setErr(null);
-    try { const name = slug || slugify(title); const page = await repoApi.createPage({ parentPath: parent, name, template: "folder", title }); await repoApi.setProps(`${page.path}/jcr:content`, { "sling:resourceType": "hsbc/components/folder" }); setModal(null); say(`Folder “${title}” created`); router.refresh(); }
     catch (e) { setErr(errText(e)); } finally { setBusy(false); }
   }
   async function rename() {
@@ -580,10 +576,11 @@ export function Explorer({ marketId, envId, root, marketName, folder, items, tre
         folderSelect={(value, onChange) => <FolderSelect value={value} onChange={onChange} root={root} marketName={marketName} tree={tree} rel={rel} />}
         onClose={() => setModal(null)} onCreate={create} />}
 
-      {modal?.kind === "folder" && <ModalShell title="New folder" width={460} onClose={() => setModal(null)} footer={<><button className="btn btn-sm btn-secondary" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!title.trim() || busy} onClick={createFolder}>{busy ? "Creating…" : "Create folder"}</button></>}>
-        <label className="text-xs text-ink-3">Folder name<input autoFocus className={inputCls} value={title} onChange={(e) => { setTitle(e.target.value); setSlug(slugify(e.target.value)); }} placeholder="e.g. Insurance" onKeyDown={(e) => { if (e.key === "Enter" && title.trim()) createFolder(); }} /></label>
-        <label className="block mt-3 text-xs text-ink-3">Where<FolderSelect value={parent} onChange={setParent} root={root} marketName={marketName} tree={tree} rel={rel} /></label>
-        <div className="mt-2 text-xs text-ink-3">{rel(parent)}/{slug || "…"}</div><Err err={err} /></ModalShell>}
+      {modal?.kind === "folder" && <NewFolderDialog placeholder="e.g. Insurance"
+        where={<FolderSelect value={parent} onChange={setParent} root={root} marketName={marketName} tree={tree} rel={rel} />}
+        preview={(name) => <>{rel(parent)}/{slugify(name) || "…"}</>}
+        onClose={() => setModal(null)}
+        onSubmit={async (name) => { const page = await repoApi.createPage({ parentPath: parent, name: slugify(name), template: "folder", title: name }); await repoApi.setProps(`${page.path}/jcr:content`, { "sling:resourceType": "hsbc/components/folder" }); setModal(null); say(`Folder “${name}” created`); router.refresh(); }} />}
 
       {modal?.kind === "rename" && <ModalShell title={`Rename “${modal.page.title}”`} width={460} onClose={() => setModal(null)} footer={<><button className="btn btn-sm btn-secondary" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!title.trim() || busy} onClick={rename}>{busy ? "Saving…" : "Rename"}</button></>}>
         <label className="text-xs text-ink-3">New title<input autoFocus className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && title.trim()) rename(); }} /></label>

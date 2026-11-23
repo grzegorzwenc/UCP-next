@@ -1,17 +1,21 @@
 "use client";
 import { SideTree } from "@/components/ui/SideTree";
 import { ViewToggle } from "@/components/explorer/PagesViews";
-import { MultiFilter } from "@/components/explorer/PagesFilters";
+import { MultiFilter, SortHeader, type Sort } from "@/components/explorer/PagesFilters";
 import { FolderList } from "@/components/ui/FolderList";
 import { NewFolderButton } from "@/components/ui/NewFolderButton";
+import { NewFolderDialog } from "@/components/ui/NewFolderDialog";
 import { Lock, Search, TriangleAlert, Upload, X } from "lucide-react";
 
 /** The file types the library holds, as their assets dropdown lists its own. */
 const TYPE_OPTIONS = [{ value: "image", label: "Images" }, { value: "pdf", label: "PDFs" }, { value: "svg", label: "SVGs" }];
 const VIEW_MODES = ["compact", "grid", "list"] as const;
+/** "1.4 MB" -> bytes, so the Size column sorts by magnitude and not by its first digit. */
+const UNIT: Record<string, number> = { b: 1, kb: 1024, mb: 1024 ** 2, gb: 1024 ** 3 };
+const bytesOf = (size: string) => { const m = /^([\d.]+)\s*(b|kb|mb|gb)$/i.exec(size.trim()); return m ? parseFloat(m[1]) * (UNIT[m[2].toLowerCase()] ?? 1) : 0; };
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Asset, AssetA11y } from "@/lib/ucp/types";
 import { a11yGaps } from "@/lib/ucp/schema";
 import { A11yPanel } from "./A11yPanel";
@@ -23,6 +27,8 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/shadcn/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/shadcn/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/shadcn/tooltip";
 import { FileTypeBadge } from "@/components/ui/FileTypeBadge";
+
+import { Badge } from "@/components/shadcn/badge";
 import { useConfirm } from "@/components/ui/Confirm";
 
 type Usage = Record<string, { path: string; title: string; status: string }[]>;
@@ -110,15 +116,20 @@ export function AssetLibrary({ marketId, envId, marketName, root, assets, folder
   /** The details drawer: null closed, "view" read-only, "edit" the forms and actions. */
   const [details, setDetails] = useState<"view" | "edit" | null>(null);
   const [toast, setToast] = useState<string | null>(null); const [err, setErr] = useState<string | null>(null); const [busy, setBusy] = useState<string | null>(null);
-  const [newFolder, setNewFolder] = useState(false); const [folderName, setFolderName] = useState("");
+  const [newFolder, setNewFolder] = useState(false);
+  const [sort, setSort] = useState<Sort>({ id: "name", desc: false });
   const [drag, setDrag] = useState(false);
   const uplRef = useRef<HTMLInputElement>(null); const replRef = useRef<HTMLInputElement>(null);
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 2600); return () => clearTimeout(t); }, [toast]);
   const say = (m: string) => { setErr(null); setToast(m); };
 
-  const usedOn = (id: string) => usage[id] ?? [];
+  const usedOn = useCallback((id: string) => usage[id] ?? [], [usage]);
   const list = useMemo(() => assets.filter((a) => (!folder || a.folder === folder) && (view !== "unused" || !usedOn(a.id).length) && (view !== "noalt" || noAlt.includes(a.id)) && (!q || a.name.toLowerCase().includes(q.toLowerCase())) && (!types.length || types.includes(a.type))), [assets, folder, view, q, types, noAlt, usage]); // eslint-disable-line react-hooks/exhaustive-deps
-  const shown = list.slice(0, limit);
+  const sorted = useMemo(() => {
+    const by = (x: Asset) => sort.id === "size" ? bytesOf(x.size) : sort.id === "type" ? `${x.type} ${x.name}` : sort.id === "used" ? usedOn(x.id).length : sort.id === "status" ? (x.status === "published" ? 0 : 1) : sort.id === "a11y" ? (noAlt.includes(x.id) ? 0 : 1) : x.name.toLowerCase();
+    return [...list].sort((p, q2) => { const l = by(p), r = by(q2); const c = typeof l === "number" && typeof r === "number" ? l - r : String(l).localeCompare(String(r)); return sort.desc ? -c : c; });
+  }, [list, sort, usedOn, noAlt]);
+  const shown = sorted.slice(0, limit);
   /* Only ever the explicitly selected file. The old sidebar fell back to list[0] so it always had
      something to show; as a modal that fallback meant it opened on load and reopened on close. */
   const a = assets.find((x) => x.id === sel) ?? null;
@@ -146,7 +157,6 @@ export function AssetLibrary({ marketId, envId, marketName, root, assets, folder
   const del = async () => { if (!a || used.length) return; const x = a; if (!(await ask({ title: `Delete ${x.name}? This cannot be undone.`, danger: true, confirmLabel: "Delete asset" }))) return; run("delete", async () => { await repoApi.deleteNode(x.path, { text: `deleted ${x.name}`, target: "assets" }); setSel(null); say(`Deleted ${x.name}`); }); };
   const saveA11y = (v: AssetA11y) => { if (!a) return; const x = a; run("a11y", async () => { await repoApi.setProps(x.path, { "ucp:a11y": JSON.stringify({ ...v, checkedBy: user.name, checkedAt: new Date().toISOString() }) }, { text: `updated accessibility of ${x.name}`, target: "assets" }); say(`Saved accessibility for ${x.name}`); }); };
   const copyId = async () => { if (!a) return; try { await navigator.clipboard.writeText(a.id); say(`Copied ${a.id}`); } catch { setErr("Clipboard is not available in this browser"); } };
-  const createFolder = () => { const name = folderName.trim(); if (!name) return; run("folder", async () => { await repoApi.createNode(`/content/dam/${marketId}/${name}`, "sling:Folder", { "jcr:title": name }, { text: `created asset folder ${name}`, target: "assets" }); setNewFolder(false); setFolderName(""); say(`Created folder ${name}`); go(`?folder=${encodeURIComponent(name)}`); }); };
 
   const onDrop = (e: React.DragEvent) => { e.preventDefault(); setDrag(false); const files = Array.from(e.dataTransfer.files ?? []); if (files.length) upload(files, folder || "Uploads"); };
 
@@ -181,24 +191,34 @@ export function AssetLibrary({ marketId, envId, marketName, root, assets, folder
             <ViewToggle view={mode} onChange={setView} modes={VIEW_MODES} />
           </div>
         </div>
-        <div className="relative min-h-0 flex-1 overflow-auto p-4">
+        <div className={`relative min-h-0 flex-1 overflow-auto ${mode === "list" ? "" : "p-4"}`}>
         {err && <div className="text-crit text-xs bg-crit-soft px-3 py-2 rounded mb-4 flex items-center">{err}<button className="ml-auto underline" onClick={() => setErr(null)}>Dismiss</button></div>}
 
         <div className="min-w-0">
           {mode === "list"
-            ? <div className="min-w-0"><div className="bg-surface border border-line rounded-xl overflow-hidden"><table className="w-full text-sm [&_tr>*:nth-child(2)]:hidden 2xl:[&_tr>*:nth-child(2)]:table-cell [&_tr>*:nth-child(3)]:hidden 2xl:[&_tr>*:nth-child(3)]:table-cell">
-              <thead className="bg-surface-2"><tr className="text-left text-xs uppercase tracking-[.08em] text-ink-3"><th className="px-4 py-2.5 border-b border-line font-medium">Name</th><th className="px-4 py-2.5 border-b border-line font-medium w-[1%] whitespace-nowrap">Used on</th><th className="px-4 py-2.5 border-b border-line font-medium w-[1%] whitespace-nowrap">Accessibility</th></tr></thead>
+            ? <div className="min-w-0"><table className="w-full table-fixed text-sm [&_tr>.col-size]:hidden xl:[&_tr>.col-size]:table-cell [&_tr>.col-type]:hidden xl:[&_tr>.col-type]:table-cell [&_tr>.col-used]:hidden 2xl:[&_tr>.col-used]:table-cell ">
+              <thead className="sticky top-0 z-10 bg-surface-2"><tr className="text-left text-xs text-ink-3">
+                <th className="h-11 border-b border-line-2 px-4"><SortHeader id="name" label="Name" sort={sort} onSort={setSort} /></th>
+                <th className="h-11 w-24 border-b border-line-2 px-4 col-type"><SortHeader id="type" label="Type" sort={sort} onSort={setSort} /></th>
+                <th className="h-11 w-24 border-b border-line-2 px-4 col-size"><SortHeader id="size" label="Size" sort={sort} onSort={setSort} /></th>
+                <th className="h-11 w-32 border-b border-line-2 px-4"><SortHeader id="status" label="Status" sort={sort} onSort={setSort} /></th>
+                <th className="h-11 w-32 border-b border-line-2 px-4 col-used"><SortHeader id="used" label="Used on" sort={sort} onSort={setSort} /></th>
+                <th className="h-11 w-40 border-b border-line-2 px-4"><SortHeader id="a11y" label="Accessibility" sort={sort} onSort={setSort} /></th></tr></thead>
               <tbody>{list.length ? shown.map((x) => { const on = x.id === a?.id; const n = usedOn(x.id).length; const gaps = noAlt.includes(x.id) ? a11yGaps(x, locales[0]) : [];
-                const a11y = gaps.length ? <span className="inline-flex items-center gap-1.5 rounded-full bg-warn-soft text-warn px-2 py-0.5 text-xs font-medium whitespace-nowrap" title={`Missing: ${gaps.join(", ")}`}><i aria-hidden className="w-1.5 h-1.5 rounded-full bg-warn" />{gaps.length > 1 ? `${gaps.length} things missing` : `No ${gaps[0].toLowerCase()}`}</span> : <span className="inline-flex items-center gap-1 rounded-full bg-good-soft text-good px-2 py-0.5 text-xs font-medium whitespace-nowrap">✓ Complete</span>;
+                const a11y = gaps.length
+                  ? <Badge variant="outline" className="bdl-badge-warning font-normal whitespace-nowrap" title={`Missing: ${gaps.join(", ")}`}>{gaps.length > 1 ? `${gaps.length} things missing` : `No ${gaps[0].toLowerCase()}`}</Badge>
+                  : <Badge variant="outline" className="bdl-badge-success font-normal whitespace-nowrap">Complete</Badge>;
                 return <tr key={x.id} onClick={() => setSel(x.id)} aria-selected={on} className={`cursor-pointer border-b border-line last:border-0 ${on ? "bg-brand-soft shadow-[inset_3px_0_0_var(--brand)]" : "hover:bg-surface-2"}`}>
                   <td className="px-4 py-2.5 max-w-0 w-full"><div className="flex items-center gap-3 min-w-0"><Thumb a={x} badge={false} className="w-12 h-9 shrink-0" />
                     <div className="min-w-0"><b className="block truncate font-medium" title={x.name}>{x.name}</b>
-                      <div className="flex items-center gap-1.5 text-xs text-ink-3 truncate"><FileTypeBadge name={x.name} /><span className="tabular-nums">{x.size}</span>{!folder && <> · {x.folder}</>}<span className="2xl:hidden"> · {n ? `${n} page${n === 1 ? "" : "s"}` : "not used"}</span></div>
-                      <div className="2xl:hidden mt-1">{a11y}</div></div></div></td>
-                  <td className="px-4 py-2.5 whitespace-nowrap">{n ? <span className="text-ink-2">{n} page{n === 1 ? "" : "s"}</span> : <span className="text-ink-4">Not used</span>}</td>
+                      <div className="flex items-center gap-1.5 text-xs text-ink-3 truncate"><span className="xl:hidden inline-flex items-center gap-1.5"><FileTypeBadge name={x.name} /><span className="tabular-nums">{x.size}</span></span>{!folder && <span className="truncate">{x.folder}</span>}<span className="2xl:hidden"> · {n ? `${n} page${n === 1 ? "" : "s"}` : "not used"}</span></div></div></div></td>
+                  <td className="px-4 py-2.5 whitespace-nowrap col-type"><FileTypeBadge name={x.name} /></td>
+                  <td className="px-4 py-2.5 whitespace-nowrap tabular-nums text-ink-2 col-size">{x.size}</td>
+                  <td className="px-4 py-2.5 whitespace-nowrap"><Pill status={x.status} /></td>
+                  <td className="px-4 py-2.5 whitespace-nowrap col-used">{n ? <span className="text-ink-2">{n} page{n === 1 ? "" : "s"}</span> : <span className="text-ink-4">Not used</span>}</td>
                   <td className="px-4 py-2.5">{a11y}</td>
                 </tr>; })
-                : <tr><td colSpan={3} className="p-10 text-center text-ink-3">No files here yet.{canEdit && " Upload some or drag them in."}</td></tr>}</tbody></table></div>
+                : <tr><td colSpan={6} className="p-10 text-center text-ink-3">No files here yet.{canEdit && " Upload some or drag them in."}</td></tr>}</tbody></table>
             {list.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-xs text-ink-3">Showing {shown.length} of {list.length}<button className="btn btn-sm btn-secondary" onClick={() => setLimit(limit + PAGE)}>Show more</button></div>}</div>
             : <div className={`grid gap-3 ${compact ? "[grid-template-columns:repeat(auto-fill,minmax(9rem,1fr))]" : "[grid-template-columns:repeat(auto-fill,minmax(13.5rem,1fr))]"}`}>{list.length ? shown.map((x) => { const gaps = a11yGaps(x, locales[0]); const uses = usedOn(x.id).length; const selectable = canEdit && !uses; return (
               <div
@@ -229,7 +249,7 @@ export function AssetLibrary({ marketId, envId, marketName, root, assets, folder
                   <div className="flex flex-wrap items-center gap-1.5">
                     <Pill status={x.status} />
                     <FileTypeBadge name={x.name} />
-                    {!compact && noAlt.includes(x.id) && <span className="bdl-badge-warning ms-auto shrink-0 border px-1.5 text-xs" title={`Missing: ${gaps.join(", ")}`}>Needs alt</span>}
+                    {!compact && noAlt.includes(x.id) && <Badge variant="outline" className="bdl-badge-warning ms-auto shrink-0 font-normal" title={`Missing: ${gaps.join(", ")}`}>Needs alt</Badge>}
                     {compact && noAlt.includes(x.id) && <TriangleAlert className="ms-auto size-3.5 shrink-0 text-warn" aria-label={`Missing: ${gaps.join(", ")}`} />}
                   </div>
                   <button type="button" onClick={() => setSel(x.id)} title={x.name} className={`block w-full cursor-pointer truncate text-start font-medium hover:underline focus-visible:underline focus-visible:outline-none ${compact ? "text-xs" : "text-sm"}`}>{x.name}</button>
@@ -349,12 +369,11 @@ export function AssetLibrary({ marketId, envId, marketName, root, assets, folder
         </Sheet>
       )}
 
-      {newFolder && canEdit && <div className="fixed inset-0 bg-black/45 grid place-items-center z-50" onClick={(e) => { if (e.target === e.currentTarget) setNewFolder(false); }}>
-        <div role="dialog" aria-labelledby="nf" className="bg-surface rounded-xl w-[min(480px,94vw)] shadow-2xl">
-          <header className="px-6 pt-5 pb-3 flex items-center"><h2 id="nf" className="text-lg font-medium">New folder</h2><button className="ml-auto w-8 h-8 rounded text-ink-3 hover:bg-surface-3" onClick={() => setNewFolder(false)} aria-label="Close">×</button></header>
-          <div className="px-6 pb-2"><label className="text-xs text-ink-3">Folder name<input autoFocus className="mt-1 w-full border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink" value={folderName} onChange={(e) => setFolderName(e.target.value.replace(/[\/\\]/g, ""))} onKeyDown={(e) => { if (e.key === "Enter") createFolder(); }} placeholder="e.g. Spring campaign" /></label><div className="mt-1 text-xs text-ink-3">/content/dam/{marketId}/{folderName.trim() || "…"}</div></div>
-          <footer className="px-6 pb-5 pt-3 flex justify-end gap-2"><button className="btn btn-sm btn-secondary" onClick={() => setNewFolder(false)}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!folderName.trim() || busy === "folder"} onClick={createFolder}>{busy === "folder" ? "Creating…" : "Create folder"}</button></footer>
-        </div></div>}
+      {newFolder && canEdit && <NewFolderDialog subtitle="Files you upload into it stay together in the library." placeholder="e.g. Spring campaign"
+        where={<span className="text-ink-3">{marketName} assets library</span>}
+        preview={(name) => <>/content/dam/{marketId}/{name || "…"}</>}
+        onClose={() => setNewFolder(false)}
+        onSubmit={async (name) => { await repoApi.createNode(`/content/dam/${marketId}/${name}`, "sling:Folder", { "jcr:title": name }, { text: `created asset folder ${name}`, target: "assets" }); setNewFolder(false); say(`Created folder ${name}`); go(`?folder=${encodeURIComponent(name)}`); }} />}
       {toast && <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm z-50">{toast}</div>}
     </div>
   );

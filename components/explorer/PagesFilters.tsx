@@ -1,7 +1,7 @@
 "use client";
 import { ArrowDown, ArrowUp, CalendarRange, ChevronDown, ChevronsUpDown, ListFilter, X } from "lucide-react";
 import { Badge } from "@/components/shadcn/badge";
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/shadcn/dropdown-menu";
+import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuGroup, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/shadcn/dropdown-menu";
 
 /**
  * Sorting and filtering for the Pages list, ported from hsbc-ucpmock's
@@ -57,12 +57,14 @@ export function MultiFilter({ label, noun, options, value, onChange }: {
         }
       />
       <DropdownMenuContent align="end" className="min-w-44">
-        <DropdownMenuLabel className="text-xs font-normal text-ink-3">Show {noun} that are</DropdownMenuLabel>
-        {options.map((o) => (
-          <DropdownMenuCheckboxItem key={o.value} checked={value.includes(o.value)} onCheckedChange={(on) => toggle(o.value, !!on)}>
-            {o.label}
-          </DropdownMenuCheckboxItem>
-        ))}
+        <DropdownMenuGroup>
+          <DropdownMenuLabel className="text-xs font-normal text-ink-3">Show {noun} that are</DropdownMenuLabel>
+          {options.map((o) => (
+            <DropdownMenuCheckboxItem key={o.value} checked={value.includes(o.value)} onCheckedChange={(on) => toggle(o.value, !!on)}>
+              {o.label}
+            </DropdownMenuCheckboxItem>
+          ))}
+        </DropdownMenuGroup>
       </DropdownMenuContent>
     </DropdownMenu>
   );
