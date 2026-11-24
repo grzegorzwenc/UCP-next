@@ -61,14 +61,20 @@
 .m-env > div > :nth-child(2) { flex: 1; min-width: 0; }
 
 /* ===== Forms: the form as the Forms solution renders it, on its host page ===== */
-.f-host { background: #f3f3f3; padding: 28px 0 40px; }
-.f-host-t { max-width: 760px; margin: 0 auto 14px; font-size: 28px; font-weight: 300; padding: 0 20px; }
-.f-wrap { max-width: 760px; margin: 0 auto; background: #fff; padding: 8px 32px 28px; }
-.f-step { padding-top: 22px; } .f-step .bar { display: block; height: 4px; background: #db0011; width: 72px; margin-bottom: 10px; }
-.f-step h2 { font-size: 20px; font-weight: 700; margin: 0 0 4px; }
-.f-field { padding: 10px 0; position: relative; } .f-field label { display: block; font-weight: 700; font-size: 15px; margin-bottom: 4px; } .f-field .opt { font-weight: 400; color: #575757; }
-.f-help { font-size: 13px; color: #575757; margin: -2px 0 6px; }
-.f-in { border: 1px solid #767676; height: 40px; padding: 9px 12px; font-size: 14px; color: #767676; background: #fff; } .f-in.tall { height: 96px; } .f-sel::after { content: "⌄"; float: right; color: #000; }
+/* Forms follow HSBC's live AEM forms: grey page, white card, light 44px title, 16px labels, 44px fields, red 40px buttons. */
+.f-host { background: #f3f3f3; padding: 40px 0 56px; color: #333; }
+.f-host-t { max-width: 1004px; margin: 0 auto 24px; font-size: 44px; line-height: 50px; font-weight: 300; padding: 0 24px; color: #333; }
+.f-wrap { max-width: 1004px; margin: 0 auto; background: #fff; padding: 40px 64px 56px; }
+.f-wrap > * { max-width: 600px; }
+.f-step { padding-top: 24px; } .f-step .bar { display: none; }
+.f-step h2 { font-size: 28px; line-height: 36px; font-weight: 300; margin: 0 0 4px; color: #333; }
+.f-field { padding: 0 0 24px; position: relative; } .f-field label { display: block; font-weight: 400; font-size: 16px; line-height: 1.4; margin-bottom: 8px; color: #333; } .f-field .opt { color: #575757; }
+.f-step + .f-field, .f-step + div .f-field { padding-top: 16px; }
+.f-help { font-size: 14px; color: #575757; margin: -4px 0 8px; }
+.f-in { border: 1px solid #767676; height: 44px; padding: 9px 12px; font-size: 16px; line-height: 24px; color: #767676; background: #fff; max-width: 445px; } .f-in.tall { height: 120px; max-width: 600px; }
+.f-sel { position: relative; max-width: 260px; border-color: #333; color: #333; padding-right: 50px; }
+.f-sel::before { content: ""; position: absolute; right: 40px; top: 10px; bottom: 10px; width: 1px; background: #333; }
+.f-sel::after { content: ""; position: absolute; right: 15px; top: 14px; width: 9px; height: 9px; border-right: 1.5px solid #333; border-bottom: 1.5px solid #333; transform: rotate(45deg); }
 .f-opts { display: grid; gap: 8px; font-size: 15px; } .f-opts span, .f-consent { display: flex; gap: 10px; align-items: flex-start; }
 .f-opts i, .f-consent i { width: 20px; height: 20px; border: 1px solid #000; flex: none; display: inline-block; } .f-opts i.dot { border-radius: 99px; }
 .f-consent { border: 1px solid #d7d8d6; background: #fafafa; padding: 12px; font-size: 14px; line-height: 1.45; } .f-consent small { display: block; color: #767676; font-size: 11px; margin-top: 4px; }
@@ -89,20 +95,14 @@
 .preview .m-region, .preview .m-region-empty { display: none; }
 
 /* ---- forms: pages, progress, buttons, Submit page, rules on the canvas ---- */
-.f-prog { list-style: none; margin: 14px 0 6px; padding: 0; display: flex; gap: 0; counter-reset: s; }
-.f-prog li { flex: 1; position: relative; min-width: 0; }
-.f-prog li::before { content: ""; position: absolute; top: 13px; left: 0; right: 0; height: 2px; background: #d7d8d6; }
-.f-prog li:first-child::before { left: 50%; } .f-prog li:last-child::before { right: 50%; }
-.f-prog li.done::before, .f-prog li.cur::before { background: #000; }
-.f-prog button { position: relative; display: grid; justify-items: center; gap: 6px; width: 100%; background: none; border: 0; padding: 0; cursor: pointer; font: inherit; color: #575757; }
-.f-prog .n { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 99px; background: #fff; border: 2px solid #d7d8d6; font-size: 13px; font-weight: 700; }
-.f-prog .t { font-size: 12px; line-height: 1.3; text-align: center; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
-.f-prog li.done .n { background: #000; border-color: #000; color: #fff; }
-.f-prog li.cur .n { border-color: #000; color: #000; } .f-prog li.cur .t { color: #000; font-weight: 700; }
-.f-prog button:hover .t { text-decoration: underline; }
-.f-nav { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 22px; padding-top: 18px; border-top: 1px solid #e5e5e5; }
-.f-btn { display: inline-flex; align-items: center; gap: 8px; background: #db0011; color: #fff; border: 1px solid #db0011; padding: 11px 22px; font: inherit; font-size: 15px; cursor: pointer; }
-.f-btn.sec { background: #fff; color: #000; border-color: #000; }
+.f-prog { margin: 0 0 8px; }
+.f-prog .h { display: flex; align-items: baseline; gap: 12px; margin: 0 0 12px; font-size: 16px; font-weight: 400; color: #333; }
+.f-prog .d { font-weight: 300; }
+.f-prog .bar { position: relative; height: 4px; background: #ededed; }
+.f-prog .bar span { position: absolute; inset: 0 auto 0 0; background: #db0011; transition: width .3s ease-out; }
+.f-nav { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 16px; padding-top: 24px; border-top: 1px solid #e5e5e5; max-width: 600px; }
+.f-btn { display: inline-flex; align-items: center; gap: 8px; height: 40px; background: #db0011; color: #fff; border: 1px solid #db0011; padding: 0 19px; font: inherit; font-size: 16px; line-height: 24px; cursor: pointer; }
+.f-btn.sec { background: #fff; color: #333; border-color: #333; }
 .f-btn:hover { filter: brightness(.94); }
 .f-edit { position: absolute; right: 0; top: -12px; display: inline-flex; align-items: center; gap: 4px; background: #fff; border: 1px solid #d7d8d6; padding: 2px 7px; font-size: 11px; color: #575757; cursor: pointer; font-family: inherit; }
 .f-edit:hover { color: #000; border-color: #000; }
@@ -118,3 +118,8 @@
 .f-rules { display: flex; flex-wrap: wrap; gap: 4px; margin: 8px 0 -4px; }
 .f-rule { display: inline-flex; align-items: center; gap: 4px; background: #fffbeb; border: 1px solid #f0c674; color: #92400e; padding: 2px 8px; font-size: 11px; line-height: 1.4; }
 .preview .f-rules, .preview .f-edit, .preview .f-integr { display: none; }
+/* Progress, buttons and the Submit page sit outside the builder's blocks; give them the blocks' inset so everything lines up. */
+.f-wrap > .f-prog, .f-wrap > .f-nav, .f-wrap > .f-submit { margin-left: 28px; margin-right: 28px; }
+.site.tablet .f-wrap > .f-prog, .site.tablet .f-wrap > .f-nav, .site.tablet .f-wrap > .f-submit { margin-left: 20px; margin-right: 20px; }
+.site.mobile .f-wrap > .f-prog, .site.mobile .f-wrap > .f-nav, .site.mobile .f-wrap > .f-submit { margin-left: 16px; margin-right: 16px; }
+.site.mobile .f-wrap { padding: 24px 16px 40px; } .site.mobile .f-host-t { font-size: 32px; line-height: 38px; }

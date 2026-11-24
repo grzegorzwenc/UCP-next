@@ -49,13 +49,16 @@ export function FormPageSwitch({ blocks, view, layout, onView }: { blocks: B[]; 
   </div>;
 }
 
-/** The progress bar customers see at the top of a step-by-step form. Clickable in the builder. */
-export function FormProgress({ blocks, view, onView }: { blocks: B[]; view: FormView; onView: (v: FormView) => void }) {
-  const steps = stepsOf(blocks); if (steps.length < 1) return null;
-  const cur = view.page === "step" ? view.step : steps.length;
-  const items = [...steps.map((st) => s(st.props.title) || "Untitled step"), "Check and send"];
-  return <ol className="f-prog" aria-label="Progress">{items.map((t, i) => <li key={i} className={i < cur ? "done" : i === cur ? "cur" : ""}>
-    <button type="button" onClick={(e) => { e.stopPropagation(); onView(i < steps.length ? { page: "step", step: i } : { page: "submit" }); }}><span className="n">{i < cur ? "✓" : i + 1}</span><span className="t">{t}</span></button></li>)}</ol>;
+/** The progress tracker customers see, as on HSBC's AEM forms: the page name, "Step n of N", and a thin red bar.
+ *  The pages are the steps, then "Check your answers" (Submit page), then "Confirmation" (Success page). */
+export function FormProgress({ blocks, view, submitTitle }: { blocks: B[]; view: FormView; submitTitle: string }) {
+  const steps = stepsOf(blocks); if (view.page === "failure") return null;
+  const names = [...(steps.length ? steps.map((st) => s(st.props.title) || "Untitled step") : ["Enter details"]), submitTitle || "Check your answers", "Confirmation"];
+  const cur = view.page === "step" ? view.step : view.page === "submit" ? names.length - 2 : names.length - 1;
+  return <div className="f-prog" role="group" aria-label="Progress">
+    <h2 className="h"><span className="t">{names[cur]}</span><span className="d">Step {cur + 1} of {names.length}</span></h2>
+    <div className="bar" aria-hidden><span style={{ width: `${((cur + 1) / names.length) * 100}%` }} /></div>
+  </div>;
 }
 
 /** Back / Next at the bottom of a step. Clicking moves between pages; the pencil edits the labels. */

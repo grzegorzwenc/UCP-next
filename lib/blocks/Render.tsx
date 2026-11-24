@@ -87,7 +87,7 @@ export function RenderBlock({ b }: { b: Block }) {
     case "ftext": case "femail": case "fphone": case "fnumber": case "fdate":
       return <FField p={p} id={id}>{p.lines === "Several lines" ? <div className="f-in tall">{p.placeholder}</div> : <div className="f-in">{b.type === "fdate" ? "dd / mm / yyyy" : p.placeholder}</div>}</FField>;
     case "fchoice": { const opts = lines(p.options).map((r) => r[0]);
-      return <FField p={p} id={id}>{p.style === "Drop-down" ? <div className="f-in f-sel">Select</div> : <div className="f-opts">{opts.map((o, i) => <span key={i}><i className={p.style === "Checkboxes" ? "box" : "dot"} />{o}</span>)}</div>}</FField>; }
+      return <FField p={p} id={id}>{p.style === "Drop-down" ? <div className="f-in f-sel">Please select</div> : <div className="f-opts">{opts.map((o, i) => <span key={i}><i className={p.style === "Checkboxes" ? "box" : "dot"} />{o}</span>)}</div>}</FField>; }
     case "ffile":
       return <FField p={p} id={id}><div className="f-file">Choose a file<small>{p.types} · up to {p.size}</small></div></FField>;
     case "fconsent":
@@ -119,7 +119,7 @@ export function MessageChrome({ channel, children }: { channel: string; children
 const CONSENT_TEXT: Record<string, string> = { "Privacy notice": "I have read the HSBC UK Privacy Notice, which explains how my information is used.", "Marketing preferences": "I'd like to hear about HSBC products and offers by e-mail, phone and post. I can change this at any time.", "Credit search": "I agree that HSBC can carry out a credit search, which will leave a footprint on my credit file." };
 const CONSENT_VER: Record<string, string> = { "Privacy notice": "v4", "Marketing preferences": "v2", "Credit search": "v3" };
 function FField({ p, id, children }: { p: Record<string, string>; id: string; children: React.ReactNode }) {
-  return <div className="f-field"><label><T id={id} f="label">{p.label}</T>{p.required === "Optional" && <span className="opt"> (optional)</span>}</label>{p.help && <div className="f-help"><T id={id} f="help">{p.help}</T></div>}{children}<code className="f-name" data-ui>{p.name}</code></div>;
+  return <div className="f-field"><label><T id={id} f="label">{p.label}</T>{p.required === "Optional" && <span className="opt"> (Optional)</span>}</label>{p.help && <div className="f-help"><T id={id} f="help">{p.help}</T></div>}{children}<code className="f-name" data-ui>{p.name}</code></div>;
 }
 /** A form is always built on the page that hosts it: the canvas shows that page's chrome and title, with the form where the Form component sits. */
 export function FormChrome({ marketName, crumbs, hostTitle, device, children }: { marketName: string; crumbs: string[]; hostTitle: string; device: string; children: React.ReactNode }) {
