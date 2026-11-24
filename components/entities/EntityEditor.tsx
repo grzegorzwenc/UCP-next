@@ -9,7 +9,8 @@ import { describeError, errorText } from "@/lib/api/errors";
 import { AssetPicker } from "@/components/builder/AssetPicker";
 import { Menu } from "@/components/ui/Menu";
 import { StatusPill } from "@/components/models/ModelDialogs";
-import { When, chip, Crumbs } from "@/components/models/bits";
+import { When, Crumbs } from "@/components/models/bits";
+import { Badge } from "@/components/shadcn/badge";
 import { inputCls } from "@/components/models/ModalShell";
 import { aliasOf, detailLink, entitiesLink, entityLink, whoName, type UsedPage } from "@/components/models/fieldMeta";
 import { useConfirm } from "@/components/ui/Confirm";
@@ -80,7 +81,7 @@ function Field({ f, kind, v, raw, err, marketId, refOptions, onValue, onRaw }: F
 
 /* ---------------- editor ---------------- */
 /** Entity editor: a form generated from the model's published schema, with Save / Publish like a page. */
-export function EntityEditor({ base, marketId, marketRoot, marketName, flag, model, entity, entities, models, usedOn, names, viewerId, canEdit, go, say, setDirty, saveRef }: Props) {
+export function EntityEditor({ base, marketId, marketRoot, model, entity, entities, models, usedOn, names, viewerId, canEdit, go, say, setDirty, saveRef }: Props) {
   const ask = useConfirm();
   const router = useRouter();
   const schema = useMemo(() => (model.publishedFields ?? model.fields).filter((f) => !f.hidden), [model]);
@@ -124,7 +125,7 @@ export function EntityEditor({ base, marketId, marketRoot, marketName, flag, mod
           : <h1 className="text-2xl font-medium leading-tight">{entity.title}</h1>}
         <StatusPill status={entity.status} />{dirty && <span className="text-xs font-medium text-warn bg-warn-soft rounded-full px-2 py-0.5">Unsaved changes</span>}</div>
       {titleErr && <p role="alert" className="text-crit text-xs mt-1">{titleErr}</p>}
-      <p className="text-sm text-ink-3 mt-1 flex items-center gap-2 flex-wrap"><Link {...nav(detailLink(base, model.id))} className={`${chip} hover:bg-surface-2`} title="Open this content model in Content models">Model: {model.name} v{model.publishedVersion ?? model.version}</Link>{entity.lastModified && <When iso={entity.lastModified} prefix="Last modified " suffix={by ? ` by ${by}` : ""} />}</p></div>
+      <p className="text-sm text-ink-3 mt-1 flex items-center gap-2 flex-wrap"><Badge variant="outline" className="bdl-badge-neutral font-normal" render={<Link {...nav(detailLink(base, model.id))} title="Open this content model in Content models" />}>Model: {model.name} v{model.publishedVersion ?? model.version}</Badge>{entity.lastModified && <When iso={entity.lastModified} prefix="Last modified " suffix={by ? ` by ${by}` : ""} />}</p></div>
       <div className="ml-auto flex gap-2 items-center flex-wrap">
         {canEdit ? <>{invalid && <span className="text-xs text-crit">{nErr} field{nErr === 1 ? "" : "s"} to fix</span>}
           <button className="btn btn-sm btn-secondary" disabled={!dirty || invalid || !!busy} onClick={save}>{busy === "save" ? "Saving…" : "Save"}</button>
@@ -144,7 +145,7 @@ export function EntityEditor({ base, marketId, marketRoot, marketName, flag, mod
         </fieldset>
       </form>
       <aside className="grid gap-4 min-w-0">
-        <UsedOn compact pages={usedOn} base={base} marketRoot={marketRoot} marketName={marketName} flag={flag} go={go} note="Publishing this entity updates these pages automatically." empty="Open a page, click a text and use ⤓ Choose content to show this entity there." />
+        <UsedOn compact pages={usedOn} base={base} marketRoot={marketRoot} go={go} note="Publishing this entity updates these pages automatically." empty="Open a page, click a text and use ⤓ Choose content to show this entity there." />
         <section className="bg-surface border border-line rounded-xl p-4"><h2 className="text-sm font-medium mb-1">Tokens you can use on pages</h2>
           <p className="text-xs text-ink-3 mb-2">Type a token into any text on a page that uses this {model.name.toLowerCase()}. It shows this field’s value.</p>
           <ul className="grid gap-1">{schema.map((f) => { const t = `{{${alias}.${f.k}}}`; return <li key={f.k} className="flex items-center gap-2 min-w-0"><code className="text-xs bg-surface-3 border border-line rounded px-1.5 py-0.5 truncate min-w-0 max-w-[65%]">{t}</code><span className="text-xs text-ink-4 truncate flex-1">{f.l}</span><button type="button" className="btn-ghost" onClick={() => copy(t)} aria-label={`Copy ${t}`}>Copy</button></li>; })}</ul></section>

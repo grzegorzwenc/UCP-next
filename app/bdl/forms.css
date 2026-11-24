@@ -1,3 +1,5 @@
+/* BDL Form Elements — inputs, selects, textareas, checkboxes, radios, toggles */
+
 @layer base {
   input[type="text"],
   input[type="email"],

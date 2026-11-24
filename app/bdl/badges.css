@@ -1,3 +1,15 @@
+/* BDL Badge Status Colors
+   Used with ShadCN <Badge variant="outline"> component.
+   The component base already sets rounded-none (sharp corners).
+
+   Usage:
+     <Badge variant="outline" class="bdl-badge-success">Active</Badge>
+     <Badge variant="outline" class="bdl-badge-error">Failed</Badge>
+     <Badge variant="outline" class="bdl-badge-warning">Pending</Badge>
+     <Badge variant="outline" class="bdl-badge-info">Running</Badge>
+     <Badge variant="outline" class="bdl-badge-neutral">Unknown</Badge>
+*/
+
 @layer components {
   .bdl-badge-success {
     border-color: var(--color-bdl-rag-green);

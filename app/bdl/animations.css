@@ -1,3 +1,24 @@
+/* BDL Animations — easing tokens, stagger utilities, reduced-motion support
+   Based on Emil Kowalski's design engineering principles.
+
+   Usage:
+     <div class="bdl-stagger">  ← children fade in with 50ms stagger
+       <div>Card 1</div>
+       <div>Card 2</div>
+       <div>Card 3</div>
+     </div>
+*/
+
+@theme {
+  /* Strong ease-out for UI interactions (starts fast, feels responsive) */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* Strong ease-in-out for on-screen movement */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* Stagger children entrance — cards, list items, grid children */
+
 @theme {
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 

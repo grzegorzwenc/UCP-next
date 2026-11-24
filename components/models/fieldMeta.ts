@@ -1,14 +1,14 @@
 import type { Model, ModelField } from "@/lib/ucp/types";
 
 /** Client-safe helpers shared by the content-model list, editor and dialogs. */
-export type ModelTab = "fields" | "diagram" | "form" | "config" | "versions";
-export const TABS: ModelTab[] = ["fields", "diagram", "form", "config", "versions"];
+export type ModelTab = "general" | "fields" | "diagram" | "form" | "config" | "versions";
+export const TABS: ModelTab[] = ["general", "fields", "diagram", "form", "config", "versions"];
 export type UsedPage = { path: string; title: string; status: string };
 
 /** Links inside the models section. `?model=` = model detail, `&edit=1` = model editor, `?group=` = category. Entities live in their own section (`/entities`). */
 const enc = encodeURIComponent;
 export const detailLink = (base: string, id: string) => `${base}/models?model=${enc(id)}`;
-export const editLink = (base: string, id: string, tab: ModelTab = "fields") => `${base}/models?model=${enc(id)}&edit=1${tab !== "fields" ? `&tab=${tab}` : ""}`;
+export const editLink = (base: string, id: string, tab: ModelTab = "fields") => `${base}/models?model=${enc(id)}${tab !== "general" ? `&tab=${tab}` : ""}`;
 export const entityLink = (base: string, model: string, entity: string) => `${base}/entities?model=${enc(model)}&entity=${enc(entity)}`;
 /** Content entities section: all entities, or the entities of one model. */
 export const entitiesLink = (base: string, model?: string, folder?: string) => `${base}/entities${model ? `?model=${enc(model)}${folder ? `&folder=${enc(folder)}` : ""}` : ""}`;

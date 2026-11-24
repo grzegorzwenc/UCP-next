@@ -8,8 +8,8 @@ import { TABS, type ModelTab, type UsedPage } from "@/components/models/fieldMet
 
 /**
  * Content models (structure only), laid out like Pages: tree on the left, detail on the right.
- *   (none) → overview · ?group=<name> → category · ?model=<id> → model detail (a stray &tab= still lands here)
- *   ?model=<id>&edit=1&tab=… → model editor
+ *   (none) → overview · ?group=<name> → category
+ *   ?model=<id>[&tab=…] → the model, General first; every tab is the same page
  * Entities have their own section; old `?model=<id>&entity=<entityId>` links redirect there.
  */
 export const metadata = { title: "Content models" };
@@ -20,8 +20,8 @@ export default async function Page({ params, searchParams }: PageProps<"/[market
   if (s(sp.entity)) redirect(`/${mid}/${eid}/entities?model=${encodeURIComponent(s(sp.model))}&entity=${encodeURIComponent(s(sp.entity))}`);
   const [models, pages, templates, users, viewer, entities, folders] = await Promise.all([listModels(), allPages(mk.root), listTemplates(), listUsers(), me(), listEntities(mid).catch(() => []), listModelFolders()]);
   const md = models.find((m) => m.id === s(sp.model));
-  const tab = (TABS as string[]).includes(s(sp.tab)) ? (s(sp.tab) as ModelTab) : "fields";
-  const edit = !!md && s(sp.edit) === "1";
+  const edit = !!md;
+  const tab = (TABS as string[]).includes(s(sp.tab)) ? (s(sp.tab) as ModelTab) : s(sp.edit) === "1" ? "fields" : "general";
   const [usageRaw, versions] = await Promise.all([modelUsage(mid, pages), md && edit && !md.locked ? listModelVersions(md.id) : Promise.resolve([])]);
   const slim = (r: Record<string, { path: string; title: string; status: string }[]>): Record<string, UsedPage[]> => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v.map((p) => ({ path: p.path, title: p.title, status: p.status }))]));
   const templatesByModel: Record<string, { id: string; name: string }[]> = {};

@@ -1,3 +1,20 @@
+/* BDL Tabs — Segmented control pattern
+   Charcoal active state, grey border container, vertical dividers.
+
+   Usage:
+     <div class="bdl-tabs" role="tablist">
+       <button class="bdl-tab bdl-tab-active">Overview</button>
+       <span class="bdl-tab-divider" aria-hidden="true"></span>
+       <button class="bdl-tab">Pages (42)</button>
+     </div>
+
+   Full-width variant:
+     <div class="bdl-tabs bdl-tabs-full" role="tablist">
+       <button class="bdl-tab bdl-tab-active">All (5)</button>
+       ...
+     </div>
+*/
+
 @layer components {
   .bdl-tabs {
     display: inline-flex;

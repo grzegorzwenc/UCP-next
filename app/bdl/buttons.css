@@ -1,3 +1,15 @@
+/* BDL Buttons
+   Variants: .btn-primary, .btn-secondary, .btn-grey, .btn-ghost, .btn-icon, .btn-danger
+   Modifier: .btn-sm (compact size for app UI)
+
+   Usage:
+     <button class="btn btn-primary btn-sm">Save</button>
+     <button class="btn btn-secondary btn-sm">Cancel</button>
+     <button class="btn-ghost">Reset</button>
+     <button class="btn-icon btn-icon-danger"><Trash /></button>
+     <button class="btn-danger">Stop this job</button>
+*/
+
 @layer components {
   .btn {
     font-family: var(--font-sans);

@@ -4,6 +4,7 @@ import { MultiFilter, SortHeader, type Sort as ColSort } from "@/components/expl
 import { NewFolderButton } from "@/components/ui/NewFolderButton";
 import { NewFolderDialog } from "@/components/ui/NewFolderDialog";
 import { Search, X } from "lucide-react";
+import { Badge } from "@/components/shadcn/badge";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -24,9 +25,9 @@ import { ModelInfoForm, StatusPill, DiffView, PublishModal, UnsavedModal, Create
 import { FormPreview, BlockPreview } from "./ModelPreviews";
 import { ModelMap, type Relation } from "./ModelMap";
 import { camel } from "./fieldMeta";
-import { ModelDetail } from "./ModelDetail";
+import { ModelOverview } from "./ModelDetail";
 import { UsedOn } from "./UsedOn";
-import { Dot, ModelIcon, When, Toast, chip, Crumbs } from "./bits";
+import { Dot, ModelIcon, When, Toast, Crumbs } from "./bits";
 import { useUnsaved } from "./useUnsaved";
 import { isAdminUser, isBlockModel, whoName, detailLink, editLink, groupLink, type ModelTab, type UsedPage } from "./fieldMeta";
 import { useConfirm } from "@/components/ui/Confirm";
@@ -78,8 +79,7 @@ export function Models(p: Props) {
   const onCreated = (m: Model, published: boolean) => { setWizard(false); say(published ? `Created and published ${m.name} v${m.version}` : "Created as draft"); router.push(detailLink(p.base, m.id)); router.refresh(); };
 
   let body: React.ReactNode;
-  if (md && p.edit) body = <Editor key={`${md.id}:${md.version}:${md.lastModified ?? ""}:${md.status}`} p={p} md={md} isAdmin={isAdmin} go={go} say={say} setDirty={setDirty} saveRef={saveRef} onDuplicate={() => duplicate(md)} onDelete={() => remove(md)} />;
-  else if (md) body = <ModelDetail p={p} md={md} isAdmin={isAdmin} go={go} />;
+  if (md) body = <Editor key={`${md.id}:${md.version}:${md.lastModified ?? ""}:${md.status}`} p={p} md={md} isAdmin={isAdmin} go={go} say={say} setDirty={setDirty} saveRef={saveRef} onDuplicate={() => duplicate(md)} onDelete={() => remove(md)} />;
   else body = <Overview key={p.group} p={p} isAdmin={isAdmin} go={go} say={say} onCreate={() => setWizard(true)} />;
 
   return (
@@ -205,29 +205,32 @@ function Editor({ p, md, isAdmin, go, say, setDirty, saveRef, onDuplicate, onDel
   const publish = async () => { setBusy("publish"); try { if (dirty) await ucpApi.saveModel(p.marketId, md.id, { name: meta.name.trim() || md.name, displayName: meta.displayName.trim(), description: meta.description.trim(), icon: meta.icon, group: meta.group.trim() || "Core", ...(fieldsChanged ? { fields } : {}) }); const m = await ucpApi.publishModel(p.marketId, md.id); setPublishOpen(false); say(`Published v${m.version}`); router.refresh(); } finally { setBusy(""); } };
   const restoreDraft = () => { if (!md.publishedFields) return; if (!confirm("Replace the draft fields with the published schema? Unsaved field changes are lost; nothing is saved until you click Save.")) return; setFields(md.publishedFields); };
   const used = p.usage[md.id] ?? []; const tpls = p.templatesByModel[md.id] ?? [];
-  const TABS_UI: [ModelTab, string][] = [["fields", "Fields"], ["diagram", block ? "Rendered preview" : "Diagram"], ["form", "Form preview"], ["config", "Config"], ...(block ? [] : [["versions", "Versions"] as [ModelTab, string]])];
+  const TABS_UI: [ModelTab, string][] = [["general", "General"], ["fields", "Fields"], ["diagram", block ? "Rendered preview" : "Diagram"], ["form", "Form preview"], ["config", "Config"], ...(block ? [] : [["versions", "Versions"] as [ModelTab, string]])];
   const previewModel = { ...md, name: meta.name || md.name, fields };
 
   return <div className="p-4 md:p-7">
-    <Crumbs items={[{ label: "Content models", href: `${p.base}/models`, onClick: () => go(`${p.base}/models`) }, { label: md.group, href: groupLink(p.base, md.group), onClick: () => go(groupLink(p.base, md.group)) }, { label: md.name, href: detailLink(p.base, md.id), onClick: () => go(detailLink(p.base, md.id)) }, { label: block ? "Details" : isAdmin ? "Edit model" : "Documentation" }]} />
+    <Crumbs items={[{ label: "Content models", href: `${p.base}/models`, onClick: () => go(`${p.base}/models`) }, { label: md.group, href: groupLink(p.base, md.group), onClick: () => go(groupLink(p.base, md.group)) }, { label: md.name }]} />
     <div className="flex items-start gap-3 mb-4 flex-wrap"><ModelIcon m={{ ...md, icon: meta.icon || md.icon }} big /><div className="min-w-0">
-      <div className="flex items-center gap-2.5 flex-wrap"><h1 className="text-2xl font-medium leading-tight">{meta.name || md.name}</h1><StatusPill status={md.status} /><span className={chip} title="Draft version">v{md.version}</span>{md.publishedVersion && <span className={chip} title="Version served by the delivery API">Published: v{md.publishedVersion}</span>}{dirty && <span className="text-xs font-medium text-warn bg-warn-soft rounded-full px-2 py-0.5">Unsaved changes</span>}</div>
+      <div className="flex items-center gap-2.5 flex-wrap"><h1 className="text-2xl font-medium leading-tight">{meta.name || md.name}</h1><StatusPill status={md.status} /><Badge variant="outline" className="bdl-badge-neutral font-normal" title="Draft version">v{md.version}</Badge>{md.publishedVersion && <Badge variant="outline" className="bdl-badge-neutral font-normal" title="Version served by the delivery API">Published: v{md.publishedVersion}</Badge>}{dirty && <span className="text-xs font-medium text-warn bg-warn-soft rounded-full px-2 py-0.5">Unsaved changes</span>}</div>
       <p className="text-sm text-ink-3 mt-1 flex items-center gap-2 flex-wrap"><span>/v1/models/{md.id}</span><span>·</span><span>{md.source}</span>{md.lastModified && <><span>·</span><When iso={md.lastModified} prefix="Last modified " suffix={md.lastModifiedBy ? ` by ${md.lastModifiedBy === p.viewerId ? "you" : whoName(md.lastModifiedBy, p.names)}` : ""} /></>}</p></div>
       <div className="ml-auto flex gap-2 items-center flex-wrap">
         <Link className="btn btn-sm btn-secondary" href={`${p.base}/api?tab=models&model=${md.id}`} onClick={(e) => { e.preventDefault(); go(`${p.base}/api?tab=models&model=${md.id}`); }}>View JSON schema</Link>
         {isAdmin && <>{editable && <button className="btn btn-sm btn-secondary" disabled={!dirty || !!busy} onClick={save}>{busy === "save" ? "Saving…" : "Save"}</button>}
           {editable && <button className="btn btn-sm btn-primary" disabled={(md.status === "published" && !dirty) || !!busy} onClick={() => setPublishOpen(true)} title={md.status === "published" && !dirty ? "The published schema is up to date" : undefined}>Publish</button>}
-          <Menu label="More ▾" ariaLabel="More actions" buttonClassName="btn" items={[{ id: "dup", label: "Duplicate", onSelect: onDuplicate }, { id: "restore", label: "Restore published schema into draft", disabled: !editable || !md.publishedFields, onSelect: restoreDraft }, { id: "del", label: "Delete", danger: true, disabled: !editable, onSelect: onDelete }]} /></>}
+          <Menu label="More ▾" ariaLabel="More actions" buttonClassName="btn btn-sm btn-secondary" items={[{ id: "dup", label: "Duplicate", onSelect: onDuplicate }, { id: "restore", label: "Restore published schema into draft", disabled: !editable || !md.publishedFields, onSelect: restoreDraft }, { id: "del", label: "Delete", danger: true, disabled: !editable, onSelect: onDelete }]} /></>}
       </div></div>
     {block && <div className="bg-info-soft text-info px-3 py-2 rounded-md text-xs mb-3">This block type is translated from the Sling component dialog. Fields are read-only here; change the source dialog to update them.</div>}
     <div className="flex gap-1 border-b border-line mb-4" role="tablist">{TABS_UI.map(([t, l]) => <button key={t} role="tab" aria-selected={tab === t} onClick={() => setTab(t)} className={`px-3 py-2 text-sm -mb-px border-b-2 ${tab === t ? "border-brand text-ink font-medium" : "border-transparent text-ink-3 hover:text-ink"}`}>{l}</button>)}</div>
+
+    <div key={tab} className="bdl-stagger">
+    {tab === "general" && <ModelOverview p={p} md={md} isAdmin={isAdmin} go={go} onTab={setTab} />}
 
     {tab === "fields" && <div className="grid gap-4">
       <details open className="bg-surface border border-line rounded-lg"><summary className="cursor-pointer px-4 py-3 text-sm font-medium select-none">Model information</summary>
         <div className="px-4 pb-4">{editable ? <ModelInfoForm value={meta} onChange={setMeta} groups={[...new Set([...p.folders, ...p.models.map((m) => m.group)])]} status={md.status} />
           : <dl className="grid grid-cols-[140px_1fr] gap-x-4 gap-y-1.5 text-sm"><dt className="text-ink-3">Name</dt><dd>{md.name}</dd><dt className="text-ink-3">Display name</dt><dd>{md.displayName || <span className="text-ink-4">—</span>}</dd><dt className="text-ink-3">Description</dt><dd className="text-ink-2">{md.description || <span className="text-ink-4">—</span>}</dd><dt className="text-ink-3">Model ID</dt><dd className="text-sm">{md.id}</dd><dt className="text-ink-3">Category</dt><dd>{md.group}</dd><dt className="text-ink-3">Status</dt><dd><StatusPill status={md.status} /></dd></dl>}</div></details>
       {editable ? <FieldList fields={fields} onChange={setFields} onEdit={(i) => setPanel({ index: i })} onAdd={() => setPanel({ index: null })} /> : <DocsTable fields={md.fields} />}
-      <UsedOn pages={used} base={p.base} marketRoot={p.marketRoot} marketName={p.marketName} flag={p.flag} go={go} empty="Pages show this model’s content once an entity of it is used on a page."
+      <UsedOn pages={used} base={p.base} marketRoot={p.marketRoot} go={go} empty="Pages show this model’s content once an entity of it is used on a page."
         extra={tpls.length ? <div className="flex flex-wrap items-center gap-1.5 mt-2 text-xs text-ink-3">Templates:{tpls.map((t) => <Link key={t.id} href={`${p.base}/templates?template=${t.id}`} onClick={(e) => { e.preventDefault(); go(`${p.base}/templates?template=${t.id}`); }} className="inline-flex items-center border border-line-2 rounded-full px-2 py-0.5 text-ink-2 hover:bg-surface-2">{t.name}</Link>)}</div> : undefined}
         note="Changing a published field changes these pages the next time they are published." />
     </div>}
@@ -237,6 +240,7 @@ function Editor({ p, md, isAdmin, go, say, setDirty, saveRef, onDuplicate, onDel
     {tab === "form" && <FormPreview md={previewModel} fields={fields} locales={p.locales} />}
     {tab === "config" && <div><div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 mb-3.5"><div><h4 className="text-sm font-medium mb-1.5">UCP configuration <span className="font-normal text-ink-3">{block ? "translated from the Sling dialog" : "content model definition"}</span></h4><Json value={p.config} maxHeight={420} label="configuration" /></div><div><h4 className="text-sm font-medium mb-1.5">JSON Schema <span className="font-normal text-ink-3">served at /v1/models/{md.id}</span></h4><Json value={p.schema} maxHeight={420} label="schema" /></div></div>{dirty && <p className="text-xs text-ink-3 mb-2">Shows the last saved draft. Save to refresh it with your changes.</p>}<Link className="btn btn-sm btn-secondary" href={`${p.base}/api?tab=models&model=${md.id}`} onClick={(e) => { e.preventDefault(); go(`${p.base}/api?tab=models&model=${md.id}`); }}>Open in API &amp; delivery</Link></div>}
     {tab === "versions" && !block && <VersionsTab p={p} md={md} current={fields} isAdmin={isAdmin} say={say} />}
+    </div>
 
     {panel && <FieldPanel models={p.models} own={{ id: md.id, fields }} taken={fields.map((f) => f.k).filter((k) => panel.index === null || k !== fields[panel.index].k)} initial={panel.index === null ? undefined : fields[panel.index]} onClose={() => setPanel(null)} onSubmit={(f) => { setFields(panel.index === null ? [...fields, f] : fields.map((x, i) => (i === panel.index ? f : x))); setPanel(null); }} />}
     {publishOpen && <PublishModal model={md} fields={fields} nextVersion={nextVersion} dirty={dirty} busy={busy === "publish"} onClose={() => setPublishOpen(false)} onPublish={publish} />}

@@ -1,4 +1,5 @@
 "use client";
+import { Lock } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { THUMB_W } from "@/lib/ucp/devices";
 import type { Model, ModelField } from "@/lib/ucp/types";
@@ -26,9 +27,9 @@ export function FormPreview({ md, fields, locales }: { md: Pick<Model, "name">; 
     case "URL": return <input type="url" disabled className={inp} placeholder={f.default || "https://"} />;
     default: return <input type="text" disabled className={inp} placeholder={f.default || f.l} />; } };
   const shown = fields.filter((f) => !f.hidden);
-  return <div><div className="border border-line rounded-lg overflow-hidden"><div className="flex items-center gap-2 bg-surface-2 border-b border-line px-3.5 py-2 text-sm"><b>What authors see</b><span className="text-ink-3">generated from the fields of {md.name} · {shown.length} field{shown.length === 1 ? "" : "s"}{fields.length !== shown.length ? ` · ${fields.length - shown.length} hidden` : ""}</span></div>
-    <div className="p-3.5 grid gap-3 max-w-[560px]">{shown.length ? shown.map((f) => f.t === "Boolean" ? <div key={f.k} className="flex items-center justify-between text-sm"><span>{f.l}</span><span className={`w-9 h-5 rounded-full relative ${f.default === "true" ? "bg-good" : "bg-surface-3 border border-line-2"}`}><span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow ${f.default === "true" ? "right-0.5" : "left-0.5"}`} /></span></div>
-      : <div key={f.k}><label className="text-xs text-ink-3 block mb-1">{f.l}{f.req && <small className="ml-1.5 text-brand">required</small>}{f.loc && <small className="ml-1.5 text-info">localised</small>}</label>{ctl(f)}{f.desc && <small className="block text-xs text-ink-4 mt-1">{f.desc}</small>}</div>) : <div className="text-ink-3 text-sm">No fields yet.</div>}</div></div>
+  return <div><div className="border border-line rounded-lg overflow-hidden"><div className="flex items-center gap-2 bg-surface-2 border-b border-line px-3.5 py-2 text-sm"><Lock className="size-3.5 shrink-0 text-ink-3" aria-hidden /><b>What authors see</b><span className="text-ink-3">a preview of {md.name} · {shown.length} field{shown.length === 1 ? "" : "s"}{fields.length !== shown.length ? ` · ${fields.length - shown.length} hidden` : ""} · nothing here can be filled in</span></div>
+    <div className="p-3.5 grid gap-3 pointer-events-none select-none">{shown.length ? shown.map((f) => f.t === "Boolean" ? <div key={f.k} className="flex items-center justify-between text-sm"><span>{f.l}</span><span className={`w-9 h-5 rounded-full relative ${f.default === "true" ? "bg-good" : "bg-surface-3 border border-line-2"}`}><span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow ${f.default === "true" ? "right-0.5" : "left-0.5"}`} /></span></div>
+      : <div key={f.k}><label className="text-xs text-ink-3 block mb-1">{f.l}{f.req && <small className="ml-1.5 text-brand" title={`Authors must fill in ${f.l} before the page can go for review`}>required for authors</small>}{f.loc && <small className="ml-1.5 text-info" title={`Authors get one ${f.l} per locale`}>localised</small>}</label>{ctl(f)}{f.desc && <small className="block text-xs text-ink-4 mt-1">{f.desc}</small>}</div>) : <div className="text-ink-3 text-sm">No fields yet.</div>}</div></div>
     <p className="text-xs text-ink-3 mt-2">Required fields block “Send for review”. Localised fields get one value per locale ({locales.join(", ")}).</p></div>;
 }
 
