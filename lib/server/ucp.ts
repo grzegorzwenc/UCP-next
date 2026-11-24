@@ -9,6 +9,7 @@ import { byOrder, sharedFields } from "@/lib/ucp/schema";
 import { RepoError } from "@/lib/repo";
 import { ME, REVIEW_GROUPS, SEED_USERS } from "@/lib/ucp/seed";
 import { allPages } from "@/lib/server/pages";
+import { FORMS_FOLDER, isFormTemplate } from "@/lib/blocks/registry";
 import { sessionUserId } from "@/lib/server/session";
 import { can } from "@/lib/ucp/perms";
 import { BUILT_IN_PATTERNS, type DesignPattern, type PatternPart } from "@/lib/blocks/patterns";
@@ -129,7 +130,13 @@ export async function modelUsage(marketId: string, all?: PageSummary[]): Promise
 const toTemplate = (n: RepoNode): Template => ({ id: n.name, path: n.path, name: str(n.properties["jcr:title"], n.name), desc: str(n.properties["jcr:description"]), blocks: str(n.properties["ucp:blocks"]).split(",").filter(Boolean), folder: str(n.properties["ucp:folder"], "Global (all markets)"), markets: json<string[]>(n.properties["ucp:markets"], []) });
 /** All templates, or (with a market) only the ones that market may use. */
 export async function listTemplates(marketId?: string): Promise<Template[]> { const t = (await kids(PATHS.templates, 1)).filter((x) => x.name !== "folder").map(toTemplate); return marketId ? t.filter((x) => !x.markets.length || x.markets.includes(marketId)) : t; }
-export async function listForms(): Promise<FormDef[]> { const f = await kids(PATHS.forms, 1); return f.map((n) => ({ id: n.name, name: str(n.properties["jcr:title"], n.name), version: num(n.properties["ucp:version"]) ?? 1 })); }
+/** Forms the page builder can embed: the Forms service registry plus forms published from the UCP Forms screen (a published UCP form wins on the same id). */
+export async function listForms(): Promise<FormDef[]> {
+  const out = new Map<string, FormDef>();
+  for (const n of await kids(PATHS.forms, 1)) out.set(n.name, { id: n.name, name: str(n.properties["jcr:title"], n.name), version: num(n.properties["ucp:version"]) ?? 1 });
+  for (const m of MARKETS) for (const p of await allPages(`${m.root}/${FORMS_FOLDER}`).catch(() => [])) if (!p.isFolder && p.status === "published" && isFormTemplate(p.template)) out.set(p.name, { id: p.name, name: p.title, version: 1 });
+  return [...out.values()];
+}
 
 /* ---------------- audit (/var/audit/ucp/<market>/<id>, append-only) ---------------- */
 const toEvent = (n: RepoNode): AuditEvent => ({ id: n.name, path: n.path, time: str(n.properties["ucp:time"], str(n.properties["jcr:created"])), type: (str(n.properties["ucp:type"], "content") as AuditType), who: str(n.properties["ucp:who"], "system"), text: str(n.properties["ucp:text"]), target: str(n.properties["ucp:target"]) || undefined, level: (str(n.properties["ucp:level"]) as AuditEvent["level"]) || "", requestId: str(n.properties["ucp:requestId"]) || undefined });

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
 import { ChevronRight, Folder, FolderOpen, Layers } from "lucide-react";
 
-type Node = { path: string; title: string; children: Node[] };
+type Node = { path: string; title: string; children: Node[]; letter?: "P" | "M" | "F"; href?: string };
 const KEY = "ucp-tree-open";
 
 /**
@@ -23,7 +23,17 @@ const subscribeSaved = (cb: () => void) => { window.addEventListener("storage", 
 /** { path: open? } · older versions stored a list of open folders */
 const readSaved = (raw: string): Record<string, boolean> => { try { const v = JSON.parse(raw || "{}"); return Array.isArray(v) ? Object.fromEntries(v.map((x: string) => [x, true])) : v && typeof v === "object" ? v : {}; } catch { return {}; } };
 
-export function FolderTree({ root, marketName, base, current, folders, counts }: { root: string; marketName: string; base: string; current: string; folders: { path: string; title: string }[]; counts: Record<string, number> }) {
+/**
+ * `market`: one tree for the whole market in Pages, Messaging and Forms — the site's page folders (P), then
+ * Messaging (M) and Forms (F) as a continuation, each with its own folders. Every row says which kind it is and
+ * links to its own screen.
+ */
+export function FolderTree({ section = "pages", root, marketName, base, current, folders, counts, market }: { section?: string; root: string; marketName: string; base: string; current: string; folders: { path: string; title: string }[]; counts: Record<string, number>; market?: { root: string; name: string; folders: { path: string; title: string }[] } }) {
+  if (market) return <MarketTree market={market} base={base} current={current} counts={counts} />;
+  return <SectionTree section={section} root={root} marketName={marketName} base={base} current={current} folders={folders} counts={counts} />;
+}
+
+function SectionTree({ section, root, marketName, base, current, folders, counts }: { section: string; root: string; marketName: string; base: string; current: string; folders: { path: string; title: string }[]; counts: Record<string, number> }) {
   const rel = (p: string) => p.replace(root, "") || "/";
   const tree = build(root, folders);
   const ancestors = new Set<string>(); { let p = current; while (p.startsWith(root + "/")) { p = p.replace(/\/[^/]+$/, ""); ancestors.add(p); } }
@@ -32,7 +42,7 @@ export function FolderTree({ root, marketName, base, current, folders, counts }:
   const isOpen = (p: string) => saved[p] ?? ancestors.has(p);
   const open = new Set<string>([...ancestors, ...Object.keys(saved)].filter(isOpen));
   const toggle = (p: string) => { const next = { ...saved, [p]: !isOpen(p) }; try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* private window */ } window.dispatchEvent(new Event(EVT)); };
-  const ctx = { root, base, current, open, toggle, rel, counts };
+  const ctx = { root, base: `${base}/${section}`, current, open, toggle, rel, counts };
   return <ul aria-label="Folders" className="m-0 list-none p-0"><Row n={{ path: root, title: marketName, children: tree }} depth={0} ctx={ctx} /></ul>;
 }
 
@@ -66,11 +76,11 @@ function Row({ n, depth, ctx }: { n: Node; depth: number; ctx: Ctx }) {
           </button>
         ) : <span className="size-6 shrink-0" aria-hidden />}
         <Link
-          href={`${base}/pages${fixed ? "" : rel(n.path)}`}
+          href={n.href ?? `${base}${fixed ? "" : rel(n.path)}`}
           aria-current={on ? "true" : undefined}
           className="flex h-full min-w-0 flex-1 items-center gap-2 text-start no-underline"
         >
-          <Icon className={ICON} />
+          {n.letter && <KindLetter letter={n.letter} />}<Icon className={ICON} />
           <span className="min-w-0 flex-1 truncate">{n.title}</span>
           {count !== undefined && count > 0 && <span className="text-xs font-normal text-ink-3 tabular-nums">{count}</span>}
         </Link>
@@ -85,4 +95,29 @@ function build(root: string, folders: { path: string; title: string }[]): Node[]
   const top: Node[] = [];
   folders.slice().sort((a, b) => a.path.localeCompare(b.path)).forEach((f) => { const parent = f.path.replace(/\/[^/]+$/, ""); const node = byPath.get(f.path)!; if (parent === root || !byPath.has(parent)) top.push(node); else byPath.get(parent)!.children.push(node); });
   return top;
+}
+
+const LETTER_CLS: Record<string, string> = { P: "bg-ink/10 text-ink-2", M: "bg-[#00847f]/15 text-[#00665f]", F: "bg-[#b45309]/15 text-[#92400e]" };
+const LETTER_NAME: Record<string, string> = { P: "Pages", M: "Messaging", F: "Forms" };
+export function KindLetter({ letter }: { letter: "P" | "M" | "F" }) {
+  return <span className={`grid size-4 shrink-0 place-items-center rounded-[3px] text-[10px] font-bold leading-none ${LETTER_CLS[letter]}`} title={LETTER_NAME[letter]} aria-label={LETTER_NAME[letter]}>{letter}</span>;
+}
+
+function MarketTree({ market, base, current, counts }: { market: { root: string; name: string; folders: { path: string; title: string }[] }; base: string; current: string; counts: Record<string, number> }) {
+  const mr = market.root, msg = `${mr}/messaging`, frm = `${mr}/forms`;
+  const kind = (p: string): "P" | "M" | "F" => (p === msg || p.startsWith(`${msg}/`) ? "M" : p === frm || p.startsWith(`${frm}/`) ? "F" : "P");
+  const href = (p: string) => { const k = kind(p); return k === "M" ? `${base}/messaging${p.slice(msg.length)}` : k === "F" ? `${base}/forms${p.slice(frm.length)}` : `${base}/pages${p.slice(mr.length)}`; };
+  const nodes = build(mr, market.folders);
+  const tag = (n: Node): Node => ({ ...n, letter: kind(n.path), href: href(n.path), children: n.children.map(tag) });
+  /* page folders first, then Messaging and Forms as the continuation of the market */
+  const order = (n: Node) => (n.path === msg ? 1 : n.path === frm ? 2 : 0);
+  const top = nodes.map(tag).sort((a, b) => order(a) - order(b));
+  const ancestors = new Set<string>(); { let p = current; while (p.startsWith(mr + "/")) { p = p.replace(/\/[^/]+$/, ""); ancestors.add(p); } }
+  const raw = useSyncExternalStore(subscribeSaved, () => { try { return localStorage.getItem(KEY) ?? ""; } catch { return ""; } }, () => "");
+  const saved = useMemo(() => readSaved(raw), [raw]);
+  const isOpen = (p: string) => saved[p] ?? ancestors.has(p);
+  const open = new Set<string>([...ancestors, ...Object.keys(saved)].filter(isOpen));
+  const toggle = (p: string) => { const next = { ...saved, [p]: !isOpen(p) }; try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* private window */ } window.dispatchEvent(new Event(EVT)); };
+  const ctx = { root: mr, base: `${base}/pages`, current, open, toggle, rel: (p: string) => p.slice(mr.length) || "/", counts };
+  return <ul aria-label="Folders" className="m-0 list-none p-0"><Row n={{ path: mr, title: market.name, children: top, href: `${base}/pages` }} depth={0} ctx={ctx} /></ul>;
 }

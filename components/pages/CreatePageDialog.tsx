@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Check, Folder, Plus, Search, X } from "lucide-react";
 import { ModalShell } from "@/components/models/ModalShell";
-import { TEMPLATES } from "@/lib/blocks/registry";
+import { PAGE_TEMPLATES, MESSAGE_TEMPLATES, FORM_TEMPLATES, CHANNEL_LABEL, CHANNEL_ORDER } from "@/lib/blocks/registry";
 
 /**
  * "Create page", ported from the mock's `pages/create-page-dialog.svelte`.
@@ -33,6 +33,9 @@ const SHAPE: Record<string, { h: number; cols?: number; lines?: number; tone?: "
   rates: { h: 14, lines: 2 },
   faq: { h: 12, lines: 2 },
   form: { h: 16, lines: 2 },
+  envelope: { h: 8, lines: 2 }, emailheader: { h: 8, tone: "solid" }, emailhero: { h: 26, tone: "solid" }, emailheading: { h: 8, lines: 1 }, emailtext: { h: 12, lines: 3 },
+  emailbutton: { h: 6, tone: "solid" }, emailproduct: { h: 14, lines: 2 }, emaildivider: { h: 2, lines: 1 }, emailfooter: { h: 10, lines: 2 },
+  sms: { h: 40, lines: 3 }, push: { h: 30, lines: 2 }, inapp: { h: 60, lines: 4 },
   footnotes: { h: 8, lines: 1 },
   disclaimer: { h: 8, lines: 1 },
 };
@@ -55,8 +58,12 @@ const TILE = "group flex cursor-pointer flex-col border bg-surface text-left tra
 const tileOn = (on: boolean) => `${TILE} ${on ? "border-brand shadow-[inset_0_0_0_1px_var(--brand)]" : "border-line-2"}`;
 
 export function CreatePageDialog({
-  defaultParent, defaultTemplateId, locales, folderSelect, relPath, marketName, busy, err, onClose, onCreate,
+  messaging = false, hostPages, defaultParent, defaultTemplateId, locales, folderSelect, relPath, marketName, busy, err, onClose, onCreate,
 }: {
+  /** Messaging: "What do you want to create?" — message templates grouped by channel instead of page templates. */
+  messaging?: boolean;
+  /** Forms: every form is built for a page, so Location is a page picker over the site, not a folder. */
+  hostPages?: { path: string; title: string; rel: string; folder?: boolean }[];
   defaultParent: string;
   /** Preselect a template, from the Templates screen's deep link. */
   defaultTemplateId?: string | null;
@@ -70,7 +77,9 @@ export function CreatePageDialog({
   onClose: () => void;
   onCreate: (req: NewPageRequest) => void;
 }) {
-  const templates = TEMPLATES;
+  const forms = !!hostPages;
+  const templates = forms ? FORM_TEMPLATES : messaging ? MESSAGE_TEMPLATES : PAGE_TEMPLATES;
+  const [hostQ, setHostQ] = useState("");
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [parent, setParent] = useState(defaultParent);
@@ -89,15 +98,15 @@ export function CreatePageDialog({
   }, [filter, templates]);
   const chosen = templates.find((t) => t.id === choice) ?? null;
   const at = relPath(parent).replace(/\/$/, "");
-  const valid = !!title.trim();
+  const valid = !!title.trim() && (!forms || hostPages!.some((h) => !h.folder && h.path === parent));
   const go = () => { if (valid && !busy) onCreate({ title: title.trim(), slug: slug || slugify(title), parentPath: parent, locale, templateId: choice }); };
 
-  return <ModalShell title="Create page" subtitle="Pick what it starts from, then name it and say where it lives." width={1100} onClose={onClose}
+  return <ModalShell title={forms ? "Create a form" : messaging ? "What do you want to create?" : "Create page"} subtitle={forms ? "Pick a form template and the page the form is shown on, then name it." : messaging ? "Pick the type of message and its template, then name it and choose the folder." : "Pick what it starts from, then name it and say where it lives."} width={1100} onClose={onClose}
     footer={<div className="flex w-full items-center gap-3">
       {/* a running line of what is about to be made, as in the mock's footer */}
-      <span className="min-w-0 flex-1 truncate text-xs text-ink-3">{chosen ? chosen.name : "Blank page"} · {marketName}{at} · {locale}</span>
+      <span className="min-w-0 flex-1 truncate text-xs text-ink-3">{chosen ? chosen.name : messaging ? "Message" : "Blank page"} · {marketName}{at} · {locale}</span>
       <button className="btn btn-sm btn-secondary" onClick={onClose}>Cancel</button>
-      <button className="btn btn-sm btn-primary" disabled={!valid || busy} onClick={go}>{busy ? "Creating…" : "Create page"}</button>
+      <button className="btn btn-sm btn-primary" disabled={!valid || busy} onClick={go}>{busy ? "Creating…" : forms ? "Create form" : messaging ? "Create message" : "Create page"}</button>
     </div>}>
     <div className="-mx-6 -my-5 grid max-h-[72svh] min-h-0 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
       {/* ── Start from ── */}
@@ -113,8 +122,9 @@ export function CreatePageDialog({
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-4" role="radiogroup" aria-label="Start from">
+          {messaging && <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Message type">{CHANNEL_ORDER.map((c) => { const first = templates.find((t) => t.channel === c); const on = chosen?.channel === c; return <button key={c} type="button" aria-pressed={on} onClick={() => first && setChoice(first.id)} className={`border px-3 py-1.5 text-sm ${on ? "border-ink bg-ink text-white" : "border-line-2 hover:bg-surface-3"}`}>{CHANNEL_LABEL[c]}</button>; })}</div>}
           <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(11rem,1fr))]">
-            {shown.length ? shown.map((t) => { const on = choice === t.id; return (
+            {shown.length ? shown.filter((t) => !messaging || !chosen?.channel || t.channel === chosen.channel).map((t) => { const on = choice === t.id; return (
               <button type="button" key={t.id} role="radio" aria-checked={on} className={tileOn(on)} onClick={() => setChoice(t.id)}>
                 <TemplateThumb blocks={t.blocks} />
                 <span className="flex flex-col gap-0.5 p-3">
@@ -134,12 +144,16 @@ export function CreatePageDialog({
           <p className="text-xs text-ink-3">{chosen && chosen.blocks.length ? <>Based on <b className="font-medium text-ink-2">{chosen.name}</b>: {chosen.desc}</> : "An empty page. You add the components yourself."}</p>
         </div>
         <div className="flex flex-col gap-1.5">
-          <label className="text-sm font-medium text-ink" htmlFor="np-title">Page name <span className="text-brand" aria-hidden>*</span></label>
-          <input id="np-title" autoFocus className="bdl-field" value={title} onChange={(e) => { setTitle(e.target.value); setSlug(slugify(e.target.value)); }} placeholder="e.g. Regular saver" />
+          <label className="text-sm font-medium text-ink" htmlFor="np-title">{forms ? "Form name" : messaging ? "Message name" : "Page name"} <span className="text-brand" aria-hidden>*</span></label>
+          <input id="np-title" autoFocus className="bdl-field" value={title} onChange={(e) => { setTitle(e.target.value); setSlug(slugify(e.target.value)); }} placeholder={forms ? "e.g. Personal loan application" : messaging ? "e.g. Spring ISA offer" : "e.g. Regular saver"} />
         </div>
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-ink" id="np-folder">Location</span>
-          {folderSelect(parent, setParent)}
+          <span className="text-sm font-medium text-ink" id="np-folder">{forms ? "Shown on page" : "Location"}{forms && <span className="text-brand" aria-hidden> *</span>}</span>
+          {forms ? <>
+            <input className="bdl-field" placeholder="Find a page" aria-label="Find a page" value={hostQ} onChange={(e) => setHostQ(e.target.value)} />
+            <div className="max-h-40 overflow-auto border border-line-2" role="listbox" aria-labelledby="np-folder">{hostPages!.filter((h) => !h.folder && (!hostQ || (h.title + h.rel).toLowerCase().includes(hostQ.toLowerCase()))).map((h) => <button type="button" role="option" aria-selected={parent === h.path} key={h.path} onClick={() => setParent(h.path)} className={`block w-full px-2.5 py-1.5 text-left text-xs border-b border-line last:border-b-0 ${parent === h.path ? "bg-ink text-white" : "hover:bg-surface-3"}`}><b className="font-medium">{h.title}</b> <span className="opacity-70">{h.rel}</span></button>)}</div>
+            <p className="text-xs text-ink-3">The form lives in Forms in a folder that mirrors this page’s place in the site.</p>
+          </> : folderSelect(parent, setParent)}
           {/* only when it says something the picker does not: at the market root the two matched */}
           {at && <p className="inline-flex items-center gap-1.5 text-xs text-ink-3"><Folder className="size-3.5 flex-none" aria-hidden />{marketName}{at}</p>}
         </div>
@@ -151,7 +165,7 @@ export function CreatePageDialog({
           </div>
         </div>
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-ink">URL</span>
+          <span className="text-sm font-medium text-ink">{forms ? "Form ID" : messaging ? "Message ID" : "URL"}</span>
           <input className="bdl-field font-mono text-xs" value={slug} onChange={(e) => setSlug(slugify(e.target.value))} aria-label="URL name" />
           <p className="truncate text-xs text-ink-3" title={`${at}/${slug || "page-name"}`}>{at}/{slug || "page-name"}</p>
         </div>

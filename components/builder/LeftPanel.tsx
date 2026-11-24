@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { THUMB_W } from "@/lib/ucp/devices";
 import { AlignLeft, CircleHelp, GripVertical, Lock, CreditCard, FileText, Image, LayoutGrid, Link2, MessageSquareQuote, Megaphone, ScrollText, Shapes, Table2, Type } from "lucide-react";
 import type { Block } from "@/lib/api/types";
-import { BLOCKS, BLOCK_BY_TYPE, GROUPS } from "@/lib/blocks/registry";
+import { BLOCKS, BLOCK_BY_TYPE, GROUPS, PAGE_EXCLUDED, FIXED_GROUPS } from "@/lib/blocks/registry";
 import { RenderBlock } from "@/lib/blocks/Render";
 import { LockedVeil } from "./LockedVeil";
 import { partNames, type DesignPattern } from "@/lib/blocks/patterns";
@@ -24,7 +24,7 @@ import { useFloat } from "./panels/useFloat";
  * The thumbnails are gone deliberately (Leon's call): the names carry the catalogue, and the
  * canvas shows the real thing the moment a component is added.
  */
-export type LeftTab = "components" | "outline" | "patterns";
+export type LeftTab = "components" | "outline" | "patterns" | "flow";
 
 /** One icon per block type so a row reads at a glance without a preview. Grouped fallback for anything new. */
 const ICONS: Record<string, typeof Type> = {
@@ -76,6 +76,8 @@ function PatternPreview({ p, top, left }: { p: DesignPattern; top: number; left:
 type Props = {
   phone?: boolean; width?: number;
   canEdit: boolean; onAdd: (type: string) => void; onClose: () => void; onOpenPanel?: () => void;
+  /** Component groups to offer (Messaging limits the palette per channel); default: every page group. */
+  allowedGroups?: string[];
   /** Replays the editor tour. Lives on the panel's bottom bar, which is where the tour ends. */
   onHelp?: () => void;
   /** dataTransfer types the canvas listens for, so a component or a pattern can be dragged onto the page. */
@@ -86,6 +88,8 @@ type Props = {
   /** Dragging an outline row to a new position reorders the page itself. */
   onReorder?: (id: string, to: number) => void;
   /** without `patterns` (e.g. the template editor) only the component library shows */
+  /** Forms: the Steps & pages tab (pages, steps, rules), shown first. */
+  flow?: React.ReactNode;
   patterns?: DesignPattern[] | null; tab?: LeftTab; onTab?: (t: LeftTab) => void;
   onAddPattern?: (p: DesignPattern) => void; onRemovePattern?: (p: DesignPattern) => void; onRestorePattern?: (p: DesignPattern) => void;
   onDeletePattern?: (p: DesignPattern) => void; onPatternMarkets?: (p: DesignPattern) => void; mayManage?: (p: DesignPattern) => boolean;
@@ -101,19 +105,19 @@ type Props = {
 };
 const noop = () => {};
 
-const tabCls = (on: boolean) =>
-  `relative cursor-pointer px-2.5 py-2 text-xs font-medium transition-colors duration-150 ease-out ${on ? "text-ink after:absolute after:inset-x-1.5 after:bottom-0 after:h-0.5 after:bg-brand" : "text-ink-3 hover:text-ink"}`;
+const tabCls = (on: boolean, tight = false) =>
+  `relative cursor-pointer whitespace-nowrap ${tight ? "px-1.5" : "px-2.5"} py-2 text-xs font-medium transition-colors duration-150 ease-out ${on ? "text-ink after:absolute after:inset-x-1.5 after:bottom-0 after:h-0.5 after:bg-brand" : "text-ink-3 hover:text-ink"}`;
 /** Row affordances appear only on the row under the pointer, which is what keeps a long list quiet. */
 const rowCls = "group/item flex h-7 w-full cursor-grab items-center gap-2 ps-7 pe-1.5 text-left active:cursor-grabbing transition-colors duration-150 ease-out hover:bg-surface-2 disabled:cursor-default disabled:opacity-50";
 
 export function LeftPanel({
-  phone, width = 280, canEdit, onAdd, onClose, onOpenPanel = noop, onHelp, dragType, patternDragType, lockedReason, onEdit,
-  blocks = [], selected = null, onSelect = noop, onReorder,
+  phone, width = 280, canEdit, onAdd, allowedGroups, onClose, onOpenPanel = noop, onHelp, dragType, patternDragType, lockedReason, onEdit,
+  blocks = [], selected = null, onSelect = noop, onReorder, flow,
   tab: tabIn = "components", onTab = noop, patterns, onAddPattern = noop, onRemovePattern = noop, onRestorePattern = noop,
   onDeletePattern = noop, onPatternMarkets = noop, mayManage = () => false, onStartPattern = noop, creating = false, onFloatChange, open = true, hidden = false, railItems = [],
 }: Props) {
   const withPatterns = patterns !== undefined;
-  const tab: LeftTab = withPatterns || tabIn !== "patterns" ? tabIn : "components";
+  const tab: LeftTab = tabIn === "flow" ? (flow ? "flow" : "components") : withPatterns || tabIn !== "patterns" ? tabIn : "components";
   const [showArchived, setShowArchived] = useState(false);
   const [q, setQ] = useState("");
   const float = useFloat(onFloatChange);
@@ -150,10 +154,10 @@ export function LeftPanel({
   };
   const needle = q.trim().toLowerCase();
 
-  const groups = useMemo(() => GROUPS.map((g) => ({
+  const groups = useMemo(() => (allowedGroups ?? GROUPS.filter((g) => !PAGE_EXCLUDED.includes(g))).map((g) => ({
     id: g,
     items: BLOCKS.filter((b) => b.group === g && (!needle || b.name.toLowerCase().includes(needle) || b.desc.toLowerCase().includes(needle))),
-  })).filter((g) => g.items.length > 0), [needle]);
+  })).filter((g) => g.items.length > 0), [needle, allowedGroups]);
   const total = groups.reduce((n, g) => n + g.items.length, 0);
 
   const match = (p: DesignPattern) => !needle || `${p.name} ${p.desc} ${partNames(p)}`.toLowerCase().includes(needle);
@@ -176,9 +180,10 @@ export function LeftPanel({
     <div role="tablist" aria-label="Left panel" className="flex min-w-0 flex-1 items-center">
       {/* Order is deliberate: the two things you add from come first, and Outline — which is
           about what is already on the page — sits last. */}
-      <button role="tab" aria-selected={tab === "components"} className={tabCls(tab === "components")} onClick={() => onTab("components")}>Components</button>
+      {flow && <button role="tab" aria-selected={tab === "flow"} className={tabCls(tab === "flow", true)} onClick={() => onTab("flow")}>Steps &amp; pages</button>}
+      <button role="tab" aria-selected={tab === "components"} className={tabCls(tab === "components", !!flow)} onClick={() => onTab("components")}>Components</button>
       {withPatterns && <button role="tab" aria-selected={tab === "patterns"} className={tabCls(tab === "patterns")} onClick={() => onTab("patterns")}>Patterns</button>}
-      <button role="tab" aria-selected={tab === "outline"} className={tabCls(tab === "outline")} onClick={() => onTab("outline")}>Outline</button>
+      <button role="tab" aria-selected={tab === "outline"} className={tabCls(tab === "outline", !!flow)} onClick={() => onTab("outline")}>Outline</button>
     </div>
   );
 
@@ -193,7 +198,7 @@ export function LeftPanel({
       <PanelBody open={open} width={width} floating={float.floating}>
       {float.floating && <GripStrip float={float} />}
       <PanelHeader tabs={tabs} float={float} onClose={onClose} side="left" />
-      {tab !== "outline" && <div className="flex shrink-0 items-center gap-1 border-b border-line p-2.5">
+      {tab !== "outline" && tab !== "flow" && <div className="flex shrink-0 items-center gap-1 border-b border-line p-2.5">
         {(
           <div className="relative min-w-0 flex-1">
             <svg viewBox="0 0 24 24" aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 fill-none stroke-current text-ink-3" strokeWidth={1.8} strokeLinecap="round"><circle cx="11" cy="11" r="6.5" /><path d="M16 16l4 4" /></svg>
@@ -209,6 +214,8 @@ export function LeftPanel({
       <LockedVeil on={!!lockedReason && tab !== "outline"} reason={lockedReason ?? ""} onEdit={onEdit}>
         {!canEdit && tab !== "outline" && <div className="shrink-0 border-b border-line bg-surface-3 px-3 py-2 text-xs text-ink-3">Read-only: you can look, but not add.</div>}
 
+        {tab === "flow" && flow}
+
         {/* ---- Components: one line each, inside collapsible groups ---- */}
         {tab === "components" && (
           <div className="min-h-0 flex-1 overflow-auto">
@@ -217,18 +224,19 @@ export function LeftPanel({
               : groups.map((g, gi) => (
                 /* Only the first group starts open, so the panel opens tidy instead of as one long list.
                    While searching every group is forced open — a hit hidden inside a collapsed group reads as "no results". */
-                <PanelSection key={g.id} id={`grp-${g.id}`} title={g.id} count={g.items.length} defaultOpen={gi === 0} {...(searching ? { open: true } : {})}>
+                <PanelSection key={g.id} id={`grp-${g.id}`} title={FIXED_GROUPS.includes(g.id) ? `${g.id} · fixed` : g.id} count={g.items.length} defaultOpen={gi === 0 || !!allowedGroups?.includes("Body")} {...(searching ? { open: true } : {})}>
                   <ul className="m-0 list-none p-0">
-                    {g.items.map((b) => { const Icon = iconFor(b.type); return (
+                    {FIXED_GROUPS.includes(g.id) && <li className="px-3 pb-1 text-[11px] text-ink-3">Comes with the template. Click to edit it.</li>}
+                    {g.items.map((b) => { const Icon = iconFor(b.type); const fixed = FIXED_GROUPS.includes(g.id); return (
                       <li key={b.type} className="m-0 p-0">
                         {/* Click to add after the selection, or drag onto the page to choose where it lands. */}
-                        <button type="button" disabled={!canEdit} onClick={() => onAdd(b.type)} title={b.desc} className={rowCls}
-                          draggable={!!dragType && canEdit}
+                        <button type="button" disabled={!canEdit} onClick={() => onAdd(b.type)} title={fixed ? `${b.desc} · edit only` : b.desc} className={rowCls}
+                          draggable={!!dragType && canEdit && !fixed}
                           onDragStart={(e) => { if (!dragType) return; e.dataTransfer.setData(dragType, b.type); e.dataTransfer.effectAllowed = "copy"; }}>
                           <Icon className="size-3.5 shrink-0 text-ink-3" aria-hidden />
                           <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{b.name}</span>
                           <span aria-hidden className="grid size-5 shrink-0 place-items-center rounded text-ink-3 opacity-0 transition-opacity duration-150 ease-out group-hover/item:opacity-100 group-focus-visible/item:opacity-100">
-                            <svg viewBox="0 0 24 24" className="size-3.5 fill-none stroke-current" strokeWidth={2} strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
+                            <svg viewBox="0 0 24 24" className="size-3.5 fill-none stroke-current" strokeWidth={2} strokeLinecap="round"><path d={fixed ? "M4 20h4L19 9l-4-4L4 16z" : "M12 5v14M5 12h14"} /></svg>
                           </span>
                         </button>
                       </li>

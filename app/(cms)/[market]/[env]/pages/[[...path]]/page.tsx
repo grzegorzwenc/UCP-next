@@ -2,6 +2,9 @@ import { market } from "@/lib/markets";
 import { children, getPage, allPages, archiveOf, withoutArchived } from "@/lib/server/pages";
 import { listTemplates, userName } from "@/lib/server/ucp";
 import { Explorer } from "@/components/explorer/Explorer";
+import { ensureMessaging } from "@/lib/server/messaging";
+import { ensureForms } from "@/lib/server/forms";
+import { isAppTree } from "@/lib/blocks/registry";
 
 export const metadata = { title: "Pages" };
 
@@ -10,11 +13,17 @@ export default async function PagesRoute({ params, searchParams }: PageProps<"/[
   const sp = await searchParams;
   const mk = market(mid);
   const folderPath = [mk.root, ...path].join("/");
-  const [folder, list, everything, templates] = await Promise.all([getPage(folderPath), children(folderPath), allPages(mk.root, { archived: true }), listTemplates(mid)]);
+  await Promise.all([ensureMessaging(mk.root), ensureForms(mk.root)]); // the market tree shows Messaging and Forms too
+  const [folder, list0, everything0, templates] = await Promise.all([getPage(folderPath), children(folderPath), allPages(mk.root, { archived: true }), listTemplates(mid)]);
+  /* Messaging and Forms have their own screens over <market>/messaging and <market>/forms; keep them out of the site's page tree. */
+  const site = (p: { path: string }) => !isAppTree(p.path, mk.root);
+  const list = { ...list0, items: list0.items.filter(site) }; const everything = everything0.filter(site);
   const archived = everything.filter((p) => archiveOf(p)).map((p) => ({ ...p, archive: archiveOf(p)! })); const all = withoutArchived(everything);
   const tree = all.filter((f) => f.isFolder).map((f) => ({ path: f.path, title: f.title }));
   /* Resolve the ids in lastModifiedBy once, server-side, so the Updated by column shows people. */
   const editorIds = [...new Set(all.filter((p) => !p.isFolder).map((p) => p.lastModifiedBy).filter((x): x is string => !!x))];
   const names = Object.fromEntries(await Promise.all(editorIds.map(async (id) => [id, await userName(id)] as const)));
-  return <Explorer marketId={mid} envId={eid} root={mk.root} marketName={mk.name} folder={folder ? { path: folder.path, title: folder.title } : { path: folderPath, title: mk.name }} items={list.items.filter((p) => !archiveOf(p))} archived={archived} tree={tree} allPages={all.filter((p) => !p.isFolder)} names={names} templates={templates} openNew={sp.new === "1"} newTemplate={typeof sp.template === "string" ? sp.template : undefined} />;
+  /* one tree for the market: page folders (P), then Messaging (M) and Forms (F) */
+  const marketFolders = (await allPages(mk.root)).filter((f) => f.isFolder).map((f) => ({ path: f.path, title: f.title }));
+  return <Explorer market={{ root: mk.root, name: mk.name, folders: marketFolders }} marketId={mid} envId={eid} root={mk.root} marketName={mk.name} folder={folder ? { path: folder.path, title: folder.title } : { path: folderPath, title: mk.name }} items={list.items.filter((p) => !archiveOf(p))} archived={archived} tree={tree} allPages={all.filter((p) => !p.isFolder)} names={names} templates={templates} openNew={sp.new === "1"} newTemplate={typeof sp.template === "string" ? sp.template : undefined} />;
 }

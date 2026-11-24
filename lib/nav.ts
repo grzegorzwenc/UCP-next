@@ -1,6 +1,6 @@
 import {
   LayoutDashboard, FileText, Image as ImageIcon, Database, Shapes, LayoutTemplate,
-  ListChecks, Code2, Users, ShieldCheck, Star,
+  ListChecks, Code2, Users, ShieldCheck, Star, Send, ClipboardList,
 } from "lucide-react";
 
 /**
@@ -17,6 +17,10 @@ export const NAV: NavSection[] = [
     { slug: "pages", label: "Pages", icon: FileText },
     { slug: "assets", label: "Assets", icon: ImageIcon },
     { slug: "entities", label: "Content entities", icon: Database },
+  ] },
+  { label: "Engagement", items: [
+    { slug: "messaging", label: "Messaging", icon: Send },
+    { slug: "forms", label: "Forms", icon: ClipboardList },
   ] },
   { label: "Structure", items: [
     { slug: "models", label: "Content models", icon: Shapes },

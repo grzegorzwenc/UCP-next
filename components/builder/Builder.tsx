@@ -7,8 +7,15 @@ import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuIte
 import type { Block, PageView, PageStatus } from "@/lib/api/types";
 import { repoApi, ucpApi, ApiError } from "@/lib/api";
 import { blocksToComponents, componentsToBlocks } from "@/lib/repo/mapping";
-import { BLOCK_BY_TYPE, makeBlock, lines, joinLines, missingRequired, TEMPLATES } from "@/lib/blocks/registry";
-import { RenderBlock, SiteChrome, AssetsContext, EntitiesContext, InlineEditContext } from "@/lib/blocks/Render";
+import { BLOCK_BY_TYPE, makeBlock, lines, joinLines, missingRequired, TEMPLATES, channelOf, groupsFor, isMessagingPath, emailRegion, arrangeEmail, MESSAGING_FOLDER, isFormTemplate, isFormsPath, FORMS_FOLDER } from "@/lib/blocks/registry";
+import { FormSettings } from "./panels/FormSettings";
+import { FormFlowPanel, FormNav, FormPageSwitch, FormProgress, RuleChips, SubmitPageView, hiddenOnView, viewOfBlock } from "./panels/FormFlow";
+import { RuleList, useFormFlow, type FormView } from "@/components/forms/rules";
+import { FIELD_TYPES as FORM_FIELD_TYPES } from "@/lib/forms/model";
+import { MessageSettings } from "./panels/MessageSettings";
+import { FormContract } from "@/components/forms/FormContract";
+import { MessageContract } from "@/components/messaging/MessageContract";
+import { RenderBlock, SiteChrome, MessageChrome, FormChrome, AssetsContext, EntitiesContext, InlineEditContext } from "@/lib/blocks/Render";
 import { bindingsOf, hasTokens, type ResolvedEntities } from "@/lib/ucp/tokens";
 import type { Bindings } from "@/lib/ucp/types";
 import { ContentPicker, ContentIcon, type ContentChoice } from "./ContentPicker";
@@ -50,7 +57,7 @@ import { normalizeRich, cellSafe, toPlain } from "@/lib/blocks/richtext";
 import { useRouter } from "next/navigation";
 import { permForStatus } from "@/lib/ucp/perms";
 
-type Props = { marketId: string; envId: string; marketName: string; flag: string; domain: string; locale: string; envName: string; root: string; page: PageView; /** Open straight into the visitor preview (?preview=1). */ startInPreview?: boolean; names?: Record<string, string>; models?: ContentModelInfo[]; entities?: ResolvedEntities };
+type Props = { marketId: string; envId: string; marketName: string; flag: string; domain: string; locale: string; envName: string; root: string; page: PageView; /** Open straight into the visitor preview (?preview=1). */ startInPreview?: boolean; names?: Record<string, string>; models?: ContentModelInfo[]; entities?: ResolvedEntities; /** forms only: the page the form is shown on */ host?: { path: string; title: string } };
 type RightTab = "block" | "page" | "content" | "ai" | "insights" | "comments" | "jira" | "history";
 type PageField = "description" | "title";
 /** One page-level AI task: prompt → plan → run → review. `results` keeps the snapshot around each op so it can be undone alone. */
@@ -64,7 +71,9 @@ const AI_EXAMPLES: { title: string; items: [string, string, string][] }[] = [
 ];
 const PATTERN_ICON = "M4 4h7v7H4zM13 4h7v7h-7zM4 13h16v7H4z"; // three components joined into one
 /* Phones only. On desktop the left panel's own tabs do this job, so there is no left rail. */
+const FLOW_ICON = "M5 4h6v6H5zM13 14h6v6h-6zM8 10v4h8M16 14v-2";
 const LEFT_RAIL: [LeftTab, string, string][] = [["components", "Add a component", "M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM12 8.5v7M8.5 12h7"], ["patterns", "Design patterns", PATTERN_ICON], ["outline", "Outline", "M4 6h2M4 12h2M4 18h2M9 6h11M9 12h11M9 18h11"]];
+const FORM_LEFT_RAIL: [LeftTab, string, string][] = [["flow", "Steps & pages", FLOW_ICON], ...LEFT_RAIL];
 /* Page settings first: it is what the panel opens on, so it leads the rail. */
 /* Version history is not here: it opens from the Save-draft menu, with the other page-level
    actions. Page settings stays, and leads, because it is what the panel opens on. */
@@ -122,7 +131,7 @@ const EMPTY_NAMES: Record<string, string> = {}; const EMPTY_MODELS: ContentModel
 /** Line icon in the rail style (1.7 stroke, round joins) for the top bar buttons. */
 function Ico({ d }: { d: string }) { return <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none flex-none" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={d} /></svg>; }
 
-export function Builder({ marketId, envId, marketName, flag, domain, locale, envName, root, page, startInPreview = false, names = EMPTY_NAMES, models = EMPTY_MODELS, entities: initialEntities = EMPTY_ENTS }: Props) {
+export function Builder({ marketId, envId, marketName, flag, domain, locale, envName, root, page, startInPreview = false, names = EMPTY_NAMES, models = EMPTY_MODELS, entities: initialEntities = EMPTY_ENTS, host }: Props) {
   const { can, user } = useSession(); const isAdmin = user.role === "admin" || !!user.perms.root?.manage;
   /* Pages → Lock: nobody else changes a locked page (whoever locked it and site admins still can) */
   const pageLock = (() => { const raw = page.meta?.["ucp:pageLock"]; if (typeof raw !== "string" || !raw) return null; try { return JSON.parse(raw) as { by: string; name: string; at: string }; } catch { return null; } })();
@@ -197,6 +206,14 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
 
   const canvasRef = useRef<HTMLDivElement>(null);
   const rel = page.path.replace(root, "");
+  /* Messages (pages under Messaging) use this same builder and workflow; only the frame, the palette and the way back differ. */
+  const channel = channelOf(page.template); const isMsg = isMessagingPath(page.path, root);
+  /* Forms too: built on the page that hosts them, with the Form settings panel for rules, flow and submission. */
+  const isForm = isFormTemplate(page.template) && isFormsPath(page.path, root); const kindLabel = isForm ? "Form" : isMsg ? "Message" : "Page";
+  /* A form is a set of pages (each step, the Submit page, Success, Failure); the canvas shows one at a time. */
+  const flow = useFormFlow(page.meta, page.path, page.title, (m) => say(m));
+  const [formView, setFormViewRaw] = useState<FormView>({ page: "step", step: 0 });
+  const [contractOpen, setContractOpen] = useState(false);
   const selected = blocks.find((b) => b.id === sel);
   const missing = useMemo(() => blocks.reduce((n, b) => n + missingRequired(b).length, 0), [blocks]);
   /* Page lifecycle. Draft pages move between "blocks" (structure), "content" (fill in) and "preview" (visitor view) by clicking the steps;
@@ -273,9 +290,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const mutate = useCallback((fn: (b: Block[]) => Block[]) => {
     past.current = [...past.current.slice(-(HISTORY_MAX - 1)), blocksRef.current];
     future.current = [];
-    setBlocks((b) => fn(b));
+    /* e-mails: the header and footer stay put (edit only); everything else lives in the body between them */
+    setBlocks((b) => (channel === "email" ? arrangeEmail(fn(b), b) : fn(b)));
     setDirty(true); setSaving("Unsaved"); setPreviewed(false); setHistTick((k) => k + 1);
-  }, [setPreviewed]);
+  }, [setPreviewed, channel]);
   const canUndo = past.current.length > 0, canRedo = future.current.length > 0;
   void histTick; // the counter exists to re-render the buttons when the stacks change
   const undo = () => {
@@ -296,7 +314,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const showBlock = (r: { id: string; field?: string }) => { if (!flash(canvasRef.current, r)) say("That part is not on the page any more"); };
   const onCommentList = (l: { block?: { id: string }; resolved?: unknown }[]) => { const open = l.filter((x) => !x.resolved); const c: Record<string, number> = {}; for (const x of open) if (x.block) c[x.block.id] = (c[x.block.id] ?? 0) + 1; setCommentCounts(c); setCommentTotal(open.length); setCommentCount(open.length); }; // resolved comments stay in the list but leave the page
   const reviewProps = reviewMode ? { target: commentTarget, onClearTarget: () => setCommentTarget(null), onShowBlock: showBlock, onList: onCommentList } : { onShowBlock: showBlock, onList: onCommentList };
-  const select = (id: string | null) => { setSel(id); setMode("select"); setPop(null); setMulti([]); if (id) setZen(false); if (id && right && rightTab === "block") setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
+  const select = (id: string | null) => { if (id && isForm) { const v = viewOfBlock(blocks, id); if (v) setFormViewRaw(v); } setSel(id); setMode("select"); setPop(null); setMulti([]); if (id) setZen(false); if (id && right && rightTab === "block") setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
   /** Scroll a block into view once React has painted it. */
   const [qcFlash, setQcFlash] = useState(""); // the block the quality checklist just pointed at
   const revealBlock = (id: string) => requestAnimationFrame(() => requestAnimationFrame(() => {
@@ -304,7 +322,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   }));
   /* `at` is where a drag dropped it; without one the block goes after the selection, or at the
      end when nothing is selected — which is off-screen on a long page, so we scroll to it. */
-  const add = (type: string, at?: number) => { const nb = makeBlock(type); mutate((b) => { const i = at ?? (sel ? b.findIndex((x) => x.id === sel) + 1 : b.length); const c = b.slice(); c.splice(i, 0, nb); return c; }); select(nb.id); revealBlock(nb.id); say(`${BLOCK_BY_TYPE[type].name} added · click Edit to fill it in`); };
+  const add = (type: string, at?: number) => { if (channel === "email" && emailRegion(type) !== "body") { const ex = blocksRef.current.find((x) => x.type === type); if (ex) { select(ex.id); revealBlock(ex.id); openCfgPanel(ex.id); say(`${BLOCK_BY_TYPE[type].name} is part of the fixed ${emailRegion(type)}: edit it here`); return; } }
+    const nb = makeBlock(type); mutate((b) => { const i = at ?? (sel ? b.findIndex((x) => x.id === sel) + 1 : b.length); const c = b.slice(); c.splice(i, 0, nb); return c; }); select(nb.id); revealBlock(nb.id); say(`${BLOCK_BY_TYPE[type].name} added · click Edit to fill it in`); };
 
   /* ---- Drag a component from the palette onto the page ----
      Native HTML5 drag: the palette rows are the source, the canvas is the target, and a line
@@ -354,9 +373,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     });
     select(id); revealBlock(id);
   };
-  const move = (id: string, d: number) => mutate((b) => { const i = b.findIndex((x) => x.id === id); const j = i + d; if (j < 0 || j >= b.length) return b; const c = b.slice(); [c[i], c[j]] = [c[j], c[i]]; return c; });
-  const remove = (id: string) => { mutate((b) => b.filter((x) => x.id !== id)); select(null); };
-  const duplicate = (b: Block) => mutate((bl) => { const i = bl.findIndex((x) => x.id === b.id); const c = bl.slice(); c.splice(i + 1, 0, { ...b, id: makeBlock(b.type).id, props: { ...b.props } }); return c; });
+  const move = (id: string, d: number) => fixedPart(blocksRef.current.find((x) => x.id === id)?.type ?? "") ? say("The e-mail header and footer stay in place") : mutate((b) => { const i = b.findIndex((x) => x.id === id); const j = i + d; if (j < 0 || j >= b.length) return b; const c = b.slice(); [c[i], c[j]] = [c[j], c[i]]; return c; });
+  const fixedPart = (type: string) => channel === "email" && emailRegion(type) !== "body";
+  const remove = (id: string) => { const t = blocksRef.current.find((x) => x.id === id)?.type ?? ""; if (fixedPart(t)) { say(`The e-mail ${emailRegion(t)} is fixed: you can edit it, not remove it`); return; } mutate((b) => b.filter((x) => x.id !== id)); select(null); };
+  const duplicate = (b: Block) => fixedPart(b.type) ? say(`The e-mail ${emailRegion(b.type)} is fixed: you can edit it, not copy it`) : mutate((bl) => { const i = bl.findIndex((x) => x.id === b.id); const c = bl.slice(); c.splice(i + 1, 0, { ...b, id: makeBlock(b.type).id, props: { ...b.props } }); return c; });
   const configure = (id: string) => { setSel(id); setMode("select"); setPop(null); setZen(false); setRightTab("block"); setRight(true); setCfgSnapshot(blocks.find((b) => b.id === id)?.props ?? null); };
   /** Clicking a component opens Configure with its fields right away (not on phones, where the panel would cover the page). */
   const openCfgPanel = (id: string) => { if (phone || !canEdit || locked) return; setRightTab("block"); setRight(true); setCfgSnapshot(blocksRef.current.find((b) => b.id === id)?.props ?? null); };
@@ -489,7 +509,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
      veil says so, because `save()` is a real round trip and a dead button would read as a
      hang. A failed save keeps the author in the editor — `save()` has already said why. */
   const [closing, setClosing] = useState<string | null>(null);
-  const libraryHref = `/${marketId}/${envId}/pages${rel.replace(/\/[^/]+$/, "")}`;
+  const libraryHref = isForm ? `/${marketId}/${envId}/forms${rel.slice(FORMS_FOLDER.length + 1).replace(/\/[^/]+$/, "")}` : isMsg ? `/${marketId}/${envId}/messaging${rel.slice(MESSAGING_FOLDER.length + 1).replace(/\/[^/]+$/, "")}` : `/${marketId}/${envId}/pages${rel.replace(/\/[^/]+$/, "")}`;
   async function closeEditor() {
     if (closing) return;
     if (editing) commitInline(true);
@@ -543,7 +563,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [patternMode, setPatternMode] = useState(false); // "Create a design pattern": a plain click picks components instead of editing them
   const startPattern = (first?: string) => { if (editing) commitInline(true); setSel(null); setMode("select"); setPop(null); setMulti(first ? [first] : []); setPatternMode(true); };
   const stopPattern = () => { setPatternMode(false); setMulti([]); };
-  const [leftTab, setLeftTab] = useState<LeftTab>("components"); const [patterns, setPatterns] = useState<DesignPattern[] | null>(null); const [patMarkets, setPatMarkets] = useState<DesignPattern | null>(null);
+  const [leftTab, setLeftTab] = useState<LeftTab>(isForm ? "flow" : "components");
+  const goForm = (v: FormView) => { setFormViewRaw(v); setSel(null); setPop(null); };
+  const addFormStep = () => { const n = blocks.filter((b) => b.type === "formstep").length; mutate((bl) => { const c = bl.slice(); const at = c.findIndex((b) => b.type === "fsuccess"); c.splice(at < 0 ? c.length : at, 0, makeBlock("formstep", { title: `Step ${n + 1}` })); return c; }); setFormViewRaw({ page: "step", step: n }); say(`Step ${n + 1} added · add fields to it from Components`); }; const [patterns, setPatterns] = useState<DesignPattern[] | null>(null); const [patMarkets, setPatMarkets] = useState<DesignPattern | null>(null);
   const loadPatterns = useCallback(() => ucpApi.patterns(marketId).then(setPatterns, () => setPatterns([])), [marketId]);
   useEffect(() => { loadPatterns(); }, [loadPatterns]);
   const multiBlocks = blocks.filter((b) => multi.includes(b.id)); // in page order
@@ -883,8 +905,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const railsOn = !preview || !!lockReason; // a locked page keeps the rails (panels open read-only or veiled); a plain preview hides them
   const railBadge = (t: RightTab) => (t === "comments" ? commentCount : t === "insights" ? insightBadge : t === "content" ? Object.keys(bindings).length : t === "ai" ? aiTasks.filter((x) => x.stage !== "done").length : 0);
   const openRight = (t: RightTab) => { setZen(false); if (t === "block" && sel) configure(sel); else { setRightTab(t); setRight(true); } };
-  const rightItems = RAIL_SHOWN().map(([t, label, path]) => ({ key: t, label, path, active: right && rightTab === t, badge: railBadge(t), onClick: () => openRight(t) }));
-  const rightTitle = rightTab === "block" ? (selected ? `Configure · ${BLOCK_BY_TYPE[selected.type].name}` : "Configure") : rightTab === "page" ? "Page settings" : rightTab === "content" ? "Entities" : rightTab === "ai" ? "AI assistant" : rightTab === "insights" ? "Page insights" : rightTab === "comments" ? `Comments${commentTotal ? ` · ${commentTotal}` : ""}` : rightTab === "jira" ? "Jira" : "Version history";
+  const rightItems = RAIL_SHOWN().map(([t, label, path]) => ({ key: t, label: t === "page" ? `${kindLabel} settings` : label, path, active: right && rightTab === t, badge: railBadge(t), onClick: () => openRight(t) }));
+  const rightTitle = rightTab === "block" ? (selected ? `Configure · ${BLOCK_BY_TYPE[selected.type].name}` : "Configure") : rightTab === "page" ? `${kindLabel} settings` : rightTab === "content" ? "Entities" : rightTab === "ai" ? "AI assistant" : rightTab === "insights" ? "Page insights" : rightTab === "comments" ? `Comments${commentTotal ? ` · ${commentTotal}` : ""}` : rightTab === "jira" ? "Jira" : "Version history";
   const panelW = rightW; // one width for every tab: a panel that jumps wider on Comments or History reads as a glitch
   const floatingOpen = focus && !phone && ((qcMode && qcOpen) || (reviewMode && floatOpen)); // full screen: keep the page clear of the floating panel
   /* The gutters reserve exactly what the docked panels occupy. They used to skip that on
@@ -903,7 +925,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
      full 1536 and zooms to fit, because a 1536 preview cannot exist on a 14" screen any other way.
      Tablet and mobile render at their true width and only zoom if the canvas is narrower. */
   const areaW = avail ? Math.max(0, avail - padL - padR - 2) : 0;
-  const siteW = device === "desktop" ? Math.min(DEVICE_W.desktop, areaW || DEVICE_W.desktop) : DEVICE_W[device];
+  const siteW = channel === "email" ? (device === "mobile" ? DEVICE_W.mobile : 640) : channel ? 380 : device === "desktop" ? Math.min(DEVICE_W.desktop, areaW || DEVICE_W.desktop) : DEVICE_W[device];
   const fit = areaW && areaW < siteW ? areaW / siteW : 1;
 
   return (
@@ -964,6 +986,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             </button>}
             {/* No `focus` branch here: this whole bar is `{!focus && …}`, so an "Exit preview" button
                 placed in it could never render. The preview's way out is the fixed control below. */}
+            {(isForm || (isMsg && channel)) && status === "published" && <button type="button" className="btn btn-sm btn-secondary" onClick={() => setContractOpen(true)} title={isForm ? "The definition the Forms solution reads" : "How MDP fetches this published message"}>API contract</button>}
             {!canEdit
                 ? <span className="inline-flex items-center gap-1 whitespace-nowrap px-1.5 text-xs text-ink-3" title={lockedByOther ? `Locked by ${pageLock!.name}` : "Ask a site admin for Edit on this folder"}><Lock className="size-3" strokeWidth={1.5} aria-hidden />Read-only</span>
                 : locked
@@ -1010,9 +1033,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           {/* The hint / "1:1 · 1200 px" strip is gone: it was a light band sitting on the dark canvas
              ground, and it narrated what the canvas already shows. */}
           <div ref={canvasRef} className={`bld-pad ${focus ? "flex-1 overflow-auto p-0 bg-white" : "editor-ground flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""} ${patternMode ? "pattern-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onMouseMove={onCanvasMove} onDragOver={onCanvasDragOver} onDrop={onCanvasDrop} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropAt(null); }} onMouseLeave={() => { if (!qcPinned) setQcTarget(null); }} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
+            {isForm && <FormPageSwitch blocks={blocks} view={formView} layout={flow.layout} onView={goForm} />}
             {(() => { return <div className="bld-frame" style={{ width: siteW, zoom: fit, margin: "0 auto", ["--bld-unzoom" as string]: 1 / fit }}>
-            <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><SiteChrome marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
-              {blocks.length ? blocks.map((b, i) => { const line = dropAt === i && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />; return <Fragment key={b.id}>{line}{(() => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id && !commentTarget.field ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""} ${multi.includes(b.id) ? "multi" : ""} ${movingId === b.id ? "opacity-40" : ""} ${crit.blocks.has(b.id) ? "crit-blk" : ""} ${qcFlash === b.id ? "qc-flash" : ""}`} tabIndex={0}>
+            <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><ChromeFor channel={channel} host={isForm ? { title: host?.title ?? "Host page", crumbs: (host?.path.replace(root, "") ?? "").split("/").filter(Boolean) } : undefined} marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
+              {isForm && flow.layout === "wizard" && <FormProgress blocks={blocks} view={formView} submitTitle={flow.submitPage.heading} />}
+              {isForm && formView.page === "submit" && <SubmitPageView blocks={blocks} flow={flow} onView={goForm} onEdit={() => openRight("page")} preview={preview} />}
+              {blocks.length ? blocks.map((b, i) => { const line = dropAt === i && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />; return <Fragment key={b.id}>{channel === "email" && <EmailRegionLabel blocks={blocks} i={i} />}{line}{(() => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id && !commentTarget.field ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""} ${multi.includes(b.id) ? "multi" : ""} ${movingId === b.id ? "opacity-40" : ""} ${crit.blocks.has(b.id) ? "crit-blk" : ""} ${qcFlash === b.id ? "qc-flash" : ""} ${isForm && hiddenOnView(blocks, i, formView, flow.layout) ? "hidden!" : ""}`} tabIndex={0}>
                 {multi.includes(b.id) && <span className="multi-n" aria-hidden>{multiBlocks.findIndex((x) => x.id === b.id) + 1}</span>}
                 {reviewMode && <span className="cmt-pick" aria-hidden>{commentTarget?.id === b.id ? "Commenting here" : "Click a text or image to comment"}</span>}
                 {!!commentCounts[b.id] && <button type="button" data-ui className="cmt-badge" title={`${commentCounts[b.id]} comment${commentCounts[b.id] === 1 ? "" : "s"} on this component`} onClick={(e) => { e.stopPropagation(); if (focus) setFloatOpen(true); else { setRightTab("comments"); setRight(true); } }}><CommentIcon size={12} />{commentCounts[b.id]}</button>}
@@ -1021,9 +1047,11 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
                   onEdit={() => (mode === "edit" ? (commitInline(true), setMode("select")) : enterEdit(b.id))} onConfigure={phone ? () => configure(b.id) : undefined /* desktop: clicking the block already opens Configure */}
                   onMore={(a) => { setPop(null); if (a === "duplicate") duplicate(b); else if (a === "copy") { setClipboard(b); say("Copied"); } else if (a === "paste" && clipboard) { mutate((bl) => { const c = bl.slice(); c.splice(i + 1, 0, { ...clipboard, id: makeBlock(clipboard.type).id, props: { ...clipboard.props } }); return c; }); } else if (a === "up") move(b.id, -1); else if (a === "down") move(b.id, 1); else if (a === "hide") setProp(b.id, "hidden", !b.props.hidden); else if (a === "lock") { setProp(b.id, "locked", !b.props.locked); if (!b.props.locked) setMode("select"); } else if (a === "delete") remove(b.id); else if (a === "history") { if (phone) setLeftRaw(false); setRightTab("history"); setRight(true); } else if (a === "pattern") { startPattern(b.id); say("Click the other components to put in the pattern"); } }}
                   onAi={(p) => { mutate((bl) => bl.map((x) => (x.id === b.id ? { ...x, props: { ...x.props, ...p.props } } : x))); say("AI changes applied"); }} />}
+                {isForm && !preview && <RuleChips b={b} flow={flow} blocks={blocks} />}
                 <RenderBlock b={b} /></div>; })()}</Fragment>; })
               : <div className="m-7 p-11 border-2 border-dashed border-line-2 rounded-xl text-center text-ink-2 text-base">How do you want to start this page?<small className="block text-sm text-ink-3 mt-1.5">Pick a layout, or add components one by one from the left.</small><div className="grid grid-cols-3 gap-3 mt-4 text-left">{TEMPLATES.filter((t) => t.blocks.length).slice(0, 3).map((t) => <button key={t.id} className="border border-line-2 bg-surface p-3.5 text-left hover:border-ink" onClick={() => mutate(() => t.blocks.map((x) => makeBlock(x, x === "mast" ? { heading: title } : {})))}><b className="block text-sm">{t.name}</b><small className="text-xs text-ink-3">{t.desc}</small></button>)}</div></div>}
-            {dropAt === blocks.length && blocks.length > 0 && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />}</SiteChrome></InlineEditContext.Provider></EntitiesContext.Provider></AssetsContext.Provider></div>; })()}
+            {dropAt === blocks.length && blocks.length > 0 && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />}
+            {isForm && <FormNav blocks={blocks} view={formView} layout={flow.layout} onView={goForm} onEdit={(id) => { select(id); configure(id); }} preview={preview} />}</ChromeFor></InlineEditContext.Provider></EntitiesContext.Provider></AssetsContext.Provider></div>; })()}
           </div>
           {editing && <div data-ui className="absolute left-1/2 -translate-x-1/2 bottom-6 flex gap-1 bg-foreground rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}><span className="px-2 py-1.5 text-white/70">Editing text</span><button className="px-2.5 py-1.5 rounded hover:bg-white/15 inline-flex items-center" title="Choose content from an entity (or type {{ to insert at the cursor)" aria-label="Choose content from an entity" onClick={() => { setTokTyped(false); setContentPick({ target: "inline", label: "this text" }); }}><ContentIcon /></button><button className="inline-flex items-center gap-1 px-3 py-1.5 rounded bg-good font-medium" onClick={() => { commitInline(true); say("Saved"); }}><Check className="size-3.5" strokeWidth={2} aria-hidden />Save</button><button className="inline-flex items-center gap-1 px-3 py-1.5 rounded hover:bg-white/15" onClick={() => commitInline(false)}><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>Cancel</button></div>}
           {(patternMode || multi.length > 0) && !preview && <div data-ui role="toolbar" aria-label="Design pattern selection" className="absolute left-1/2 -translate-x-1/2 bottom-6 flex items-center gap-1 bg-foreground rounded-lg p-1 shadow-xl z-20 text-white text-xs" onMouseDown={(e) => e.preventDefault()}>
@@ -1045,10 +1073,11 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {/* The left rail is gone: its three icons duplicated the panel's own Components / Patterns /
             Outline tabs. The top bar's "Components panel" toggle reopens the panel when it is closed. */}
         
-        {railsOn && <LeftPanel open={left} hidden={zen} phone={phone} width={leftW} canEdit={canEdit} onAdd={add} onClose={() => setLeft(false)} onOpenPanel={() => setLeft(true)}
-          railItems={LEFT_RAIL.map(([t, label, path]) => ({ key: t, label, path, active: leftTab === t, onClick: () => { setLeftTab(t); setLeft(true); } }))} lockedReason={lockReason || undefined} onEdit={veilEdit}
+        {railsOn && <LeftPanel allowedGroups={groupsFor(channel, isForm)} open={left} hidden={zen} phone={phone} width={leftW} canEdit={canEdit} onAdd={add} onClose={() => setLeft(false)} onOpenPanel={() => setLeft(true)}
+          flow={isForm ? <FormFlowPanel blocks={blocks} view={formView} onView={goForm} flow={flow} editable={canEdit && !locked} sel={sel} onSelect={(id) => { select(id); configure(id); canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }} onAddStep={addFormStep} onEditSubmit={() => openRight("page")} /> : undefined}
+          railItems={(isForm ? FORM_LEFT_RAIL : LEFT_RAIL).map(([t, label, path]) => ({ key: t, label, path, active: leftTab === t, onClick: () => { setLeftTab(t); setLeft(true); } }))} lockedReason={lockReason || undefined} onEdit={veilEdit}
           onHelp={runTour} dragType={DRAG_TYPE} patternDragType={PATTERN_TYPE} onReorder={moveBlockTo} onFloatChange={setLeftFloating} blocks={blocks} selected={sel} onSelect={(id) => { select(id); canvasRef.current?.querySelector<HTMLElement>(`.cblk[data-id="${id}"]`)?.scrollIntoView({ block: "center", behavior: "smooth" }); }}
-          tab={leftTab} onTab={setLeftTab} patterns={patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onRestorePattern={async (p) => { try { await ucpApi.archivePattern(marketId, p.id, false); say(`${p.name} restored`); } catch { say("Could not restore"); } loadPatterns(); }} onDeletePattern={(p) => deletePatternForGood(p)} onPatternMarkets={setPatMarkets} mayManage={mayManagePattern} onStartPattern={() => startPattern()} creating={patternMode} />}
+          tab={leftTab} onTab={setLeftTab} patterns={isForm ? undefined : patterns} onAddPattern={addPattern} onRemovePattern={removePattern} onRestorePattern={async (p) => { try { await ucpApi.archivePattern(marketId, p.id, false); say(`${p.name} restored`); } catch { say("Could not restore"); } loadPatterns(); }} onDeletePattern={(p) => deletePatternForGood(p)} onPatternMarkets={setPatMarkets} mayManage={mayManagePattern} onStartPattern={() => startPattern()} creating={patternMode} />}
         {/* Right panel: Configure (contextual) or Page settings */}
         {railsOn && !focus && phone && <nav data-ui aria-label="Panels" className={phone ? "absolute left-0 right-0 bottom-0 h-12 bg-surface border-t border-line flex flex-row items-center justify-around px-2 z-[6]" : "absolute right-0 top-0 bottom-0 w-[52px] bg-surface border-l border-line flex flex-col items-center px-1.5 py-2.5 gap-1.5 z-[6] cursor-pointer"}>
           {/* The slim bar's own expand control, replacing the toggle that used to live in the top bar. */}
@@ -1060,7 +1089,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             </button>
             <span className="my-0.5 h-px w-5 bg-line" aria-hidden />
           </>}
-          {phone && LEFT_RAIL.map(([t, label, path]) => { const on = left && leftTab === t; return <button key={t} type="button" title={label} aria-label={label} aria-pressed={on} onClick={() => { if (on) setLeftRaw(false); else { setLeftTab(t); setLeftRaw(true); setRight(false); } }} className={`w-10 h-10 rounded-lg grid place-items-center transition-[color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${on ? "bg-brand-soft text-brand" : "text-ink-3 hover:bg-surface-3 hover:text-ink"}`}><svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={path} /></svg></button>; })}
+          {phone && (isForm ? FORM_LEFT_RAIL : LEFT_RAIL).map(([t, label, path]) => { const on = left && leftTab === t; return <button key={t} type="button" title={label} aria-label={label} aria-pressed={on} onClick={() => { if (on) setLeftRaw(false); else { setLeftTab(t); setLeftRaw(true); setRight(false); } }} className={`w-10 h-10 rounded-lg grid place-items-center transition-[color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${on ? "bg-brand-soft text-brand" : "text-ink-3 hover:bg-surface-3 hover:text-ink"}`}><svg viewBox="0 0 24 24" className="w-5 h-5 stroke-current fill-none" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d={path} /></svg></button>; })}
           {phone && <span className="w-px h-6 bg-line" aria-hidden />}
           {RAIL_SHOWN().map(([t, label, path]) => { const on = right && rightTab === t; const badge = t === "comments" ? commentCount : t === "insights" ? insightBadge : t === "content" ? Object.keys(bindings).length : t === "ai" ? aiTasks.filter((x) => x.stage !== "done").length : 0;
             return <button key={t} type="button" title={label} aria-label={label} aria-pressed={on} onClick={() => { if (on) { closeConfigure(true); return; } if (phone) setLeftRaw(false); if (t === "block" && sel) configure(sel); else { setRightTab(t); setRight(true); } }} className={`relative w-10 h-10 rounded-lg grid place-items-center transition-[color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${on ? "bg-brand-soft text-brand" : "text-ink-3 hover:bg-surface-3 hover:text-ink"}`}>
@@ -1096,7 +1125,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             {/* Page settings was a flat wall of nine fields — the one tab on this side that really
                 needed grouping. Same collapsible sections as Configure and the left panel, so both
                 panels read the same way. Only Basics is open: the rest are reference, not edits. */}
-            {rightTab === "page" ? <div className="flex flex-col">
+            {rightTab === "page" && isForm ? <FormSettings marketId={marketId} base={`/${marketId}/${envId}`} path={page.path} meta={page.meta} blocks={blocks} host={host ? { ...host, rel: host.path.replace(root, "") } : undefined} editable={canEdit && !locked} status={status} title={title} flow={flow} />
+            : rightTab === "page" && channel ? <MessageSettings channel={channel} template={page.template} title={title} onTitle={(v) => setPageField("title", v)} blocks={blocks} status={status} marketId={marketId} id={rel.slice(MESSAGING_FOLDER.length + 2)} path={page.path} editable={canEdit && !locked} onContract={() => setContractOpen(true)} />
+            : rightTab === "page" ? <div className="flex flex-col">
               <Section t="Basics">
                 <label className="text-xs text-ink-2 font-medium">Page title<input className="bdl-field mt-1" value={title} onChange={(e) => setPageField("title", e.target.value)} /></label>
                 <label className="text-xs text-ink-2 font-medium">Meta description<textarea rows={3} className="bdl-field mt-1" value={description} onChange={(e) => setPageField("description", e.target.value)} placeholder="One or two sentences shown in search results" /><small className={`text-xs font-normal ${description.length > 155 ? "text-crit" : "text-ink-3"}`}>{description.length}/155 characters</small></label>
@@ -1121,7 +1152,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
               </Section>
             </div>
             : !selected ? <div className="p-4 text-ink-3"><b className="block text-sm text-ink mb-1.5">Nothing selected</b>Click a block on the page to see its settings here.<div className="mt-3.5 flex flex-col gap-1.5">{blocks.slice(0, 8).map((k, ix) => <button key={k.id} className="btn btn-sm btn-secondary justify-start" onClick={() => configure(k.id)}>{ix + 1}. {BLOCK_BY_TYPE[k.type].name}</button>)}</div></div>
-            : <ConfigForm block={selected} index={blocks.indexOf(selected)} count={blocks.length} marketId={marketId} setProp={(k, v) => setProp(selected.id, k, v)} entities={entities} canEdit={canEdit && !locked} onFieldFocus={(k, l, start, end) => { if (editing) commitInline(true); lastField.current = { blockId: selected.id, k, l, start, end }; }} onChoose={(k, l) => setContentPick({ target: "field", blockId: selected.id, k, l })} />}
+            : <><ConfigForm block={selected} index={blocks.indexOf(selected)} count={blocks.length} marketId={marketId} setProp={(k, v) => setProp(selected.id, k, v)} entities={entities} canEdit={canEdit && !locked} onFieldFocus={(k, l, start, end) => { if (editing) commitInline(true); lastField.current = { blockId: selected.id, k, l, start, end }; }} onChoose={(k, l) => setContentPick({ target: "field", blockId: selected.id, k, l })} />{isForm && (FORM_FIELD_TYPES.includes(selected.type) || selected.type === "formstep") && selected.type !== "fconsent" && <div className="border-t border-line px-3.5 py-3"><div className="mb-1 text-xs font-semibold">Rules</div><p className="mb-2 text-xs text-ink-3">{selected.type === "formstep" ? "Skip this step depending on an earlier answer." : "Show, hide or require this field depending on another answer, or let this answer drive other fields."}</p><RuleList rules={flow.rules} putRules={flow.putRules} blocks={blocks} editable={canEdit && !locked} only={(r) => selected.type === "formstep" ? r.then.action === "skip-step" && r.then.target === String(selected.props.title ?? "") : r.when.field === String(selected.props.name ?? "") || (r.then.action !== "skip-step" && r.then.target === String(selected.props.name ?? ""))} seed={selected.type === "formstep" ? { step: String(selected.props.title ?? "") } : { target: String(selected.props.name ?? "") }} empty={selected.type === "formstep" ? "No rule skips this step." : "No rules on this field yet."} /></div>}</>}
           </div>}
           </LockedVeil>
           {rightTab === "block" && selected && !lockReason && <div className="flex justify-end gap-2 px-3.5 py-2.5 border-t border-line bg-surface"><button className="btn btn-sm btn-secondary" onClick={() => closeConfigure(false)}>Cancel</button><button className="btn btn-sm btn-primary" onClick={() => { closeConfigure(true); say("Component updated · Save the page when you're done"); }}>Save</button></div>}
@@ -1191,6 +1222,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {publishing && <PublishDialog marketId={marketId} envName={envName} pages={[{ path: page.path, title, status, publishAt }]} mayPublish={() => mayStatus("published")} onClose={() => setPublishing(false)}
           onDone={(r, m) => { const x = r[0]; setPublishing(false); if (!x?.ok) { say(x?.reason ?? "Nothing was published"); return; } setStatus(x.status as PageStatus); setPublishAt(undefined); say(m === "cancel" ? "Schedule cancelled · back to Approved" : m === "schedule" ? "Scheduled for publishing" : `Published to ${envName}`); router.refresh(); }} />}
         {sending && shareIn === "bar" && <SendForReviewModal marketId={marketId} pagePath={page.path} onClose={() => setSending(false)} onSend={sendForReview} />}
+        {contractOpen && isForm && <FormContract marketId={marketId} id={page.name} name={title} onClose={() => setContractOpen(false)} />}
+        {contractOpen && channel && <MessageContract marketId={marketId} id={rel.slice(MESSAGING_FOLDER.length + 2)} name={title} channel={channel} onClose={() => setContractOpen(false)} />}
         {translating && <TranslateModal marketId={marketId} path={page.path} title={title} onClose={() => setTranslating(false)} onDone={(created) => { say(`Created ${created.length} translation${created.length === 1 ? "" : "s"}`); router.refresh(); }} />}
         {firstStage && <AuthorsChip trigger={false} anchorRef={actionsRef} openSignal={authorsSignal} authors={authors} meId={user.id} admin={isAdmin} canEdit={canEdit} people={names} onAction={authorAction} />}
         {toast && <div style={{ bottom: focus ? 24 : 60 }} className="fixed left-1/2 z-[90] -translate-x-1/2 rounded-lg bg-foreground px-4 py-2.5 text-sm text-background shadow-xl">{toast}</div>}
@@ -1412,7 +1445,7 @@ function ConfigForm({ block: selected, index, count, marketId, setProp, entities
   // The intro carries the panel's standard 16px inset; the sections below are flush to the
   // panel and add their own, so Configure lines up with Page settings exactly.
   return <div className="flex flex-col">
-    <div className="px-4 py-3"><b className="text-sm">{def.name}</b><div className="text-xs text-ink-3">Block {index + 1} of {count} · {def.desc}</div></div>
+    <div className="px-4 py-3"><b className="text-sm">{def.name}</b><div className="text-xs text-ink-3">{def.desc}</div></div>
     <Section t="Content">{def.fields.map((f) => { const v = selected.props[f.k]; const invalid = f.req && !toPlain(v).trim(); return <div key={f.k}><label className="flex items-center text-xs text-ink-2 font-medium mb-1">{f.l}{(f.t === "text" || f.t === "textarea") && canEdit ? <button type="button" className="ml-auto mr-2 w-6 h-6 rounded grid place-items-center text-info hover:bg-info-soft" onMouseDown={(e) => e.preventDefault()} onClick={() => onChoose(f.k, f.l)} title="Choose content from an entity" aria-label={`Choose content from an entity for ${f.l}`}><ContentIcon /></button> : <span className="ml-auto" />}{f.req && <small className="text-xs text-ink-4">required</small>}</label>
       {f.t === "text" && !f.mono ? <RichField inline value={v} label={f.l} invalid={invalid} disabled={!canEdit} onChange={(html) => setProp(f.k, html)} onFocus={() => onFieldFocus(f.k, f.l, 0, 0)} />
       : f.t === "text" ? <input className={`bdl-field ${invalid ? "!border-crit" : ""}`} value={String(v ?? "")} onChange={(e) => setProp(f.k, e.target.value)} onFocus={track(f.k, f.l, onFieldFocus)} onSelect={track(f.k, f.l, onFieldFocus)} />
@@ -1503,4 +1536,19 @@ function AiPanel({ tasks, draft, setDraft, dirty, onAsk, onToggle, onRun, onUndo
       </div>
     </form>
   </>;
+}
+
+/** Website chrome for pages; the inbox or phone frame for messages. */
+function ChromeFor({ channel, host, children, ...site }: { channel?: string; host?: { title: string; crumbs: string[] }; marketName: string; crumbs: string[]; device: string; children: React.ReactNode }) {
+  if (host) return <FormChrome marketName={site.marketName} crumbs={host.crumbs} hostTitle={host.title} device={site.device}>{children}</FormChrome>;
+  return channel ? <MessageChrome channel={channel}>{children}</MessageChrome> : <SiteChrome {...site}>{children}</SiteChrome>;
+}
+
+/** Region dividers on an e-mail canvas: Header and Footer are fixed (edit only), Body takes components. */
+function EmailRegionLabel({ blocks, i }: { blocks: Block[]; i: number }) {
+  const r = emailRegion(blocks[i].type); const prev = i > 0 ? emailRegion(blocks[i - 1].type) : null; if (prev === r) return null;
+  const tag = (t: string, d: string) => <div data-ui className="m-region"><b>{t}</b><span>{d}</span></div>;
+  if (r === "header") return tag("Header", "fixed · edit only");
+  if (r === "body") return tag("Body", "add, move and remove components here");
+  return <>{prev === "header" && <>{tag("Body", "add, move and remove components here")}<div data-ui className="m-region-empty">Add components from the left: they go into the body.</div></>}{tag("Footer", "fixed · edit only")}</>;
 }

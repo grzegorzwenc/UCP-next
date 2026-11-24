@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { market, env } from "@/lib/markets";
 import { getPage } from "@/lib/server/pages";
+import { ensureMessaging } from "@/lib/server/messaging";
+import { ensureForms } from "@/lib/server/forms";
 import { listUsers, listModels, resolveBindings, me } from "@/lib/server/ucp";
 import { bindingsOf } from "@/lib/ucp/tokens";
 import { Builder } from "@/components/builder/Builder";
@@ -8,6 +10,7 @@ import { SessionProvider } from "@/components/shell/Session";
 
 export async function generateMetadata({ params }: PageProps<"/[market]/[env]/page/[...path]">) {
   const { market: mid, path } = await params;
+  if (path[0] === "messaging") await ensureMessaging(market(mid).root); if (path[0] === "forms") await ensureForms(market(mid).root);
   const page = await getPage([market(mid).root, ...path].join("/"));
   return { title: page?.title ?? "Page builder" };
 }
@@ -33,6 +36,8 @@ export default async function PageBuilderRoute({ params, searchParams }: PagePro
   /* ?preview=1 — the Pages card's Preview action opens the page as a visitor sees it. */
   const startInPreview = (await searchParams).preview === "1";
   const mk = market(mid), ev = env(eid);
+  /* Messaging and Forms create their demo content on first use; a deep link may come first */
+  if (path[0] === "messaging") await ensureMessaging(mk.root); if (path[0] === "forms") await ensureForms(mk.root);
   const page = await getPage([mk.root, ...path].join("/"));
   if (!page) notFound();
   // Linked content resolves on the server too, so the first paint already shows real values instead of {{tokens}}.
@@ -40,10 +45,13 @@ export default async function PageBuilderRoute({ params, searchParams }: PagePro
   // layout blocks navigation and suppresses the `loading.tsx` fallback (see the layout's note).
   const [user, users, models, entities] = await Promise.all([me(), listUsers(), listModels(), resolveBindings(bindingsOf(page.meta)).catch(() => ({})), opened]);
   const names = Object.fromEntries(users.map((u) => [u.id, u.name]));
+  /* a form is built for the page that hosts it: the canvas shows it on that page */
+  const hostPath = typeof page.meta?.["ucp:hostPage"] === "string" ? String(page.meta["ucp:hostPage"]) : "";
+  const hostPg = hostPath ? await getPage(hostPath) : undefined; const host = hostPg ? { path: hostPg.path, title: hostPg.title } : undefined;
   const contentModels = models.filter((m) => m.group !== "Block types").map((m) => ({ id: m.id, name: m.displayName || m.name, fields: m.fields.filter((f) => !f.hidden).map((f) => ({ k: f.k, l: f.l })) }));
   return (
     <SessionProvider user={user} marketRoot={mk.root}>
-      <Builder marketId={mid} envId={eid} marketName={mk.name} flag={mk.flag} domain={mk.domain} locale={mk.locales[0]} envName={ev.name} root={mk.root} page={page} startInPreview={startInPreview} names={names} models={contentModels} entities={entities} />
+      <Builder marketId={mid} envId={eid} marketName={mk.name} flag={mk.flag} domain={mk.domain} locale={mk.locales[0]} envName={ev.name} root={mk.root} page={page} startInPreview={startInPreview} names={names} models={contentModels} entities={entities} host={host} />
     </SessionProvider>
   );
 }
