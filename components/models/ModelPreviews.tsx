@@ -6,7 +6,9 @@ import type { Model, ModelField } from "@/lib/ucp/types";
 import { makeBlock } from "@/lib/blocks/registry";
 import { RenderBlock } from "@/lib/blocks/Render";
 
-const inp = "border border-line-2 rounded-md px-2.5 py-1.5 text-sm text-ink bg-surface w-full";
+/** Author-facing fields take BDL's own `input`/`textarea`/`select` styling from
+ *  app/bdl/forms.css -- 44px, 16px, 1px #767676, square. Nothing here may override it. */
+const inp = "w-full";
 
 /** What authors see: disabled controls generated per field type. */
 export function FormPreview({ md, fields, locales }: { md: Pick<Model, "name">; fields: ModelField[]; locales: string[] }) {

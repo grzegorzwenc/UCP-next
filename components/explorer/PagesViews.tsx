@@ -29,7 +29,7 @@ export function ViewToggle({ view, onChange, modes = ALL_VIEWS }: { view: View; 
       title={title}
       aria-label={`${title} view`}
       onClick={() => onChange(v)}
-      className={`bdl-tab ${TOGGLE_ITEM} border-s border-line-2 first:border-s-0 ${view === v ? "bdl-tab-active" : ""}`}
+      className={`bdl-tab !px-0 ${TOGGLE_ITEM} border-s border-line-2 first:border-s-0 ${view === v ? "bdl-tab-active" : ""}`}
     >
       <Icon className="size-4" />
     </button>

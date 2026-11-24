@@ -6,9 +6,13 @@
   input[type="password"],
   input[type="tel"],
   input[type="number"],
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="url"],
   textarea {
     font-family: var(--font-sans);
     font-size: 1rem;
+    line-height: 1.125rem; /* holds BDL's documented 44px; `normal` drifts with the font face */
     padding: 0.75rem;
     border: 1px solid var(--color-bdl-grey);
     border-radius: 0;
@@ -22,6 +26,9 @@
   input[type="password"]:focus,
   input[type="tel"]:focus,
   input[type="number"]:focus,
+  input[type="date"]:focus,
+  input[type="datetime-local"]:focus,
+  input[type="url"]:focus,
   textarea:focus {
     outline: 2px solid var(--color-bdl-focus-blue);
     border-color: var(--color-bdl-blue);
@@ -32,6 +39,9 @@
   input[type="password"]:disabled,
   input[type="tel"]:disabled,
   input[type="number"]:disabled,
+  input[type="date"]:disabled,
+  input[type="datetime-local"]:disabled,
+  input[type="url"]:disabled,
   textarea:disabled {
     background-color: var(--color-bdl-grey-disabled);
     cursor: not-allowed;
@@ -41,6 +51,7 @@
   select {
     font-family: var(--font-sans);
     font-size: 1rem;
+    line-height: 1.125rem; /* holds BDL's documented 44px; `normal` drifts with the font face */
     padding: 0.75rem;
     padding-right: 2.5rem;
     border: 1px solid var(--color-bdl-grey);
