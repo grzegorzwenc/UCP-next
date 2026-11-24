@@ -334,6 +334,12 @@
   border-color: #db0011;
   box-shadow: 0 0 0 4px rgba(219, 0, 17, 0.12);
 }
+/* Pointed at from Page insights: hovering a finding marks the block it refers to. Softer than
+   `.sel` so it reads as "this one" rather than "you have selected this one". */
+.cblk.ins-hot {
+  border-color: #db0011;
+  box-shadow: 0 0 0 6px rgba(219, 0, 17, 0.14);
+}
 .cblk .tag {
   /* Chrome, not content: cancel the frame's zoom so the chip reads the same at every breakpoint. */
   zoom: var(--bld-unzoom, 1);

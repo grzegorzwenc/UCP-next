@@ -12,10 +12,12 @@ import { useState } from "react";
  * `count` is shown right-aligned when given — the group sizes are useful at a glance and
  * they are what makes a collapsed list still legible.
  */
-export function PanelSection({ id, title, count, defaultOpen = true, open: openIn, onToggle, right, children }: {
+export function PanelSection({ id, title, count, tone, defaultOpen = true, open: openIn, onToggle, right, children }: {
   id?: string;
   title: string;
   count?: number;
+  /** "crit" paints the count badge BDL red; anything else leaves it grey. */
+  tone?: "crit";
   defaultOpen?: boolean;
   /** Controlled mode: when `open` is given the caller owns the state (used for "search forces open"). */
   open?: boolean;
@@ -36,7 +38,7 @@ export function PanelSection({ id, title, count, defaultOpen = true, open: openI
           onClick={toggle}>
           <Chevron open={open} />
           <span className="min-w-0 truncate">{title}</span>
-          {count !== undefined && <span className="ml-auto font-normal tabular-nums opacity-70">{count}</span>}
+          {count !== undefined && <span className={`ms-auto ${tone === "crit" ? "bdl-number-badge" : "bdl-number-badge bdl-number-badge-grey"}`}>{count}</span>}
         </button>
       </h6>
       {open && <div id={panelId} className="px-4 pb-3.5">{children}</div>}
