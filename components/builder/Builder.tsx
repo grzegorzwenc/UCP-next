@@ -23,7 +23,7 @@ import { ContentPicker, ContentIcon, type ContentChoice } from "./ContentPicker"
 import { EntitiesPanel, uniqueAlias, type ContentModelInfo } from "./LinkedContent";
 import { PublishDialog } from "@/components/pages/PublishDialog";
 import { ModalShell } from "@/components/models/ModalShell";
-import { SendForReviewModal, AssigneeChip, type ReviewBody } from "./SendForReview";
+import { SendForReviewModal, SendForReviewPanel, AssigneeChip, type ReviewBody } from "./SendForReview";
 import { AssetPicker } from "./AssetPicker";
 import { proposeAi, AI_SUGGESTIONS, type AiProposal } from "@/lib/ai/mock";
 import { planFor, revertOp, type Plan, type Change } from "@/lib/ai/planner";
@@ -73,6 +73,8 @@ const AI_EXAMPLES: { title: string; items: [string, string, string][] }[] = [
 const PATTERN_ICON = "M4 4h7v7H4zM13 4h7v7h-7zM4 13h16v7H4z"; // three components joined into one
 /* Phones only. On desktop the left panel's own tabs do this job, so there is no left rail. */
 const FLOW_ICON = "M5 4h6v6H5zM13 14h6v6h-6zM8 10v4h8M16 14v-2";
+/** The Quality checklist panel's own mark — kept when the panel turns into Send for review, so the folded button stays the same thing. */
+const QC_ICON = <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="M3.5 6l1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" /></svg>;
 const LEFT_RAIL: [LeftTab, string, string][] = [["components", "Add a component", "M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM12 8.5v7M8.5 12h7"], ["patterns", "Design patterns", PATTERN_ICON], ["outline", "Outline", "M4 6h2M4 12h2M4 18h2M9 6h11M9 12h11M9 18h11"]];
 const FORM_LEFT_RAIL: [LeftTab, string, string][] = [["flow", "Steps & pages", FLOW_ICON], ...LEFT_RAIL];
 /* Page settings first: it is what the panel opens on, so it leads the rail. */
@@ -203,6 +205,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [assignee, setAssignee] = useState(() => { const a = page.meta?.["ucp:assignee"]; return typeof a === "string" ? a : ""; });
   const assigneeName = assignee ? names[assignee] ?? assignee : "";
   const [sending, setSending] = useState(false);
+  /** Send for review was asked for from the Quality checklist, so the form belongs in that panel, not in a modal over the preview. */
+  const [sendHere, setSendHere] = useState(false);
   const [remind, setRemind] = useState(0); const [reminding, setReminding] = useState(false); // in review: "remind the reviewer you're waiting?"
   const [remindedAt, setRemindedAt] = useState(() => { const v = page.meta?.["ucp:remindedAt"]; return typeof v === "string" ? v : ""; });
   const [backToReview, setBackToReview] = useState(false); // confirm: the review is done, send it back anyway?
@@ -645,7 +649,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   async function sendForReview(body: ReviewBody) {
     if (dirty) await save();
     const r = await ucpApi.sendForReview(marketId, page.path, body);
-    setSending(false); setAssignee(r.assignee); setStatus("review"); say("Sent for review · it is in the Backlog, any reviewer can take it"); router.refresh(); // sharing by link / e-mail is for the business review only
+    setSending(false); setSendHere(false); setAssignee(r.assignee); setStatus("review"); say("Sent for review · it is in the Backlog, any reviewer can take it"); router.refresh(); // sharing by link / e-mail is for the business review only
   }
   /* Token chips: while a block is being configured, insert into the last focused Configure field at its caret; otherwise copy. */
   const lastField = useRef<{ blockId: string; k: string; l: string; start: number; end: number } | null>(null);
@@ -1206,16 +1210,22 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         </FloatingPanel>}
         {/* Clear of the status bar (36px + the 16px it would otherwise sit at): docked at the
             bottom right, this panel and its folded button covered the bar's next-step button. */}
-        {qcMode && <FloatingPanel title="Quality checklist" width={FLOAT_W} bottom={focus ? 16 : 52} open={qcOpen} onToggle={setQcOpen}
+        {/* Send for review happens in this panel, not in a modal over the preview: the checklist is
+            where the page was judged ready, so the decision stays on the same surface instead of a
+            dialog that covers the page it is about. Leaving preview mid-send hands the form back to
+            the modal (below), which is the only surface left once the panel is gone. */}
+        {qcMode && sendHere && sending && <SendForReviewPanel width={FLOAT_W} bottom={focus ? 16 : 52} open={qcOpen} onToggle={setQcOpen} icon={QC_ICON}
+          marketId={marketId} pagePath={page.path} onClose={() => { setSending(false); setSendHere(false); }} onSend={sendForReview} />}
+        {qcMode && !(sendHere && sending) && <FloatingPanel title="Quality checklist" width={FLOAT_W} bottom={focus ? 16 : 52} open={qcOpen} onToggle={setQcOpen}
           footer={focus ? (() => {
             const canSend = canEdit && (status === "draft" || status === "failed") && insightBadge === 0;
             return <div className="flex items-center gap-2">
               <button type="button" className={`btn btn-sm flex-1 justify-center ${canSend ? "btn-secondary" : "btn-primary"}`} onClick={leavePreview} title="Leave the visitor preview (Esc)"><Ico d="M6 6l12 12M18 6L6 18" />Exit preview</button>
-              {canSend && <button type="button" className="btn btn-sm btn-primary flex-1 justify-center" onClick={() => { leavePreview(); openSend(); }}>Send for review</button>}
+              {canSend && <button type="button" className="btn btn-sm btn-primary flex-1 justify-center" onClick={() => { setSendHere(true); openSend(); }}>Send for review</button>}
             </div>;
-          })() : undefined} icon={<svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="M3.5 6l1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" /></svg>}
+          })() : undefined} icon={QC_ICON}
           hint={qcPinned ? <span className="flex items-center gap-2"><button type="button" className="ml-auto underline" onClick={() => { setQcPinned(false); setQcTarget(null); }}>Whole page</button></span> : qcTarget ? "Click to pin it" : undefined}>
-          <QualityChecklist onSettings={() => { leavePreview(); openRight("page"); }} blocks={blocks} meta={insightMeta} url={`https://${domain}${rel}`} templateName={TEMPLATES.find((t) => t.id === page.template)?.name ?? page.template ?? "Page"} target={qcTarget} onShow={(id) => { revealBlock(id); setQcFlash(id); window.setTimeout(() => setQcFlash((v) => (v === id ? "" : v)), 1600); }} onSend={canEdit && (status === "draft" || status === "failed") ? () => { leavePreview(); openSend(); } : undefined} />
+          <QualityChecklist onSettings={() => { leavePreview(); openRight("page"); }} blocks={blocks} meta={insightMeta} url={`https://${domain}${rel}`} templateName={TEMPLATES.find((t) => t.id === page.template)?.name ?? page.template ?? "Page"} target={qcTarget} onShow={(id) => { revealBlock(id); setQcFlash(id); window.setTimeout(() => setQcFlash((v) => (v === id ? "" : v)), 1600); }} onSend={canEdit && (status === "draft" || status === "failed") ? () => { setSendHere(true); openSend(); } : undefined} />
         </FloatingPanel>}
         {decidedB && <DecisionOverlay decision={decidedB.decision} title={title} by={user.name} at={decidedB.at} action={<button className="btn btn-sm btn-primary" onClick={() => { setDecidedB(null); if (focus) setFocusMode(false); }}>Back to the builder</button>} />}
         {/* formatting bar over the text being edited (long text fields only) */}
@@ -1244,7 +1254,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {share && status === "bizreview" && <ShareReviewDialog key={status} marketId={marketId} path={page.path} title={title} stage="bizreview" onSendBack={() => void reauthor()} onClose={() => setShare(false)} onAccess={(a) => { if (a.group) setBizGroups((g) => (g.includes(a.group!) ? g : [...g, a.group!])); if (a.person) setBizTaken(a.person); }} />}
         {publishing && <PublishDialog marketId={marketId} envName={envName} pages={[{ path: page.path, title, status, publishAt }]} mayPublish={() => mayStatus("published")} onClose={() => setPublishing(false)}
           onDone={(r, m) => { const x = r[0]; setPublishing(false); if (!x?.ok) { say(x?.reason ?? "Nothing was published"); return; } setStatus(x.status as PageStatus); setPublishAt(undefined); say(m === "cancel" ? "Schedule cancelled · back to Approved" : m === "schedule" ? "Scheduled for publishing" : `Published to ${envName}`); router.refresh(); }} />}
-        {sending && shareIn === "bar" && <SendForReviewModal marketId={marketId} pagePath={page.path} onClose={() => setSending(false)} onSend={sendForReview} />}
+        {/* The modal is still the surface outside the preview -- and the one the form falls back to if the preview is left mid-send. */}
+        {sending && shareIn === "bar" && !(sendHere && qcMode) && <SendForReviewModal marketId={marketId} pagePath={page.path} onClose={() => { setSending(false); setSendHere(false); }} onSend={sendForReview} />}
         {contractOpen && isForm && <FormContract marketId={marketId} id={page.name} name={title} onClose={() => setContractOpen(false)} />}
         {contractOpen && channel && <MessageContract marketId={marketId} id={rel.slice(MESSAGING_FOLDER.length + 2)} name={title} channel={channel} onClose={() => setContractOpen(false)} />}
         {translating && <TranslateModal marketId={marketId} path={page.path} title={title} onClose={() => setTranslating(false)} onDone={(created) => { say(`Created ${created.length} translation${created.length === 1 ? "" : "s"}`); router.refresh(); }} />}
