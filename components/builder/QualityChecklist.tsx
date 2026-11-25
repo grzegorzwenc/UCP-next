@@ -8,31 +8,45 @@ import { pageInsights, HEADING_MAX, PARAGRAPH_MAX, VAGUE_CTAS, COMPLIANCE_WORDS,
 
 /** What the pointer is on in the author's preview: a text (field key), an asset ("asset:n") or a whole component. */
 export type QcTarget = { id: string; field?: string; text?: string; kind: "text" | "image" | "block" };
-type Check = { ok: boolean | "warn"; label: string; value?: string; /** the block this row is about, when it is about one: the row then takes you there */ blockId?: string };
+type Check = { ok: boolean | "warn"; label: string; value?: string;
+  /** The row is about a page-wide field (title tag, meta description), so it opens Page settings. */
+  settings?: boolean; /** the block this row is about, when it is about one: the row then takes you there */ blockId?: string };
 
 /** One band of the checklist, on the same section as Page insights: a rotating chevron and a
  *  BDL count badge, red on the band that blocks review. */
-function Section({ id, title, tone, rows, onShow, collapsed }: { id: string; title: string; tone: "crit" | "warn"; rows: Check[]; onShow?: (blockId: string) => void;
+function Section({ id, title, tone, rows, onShow, onSettings, collapsed, note }: { id: string; title: string; tone: "crit" | "warn" | "good"; rows: Check[]; onShow?: (blockId: string) => void; onSettings?: () => void;
   /** Starts folded away, for the band that does not block anything. */
-  collapsed?: boolean }) {
+  collapsed?: boolean;
+  /** A line above the rows, for when a band needs saying what it means. */
+  note?: string }) {
   if (!rows.length) return null;
-  return <PanelSection id={id} title={title} count={rows.length} tone={tone === "crit" ? "crit" : undefined} defaultOpen={!collapsed}>
-    <Rows checks={rows} onShow={onShow} />
+  return <PanelSection key={`${id}-${collapsed ? "shut" : "open"}`} id={id} title={title} count={rows.length} tone={tone === "crit" ? "crit" : undefined} defaultOpen={!collapsed}>
+    {note && <p className="mb-2 text-xs leading-relaxed text-ink-3">{note}</p>}
+    <Rows checks={rows} onShow={onShow} onSettings={onSettings} />
   </PanelSection>;
 }
-function Rows({ checks, onShow }: { checks: Check[]; onShow?: (blockId: string) => void }) {
+function Rows({ checks, onShow, onSettings }: { checks: Check[]; onShow?: (blockId: string) => void; onSettings?: () => void }) {
   /* A row that is not passing and names a block takes you to it. A passing row, or one about the
      page rather than a place on it (the title tag, say), stays plain text — nothing should look
      clickable unless there is somewhere to go. */
   return <ul className="divide-y divide-line">{checks.map((c, i) => {
     const body = <>
-      <span aria-hidden className={`mt-1.5 h-2 w-2 flex-none rounded-full ${c.ok === false ? "[background-color:var(--color-bdl-rag-red)]" : c.ok === "warn" ? "bg-warn" : "bg-good"}`} />
+      <span aria-hidden className={`mt-1.5 h-2 w-2 flex-none rounded-full ${c.ok === false ? "[background-color:var(--color-bdl-rag-red)]" : c.ok === "warn" ? "[background-color:var(--color-bdl-rag-amber)]" : "bg-good"}`} />
       <span className="min-w-0 flex-1"><span className="block text-sm leading-snug font-medium text-ink"><span className="sr-only">{c.ok === false ? "Must fix: " : c.ok === "warn" ? "Should fix: " : "Passed: "}</span>{c.label}</span>{c.value && <span className="mt-0.5 block text-xs leading-relaxed break-words text-ink-3">{c.value}</span>}</span></>;
-    const go = c.ok !== true && c.blockId && onShow;
+    const toBlock = c.ok !== true && c.blockId && onShow;
+    const toSettings = c.ok !== true && !c.blockId && c.settings && onSettings;
+    const go = toBlock || toSettings;
     const must = c.ok === false;
-    const skin = must ? "-mx-3 border-s-2 px-3 ps-2.5 [background-color:var(--color-bdl-error-bg)] [border-inline-start-color:transparent] hover:[border-inline-start-color:var(--color-bdl-rag-red)]" : "";
+    const nice = c.ok === "warn";
+    const ground = must ? "-mx-3 border-s-2 px-3 ps-2.5 [background-color:var(--color-bdl-error-bg)]"
+      : nice ? "-mx-3 border-s-2 px-3 ps-2.5 [background-color:var(--color-bdl-warning-bg)]"
+      : "";
+    const edge = !go ? "" : must ? "[border-inline-start-color:transparent] hover:[border-inline-start-color:var(--color-bdl-rag-red)]"
+      : nice ? "[border-inline-start-color:transparent] hover:[border-inline-start-color:var(--color-bdl-rag-amber)]"
+      : "";
+    const skin = `${ground} ${edge}`;
     return <li key={i}>{go
-      ? <button type="button" onClick={() => onShow!(c.blockId!)} title={`${c.label} — show it on the page`} className={`flex w-full cursor-pointer items-start gap-2.5 py-2.5 text-left ${skin} [&>span:first-child>span:first-child]:underline-offset-2 hover:[&>span:first-child>span:first-child]:underline`}>{body}</button>
+      ? <button type="button" onClick={() => (toBlock ? onShow!(c.blockId!) : onSettings!())} title={toBlock ? `${c.label} — show it on the page` : `${c.label} — open Page settings`} className={`flex w-full cursor-pointer items-start gap-2.5 py-2.5 text-left ${skin} [&>span:first-child>span:first-child]:underline-offset-2 hover:[&>span:first-child>span:first-child]:underline`}>{body}</button>
       : <span className={`flex items-start gap-2.5 py-2.5 ${skin}`}>{body}</span>}</li>; })}</ul>;
 }
 
@@ -62,17 +76,26 @@ function elementChecks(b: Block, t: QcTarget, assets: PageMeta["assets"], found:
   return out;
 }
 
-export function QualityChecklist({ blocks, meta, url, templateName, target, onShow, onSend }: { blocks: Block[]; meta: PageMeta; url: string; templateName: string; target: QcTarget | null; /** show a block on the page: scroll to it and flash it */ onShow?: (blockId: string) => void; /** send the page for review from here, when nothing blocks it */ onSend?: () => void }) {
+export function QualityChecklist({ blocks, meta, url, templateName, target, onShow, onSettings, onSend }: { blocks: Block[]; meta: PageMeta; url: string; templateName: string; target: QcTarget | null; /** open Page settings, for rows about the page rather than a place on it */ onSettings?: () => void;
+  /** show a block on the page: scroll to it and flash it */ onShow?: (blockId: string) => void; /** send the page for review from here, when nothing blocks it */ onSend?: () => void }) {
   const insights = useMemo(() => pageInsights(blocks, meta), [blocks, meta]);
   const found = useMemo(() => insights.groups.flatMap((g) => g.items), [insights]);
   const b = target ? blocks.find((x) => x.id === target.id) : undefined;
   if (target && b) {
     const def = BLOCK_BY_TYPE[b.type]; const k = fieldOf(target.field); const fl = def.fields.find((f) => f.k === k)?.l;
     const what = target.kind === "image" ? "Picture" : target.kind === "text" ? fl ?? "Text" : "Whole component";
-    return <div>
-      <div className="rounded-lg bg-surface-2 border border-line px-3 py-2"><span className="block text-xs font-medium uppercase tracking-[.06em] text-ink-3">{def.name} · {what}</span>
-        {target.text && <span className="block text-sm text-ink mt-0.5 line-clamp-3">“{target.text}”</span>}</div>
-      <Rows checks={elementChecks(b, target, meta.assets, found)} />
+    const checks = elementChecks(b, target, meta.assets, found);
+    const eMust = checks.filter((c) => c.ok === false);
+    const eNice = checks.filter((c) => c.ok === "warn");
+    const ePass = checks.filter((c) => c.ok === true);
+    return <div className="-mx-3.5 -mt-3.5 flex flex-col text-ink">
+      <div className="px-3.5 pt-3.5 pb-3">
+        <div className="border border-line bg-surface-2 px-3 py-2"><span className="block text-xs font-medium uppercase tracking-[.06em] text-ink-3">{def.name} · {what}</span>
+          {target.text && <span className="block text-sm text-ink mt-0.5 line-clamp-3">“{target.text}”</span>}</div>
+      </div>
+      <Section id="qc-el-must" title="Must fix" tone="crit" rows={eMust} onShow={onShow} onSettings={onSettings} />
+      <Section id="qc-el-nice" title="Nice to have" tone="warn" rows={eNice} onShow={onShow} onSettings={onSettings} />
+      <Section id="qc-el-pass" title="Passed" tone="good" rows={ePass} onShow={onShow} onSettings={onSettings} />
     </div>;
   }
   const t = meta.title.trim(); const d = (meta.description ?? "").trim();
@@ -85,27 +108,28 @@ export function QualityChecklist({ blocks, meta, url, templateName, target, onSh
      appeared twice (once as "Page insights · 1 to fix", once by name) and the two lists disagreed
      about how serious anything was. The "Page insights" summary row is gone: the items are here. */
   const page: Check[] = [
-    { ok: !!t && t.length <= 60 ? true : t ? "warn" : false, label: "Title tag", value: t ? `${t} · ${t.length} characters` : "Missing" },
-    { ok: !!d && d.length <= 160 ? true : d ? "warn" : "warn", label: "Meta description", value: d ? `${d} · ${d.length} characters` : "Missing · search results show text from the page instead" },
+    { ok: !!t && t.length <= 60 ? true : t ? "warn" : false, settings: true, label: "Title tag", value: t ? `${t} · ${t.length} characters` : "Missing" },
+    { ok: !!d && d.length <= 160 ? true : d ? "warn" : "warn", settings: true, label: "Meta description", value: d ? `${d} · ${d.length} characters` : "Missing · search results show text from the page instead" },
     { ok: true, label: "Canonical URL", value: url },
     { ok: true, label: "Page type", value: templateName },
     { ok: masts.length === 1 ? true : "warn", label: "One main heading (masthead)", value: masts.length ? undefined : "No masthead on the page", blockId: masts[1]?.id ?? masts[0]?.id },
     { ok: !needsFields, label: "Required fields filled", value: needsFields ? `${needsFields.label}: ${missingRequired(needsFields.block).map((f) => f.l).join(", ")}` : undefined, blockId: needsFields?.block.id },
   ];
-  const asCheck = (i: Insight): Check => ({ ok: i.level === "crit" ? false : "warn", label: i.title, value: i.detail, blockId: i.blockId });
+  const asCheck = (i: Insight): Check => ({ ok: i.level === "crit" ? false : "warn", label: i.title, value: i.detail, blockId: i.blockId, settings: !i.blockId && /^(title|desc)-/.test(i.id) });
   const mustRows = [...page.filter((c) => c.ok === false), ...must.map(asCheck)];
   const shouldRows = [...page.filter((c) => c.ok === "warn"), ...should.map(asCheck)];
 
   return <div className="-mx-3.5 -mt-3.5 flex flex-col text-ink">
     <div className="px-3.5 pt-3.5">
-    <p className="mb-2 text-xs text-ink-3">Point at a text, a picture or a component to check it.</p>
     {/* The decision lives here rather than in a dialog after the preview: the list of what is wrong
         and the button that acts on it are the same panel, so there is nothing to remember. */}
     {onSend && (mustRows.length
       ? <p role="status" className="alert alert-error mb-3 text-sm"><span>This page cannot go for review until the {mustRows.length} <b>Must fix</b> {mustRows.length === 1 ? "item is" : "items are"} done.</span></p>
-      : <p className="mb-3 text-xs text-ink-3">{shouldRows.length ? `${shouldRows.length} thing${shouldRows.length === 1 ? "" : "s"} to check, none blocking` : "Nothing is blocking it"}</p>)}
+      : <p className="mb-1 text-sm font-medium text-ink">{shouldRows.length ? `Nothing is blocking this page` : "This page is ready"}</p>)}
+    <p className="mb-3 text-xs leading-relaxed text-ink-3">Point at a text, a picture or a component to check just that part.</p>
     </div>
-    <Section id="qc-must" title="Must fix" tone="crit" rows={mustRows} onShow={onShow} />
-    <Section id="qc-should" title="Should fix" tone="warn" rows={shouldRows} onShow={onShow} collapsed />
+    <Section id="qc-must" title="Must fix" tone="crit" rows={mustRows} onShow={onShow} onSettings={onSettings} />
+    <Section id="qc-should" title="Nice to have" tone="warn" rows={shouldRows} onShow={onShow} onSettings={onSettings} collapsed={mustRows.length > 0}
+      note={mustRows.length ? undefined : "None of these stop the page going for review. Fixing them makes it clearer or safer."} />
   </div>;
 }

@@ -41,8 +41,12 @@ export function PanelSection({ id, title, count, tone, defaultOpen = true, open:
           {count !== undefined && <span className={`ms-auto ${tone === "crit" ? "bdl-number-badge" : "bdl-number-badge bdl-number-badge-grey"}`}>{count}</span>}
         </button>
       </h6>
-      {open && <div id={panelId} className="px-4 pb-3.5">{children}</div>}
-      {open && right}
+      <div className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+        <div className="overflow-hidden">
+          <div id={panelId} className="px-4 pb-3.5">{children}</div>
+          {right}
+        </div>
+      </div>
     </div>
   );
 }

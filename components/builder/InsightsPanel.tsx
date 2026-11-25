@@ -14,8 +14,8 @@ type Props = {
   onHoverBlock?: (id: string | null) => void;
 };
 
-const LEVEL_DOT: Record<InsightLevel, string> = { crit: "[background-color:var(--color-bdl-rag-red)]", warn: "bg-warn", ok: "bg-good", info: "bg-info" };
-const LEVEL_WORD: Record<InsightLevel, string> = { crit: "Must fix", warn: "Should fix", ok: "Passed", info: "Idea" };
+const LEVEL_DOT: Record<InsightLevel, string> = { crit: "[background-color:var(--color-bdl-rag-red)]", warn: "[background-color:var(--color-bdl-rag-amber)]", ok: "bg-good", info: "bg-info" };
+const LEVEL_WORD: Record<InsightLevel, string> = { crit: "Must fix", warn: "Nice to have", ok: "Passed", info: "Idea" };
 
 /* ---------------- one finding ---------------- */
 function Row({ item, area, onFix, onSelectBlock, onHoverBlock }: { item: Insight; area?: string; onFix: Props["onFix"]; onSelectBlock: Props["onSelectBlock"]; onHoverBlock?: Props["onHoverBlock"] }) {
@@ -77,7 +77,8 @@ export function InsightsPanel({ blocks, page, onFix, onSelectBlock, onHoverBlock
       <ul className="m-0 list-none p-0">{must.map(({ i, area }) => <Row key={i.id} item={i} area={area} onFix={onFix} onSelectBlock={onSelectBlock} onHoverBlock={onHoverBlock} />)}</ul>
     </PanelSection>}
 
-    {should.length > 0 && <PanelSection id="ins-should" title="Should fix" count={should.length} defaultOpen={must.length === 0}>
+    {should.length > 0 && <PanelSection id="ins-should" title="Nice to have" count={should.length} defaultOpen={must.length === 0}>
+      {must.length === 0 && <p className="mb-2 text-xs leading-relaxed text-ink-3">None of these stop the page going for review. Fixing them makes it clearer or safer.</p>}
       <ul className="m-0 list-none p-0">{should.map(({ i, area }) => <Row key={i.id} item={i} area={area} onFix={onFix} onSelectBlock={onSelectBlock} onHoverBlock={onHoverBlock} />)}</ul>
     </PanelSection>}
 
