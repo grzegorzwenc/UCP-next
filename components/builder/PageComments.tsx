@@ -3,9 +3,14 @@ import { useEffect, useRef, useState } from "react";
 import { ucpApi, ApiError, type PageComment } from "@/lib/api";
 import { useSession } from "@/components/shell/Session";
 import { Avatar } from "@/components/ui/Avatar";
+import { BdlSelect } from "@/components/ui/BdlSelect";
 import { relativeTime } from "./VersionHistory";
 
 const FIRST = 5;
+/** A review thread holds two kinds of note — about the page, and about one component — read for different reasons. */
+type Scope = "all" | "general" | "block";
+const SCOPES = [["all", "All comments"], ["general", "General"], ["block", "On a component"]] as const;
+const SCOPE_EMPTY: Record<Scope, string> = { all: "No comments yet.", general: "No general comments — every one is about a component.", block: "No comments on a component yet." };
 const errText = (e: unknown) => (e instanceof ApiError ? e.problem.title : String(e));
 const JIRA = "M3 7h18v3a2 2 0 0 0 0 4v3H3v-3a2 2 0 0 0 0-4zM15 7v2.5M15 12v0M15 14.5V17"; // the ticket icon of the Jira rail button
 const PIN = "M9 4h6l-1 5 3 3v2h-4v6l-1 1-1-1v-6H7v-2l3-3z";
@@ -67,12 +72,21 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
   useEffect(() => { if (focusKey) box.current?.focus(); }, [focusKey]); // "Comment" on a version row puts the cursor here
 
   const run = async (fn: () => Promise<PageComment[]>) => { setBusy(true); setErr(null); try { setList(await fn()); return true; } catch (e) { setErr(errText(e)); return false; } finally { setBusy(false); } };
-  const add = async () => { if (!text.trim() || busy) return; if (await run(() => ucpApi.addComment(marketId, path, text, about ?? undefined, target ?? undefined))) { setText(""); onClearAbout(); onClearTarget?.(); } };
-  const open = list?.filter((c) => !c.resolved) ?? []; const resolved = list?.filter((c) => c.resolved) ?? []; const [showResolved, setShowResolved] = useState(false);
+  const add = async () => { if (!text.trim() || busy) return; if (await run(() => ucpApi.addComment(marketId, path, text, about ?? undefined, target ?? undefined))) { setText("");
+    if (scope !== "all" && (scope === "block") !== !!target) setScope("all"); // never post into a filter that hides it
+    onClearAbout(); onClearTarget?.(); } };
+  /* Which comments to show, and in which order. The server hands them back pinned first, then newest
+     first; the sort here re-orders each group (pinned, open, resolved) on its own so pinned stays on top. */
+  const [scope, setScope] = useState<Scope>("all"); const [oldest, setOldest] = useState(false);
+  const inScope = (c: PageComment) => scope === "all" || (scope === "block" ? !!c.block : !c.block);
+  const ordered = (l: PageComment[]) => l.slice().sort((a, b) => (oldest ? a.time.localeCompare(b.time) : b.time.localeCompare(a.time)));
+  const live = list?.filter((c) => !c.resolved) ?? []; const onBlock = live.filter((c) => c.block).length;
+  const counts: Record<Scope, number> = { all: live.length, general: live.length - onBlock, block: onBlock };
+  const open = live.filter(inScope); const resolved = ordered(list?.filter((c) => c.resolved && inScope(c)) ?? []); const [showResolved, setShowResolved] = useState(false);
   const [undo, setUndo] = useState<string | null>(null); const undoTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined); // "Comment resolved · Undo" for a few seconds
   const resolve = async (c: PageComment) => { const was = !!c.resolved; if (await run(() => ucpApi.resolveComment(marketId, path, c.id, !was))) { clearTimeout(undoTimer.current); if (!was) { setUndo(c.id); undoTimer.current = setTimeout(() => setUndo(null), 6000); } else setUndo(null); } };
-  const pinned = open.filter((c) => c.pinned);
-  const rest = open.filter((c) => !c.pinned); const shown = all ? rest : rest.slice(0, FIRST);
+  const pinned = ordered(open.filter((c) => c.pinned));
+  const rest = ordered(open.filter((c) => !c.pinned)); const shown = all ? rest : rest.slice(0, FIRST);
   const renderItem = (c: PageComment) => { const mine = c.who === user.id;
     /* Pinned uses BDL's own warning-alert pair (#ffbb33 on #fff8ea, app/bdl/tokens.css) rather than
        the app's `warn`/`warn-soft`, which were close to it but not the same two colours. */
@@ -133,8 +147,21 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
     {undo && <div role="status" className="cmt-card-in flex items-center gap-2 bg-foreground text-background rounded-lg px-3 py-2 text-xs"><svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="text-good"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>Comment resolved · hidden from the page
       <button type="button" className="ml-auto font-medium underline underline-offset-2 hover:text-white/80" disabled={busy} onClick={async () => { const id = undo; setUndo(null); clearTimeout(undoTimer.current); await run(() => ucpApi.resolveComment(marketId, path, id, false)); }}>Undo</button></div>}
     {err && <div className="text-crit text-xs bg-crit-soft px-3 py-2 rounded">{err}</div>}
+    {/* Filter and sort on one line: the scope in the house combobox, and the order as the arrow
+        alone. Three chips and a worded sort button needed 58px of a 288px rail -- two rows above
+        every thread. The counts ride in the option labels, so the breakdown is a click away rather
+        than permanently in the way. */}
+    {(list?.length ?? 0) > 1 && <div className="flex items-center gap-1.5">
+      <BdlSelect className="min-w-0 flex-1" ariaLabel="Which comments to show" value={scope} onValueChange={(v) => setScope(v as Scope)} placeholder="All comments"
+        options={SCOPES.map(([k, label]) => ({ value: k, label: `${label} (${counts[k]})` }))} />
+      <button type="button" className="grid h-9 w-9 flex-none place-items-center border border-line-2 bg-surface text-ink-3 hover:border-ink-3 hover:text-ink focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none" onClick={() => setOldest(!oldest)}
+        aria-label={`Sorted ${oldest ? "oldest" : "newest"} first · show ${oldest ? "newest" : "oldest"} first`} title={`${oldest ? "Oldest" : "Newest"} first · click for ${oldest ? "newest" : "oldest"} first`}>
+        <svg viewBox="0 0 24 24" aria-hidden className={`size-4 fill-none stroke-current transition-transform duration-200 ease-out motion-reduce:transition-none ${oldest ? "rotate-180" : ""}`} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M12 4.5v15M6.5 14l5.5 5.5L17.5 14" /></svg></button>
+    </div>}
     {list === null ? <p className="text-xs text-ink-3">Loading comments…</p> : !list.length ? <p className="text-xs text-ink-3">No comments yet.{mayWrite ? " Leave a note for the next person who edits or reviews this page." : ""}</p>
-      : <ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5">{shown.filter((c) => !c.pinned).map(renderItem)}</ul>}
+      : !open.length ? <p className="text-xs text-ink-3">{scope === "all" ? (resolved.length ? "Every comment is resolved." : SCOPE_EMPTY.all) : SCOPE_EMPTY[scope]}
+        {scope !== "all" && <> <button type="button" className="underline underline-offset-2 hover:text-ink" onClick={() => setScope("all")}>Show all {counts.all}</button></>}</p>
+        : <ul className="grid grid-cols-[minmax(0,1fr)] gap-1.5">{shown.filter((c) => !c.pinned).map(renderItem)}</ul>}
     {rest.length > shown.length && <button type="button" className="btn-ghost justify-self-start" onClick={() => setAll(true)}>Show all {rest.length} comments</button>}
     {all && rest.length > FIRST && <button type="button" className="btn-ghost justify-self-start" onClick={() => setAll(false)}>Show fewer</button>}
     {resolved.length > 0 && <div className="grid grid-cols-[minmax(0,1fr)] gap-1.5 pt-1">
