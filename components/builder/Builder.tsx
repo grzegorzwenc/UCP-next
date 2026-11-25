@@ -911,6 +911,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const rightItems = RAIL_SHOWN().map(([t, label, path]) => ({ key: t, label: t === "page" ? `${kindLabel} settings` : label, path, active: right && rightTab === t, badge: railBadge(t), onClick: () => openRight(t) }));
   const rightTitle = rightTab === "block" ? (selected ? `Configure · ${BLOCK_BY_TYPE[selected.type].name}` : "Configure") : rightTab === "page" ? `${kindLabel} settings` : rightTab === "content" ? "Entities" : rightTab === "ai" ? "AI assistant" : rightTab === "insights" ? "Page insights" : rightTab === "comments" ? `Comments${commentTotal ? ` · ${commentTotal}` : ""}` : rightTab === "jira" ? "Jira" : "Version history";
   const panelW = rightW; // one width for every tab: a panel that jumps wider on Comments or History reads as a glitch
+  /** The floating panel (quality checklist, review) is the width of the right rail. */
+  const FLOAT_W = 320;
   const floatingOpen = focus && !phone && ((qcMode && qcOpen) || (reviewMode && floatOpen)); // full screen: keep the page clear of the floating panel
   /* The gutters reserve exactly what the docked panels occupy. They used to skip that on
      narrow viewports — from the days when the panels floated over the canvas — but the panels
@@ -919,8 +921,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
      has it too — checking the page at each width is most of what a preview is for, and it was
      the one control that disappeared when the top bar did. */
   const deviceSwitch = (cls = "") => <div role="group" aria-label="Preview width" className={`inline-flex overflow-hidden border border-line-2 ${cls}`}>{DEVICES.map(([d, label, path]) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center transition-colors duration-150 ease-out ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink hover:bg-surface-3"}`} title={`${label} · ${DEVICE_W[d]}px`} aria-label={`${label} view, ${DEVICE_W[d]} pixels`} aria-pressed={device === d}><Ico d={path} /></button>)}</div>;
-  const padL = focus ? 0 : !railsOn ? 24 : phone ? 12 : zen ? 24 : left && !leftFloating ? leftW + 24 : RAIL_W + 24;
-  const padR = focus ? (floatingOpen ? 412 : 0) : !railsOn ? 24 : phone ? 12 : zen ? 24 : right && !rightFloat.floating ? panelW + 24 : RAIL_W + 24;
+  const padL = focus ? (floatingOpen ? 16 : 0) : !railsOn ? 24 : phone ? 12 : zen ? 24 : left && !leftFloating ? leftW + 24 : RAIL_W + 24;
+  const padR = focus ? (floatingOpen ? FLOAT_W + 32 : 0) : !railsOn ? 24 : phone ? 12 : zen ? 24 : right && !rightFloat.floating ? panelW + 24 : RAIL_W + 24;
 
   /* How the page is fitted into the canvas, matching the UCP mock's `canvas.svelte`:
      Desktop works at 1:1 — it fills the canvas up to its 1280 breakpoint and never zooms, so type
@@ -1035,7 +1037,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         <div className={`absolute inset-0 flex flex-col ${preview ? "preview" : ""}`}>
           {/* The hint / "1:1 · 1200 px" strip is gone: it was a light band sitting on the dark canvas
              ground, and it narrated what the canvas already shows. */}
-          <div ref={canvasRef} className={`bld-pad ${focus ? "flex-1 overflow-auto p-0 bg-white" : "editor-ground flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""} ${patternMode ? "pattern-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onMouseMove={onCanvasMove} onDragOver={onCanvasDragOver} onDrop={onCanvasDrop} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropAt(null); }} onMouseLeave={() => { if (!qcPinned) setQcTarget(null); }} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
+          <div ref={canvasRef} className={`bld-pad ${focus ? "editor-ground flex-1 overflow-auto p-0" : "editor-ground flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""} ${patternMode ? "pattern-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onMouseMove={onCanvasMove} onDragOver={onCanvasDragOver} onDrop={onCanvasDrop} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropAt(null); }} onMouseLeave={() => { if (!qcPinned) setQcTarget(null); }} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
             {isForm && <FormPageSwitch blocks={blocks} view={formView} layout={flow.layout} onView={goForm} />}
             {(() => { return <div className="bld-frame" style={{ width: siteW, zoom: fit, margin: "0 auto", ["--bld-unzoom" as string]: 1 / fit }}>
             <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><ChromeFor channel={channel} host={isForm ? { title: host?.title ?? "Host page", crumbs: (host?.path.replace(root, "") ?? "").split("/").filter(Boolean) } : undefined} marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
@@ -1175,12 +1177,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {focus && <div className="fixed top-4 left-4 z-[80] flex items-center gap-2">
           {/* the width switch travels into the preview: on a white page it needs its own ground */}
           {deviceSwitch("bg-surface shadow-lg")}
-          <button type="button" className="btn btn-sm btn-primary shadow-lg" onClick={leavePreview} title="Leave the visitor preview (Esc)"><Ico d="M6 6l12 12M18 6L6 18" />Exit preview<kbd className="ml-1.5 border border-white/40 px-1 text-xs font-normal">Esc</kbd></button>
+          {!qcMode && <button type="button" className="btn btn-sm btn-primary shadow-lg" onClick={leavePreview} title="Leave the visitor preview (Esc)"><Ico d="M6 6l12 12M18 6L6 18" />Exit preview<kbd className="ml-1.5 border border-white/40 px-1 text-xs font-normal">Esc</kbd></button>}
           <span aria-live="polite" className={`hidden text-xs text-white bg-bdl-charcoal px-2.5 py-1.5 transition-opacity duration-700 sm:block ${fsHint ? "opacity-100" : "opacity-0"}`}>This is what visitors see</span>
         </div>}
         {/* No Exit in this panel's header: the fixed "Exit preview" button above is on screen for
             the whole preview, review included, so a second one here only split the way out. */}
-        {focus && reviewMode && <FloatingPanel title={status === "bizreview" && bizAssigned && mayBizApprove ? "Review" : "Comments"} count={commentTotal} open={floatOpen} onToggle={setFloatOpen} hint={commentTarget || (status === "bizreview" && bizAssigned && mayBizApprove) ? undefined : "Click a text, an image or a component on the page to comment on it."}>
+        {focus && reviewMode && <FloatingPanel width={FLOAT_W} title={status === "bizreview" && bizAssigned && mayBizApprove ? "Review" : "Comments"} count={commentTotal} open={floatOpen} onToggle={setFloatOpen} hint={commentTarget || (status === "bizreview" && bizAssigned && mayBizApprove) ? undefined : "Click a text, an image or a component on the page to comment on it."}>
           {status === "bizreview" && bizAssigned && mayBizApprove && <section aria-labelledby="dec-b" className="mb-3"><h3 id="dec-b" className="text-xs font-medium uppercase tracking-[.08em] text-ink-3">Decision</h3><div className="mt-1.5 rounded-lg border border-line bg-surface-2 p-3 text-sm">
             <p className="text-xs text-ink-3">Everything right? Sign it off. Something to change? Send it back to the author.</p>
             {askingB ? <><p className="text-xs mt-1">{askingB === "signoff" ? "Sign off this page? It becomes ready to publish." : "Send it back to the author? The page goes back to Build the page."}</p>
@@ -1192,7 +1194,14 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         </FloatingPanel>}
         {/* Clear of the status bar (36px + the 16px it would otherwise sit at): docked at the
             bottom right, this panel and its folded button covered the bar's next-step button. */}
-        {qcMode && <FloatingPanel title="Quality checklist" bottom={focus ? 16 : 52} open={qcOpen} onToggle={setQcOpen} icon={<svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="M3.5 6l1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" /></svg>}
+        {qcMode && <FloatingPanel title="Quality checklist" width={FLOAT_W} bottom={focus ? 16 : 52} open={qcOpen} onToggle={setQcOpen}
+          footer={focus ? (() => {
+            const canSend = canEdit && (status === "draft" || status === "failed") && insightBadge === 0;
+            return <div className="flex items-center gap-2">
+              <button type="button" className={`btn btn-sm flex-1 justify-center ${canSend ? "btn-secondary" : "btn-primary"}`} onClick={leavePreview} title="Leave the visitor preview (Esc)"><Ico d="M6 6l12 12M18 6L6 18" />Exit preview<kbd className={`ml-1.5 border px-1 text-xs font-normal ${canSend ? "border-line-2" : "border-white/40"}`}>Esc</kbd></button>
+              {canSend && <button type="button" className="btn btn-sm btn-primary flex-1 justify-center" onClick={() => { leavePreview(); openSend(); }}>Send for review</button>}
+            </div>;
+          })() : undefined} icon={<svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="M3.5 6l1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" /></svg>}
           hint={qcPinned ? <span className="flex items-center gap-2">Pinned · this stays while you look<button type="button" className="ml-auto underline" onClick={() => { setQcPinned(false); setQcTarget(null); }}>Whole page</button></span> : qcTarget ? "Click to pin it" : undefined}>
           <QualityChecklist blocks={blocks} meta={insightMeta} url={`https://${domain}${rel}`} templateName={TEMPLATES.find((t) => t.id === page.template)?.name ?? page.template ?? "Page"} target={qcTarget} onShow={(id) => { revealBlock(id); setQcFlash(id); window.setTimeout(() => setQcFlash((v) => (v === id ? "" : v)), 1600); }} onSend={canEdit && (status === "draft" || status === "failed") ? () => { leavePreview(); openSend(); } : undefined} />
         </FloatingPanel>}

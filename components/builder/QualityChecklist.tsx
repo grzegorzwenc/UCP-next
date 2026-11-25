@@ -1,5 +1,6 @@
 "use client";
 import { useMemo } from "react";
+import { PanelSection } from "./panels/PanelSection";
 import type { Block } from "@/lib/api/types";
 import { BLOCK_BY_TYPE, makeBlock, missingRequired } from "@/lib/blocks/registry";
 import { toPlain } from "@/lib/blocks/richtext";
@@ -9,19 +10,15 @@ import { pageInsights, HEADING_MAX, PARAGRAPH_MAX, VAGUE_CTAS, COMPLIANCE_WORDS,
 export type QcTarget = { id: string; field?: string; text?: string; kind: "text" | "image" | "block" };
 type Check = { ok: boolean | "warn"; label: string; value?: string; /** the block this row is about, when it is about one: the row then takes you there */ blockId?: string };
 
-const Mark = ({ ok }: { ok: Check["ok"] }) => ok === true
-  ? <svg aria-label="Passed" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--good)" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
-  : ok === "warn" ? <svg aria-label="Check this" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--warn)" strokeWidth="2.4" strokeLinecap="round"><path d="M12 7v6M12 17h.01" /><circle cx="12" cy="12" r="9" /></svg>
-  : <svg aria-label="Needs fixing" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--brand)" strokeWidth="2.6" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>;
-
-/** One band of the checklist: the heading says how serious these are, the rows say what they are. */
-function Section({ title, tone, rows, onShow }: { title: string; tone: "crit" | "warn" | "good"; rows: Check[]; onShow?: (blockId: string) => void }) {
+/** One band of the checklist, on the same section as Page insights: a rotating chevron and a
+ *  BDL count badge, red on the band that blocks review. */
+function Section({ id, title, tone, rows, onShow, collapsed }: { id: string; title: string; tone: "crit" | "warn"; rows: Check[]; onShow?: (blockId: string) => void;
+  /** Starts folded away, for the band that does not block anything. */
+  collapsed?: boolean }) {
   if (!rows.length) return null;
-  return <section className="mt-3 first:mt-0">
-    <h3 className={`mb-1 flex items-center gap-2 text-xs font-medium tracking-[.06em] uppercase ${tone === "crit" ? "text-crit" : tone === "warn" ? "text-warn" : "text-ink-3"}`}>
-      <span aria-hidden className={`h-2 w-2 flex-none rounded-full ${tone === "crit" ? "bg-crit" : tone === "warn" ? "bg-warn" : "bg-good"}`} />{title}<span className="text-ink-3">{rows.length}</span></h3>
+  return <PanelSection id={id} title={title} count={rows.length} tone={tone === "crit" ? "crit" : undefined} defaultOpen={!collapsed}>
     <Rows checks={rows} onShow={onShow} />
-  </section>;
+  </PanelSection>;
 }
 function Rows({ checks, onShow }: { checks: Check[]; onShow?: (blockId: string) => void }) {
   /* A row that is not passing and names a block takes you to it. A passing row, or one about the
@@ -29,12 +26,14 @@ function Rows({ checks, onShow }: { checks: Check[]; onShow?: (blockId: string) 
      clickable unless there is somewhere to go. */
   return <ul className="divide-y divide-line">{checks.map((c, i) => {
     const body = <>
-      <span className="min-w-0 flex-1"><span className="block text-sm font-medium text-ink">{c.label}</span>{c.value && <span className="mt-0.5 block text-xs break-words text-ink-2">{c.value}</span>}</span>
-      <span className="mt-0.5 flex-none"><Mark ok={c.ok} /></span></>;
+      <span aria-hidden className={`mt-1.5 h-2 w-2 flex-none rounded-full ${c.ok === false ? "[background-color:var(--color-bdl-rag-red)]" : c.ok === "warn" ? "bg-warn" : "bg-good"}`} />
+      <span className="min-w-0 flex-1"><span className="block text-sm leading-snug font-medium text-ink"><span className="sr-only">{c.ok === false ? "Must fix: " : c.ok === "warn" ? "Should fix: " : "Passed: "}</span>{c.label}</span>{c.value && <span className="mt-0.5 block text-xs leading-relaxed break-words text-ink-3">{c.value}</span>}</span></>;
     const go = c.ok !== true && c.blockId && onShow;
+    const must = c.ok === false;
+    const skin = must ? "-mx-3 border-s-2 px-3 ps-2.5 [background-color:var(--color-bdl-error-bg)] [border-inline-start-color:transparent] hover:[border-inline-start-color:var(--color-bdl-rag-red)]" : "";
     return <li key={i}>{go
-      ? <button type="button" onClick={() => onShow!(c.blockId!)} title={`${c.label} — show it on the page`} className="flex w-full cursor-pointer items-start gap-2.5 py-2.5 text-left [&>span:first-child>span:first-child]:underline-offset-2 hover:[&>span:first-child>span:first-child]:underline">{body}</button>
-      : <span className="flex items-start gap-2.5 py-2.5">{body}</span>}</li>; })}</ul>;
+      ? <button type="button" onClick={() => onShow!(c.blockId!)} title={`${c.label} — show it on the page`} className={`flex w-full cursor-pointer items-start gap-2.5 py-2.5 text-left ${skin} [&>span:first-child>span:first-child]:underline-offset-2 hover:[&>span:first-child>span:first-child]:underline`}>{body}</button>
+      : <span className={`flex items-start gap-2.5 py-2.5 ${skin}`}>{body}</span>}</li>; })}</ul>;
 }
 
 const fieldOf = (key?: string) => key?.split("|")[1];
@@ -96,18 +95,17 @@ export function QualityChecklist({ blocks, meta, url, templateName, target, onSh
   const asCheck = (i: Insight): Check => ({ ok: i.level === "crit" ? false : "warn", label: i.title, value: i.detail, blockId: i.blockId });
   const mustRows = [...page.filter((c) => c.ok === false), ...must.map(asCheck)];
   const shouldRows = [...page.filter((c) => c.ok === "warn"), ...should.map(asCheck)];
-  const passedRows = page.filter((c) => c.ok === true);
 
-  return <div>
+  return <div className="-mx-3.5 -mt-3.5 flex flex-col text-ink">
+    <div className="px-3.5 pt-3.5">
     <p className="mb-2 text-xs text-ink-3">Point at a text, a picture or a component to check it.</p>
     {/* The decision lives here rather than in a dialog after the preview: the list of what is wrong
         and the button that acts on it are the same panel, so there is nothing to remember. */}
     {onSend && (mustRows.length
       ? <p role="status" className="alert alert-error mb-3 text-sm"><span>This page cannot go for review until the {mustRows.length} <b>Must fix</b> {mustRows.length === 1 ? "item is" : "items are"} done.</span></p>
-      : <div className="mb-3 flex items-center gap-2"><button type="button" className="btn btn-sm btn-primary" onClick={onSend}>Send for review</button>
-          <span className="text-xs text-ink-3">{shouldRows.length ? `${shouldRows.length} thing${shouldRows.length === 1 ? "" : "s"} to check, none blocking` : "Nothing is blocking it"}</span></div>)}
-    <Section title="Must fix" tone="crit" rows={mustRows} onShow={onShow} />
-    <Section title="Should fix" tone="warn" rows={shouldRows} onShow={onShow} />
-    <Section title="Passed" tone="good" rows={passedRows} onShow={onShow} />
+      : <p className="mb-3 text-xs text-ink-3">{shouldRows.length ? `${shouldRows.length} thing${shouldRows.length === 1 ? "" : "s"} to check, none blocking` : "Nothing is blocking it"}</p>)}
+    </div>
+    <Section id="qc-must" title="Must fix" tone="crit" rows={mustRows} onShow={onShow} />
+    <Section id="qc-should" title="Should fix" tone="warn" rows={shouldRows} onShow={onShow} collapsed />
   </div>;
 }
