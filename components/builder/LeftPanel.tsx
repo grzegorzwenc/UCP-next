@@ -126,6 +126,8 @@ export function LeftPanel({
      new components — ignores an outline drag rather than adding a second copy of the block. */
   const MOVE_TYPE = `${dragType ?? "x"}+move`;
   const [moveId, setMoveId] = useState<string | null>(null);
+  /** The outline stays readable while a page is locked, but reordering from it is an edit. */
+  const canReorder = !!onReorder && canEdit && !lockedReason;
   const [moveAt, setMoveAt] = useState<number | null>(null);
   const outlineRef = useRef<HTMLUListElement>(null);
   const outlineIndexAt = (y: number) => {
@@ -253,17 +255,17 @@ export function LeftPanel({
             {blocks.length === 0
               ? <p className="px-4 py-8 text-center text-sm text-ink-3">Nothing on the page yet. Add a component to start.</p>
               : <ul ref={outlineRef} className="m-0 list-none p-0"
-                  onDragOver={(e) => { if (!onReorder || !e.dataTransfer.types.includes(MOVE_TYPE)) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; const i = outlineIndexAt(e.clientY); if (i !== moveAt) setMoveAt(i); }}
-                  onDrop={(e) => { if (!onReorder) return; const id = e.dataTransfer.getData(MOVE_TYPE); if (!id) return; e.preventDefault(); const to = moveAt ?? outlineIndexAt(e.clientY); endMove(); onReorder(id, to); }}
+                  onDragOver={(e) => { if (!canReorder || !e.dataTransfer.types.includes(MOVE_TYPE)) return; e.preventDefault(); e.dataTransfer.dropEffect = "move"; const i = outlineIndexAt(e.clientY); if (i !== moveAt) setMoveAt(i); }}
+                  onDrop={(e) => { if (!canReorder) return; const id = e.dataTransfer.getData(MOVE_TYPE); if (!id) return; e.preventDefault(); const to = moveAt ?? outlineIndexAt(e.clientY); endMove(); onReorder(id, to); }}
                   onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setMoveAt(null); }}>
                 {blocks.map((b, i) => { const def = BLOCK_BY_TYPE[b.type]; const Icon = iconFor(b.type); const on = selected === b.id; return (
                   <li key={b.id} data-id={b.id} className="relative m-0 p-0">
                     {moveAt === i && <div aria-hidden className="absolute inset-x-0 -top-px z-10 h-0.5 bg-brand" />}
                     <button type="button" onClick={() => onSelect(b.id)} aria-current={on ? "true" : undefined}
-                      draggable={!!onReorder}
-                      onDragStart={(e) => { if (!onReorder) return; e.dataTransfer.setData(MOVE_TYPE, b.id); e.dataTransfer.effectAllowed = "move"; setMoveId(b.id); }}
+                      draggable={!!canReorder}
+                      onDragStart={(e) => { if (!canReorder) return; e.dataTransfer.setData(MOVE_TYPE, b.id); e.dataTransfer.effectAllowed = "move"; setMoveId(b.id); }}
                       onDragEnd={endMove}
-                      className={`group/row flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-[color,background-color,opacity] duration-150 ease-out hover:bg-surface-2 ${onReorder ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${moveId === b.id ? "opacity-40" : ""} ${on ? "bg-brand-soft text-ink shadow-[inset_2px_0_0_var(--color-brand,currentColor)]" : "text-ink-2"}`}>
+                      className={`group/row flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] transition-[color,background-color,opacity] duration-150 ease-out hover:bg-surface-2 ${canReorder ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"} ${moveId === b.id ? "opacity-40" : ""} ${on ? "bg-brand-soft text-ink shadow-[inset_2px_0_0_var(--color-brand,currentColor)]" : "text-ink-2"}`}>
                       <span className="w-4 shrink-0 text-right text-xs tabular-nums text-ink-4">{i + 1}</span>
                       <Icon className="size-3.5 shrink-0 text-ink-3" aria-hidden />
                       <span className="min-w-0 flex-1 truncate">{def?.name ?? b.type}</span>
