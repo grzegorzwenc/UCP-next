@@ -14,7 +14,7 @@ const abs = (u: string) => `${window.location.origin}${u}`;
  * can still comment through the link. E-mails open in the sender's own mail app — the prototype sends nothing itself.
  * Site admins can approve straight away (on behalf of the reviewer).
  */
-export function ShareReviewDialog({ marketId, path, title, stage, onClose, onApprove, onAccess, inline = false }: { /** render just the controls, for embedding in a panel */ inline?: boolean; marketId: string; path: string; title: string; stage: "draft" | "review" | "bizreview"; onClose: () => void; onApprove?: () => Promise<void> | void; /** someone got the review: a person (by e-mail) or a group */ onAccess?: (a: { person?: string; group?: string }) => void }) {
+export function ShareReviewDialog({ marketId, path, title, stage, onClose, onAccess, inline = false }: { /** render just the controls, for embedding in a panel */ inline?: boolean; marketId: string; path: string; title: string; stage: "draft" | "review" | "bizreview"; onClose: () => void; onApprove?: () => Promise<void> | void; /** someone got the review: a person (by e-mail) or a group */ onAccess?: (a: { person?: string; group?: string }) => void }) {
   const [url, setUrl] = useState<string | null>(null); const [copied, setCopied] = useState(false);
   const [email, setEmail] = useState(""); const [sent, setSent] = useState<string | null>(null);
   const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
@@ -23,48 +23,44 @@ export function ShareReviewDialog({ marketId, path, title, stage, onClose, onApp
   const [groups, setGroups] = useState<Group[] | null>(null); const [team, setTeam] = useState("");
   useEffect(() => { let live = true; ucpApi.reviewLink(marketId, path).then((r) => live && setUrl(abs(r.url)), (e) => live && setErr(errorText(e))); return () => { live = false; }; }, [marketId, path]);
   useEffect(() => { if (stage === "review") return; let live = true; ucpApi.reviewGroups(marketId, path).then((g) => live && setGroups(g), () => live && setGroups([])); return () => { live = false; }; }, [marketId, path, stage]);
-  const shareGroup = async () => {
-    if (!team || busy) return; setBusy(true); setErr(null);
-    try {
-      const r = await ucpApi.shareWithGroup(marketId, path, team); const n = r.members.length; const sign = r.members.filter((m) => m.canSignOff).length;
-      setGroups((gs) => gs && gs.map((g) => (g.team === team ? { ...g, shared: true } : g)).sort((a, b) => Number(b.shared) - Number(a.shared) || a.team.localeCompare(b.team)));
-      onAccess?.({ group: team });
-      setSent(stage === "draft"
-        ? `${team} notified · ${n} ${n === 1 ? "person has" : "people have"} been sent the link.`
-        : `${team} notified · ${n} ${n === 1 ? "person" : "people"} now ${n === 1 ? "has" : "have"} access and ${n === 1 ? "sees" : "see"} it in My tasks${sign ? `, ${sign} of them can sign off` : ", but nobody there can sign off"}.`);
-      setTeam("");
-    } catch (e) { setErr(errorText(e)); } finally { setBusy(false); }
-  };
   /* Addresses become chips as you type a comma (or Enter / semicolon / a space after a complete
      one), so a long list stays readable and any one of them can be taken back out again. */
   const [people, setPeople] = useState<string[]>([]);
   const addPerson = (raw: string) => { const v = raw.trim().replace(/[,;]$/, ""); if (!v) return; setPeople((ps) => (ps.includes(v) ? ps : [...ps, v])); setEmail(""); };
   const onMailKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "," || e.key === ";" || (e.key === "Enter" && email.trim())) { e.preventDefault(); addPerson(email); return; }
-    if (e.key === "Enter") { e.preventDefault(); void invite(); return; }
+    if (e.key === "Enter") { e.preventDefault(); void sendAll(); return; }
     if (e.key === "Backspace" && !email && people.length) setPeople((ps) => ps.slice(0, -1));
+  };
+  const [note, setNote] = useState("");
+  /** Everyone named gets told in one go, and the note (if there is one) goes on the page where
+   *  they will read it, so the ask and the reason arrive together. */
+  const sendAll = async () => {
+    const list = [...people, ...email.split(/[,;]/).map((x) => x.trim())].filter(Boolean);
+    if ((!list.length && !team) || busy) return;
+    setBusy(true); setErr(null);
+    try {
+      const said: string[] = [];
+      if (note.trim()) await ucpApi.addComment(marketId, path, note.trim());
+      const [, grp] = await Promise.all([
+        (async () => { for (const to of list) { const r = await ucpApi.reviewLink(marketId, path, to); if (r.assigned) onAccess?.({ person: r.assigned }); } })(),
+        team ? ucpApi.shareWithGroup(marketId, path, team) : Promise.resolve(null),
+      ]);
+      if (list.length) said.push(list.length === 1 ? list[0] : `${list.length} people`);
+      if (grp) {
+        setGroups((gs) => gs && gs.map((g) => (g.team === team ? { ...g, shared: true } : g)).sort((a, b) => Number(b.shared) - Number(a.shared) || a.team.localeCompare(b.team)));
+        onAccess?.({ group: team });
+        said.push(`${team} (${grp.members.length} ${grp.members.length === 1 ? "person" : "people"})`);
+      }
+      setSent(`${said.join(" and ")} notified${note.trim() ? " \u00b7 your message is on the page" : ""}.`);
+      setEmail(""); setPeople([]); setTeam(""); setNote("");
+    } catch (e) { setErr(errorText(e)); } finally { setBusy(false); }
   };
   const withAccess = (groups ?? []).filter((g) => g.shared);
   const copy = async () => { if (!url) return; try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch { setErr("Copy did not work · select the link and copy it by hand"); } };
   /* Several addresses at once, separated by commas. Nothing opens the mail app any more: a link is
      made for each person and the panel says who was notified, so sharing with five people is five
      links and one sentence rather than five mail windows. */
-  const invite = async () => {
-    const list = [...people, ...email.split(/[,;]/).map((x) => x.trim())].filter(Boolean);
-    if (!list.length || busy) return; setBusy(true); setErr(null);
-    try {
-      const done: string[] = []; const assigned: string[] = [];
-      for (const to of list) {
-        const r = await ucpApi.reviewLink(marketId, path, to);
-        done.push(to); if (r.assigned) { assigned.push(r.assigned); onAccess?.({ person: r.assigned }); }
-      }
-      const who = done.length === 1 ? done[0] : `${done.length} people`;
-      setSent(assigned.length
-        ? `${who} notified · ${assigned.join(", ")} ${assigned.length === 1 ? "is" : "are"} assigned and ${assigned.length === 1 ? "sees" : "see"} it in My tasks.`
-        : `${who} notified · ${done.length === 1 ? "they can" : "they can each"} comment through the link.`);
-      setEmail(""); setPeople([]);
-    } catch (e) { setErr(errorText(e)); } finally { setBusy(false); }
-  };
   /* `inline`: the workflow drawer renders these controls in place, so the chrome is dropped and
      the approve action (which belongs to the dialog's footer) is not offered there. */
   /* One body, two frames: the dialog for the page's own Share action, and `inline` for the
@@ -82,7 +78,7 @@ export function ShareReviewDialog({ marketId, path, title, stage, onClose, onApp
           <svg viewBox="0 0 24 24" aria-hidden className="h-3 w-3 fill-none stroke-current" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
         </button></span></li>)}</ul>}
     <div className="mt-1.5 flex gap-2"><input id="rv-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} onKeyDown={onMailKey} onBlur={() => addPerson(email)} placeholder={people.length ? "Add another…" : "name@hsbc.com"} className="bdl-field min-w-0 flex-1" />
-      <button className="btn btn-sm btn-secondary" disabled={(!email.trim() && !people.length) || busy} onClick={invite}>Send e-mail</button></div>
+</div>
     <p className="text-xs text-ink-3 mt-1">A comma makes each address a chip.{stage === "draft" ? "" : " A UCP reviewer is also assigned."}</p>
     {stage !== "review" && <>
       <label className="block text-xs font-medium text-ink-2 mt-4" htmlFor="rv-group">Share with a group</label>
@@ -90,10 +86,18 @@ export function ShareReviewDialog({ marketId, path, title, stage, onClose, onApp
       <div className="mt-1 flex gap-2"><BdlSelect id="rv-group" className="min-w-0 flex-1" value={team} onValueChange={setTeam} disabled={!groups}
           placeholder={groups ? "Choose a group…" : "Loading groups…"}
           options={(groups ?? []).map((g) => ({ value: g.team, label: g.team, hint: `${g.members.length} ${g.members.length === 1 ? "person" : "people"}${g.shared ? " · has access" : ""}`, disabled: g.shared }))} />
-        <button className="btn btn-sm btn-secondary" disabled={!team || busy} onClick={shareGroup}>{stage === "draft" ? "Send the link" : "Give access"}</button></div>
+</div>
       <p className="text-xs text-ink-3 mt-1">{stage === "draft" ? "Everyone in the group gets the link by e-mail." : "The whole group sees it in My tasks."}</p>
       {withAccess.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Groups with access">{withAccess.map((g) => <span key={g.team} className="inline-flex items-center gap-1 text-xs bg-info-soft text-info rounded-full px-2.5 py-0.5" title={g.members.map((m) => m.name).join(", ")}><svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3.2" /><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" /><path d="M16 5.2a3 3 0 0 1 0 5.6M18 13.8c1.8.6 3 2.4 3 5.2" /></svg>{g.team} · {g.members.length}</span>)}</div>}
     </>}
+    <label className="block text-xs font-medium text-ink-2 mt-4" htmlFor="rv-note">Message <span className="font-normal text-ink-3">optional</span></label>
+    <textarea id="rv-note" rows={3} className="bdl-field mt-1 text-sm" value={note} onChange={(e) => setNote(e.target.value)}
+      placeholder={stage === "draft" ? "What would you like them to look at?" : "Anything the reviewer should know?"} />
+    <p className="mt-1 text-xs text-ink-3">It is added to the page\u2019s comments, so everyone you notify reads the same thing.</p>
+    <div className="mt-3 flex items-center gap-2">
+      <button className="btn btn-sm btn-primary" disabled={busy || (!email.trim() && !people.length && !team)} onClick={sendAll}>{busy ? "Sending\u2026" : "Send"}</button>
+      <span className="text-xs text-ink-3">{[people.length || email.trim() ? `${(people.length || 1)} by e-mail` : "", team ? `the ${team} group` : ""].filter(Boolean).join(" and ") || "Add someone above"}</span>
+    </div>
     {sent && <p role="status" className="text-xs bg-good-soft text-good rounded-md px-3 py-2 mt-3">✓ {sent}</p>}
     <Err err={err} />
   </>;
@@ -101,7 +105,7 @@ export function ShareReviewDialog({ marketId, path, title, stage, onClose, onApp
   if (inline) return <div className="flex flex-col">{body}</div>;
 
   return <ModalShell title={stage === "draft" ? "Share the draft with the business" : `Share for ${STAGE[stage]}`} subtitle={<b className="text-ink-2">{title}</b>} width={540} onClose={onClose}
-    footer={<>{onApprove && <button className="btn btn-sm btn-secondary mr-auto" disabled={busy} onClick={async () => { onClose(); await onApprove(); /* the next stage opens its own share dialog */ }} title="Site admin: approve on behalf of the reviewer">{stage === "review" ? "Mark reviewed now" : "Sign off now"}</button>}<button className="btn btn-sm btn-primary" onClick={onClose}>Done</button></>}>
+    footer={<button className="btn btn-sm btn-primary" onClick={onClose}>Done</button>}>
     {body}
   </ModalShell>;
 }

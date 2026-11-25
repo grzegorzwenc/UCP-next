@@ -32,7 +32,7 @@ function Rows({ checks, onShow, onSettings }: { checks: Check[]; onShow?: (block
   return <ul className="divide-y divide-line">{checks.map((c, i) => {
     const body = <>
       <span aria-hidden className={`mt-1.5 h-2 w-2 flex-none rounded-full ${c.ok === false ? "[background-color:var(--color-bdl-rag-red)]" : c.ok === "warn" ? "[background-color:var(--color-bdl-rag-amber)]" : "bg-good"}`} />
-      <span className="min-w-0 flex-1"><span className="block text-sm leading-snug font-medium text-ink"><span className="sr-only">{c.ok === false ? "Must fix: " : c.ok === "warn" ? "Should fix: " : "Passed: "}</span>{c.label}</span>{c.value && <span className="mt-0.5 block text-xs leading-relaxed break-words text-ink-3">{c.value}</span>}</span></>;
+      <span className="min-w-0 flex-1"><span className="block text-sm leading-snug font-medium text-ink"><span className="sr-only">{c.ok === false ? "Must fix: " : c.ok === "warn" ? "Nice to have: " : "Passed: "}</span>{c.label}</span>{c.value && <span className="mt-0.5 block text-xs leading-relaxed break-words text-ink-3">{c.value}</span>}</span></>;
     const toBlock = c.ok !== true && c.blockId && onShow;
     const toSettings = c.ok !== true && !c.blockId && c.settings && onSettings;
     const go = toBlock || toSettings;

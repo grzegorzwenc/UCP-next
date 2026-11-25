@@ -237,7 +237,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   }, [page.path]);
   const inAuthor = status === "review" || status === "inreview"; // waiting for / in the author's review
   const [lockedSeen, setLockedSeen] = useState(false); // locked stages are read-only: switch to preview and drop the selection when the status changes
-  if (lockedSeen !== locked) { setLockedSeen(locked); if (locked) { setPreviewRaw(true); setSel(null); setMode("select"); setPop(null); } else if (canEdit) setPreviewRaw(false); }
+  if (lockedSeen !== locked) { setLockedSeen(locked); if (locked) { setPreviewRaw(true); setSel(null); setMode("select"); setPop(null); if (!phone) { setLeftRaw(false); setRight(false); } } else if (canEdit) setPreviewRaw(false); }
   /* Review stages (author's review, business review): click a component to comment on it; Version history (with the comments) opens by itself */
   const reviewMode = status === "inreview" || status === "bizreview";
   const [reviewSeen, setReviewSeen] = useState(false);
@@ -250,6 +250,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const qcMode = focus && canEdit && (status === "draft" || status === "failed");
   useEffect(() => { markTarget(canvasRef.current, commentTarget); }, [commentTarget, focus, blocks]); // outline the picked text or asset
   useEffect(() => { const root = canvasRef.current; root?.querySelectorAll(".qc-on").forEach((e) => e.classList.remove("qc-on")); if (qcMode && qcTarget) findTarget(root, qcTarget)?.classList.add("qc-on"); }, [qcMode, qcTarget, blocks]); // outline what the checklist shows
+  if (lockedSeen !== locked) { setLockedSeen(locked); if (locked && !phone) setLeftRaw(false); }
   if (reviewSeen !== reviewMode) { setReviewSeen(reviewMode); if (reviewMode && !phone) { setRightTab("comments"); setRight(true); } if (!reviewMode) setCommentTarget(null); }
   const say = (m: string) => { setToast(m); setTimeout(() => setToast(null), 2200); };
   /** In review only the assigned reviewer (or a site admin) approves; unassigned legacy reviews fall back to the Review permission. */
@@ -895,11 +896,11 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   /* The tour drives the editor into the state each stop describes, rather than hoping the
      author happens to have the right panel open. */
   const tourHost = {
-    showPanels: () => { setZen(false); setFocusMode(false); setLeftRaw(true); setRight(true); },
-    openLeft: (t: LeftTab) => { setLeftTab(t); setLeftRaw(true); },
-    openRight: () => setRight(true),
+    showPanels: () => { setZen(false); setFocusMode(false); if (!locked) { setLeftRaw(true); setRight(true); } },
+    openLeft: (t: LeftTab) => { setLeftTab(t); if (!locked) setLeftRaw(true); },
+    openRight: () => { if (!locked) setRight(true); },
     setDevice: (d: "desktop") => setDevice(d),
-    selectFirstBlock: () => { const b = blocksRef.current[1] ?? blocksRef.current[0]; if (b) configure(b.id); return b?.id ?? null; },
+    selectFirstBlock: () => { const b = blocksRef.current[1] ?? blocksRef.current[0]; if (b && !locked) configure(b.id); return b?.id ?? null; },
   };
   const runTour = () => { void startEditorTour(tourHost); };
   /* First time anyone opens the builder, the tour introduces it — once, then never again
@@ -921,6 +922,13 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
      has it too — checking the page at each width is most of what a preview is for, and it was
      the one control that disappeared when the top bar did. */
   const deviceSwitch = (cls = "") => <div role="group" aria-label="Preview width" className={`inline-flex overflow-hidden border border-line-2 ${cls}`}>{DEVICES.map(([d, label, path]) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center transition-colors duration-150 ease-out ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink hover:bg-surface-3"}`} title={`${label} · ${DEVICE_W[d]}px`} aria-label={`${label} view, ${DEVICE_W[d]} pixels`} aria-pressed={device === d}><Ico d={path} /></button>)}</div>;
+  /** The watermark behind the page names the stage it is in. */
+  const stageMark = focus ? "stage-preview"
+    : status === "published" ? "stage-live"
+    : status === "approved" || status === "scheduled" ? "stage-ready"
+    : status === "bizreview" ? "stage-biz"
+    : status === "review" || status === "inreview" || status === "reviewed" ? "stage-review"
+    : "stage-build";
   const padL = focus ? (floatingOpen ? 16 : 0) : !railsOn ? 24 : phone ? 12 : zen ? 24 : left && !leftFloating ? leftW + 24 : RAIL_W + 24;
   const padR = focus ? (floatingOpen ? FLOAT_W + 32 : 0) : !railsOn ? 24 : phone ? 12 : zen ? 24 : right && !rightFloat.floating ? panelW + 24 : RAIL_W + 24;
 
@@ -1037,7 +1045,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         <div className={`absolute inset-0 flex flex-col ${preview ? "preview" : ""}`}>
           {/* The hint / "1:1 · 1200 px" strip is gone: it was a light band sitting on the dark canvas
              ground, and it narrated what the canvas already shows. */}
-          <div ref={canvasRef} className={`bld-pad ${focus ? "editor-ground preview-ground flex-1 overflow-auto px-0 py-4" : "editor-ground flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""} ${patternMode ? "pattern-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onMouseMove={onCanvasMove} onDragOver={onCanvasDragOver} onDrop={onCanvasDrop} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropAt(null); }} onMouseLeave={() => { if (!qcPinned) setQcTarget(null); }} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
+          <div ref={canvasRef} className={`bld-pad stage-ground ${stageMark} ${focus ? "editor-ground flex-1 overflow-auto px-0 py-4" : "editor-ground flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""} ${patternMode ? "pattern-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onMouseMove={onCanvasMove} onDragOver={onCanvasDragOver} onDrop={onCanvasDrop} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropAt(null); }} onMouseLeave={() => { if (!qcPinned) setQcTarget(null); }} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
             {isForm && <FormPageSwitch blocks={blocks} view={formView} layout={flow.layout} onView={goForm} />}
             {(() => { return <div className="bld-frame" style={{ width: siteW, zoom: fit, margin: "0 auto", ["--bld-unzoom" as string]: 1 / fit }}>
             <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><ChromeFor channel={channel} host={isForm ? { title: host?.title ?? "Host page", crumbs: (host?.path.replace(root, "") ?? "").split("/").filter(Boolean) } : undefined} marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
@@ -1229,8 +1237,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {/* The draft share: without this the "Share draft" button set `share` and nothing rendered,
             because the only ShareReviewDialog here was the business-review one. */}
         {share && shareIn === "bar" && (status === "draft" || status === "failed") && <ShareReviewDialog key="draft" marketId={marketId} path={page.path} title={title} stage="draft" onClose={() => setShare(false)} />}
-        {share && status === "bizreview" && <ShareReviewDialog key={status} marketId={marketId} path={page.path} title={title} stage="bizreview" onClose={() => setShare(false)} onAccess={(a) => { if (a.group) setBizGroups((g) => (g.includes(a.group!) ? g : [...g, a.group!])); if (a.person) setBizTaken(a.person); }}
-          onApprove={isAdmin ? () => transition("approved", "Signed off as site admin · ready to publish") : undefined} />}
+        {share && status === "bizreview" && <ShareReviewDialog key={status} marketId={marketId} path={page.path} title={title} stage="bizreview" onClose={() => setShare(false)} onAccess={(a) => { if (a.group) setBizGroups((g) => (g.includes(a.group!) ? g : [...g, a.group!])); if (a.person) setBizTaken(a.person); }} />}
         {publishing && <PublishDialog marketId={marketId} envName={envName} pages={[{ path: page.path, title, status, publishAt }]} mayPublish={() => mayStatus("published")} onClose={() => setPublishing(false)}
           onDone={(r, m) => { const x = r[0]; setPublishing(false); if (!x?.ok) { say(x?.reason ?? "Nothing was published"); return; } setStatus(x.status as PageStatus); setPublishAt(undefined); say(m === "cancel" ? "Schedule cancelled · back to Approved" : m === "schedule" ? "Scheduled for publishing" : `Published to ${envName}`); router.refresh(); }} />}
         {sending && shareIn === "bar" && <SendForReviewModal marketId={marketId} pagePath={page.path} onClose={() => setSending(false)} onSend={sendForReview} />}

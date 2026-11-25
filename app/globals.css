@@ -1453,14 +1453,18 @@ body.focus .crit-blk::after {
 .editor-ground { background-color: #31363d; }
 .dark .editor-ground { background-color: #0f1620; }
 
-/* Preview watermark: tiled diagonal "PREVIEW MODE" on the editor ground. The SVG is inline so it
-   needs no request, and `background-attachment: local` keeps the pattern still while the page
-   inside the frame scrolls over it. */
-.preview-ground {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='120' viewBox='0 0 170 120'%3E%3Ctext x='85' y='64' text-anchor='middle' transform='rotate(-30 85 64)' font-family='Arial,Helvetica,sans-serif' font-size='14' font-weight='700' letter-spacing='1.5' fill='%23ffffff' fill-opacity='0.06'%3EPREVIEW%3C/text%3E%3C/svg%3E");
-  background-repeat: repeat;
-  background-position: center;
-}
+/* Stage watermark: the ground behind the page says which stage the page is in, so a screenshot
+   of the canvas can never be mistaken for the live site or for the wrong stage. Tiled diagonal
+   text, low contrast, on the ground only -- the page frame sits on top of it. The tile is small
+   (170x120) because the strip of ground beside the frame is only ~150px wide, and a larger tile
+   could never land a whole word in it. */
+.stage-ground { background-repeat: repeat; background-position: center; }
+.stage-ground.stage-preview { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='120' viewBox='0 0 170 120'%3E%3Ctext x='85' y='64' text-anchor='middle' transform='rotate(-30 85 64)' font-family='Arial,Helvetica,sans-serif' font-size='14' font-weight='700' letter-spacing='1.5' fill='%23ffffff' fill-opacity='0.06'%3EPREVIEW%3C/text%3E%3C/svg%3E"); }
+.stage-ground.stage-build { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='120' viewBox='0 0 170 120'%3E%3Ctext x='85' y='64' text-anchor='middle' transform='rotate(-30 85 64)' font-family='Arial,Helvetica,sans-serif' font-size='14' font-weight='700' letter-spacing='1.5' fill='%23ffffff' fill-opacity='0.05'%3EBUILDING%3C/text%3E%3C/svg%3E"); }
+.stage-ground.stage-review { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='120' viewBox='0 0 170 120'%3E%3Ctext x='85' y='64' text-anchor='middle' transform='rotate(-30 85 64)' font-family='Arial,Helvetica,sans-serif' font-size='14' font-weight='700' letter-spacing='1.5' fill='%23ffffff' fill-opacity='0.06'%3EREVIEWING%3C/text%3E%3C/svg%3E"); }
+.stage-ground.stage-biz { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='120' viewBox='0 0 170 120'%3E%3Ctext x='85' y='64' text-anchor='middle' transform='rotate(-30 85 64)' font-family='Arial,Helvetica,sans-serif' font-size='14' font-weight='700' letter-spacing='1.5' fill='%23ffffff' fill-opacity='0.06'%3EBUSINESS%20REVIEW%3C/text%3E%3C/svg%3E"); }
+.stage-ground.stage-ready { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='120' viewBox='0 0 170 120'%3E%3Ctext x='85' y='64' text-anchor='middle' transform='rotate(-30 85 64)' font-family='Arial,Helvetica,sans-serif' font-size='14' font-weight='700' letter-spacing='1.5' fill='%23ffffff' fill-opacity='0.06'%3EREADY%3C/text%3E%3C/svg%3E"); }
+.stage-ground.stage-live { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='170' height='120' viewBox='0 0 170 120'%3E%3Ctext x='85' y='64' text-anchor='middle' transform='rotate(-30 85 64)' font-family='Arial,Helvetica,sans-serif' font-size='14' font-weight='700' letter-spacing='1.5' fill='%23ffffff' fill-opacity='0.06'%3ELIVE%3C/text%3E%3C/svg%3E"); }
 
 /* Breakpoint toggle: the page frame eases between widths instead of snapping.
    The mock's tokens — 500ms on cubic-bezier(0.77, 0, 0.175, 1), its --ease-in-out. Slower and
