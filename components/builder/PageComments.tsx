@@ -9,6 +9,8 @@ const FIRST = 5;
 const errText = (e: unknown) => (e instanceof ApiError ? e.problem.title : String(e));
 const JIRA = "M3 7h18v3a2 2 0 0 0 0 4v3H3v-3a2 2 0 0 0 0-4zM15 7v2.5M15 12v0M15 14.5V17"; // the ticket icon of the Jira rail button
 const PIN = "M9 4h6l-1 5 3 3v2h-4v6l-1 1-1-1v-6H7v-2l3-3z";
+/** "Show it on the page": an eye, so the chip spends its width on what the comment is about, not on the word. */
+const Eye = ({ className = "" }: { className?: string }) => <svg viewBox="0 0 24 24" aria-hidden className={`size-4 fill-none stroke-current ${className}`} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" /><circle cx="12" cy="12" r="2.75" /></svg>;
 
 /**
  * Comments on a page, shown at the top of Version history. Anyone who edits or reviews the page can comment;
@@ -33,18 +35,18 @@ export function TargetCard({ target, onShow, onClear, compact = false }: { targe
   const body = <>
     <span className={`flex-none grid place-items-center rounded-md bg-brand-soft text-brand ${compact ? "w-6 h-6" : "w-8 h-8"}`}><KindIcon k={d.kind} size={compact ? 12 : 15} /></span>
     <span className="min-w-0 flex-1 text-left">
-      <span className="flex items-center gap-1.5 min-w-0 text-xs font-medium uppercase tracking-[.06em] text-ink-3"><span className="truncate">{d.comp}</span><span aria-hidden className="text-ink-4">·</span><span className="flex-none">{d.what}</span></span>
+      <span className={`block text-xs font-medium text-ink-2 ${d.quote ? "truncate" : "line-clamp-2 leading-snug"}`} title={`${d.comp} · ${d.what}`}>{d.comp}<span aria-hidden className="text-ink-4"> · </span>{d.what}</span>
       {d.quote ? <span className={`block text-ink leading-snug ${compact ? "text-xs truncate" : "text-sm line-clamp-2"}`}>“{d.quote}”</span>
-        : <span className={`block text-ink-2 ${compact ? "text-xs" : "text-xs"}`}>{d.kind === "image" ? "The picture in this component" : "Everything in this component"}</span>}
+        : null}
     </span>
   </>;
-  if (compact) return onShow ? <button type="button" onClick={() => onShow(target)} title="Show it on the page" className="group mt-1 flex items-center gap-2 w-full min-w-0 rounded-md border-l-2 border-brand bg-surface-2 hover:bg-brand-soft/60 px-2 py-1.5">{body}<span aria-hidden className="flex-none text-xs text-ink-3 group-hover:text-brand">Show</span></button>
+  if (compact) return onShow ? <button type="button" onClick={() => onShow(target)} title="Show it on the page" className="group mt-1 flex items-center gap-2 w-full min-w-0 rounded-md border-l-2 border-brand bg-surface-2 hover:bg-brand-soft/60 px-2 py-1.5">{body}<Eye className="flex-none text-ink-3 group-hover:text-brand" /></button>
     : <div className="mt-1 flex items-center gap-2 min-w-0 rounded-md border-l-2 border-brand bg-surface-2 px-2 py-1.5">{body}</div>;
   return <div key={`${target.id}|${target.field ?? ""}`} className="cmt-card-in flex items-center gap-2.5 min-w-0 rounded-lg border border-brand/30 border-l-[3px] border-l-accent bg-brand-soft/35 px-2.5 py-2">
     {body}
-    <span className="flex flex-none flex-col items-end gap-1">
+    <span className="flex flex-none items-center gap-1">
       {onClear && <button type="button" onClick={onClear} className="w-6 h-6 rounded grid place-items-center text-ink-3 hover:bg-surface-3 hover:text-ink" aria-label="Not about this · write a general comment" title="Remove · write a general comment"><svg viewBox="0 0 24 24" aria-hidden className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>}
-      {onShow && <button type="button" onClick={() => onShow(target)} className="text-xs text-ink-3 hover:text-brand underline underline-offset-2">Show</button>}
+      {onShow && <button type="button" onClick={() => onShow(target)} className="w-6 h-6 rounded grid place-items-center text-ink-3 hover:bg-surface-3 hover:text-brand" aria-label="Show it on the page" title="Show it on the page"><Eye className="size-3.5" /></button>}
     </span>
   </div>;
 }
@@ -78,12 +80,27 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
           <div className="flex items-start gap-2">
             <Avatar name={c.whoName} size={24} />
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-2 text-xs"><b className="font-medium text-ink">{c.whoName}</b><time className="text-ink-3" dateTime={c.time} title={new Date(c.time).toLocaleString("en-GB")} suppressHydrationWarning>{relativeTime(c.time)}</time>
+              <div className="flex items-center gap-x-2 text-xs">
+                <div className="flex min-w-0 flex-wrap items-center gap-x-2"><b className="truncate font-medium text-ink">{c.whoName}</b><time className="flex-none text-ink-3" dateTime={c.time} title={new Date(c.time).toLocaleString("en-GB")} suppressHydrationWarning>{relativeTime(c.time)}</time>
                 {c.guest && <span className="text-xs rounded-full bg-surface-3 px-1.5 text-ink-3" title="Commented through a review link without a UCP account">guest</span>}
                 {c.jira && <span className="inline-flex items-center gap-1 text-xs rounded-full bg-info-soft text-info px-1.5" title={`Posted to Jira ${c.jira.key}`}><svg aria-hidden viewBox="0 0 24 24" className="w-3 h-3 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={JIRA} /></svg>In {c.jira.key}</span>}
                 {/* No "Pinned" marker here: the pin button on the right is already filled and amber when
                     pinned, and the row sits in the tinted strip at the top of the panel. The word, and then
-                    the lone icon that replaced it, only wrapped onto a line of their own to repeat that. */}</div>
+                    the lone icon that replaced it, only wrapped onto a line of their own to repeat that. */}
+                </div>
+                {/* On the name line, not beside the body: as a third column of the row they took ~90px
+                    of a 266px panel, which squeezed the target chip and wrapped every comment to three
+                    narrow lines. The negative block margin keeps the 24px buttons from growing it. */}
+                {mayWrite && <div className="ms-auto -my-1 flex flex-none items-center gap-0.5 -me-1">
+                  <button type="button" className={`w-6 h-6 rounded grid place-items-center hover:bg-surface-3 ${c.resolved ? "text-good" : "text-ink-3 hover:text-good"}`} disabled={busy} onClick={() => void resolve(c)} title={c.resolved ? "Reopen · show it on the page again" : "Resolve · done, no longer shown on the page"} aria-label={c.resolved ? "Reopen comment" : "Resolve comment"} aria-pressed={!!c.resolved}>
+                    <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="8.5" /><path d="M8.5 12.2l2.4 2.4 4.6-4.8" /></svg></button>
+                  {!c.resolved && <button type="button" className={`w-6 h-6 rounded grid place-items-center hover:bg-surface-3 ${c.pinned ? "text-warn" : "text-ink-3"}`} disabled={busy} onClick={() => run(() => ucpApi.pinComment(marketId, path, c.id, !c.pinned))} title={c.pinned ? "Unpin" : "Pin to the top"} aria-label={c.pinned ? "Unpin comment" : "Pin comment to the top"} aria-pressed={!!c.pinned}>
+                    <svg viewBox="0 0 24 24" className={`w-4 h-4 stroke-current ${c.pinned ? "fill-current" : "fill-none"}`} strokeWidth={1.6} strokeLinejoin="round" aria-hidden><path d={PIN} /></svg></button>}
+                  {(mine || admin) && (ask === c.id
+                    ? <span className="inline-flex items-center gap-1 text-xs"><button type="button" className="text-crit font-medium hover:underline" onClick={async () => { setAsk(null); await run(() => ucpApi.deleteComment(marketId, path, c.id)); }}>Delete</button><button type="button" className="text-ink-3 hover:underline" onClick={() => setAsk(null)}>Keep</button></span>
+                    : <button type="button" className="w-6 h-6 rounded grid place-items-center text-ink-3 hover:bg-surface-3 hover:text-crit" onClick={() => setAsk(c.id)} title="Delete comment" aria-label="Delete comment"><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.6} strokeLinecap="round" aria-hidden><path d="M5 7h14M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg></button>)}
+                </div>}
+              </div>
               {c.block && <TargetCard target={c.block} onShow={onShowBlock} compact />}
               {c.version && <div className="mt-0.5 text-xs text-info truncate">About the version from {c.version.label}</div>}
               {c.stage && <div className="mt-0.5 text-xs text-info">{c.stage === "draft" ? "On the draft · business feedback" : `During the ${c.stage === "review" ? "author's review" : "business review"}`}</div>}
@@ -91,15 +108,6 @@ export function PageComments({ marketId, path, about, onClearAbout, focusKey, ta
               {jira && !c.jira && !c.resolved && mayWrite && <button type="button" disabled={busy} onClick={() => void run(() => ucpApi.sendCommentToJira(marketId, path, c.id))} className="mt-1 inline-flex items-center gap-1 text-xs text-ink-3 hover:text-info underline-offset-2 hover:underline" title={`Post this comment to Jira ${jira}`}><svg aria-hidden viewBox="0 0 24 24" className="w-3 h-3 stroke-current fill-none" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d={JIRA} /></svg>Send to {jira}</button>}
               {c.resolved && <div className="mt-1 inline-flex items-center gap-1 text-xs text-good"><svg aria-hidden width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>Resolved by {c.resolved.by === user.id ? "you" : c.resolved.name} · <time dateTime={c.resolved.at} suppressHydrationWarning>{relativeTime(c.resolved.at)}</time></div>}
             </div>
-            {mayWrite && <div className="flex flex-none items-center gap-0.5 -mr-1">
-              <button type="button" className={`w-7 h-7 rounded grid place-items-center hover:bg-surface-3 ${c.resolved ? "text-good" : "text-ink-3 hover:text-good"}`} disabled={busy} onClick={() => void resolve(c)} title={c.resolved ? "Reopen · show it on the page again" : "Resolve · done, no longer shown on the page"} aria-label={c.resolved ? "Reopen comment" : "Resolve comment"} aria-pressed={!!c.resolved}>
-                <svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><circle cx="12" cy="12" r="8.5" /><path d="M8.5 12.2l2.4 2.4 4.6-4.8" /></svg></button>
-              {!c.resolved && <button type="button" className={`w-7 h-7 rounded grid place-items-center hover:bg-surface-3 ${c.pinned ? "text-warn" : "text-ink-3"}`} disabled={busy} onClick={() => run(() => ucpApi.pinComment(marketId, path, c.id, !c.pinned))} title={c.pinned ? "Unpin" : "Pin to the top"} aria-label={c.pinned ? "Unpin comment" : "Pin comment to the top"} aria-pressed={!!c.pinned}>
-                <svg viewBox="0 0 24 24" className={`w-4 h-4 stroke-current ${c.pinned ? "fill-current" : "fill-none"}`} strokeWidth={1.6} strokeLinejoin="round" aria-hidden><path d={PIN} /></svg></button>}
-              {(mine || admin) && (ask === c.id
-                ? <span className="inline-flex items-center gap-1 text-xs"><button type="button" className="text-crit font-medium hover:underline" onClick={async () => { setAsk(null); await run(() => ucpApi.deleteComment(marketId, path, c.id)); }}>Delete</button><button type="button" className="text-ink-3 hover:underline" onClick={() => setAsk(null)}>Keep</button></span>
-                : <button type="button" className="w-7 h-7 rounded grid place-items-center text-ink-3 hover:bg-surface-3 hover:text-crit" onClick={() => setAsk(c.id)} title="Delete comment" aria-label="Delete comment"><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.6} strokeLinecap="round" aria-hidden><path d="M5 7h14M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg></button>)}
-            </div>}
           </div>
         </li>; };
 
