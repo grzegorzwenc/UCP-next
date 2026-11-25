@@ -1,9 +1,9 @@
 "use client";
-import { ArrowRight, Check, CircleAlert, ClipboardCheck, FileText, Pencil, Plus, Send, Zap } from "lucide-react";
+import { ArrowRight, Check, CircleAlert, ClipboardCheck, FileText, Pencil, Plug, Plus, Send, Zap } from "lucide-react";
 import { PanelSection } from "./PanelSection";
 import { BLOCK_BY_TYPE } from "@/lib/blocks/registry";
-import { AFTER_SUBMIT, BEFORE_SUBMIT, FIELD_TYPES } from "@/lib/forms/model";
-import { RuleList, effectText, ruleFields, rulesOn, type FormFlowState, type FormView } from "@/components/forms/rules";
+import { FIELD_TYPES, SUBMIT_ACTIONS, submitEndpoint } from "@/lib/forms/model";
+import { RuleList, effectText, ruleFields, ruleProblem, rulesOn, type FormFlowState, type FormView } from "@/components/forms/rules";
 
 /**
  * A form is a set of pages: one per step, then the Submit page (summary, submit button and the
@@ -74,7 +74,7 @@ export function FormNav({ blocks, view, layout, onView, onEdit, preview }: { blo
 }
 
 /** The Submit page: the answers to check, the submit button, and (builder-only) what runs around the submit. */
-export function SubmitPageView({ blocks, flow, onView, onEdit, preview }: { blocks: B[]; flow: FormFlowState; onView: (v: FormView) => void; onEdit: () => void; preview: boolean }) {
+export function SubmitPageView({ blocks, flow, onView, onEdit, onEditButton, preview }: { blocks: B[]; flow: FormFlowState; onView: (v: FormView) => void; onEdit: () => void; onEditButton: () => void; preview: boolean }) {
   const sp = flow.submitPage; const idx = stepIndexes(blocks); const steps = stepsOf(blocks);
   const fields = blocks.map((b, i) => ({ b, i })).filter(({ b }) => FIELD_TYPES.includes(b.type) && b.type !== "fconsent");
   const groups = (steps.length ? steps.map((st, k) => ({ title: s(st.props.title), k })) : [{ title: "Your answers", k: 0 }]).map((g) => ({ ...g, items: fields.filter((f) => idx[f.i] === g.k) })).filter((g) => g.items.length);
@@ -88,21 +88,18 @@ export function SubmitPageView({ blocks, flow, onView, onEdit, preview }: { bloc
     {consents.length > 0 && <p className="f-help">You agreed to: {consents.map((c) => s(c.props.consent)).join(", ")}.</p>}
     <div className="f-nav">
       <button type="button" className="f-btn sec" onClick={(e) => { e.stopPropagation(); onView({ page: "step", step: Math.max(steps.length - 1, 0) }); }}>Back</button>
-      <button type="button" className="f-btn" onClick={(e) => { e.stopPropagation(); onView({ page: "success" }); }}><Send className="size-3.5" aria-hidden />{sp.button || "Submit"}</button>
+      <button type="button" className="f-btn" title={preview ? undefined : "Set the integration this button sends to"} onClick={(e) => { e.stopPropagation(); if (preview) onView({ page: "success" }); else onEditButton(); }}><Send className="size-3.5" aria-hidden />{sp.button || "Submit"}</button>
     </div>
-    {!preview && <div data-ui className="f-integr">
-      <div><b>Before sending</b>{sp.before.length ? sp.before.map((id) => <span key={id}>{BEFORE_SUBMIT[id]?.name ?? id}</span>) : <i>Nothing</i>}</div>
-      <div><b>On submit</b><span>Send to the Forms solution</span></div>
-      <div><b>After sending</b>{sp.after.length ? sp.after.map((id) => <span key={id}>{AFTER_SUBMIT[id]?.name ?? id}</span>) : <i>Nothing</i>}</div>
-      <small>If a check fails the customer sees the Failure page.</small>
-    </div>}
+    {!preview && (() => { const url = submitEndpoint(flow.submit); return <button type="button" data-ui className={`f-integr ${url ? "" : "bad"}`} onClick={(e) => { e.stopPropagation(); onEditButton(); }}>
+      <Plug className="size-3.5 shrink-0" aria-hidden /><span><b>{sp.button || "Submit"}</b> sends to <b>{SUBMIT_ACTIONS[flow.submit.action]?.name ?? flow.submit.action}</b><code>POST {url || "no endpoint yet"}</code></span>
+      <span className="go" onClick={(e) => { e.stopPropagation(); onView({ page: "success" }); }}>See Success page →</span></button>; })()}
   </div>;
 }
 
 /** Above a field or step on the canvas: the rules that change it. */
 export function RuleChips({ b, flow, blocks }: { b: B; flow: FormFlowState; blocks: B[] }) {
   const list = rulesOn(b, flow.rules); if (!list.length) return null; const fields = ruleFields(blocks);
-  return <div data-ui className="f-rules">{list.map((r) => <span key={r.id} className="f-rule"><Zap className="size-3" aria-hidden />{effectText(r, fields)}</span>)}</div>;
+  return <div data-ui className="f-rules">{list.map((r) => { const bad = ruleProblem(r, blocks); return <span key={r.id} className={`f-rule ${bad ? "bad" : ""}`} title={bad ?? undefined}><Zap className="size-3" aria-hidden />{effectText(r, fields)}{bad && " · needs fixing"}</span>; })}</div>;
 }
 
 /* ---------------- left panel: Steps & pages ---------------- */
@@ -133,7 +130,7 @@ export function FormFlowPanel({ blocks, view, onView, flow, editable, sel, onSel
             {st && flow.layout === "wizard" && <div aria-hidden className="ms-5 flex items-center gap-1 px-3 text-[10px] text-ink-4"><ArrowRight className="size-3" />{s(st.props.next) || "Continue"}</div>}
           </li>; })}
         {editable && flow.layout === "wizard" && <li className="px-3 py-1.5"><button type="button" className="btn btn-sm btn-secondary w-full justify-center" onClick={onAddStep}><Plus className="size-3.5" aria-hidden />Add step</button></li>}
-        <li className="m-0 mt-1 border-t border-line p-0 pt-1"><button type="button" className={row(view.page === "submit")} onClick={() => { onView({ page: "submit" }); onEditSubmit(); }}><ClipboardCheck className="size-4 shrink-0 text-ink-3" aria-hidden /><span className="min-w-0 flex-1 truncate font-medium">Submit page</span><span className="text-[11px] text-ink-3">{(() => { const n = flow.submitPage.before.length + flow.submitPage.after.length; return `${n} integration${n === 1 ? "" : "s"}`; })()}</span></button></li>
+        <li className="m-0 mt-1 border-t border-line p-0 pt-1"><button type="button" className={row(view.page === "submit")} onClick={() => { onView({ page: "submit" }); onEditSubmit(); }}><ClipboardCheck className="size-4 shrink-0 text-ink-3" aria-hidden /><span className="min-w-0 flex-1 truncate font-medium">Submit page</span><span className="text-[11px] text-ink-3 truncate max-w-[45%]" title={submitEndpoint(flow.submit)}>→ {SUBMIT_ACTIONS[flow.submit.action]?.name ?? "No integration"}</span></button></li>
         <li className="m-0 p-0"><button type="button" className={row(sameView(view, { page: "success" }))} onClick={() => { onView({ page: "success" }); if (success) onSelect(success.id); }}><Check className="size-4 shrink-0 text-good" aria-hidden /><span className="min-w-0 flex-1 truncate font-medium">Success page</span></button></li>
         <li className="m-0 p-0"><button type="button" className={row(sameView(view, { page: "failure" }))} onClick={() => { onView({ page: "failure" }); if (failure) onSelect(failure.id); }}><CircleAlert className="size-4 shrink-0 text-crit" aria-hidden /><span className="min-w-0 flex-1 truncate font-medium">Failure page</span></button></li>
       </ul>
