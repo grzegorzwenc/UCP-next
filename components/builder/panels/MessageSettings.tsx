@@ -5,7 +5,7 @@ import { CHANNEL_LABEL, TEMPLATES, type Channel } from "@/lib/blocks/registry";
 import { smsSegments } from "@/lib/blocks/sms";
 
 type B = { id: string; type: string; props: Record<string, unknown> };
-const S = ({ t, open = true, children }: { t: string; open?: boolean; children: React.ReactNode }) => <PanelSection id={`ms-${t.toLowerCase().replace(/\W+/g, "-")}`} title={t} defaultOpen={open}><div className="flex flex-col gap-3">{children}</div></PanelSection>;
+const S = ({ t, open = true, children }: { t: string; open?: boolean; children: React.ReactNode }) => <PanelSection id={`ms-${t.toLowerCase().replace(/\W+/g, "-")}`} title={t} defaultOpen={open} card><div className="flex flex-col gap-3">{children}</div></PanelSection>;
 const plain = (v: unknown) => String(v ?? "").replace(/<[^>]+>/g, "").trim();
 
 /** Channel checks a reviewer would otherwise send back (stories 9.1.3–9.1.5, 2.3.7). */

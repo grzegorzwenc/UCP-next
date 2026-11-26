@@ -9,7 +9,7 @@ import { FormContract } from "@/components/forms/FormContract";
 
 type B = { id: string; type: string; props: Record<string, unknown> };
 const sel = "bdl-field mt-1";
-const S = ({ t, open = true, children }: { t: string; open?: boolean; children: React.ReactNode }) => <PanelSection id={`fs-${t.toLowerCase().replace(/\W+/g, "-")}`} title={t} defaultOpen={open}><div className="flex flex-col gap-3">{children}</div></PanelSection>;
+const S = ({ t, open = true, children }: { t: string; open?: boolean; children: React.ReactNode }) => <PanelSection id={`fs-${t.toLowerCase().replace(/\W+/g, "-")}`} title={t} defaultOpen={open} card><div className="flex flex-col gap-3">{children}</div></PanelSection>;
 
 /**
  * The builder's right-hand settings panel for a form (in place of Page settings): where the form lives,

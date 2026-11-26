@@ -1463,7 +1463,7 @@ function ReadOnly({ children, title }: { children: React.ReactNode; title?: stri
 
 function Section({ t, children, open }: { t: string; children: React.ReactNode; open?: boolean }) {
   // An id so the header's `aria-controls` actually points at the region it expands.
-  return <PanelSection id={`sec-${t.toLowerCase().replace(/\W+/g, "-")}`} title={t} defaultOpen={open ?? true}><div className="flex flex-col gap-3">{children}</div></PanelSection>;
+  return <PanelSection id={`sec-${t.toLowerCase().replace(/\W+/g, "-")}`} title={t} defaultOpen={open ?? true} card><div className="flex flex-col gap-3">{children}</div></PanelSection>;
 }
 type FieldFocus = (k: string, l: string, start: number, end: number) => void;
 /** Remembers the caret of the last focused text field so token chips insert where the author was typing. */

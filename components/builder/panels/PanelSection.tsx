@@ -12,7 +12,7 @@ import { useState } from "react";
  * `count` is shown right-aligned when given — the group sizes are useful at a glance and
  * they are what makes a collapsed list still legible.
  */
-export function PanelSection({ id, title, count, tone, defaultOpen = true, open: openIn, onToggle, right, children }: {
+export function PanelSection({ id, title, count, tone, defaultOpen = true, open: openIn, onToggle, right, card, children }: {
   id?: string;
   title: string;
   count?: number;
@@ -24,12 +24,34 @@ export function PanelSection({ id, title, count, tone, defaultOpen = true, open:
   onToggle?: (open: boolean) => void;
   /** Optional control pinned to the right of the header, e.g. a "Clear" link. */
   right?: React.ReactNode;
+  /** Settings panels: each section is its own bordered card with a grey header bar, so a long run of
+      collapsed sections (Address, Languages, Tracking…) reads as separate tabs instead of one list. */
+  card?: boolean;
   children: React.ReactNode;
 }) {
   const [selfOpen, setSelfOpen] = useState(defaultOpen);
   const open = openIn ?? selfOpen;
   const toggle = () => { if (openIn === undefined) setSelfOpen(!open); onToggle?.(!open); };
   const panelId = id ? `${id}-panel` : undefined;
+  if (card) return (
+    <div className="mx-3 mt-2.5 border border-line-2 bg-surface last:mb-3">
+      <h6 className="m-0">
+        <button type="button" aria-expanded={open} aria-controls={panelId}
+          className={`flex w-full cursor-pointer items-center gap-2 bg-surface-2 px-3 py-2 text-left text-[13px] font-medium text-ink transition-colors hover:bg-surface-3 ${open ? "border-b border-line-2" : ""}`}
+          onClick={toggle}>
+          <Chevron open={open} className="text-ink-3" />
+          <span className="min-w-0 truncate">{title}</span>
+          {count !== undefined && <span className={`ms-auto ${tone === "crit" ? "bdl-number-badge" : "bdl-number-badge bdl-number-badge-grey"}`}>{count}</span>}
+        </button>
+      </h6>
+      <div className={`grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+        <div className="overflow-hidden">
+          <div id={panelId} className="px-3 pb-3.5 pt-3">{children}</div>
+          {right}
+        </div>
+      </div>
+    </div>
+  );
   return (
     <div className="border-b border-line/70 last:border-b-0">
       <h6 className="m-0">
