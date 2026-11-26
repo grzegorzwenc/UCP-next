@@ -17,7 +17,7 @@ import { Archive, ChevronRight, Copy, EllipsisVertical, ExternalLink, FolderInpu
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/shadcn/dropdown-menu";
 import { FolderTiles, PageCard, ViewToggle, type View } from "@/components/explorer/PagesViews";
 import { LocationSelect, type FolderOption } from "@/components/explorer/LocationSelect";
-import { FilterChips, MultiFilter, QuickChips, RangeFilter, SortHeader } from "@/components/explorer/PagesFilters";
+import { FilterChips, MultiFilter, QuickChips, QuickRow, RangeFilter, SortHeader } from "@/components/explorer/PagesFilters";
 import { PageThumb } from "@/components/explorer/PageThumb";
 import { NewFolderButton } from "@/components/ui/NewFolderButton";
 import { NewFolderDialog } from "@/components/ui/NewFolderDialog";
@@ -286,6 +286,9 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
   /* The options are the market's declared locales, not just the ones present — as theirs takes
      them from its language list and counts rows against it. Otherwise a market whose pages are all
      one locale shows no filter at all, which is what happened here. */
+  const leafCount = items.filter((p) => !isFolder(p)).length;
+  /** Messaging only: one chip per channel. Empty elsewhere, which keeps the strip to Language alone. */
+  const typeOptions = msg ? CHANNEL_ORDER.map((c) => ({ value: c, label: CHANNEL_LABEL[c], count: items.filter((p) => !isFolder(p) && channelOf(p.template) === c).length })) : [];
   const langs = useMemo(() => {
     const pages = items.filter((x) => !isFolder(x));
     return marketOf(marketId).locales.map((value) => ({ value, label: value, count: pages.filter((p) => (p.locale ?? "en-GB") === value).length }));
@@ -508,14 +511,16 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
                 <input className="bdl-field w-48 ps-8! pe-8! xl:w-60" placeholder="Find a page by title or URL" aria-label="Find a page by title or URL" value={q} onChange={(e) => setQ(e.target.value)} />
                 {q && <button type="button" className="absolute end-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center text-ink-3 transition-colors hover:text-ink" aria-label="Clear search" onClick={() => setQ("")}><X className="size-4" /></button>}
               </div>
+              {/* Type is a combobox up here with Status, not a chip strip below: both narrow the same list,
+                  and five channel chips cost a whole row to say what a closed dropdown says in one word. */}
+              {typeOptions.length > 1 && <MultiFilter label="Type" noun="messages" options={typeOptions.map((o) => ({ value: o.value, label: `${o.label} (${o.count})` }))} value={typeF} onChange={setTypeF} />}
               {statusOptions.length > 1 && <MultiFilter label="Status" noun="pages" options={statusOptions} value={statusF} onChange={setStatusF} />}
               <RangeFilter value={range} onChange={setRange} />
               <ViewToggle view={view} onChange={setView} />
             </div>
           </div>
 
-          {msg && <QuickChips label="Type" all={items.filter((p) => !isFolder(p)).length} options={CHANNEL_ORDER.map((c) => ({ value: c, label: CHANNEL_LABEL[c], count: items.filter((p) => !isFolder(p) && channelOf(p.template) === c).length }))} value={typeF} onChange={setTypeF} />}
-          <QuickChips label="Language" all={items.filter((p) => !isFolder(p)).length} options={langs} value={langF} onChange={setLangF} />
+          {langs.length > 1 && <QuickRow><QuickChips label="Language" all={leafCount} options={langs} value={langF} onChange={setLangF} /></QuickRow>}
           <FilterChips shown={rows.length} total={matching.length} noun="pages" chips={chips} onClear={clearFilters} />
 
           <div className="relative min-h-0 flex-1 overflow-auto">

@@ -102,7 +102,15 @@ export function RangeFilter({ value, onChange }: { value: Range; onChange: (r: R
 
 const QUICK = "inline-flex h-7 cursor-pointer items-center gap-1.5 border px-2.5 text-xs transition-colors duration-160 ease-out hover:bg-accent/60 data-[on=true]:border-foreground data-[on=true]:bg-foreground data-[on=true]:text-background focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none";
 
-/** Their language quick filter: one chip per value plus All, each carrying its count. */
+/**
+ * The strip that carries the quick filters. One or several `QuickChips` groups share it, so Messaging's
+ * Type and Language sit on the same line instead of stacking two bordered rows above every table.
+ */
+export function QuickRow({ children }: { children: React.ReactNode }) {
+  return <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1.5 border-b border-line px-4 py-2">{children}</div>;
+}
+
+/** One quick filter: a label, All, then a chip per value with its count. Lives inside a `QuickRow`. */
 export function QuickChips({ label, all, options, value, onChange }: {
   label: string;
   all: number;
@@ -112,7 +120,7 @@ export function QuickChips({ label, all, options, value, onChange }: {
 }) {
   if (options.length < 2) return null;
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-1.5 border-b border-line px-4 py-2" role="group" aria-label={label}>
+    <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label={label}>
       <span className="me-1 text-xs text-ink-3">{label}</span>
       <button type="button" className={QUICK} data-on={value.length === 0} aria-pressed={value.length === 0} onClick={() => onChange([])}>
         All <span className="opacity-70 tabular-nums">{all}</span>
