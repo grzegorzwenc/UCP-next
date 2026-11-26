@@ -1,9 +1,9 @@
 "use client";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Check, ExternalLink } from "lucide-react";
+import { Check, ExternalLink, Plus, Trash2 } from "lucide-react";
 import { PanelSection } from "./PanelSection";
-import { FIELD_TYPES, RETENTION, SUBMIT_ACTIONS, formChecks, submitEndpoint } from "@/lib/forms/model";
+import { FIELD_TYPES, RETENTION, SUBMIT_ACTIONS, formChecks, newIntegration, submitEndpoint, type FormIntegration } from "@/lib/forms/model";
 import { type FormFlowState } from "@/components/forms/rules";
 import { FormContract } from "@/components/forms/FormContract";
 
@@ -25,8 +25,6 @@ export function FormSettings({ marketId, base, path, blocks, host, editable, sta
   const fields = useMemo(() => blocks.filter((b) => FIELD_TYPES.includes(b.type) && b.type !== "fconsent" && String(b.props.name ?? "")), [blocks]);
   const checks = formChecks(blocks, rules, submit);
 
-  const act = SUBMIT_ACTIONS[submit.action]; const custom = submit.action === "custom"; const url = submitEndpoint(submit); const urlOk = /^https:\/\/\S+$/.test(url);
-
   return <div className="flex flex-col">
     <S t="Location">
       <div className="text-xs text-ink-2 font-medium">Shown on page</div>
@@ -43,19 +41,18 @@ export function FormSettings({ marketId, base, path, blocks, host, editable, sta
       <label className="flex items-center gap-2 text-xs text-ink-2"><input type="checkbox" className="bdl-checkbox bdl-checkbox-sm" disabled={!editable} checked={sp.summary} onChange={(e) => putSubmitPage({ ...sp, summary: e.target.checked })} />Show a summary of the answers</label>
     </S>
     <div id="fs-submit-button"><S t="Submit button">
-      <p className="text-xs text-ink-3">The only place a form talks to a system: pressing it sends the answers to the endpoint below. If the call fails, the customer sees the Failure page.</p>
+      <p className="text-xs text-ink-3">The only place a form talks to other systems: pressing it sends the answers to every integration below. If a call fails, the customer sees the Failure page.</p>
       <label className="text-xs text-ink-2 font-medium">Button label<input className={sel} disabled={!editable} value={sp.button} onChange={(e) => putSubmitPage({ ...sp, button: e.target.value })} /></label>
-      <label className="text-xs text-ink-2 font-medium">Integration<select className={sel} disabled={!editable} value={submit.action} onChange={(e) => putSubmit({ action: e.target.value, mapping: {}, retention: submit.retention })}>{Object.entries(SUBMIT_ACTIONS).map(([k, a]) => <option key={k} value={k}>{a.name}</option>)}</select><small className="block text-ink-3 font-normal mt-1">{act?.desc}</small></label>
-      <div className="text-xs text-ink-2 font-medium">Endpoint
-        <div className="mt-1 flex items-stretch"><span className="grid place-items-center border border-r-0 border-line bg-surface-2 px-2 font-mono text-[11px] text-ink-2">POST</span>
-          <input className={`bdl-field flex-1 font-mono text-[11px] ${url && !urlOk ? "!border-crit" : ""}`} disabled={!editable} placeholder={act?.endpoint || "https://…"} value={submit.endpoint ?? (custom ? "" : act?.endpoint ?? "")} onChange={(e) => putSubmit({ ...submit, endpoint: e.target.value.trim() })} aria-label="Endpoint URL" /></div>
-        <small className={`block font-normal mt-1 ${url && !urlOk ? "text-crit" : "text-ink-3"}`}>{url && !urlOk ? "Use a full https:// address." : !editable ? "Read-only: the form is in review or published. Move it back to draft to change it." : "Where the button POSTs the answers. It must be registered with the Forms solution before the form goes live."}
-          {editable && !custom && submit.endpoint && submit.endpoint !== act?.endpoint && <button type="button" className="ml-1 underline" onClick={() => { const { endpoint: _e, ...rest } = submit; void _e; putSubmit(rest); }}>Use the registered one</button>}</small></div>
-      {fields.length > 0 && <div className="grid gap-1.5"><div className="text-xs text-ink-2 font-medium">What is sent<small className="block text-ink-3 font-normal">Each answer and the name it is sent under.{act?.required.length ? " * required by the integration." : ""}</small></div>{fields.map((f) => { const k = String(f.props.name); return <label key={f.id} className="grid grid-cols-[1fr_1fr] items-center gap-2 text-xs"><span className="truncate" title={k}>{String(f.props.label)}</span>
-        {custom ? <input className="bdl-field font-mono" disabled={!editable} placeholder="not sent" value={submit.mapping[k] ?? ""} onChange={(e) => { const m = { ...submit.mapping }; if (e.target.value) m[k] = e.target.value; else delete m[k]; putSubmit({ ...submit, mapping: m }); }} />
-          : <select className="bdl-field" disabled={!editable} value={submit.mapping[k] ?? ""} onChange={(e) => { const m = { ...submit.mapping }; if (e.target.value) m[k] = e.target.value; else delete m[k]; putSubmit({ ...submit, mapping: m }); }}><option value="">Not sent</option>{act?.target.map((t) => <option key={t} value={t}>{t}{act.required.includes(t) ? " *" : ""}</option>)}</select>}</label>; })}</div>}
+      <div className="grid gap-2">
+        <div className="text-xs text-ink-2 font-medium">Sends to<small className="block text-ink-3 font-normal">Every submission goes to each integration below.</small></div>
+        {submit.integrations.map((i, n) => <IntegrationCard key={i.id} i={i} n={n} fields={fields} editable={editable} canRemove={submit.integrations.length > 1}
+          onChange={(x) => putSubmit({ ...submit, integrations: submit.integrations.map((y) => (y.id === i.id ? x : y)) })}
+          onRemove={() => putSubmit({ ...submit, integrations: submit.integrations.filter((y) => y.id !== i.id) })} />)}
+        {!submit.integrations.length && <p className="text-xs text-crit">Not connected: add an integration so the answers go somewhere.</p>}
+        {editable && <button type="button" className="btn btn-sm btn-secondary justify-center" onClick={() => { const free = Object.keys(SUBMIT_ACTIONS).find((k) => k !== "custom" && !submit.integrations.some((x) => x.action === k)) ?? "custom"; putSubmit({ ...submit, integrations: [...submit.integrations, newIntegration(free, submit.integrations)] }); }}><Plus className="size-3.5" aria-hidden />Add integration</button>}
+      </div>
       <label className="text-xs text-ink-2 font-medium">Data retention<select className={sel} disabled={!editable} value={submit.retention} onChange={(e) => putSubmit({ ...submit, retention: e.target.value })}>{Object.entries(RETENTION).map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select></label>
-      <p className="text-xs text-ink-3">Answers go from the customer’s browser through the Forms solution to the endpoint. UCP never stores customer data.</p>
+      <p className="text-xs text-ink-3">Answers go from the customer’s browser through the Forms solution to each endpoint. UCP never stores customer data.</p>
     </S></div>
     <S t="Checks before review">
       {checks.length ? <ul className="grid gap-1 text-xs">{checks.map((c) => <li key={c} className="text-crit">● {c}</li>)}</ul> : <p className="text-xs text-good flex items-center gap-1"><Check className="size-3.5" aria-hidden />Nothing to fix</p>}
@@ -65,5 +62,27 @@ export function FormSettings({ marketId, base, path, blocks, host, editable, sta
       <button type="button" className="btn btn-sm btn-secondary justify-center" disabled={status !== "published"} title={status !== "published" ? "Available once the form is published" : undefined} onClick={() => setContract(true)}>Show API contract</button>
     </S>
     {contract && <FormContract marketId={marketId} id={path.split("/").pop() ?? ""} name={title} onClose={() => setContract(false)} />}
+  </div>;
+}
+
+/** One integration of the Submit button: which system, the POST endpoint (registered one unless overridden) and which answers it gets. */
+function IntegrationCard({ i, n, fields, editable, canRemove, onChange, onRemove }: { i: FormIntegration; n: number; fields: B[]; editable: boolean; canRemove: boolean; onChange: (i: FormIntegration) => void; onRemove: () => void }) {
+  const act = SUBMIT_ACTIONS[i.action]; const custom = i.action === "custom"; const url = submitEndpoint(i); const urlOk = /^https:\/\/\S+$/.test(url);
+  const setMap = (k: string, v: string) => { const m = { ...i.mapping }; if (v) m[k] = v; else delete m[k]; onChange({ ...i, mapping: m }); };
+  return <div className="grid gap-2 border border-line-2 bg-surface-2/60 p-2.5">
+    <div className="flex items-end gap-1.5">
+      <label className="min-w-0 flex-1 text-xs text-ink-2 font-medium">Integration {n + 1}<select className={sel} disabled={!editable} value={i.action} onChange={(e) => onChange({ id: i.id, action: e.target.value, mapping: {} })}>{Object.entries(SUBMIT_ACTIONS).map(([k, a]) => <option key={k} value={k}>{a.name}</option>)}</select></label>
+      {editable && canRemove && <button type="button" className="mb-0.5 grid size-8 shrink-0 place-items-center text-ink-3 hover:bg-surface-3 hover:text-crit" onClick={onRemove} aria-label={`Remove ${act?.name ?? "integration"}`} title="Remove this integration"><Trash2 className="size-4" aria-hidden /></button>}
+    </div>
+    {act?.desc && <small className="-mt-1 block text-xs text-ink-3">{act.desc}</small>}
+    <div className="text-xs text-ink-2 font-medium">Endpoint
+      <div className="mt-1 flex items-stretch"><span className="grid place-items-center border border-r-0 border-line bg-surface-2 px-2 font-mono text-[11px] text-ink-2">POST</span>
+        <input className={`bdl-field flex-1 font-mono text-[11px] ${url && !urlOk ? "!border-crit" : ""}`} disabled={!editable} placeholder={act?.endpoint || "https://…"} value={i.endpoint ?? (custom ? "" : act?.endpoint ?? "")} onChange={(e) => onChange({ ...i, endpoint: e.target.value.trim() })} aria-label={`Endpoint URL for ${act?.name ?? "integration"}`} /></div>
+      <small className={`block font-normal mt-1 ${url && !urlOk ? "text-crit" : "text-ink-3"}`}>{url && !urlOk ? "Use a full https:// address." : !editable ? "Read-only: the form is in review or published. Move it back to draft to change it." : "It must be registered with the Forms solution before the form goes live."}
+        {editable && !custom && i.endpoint && i.endpoint !== act?.endpoint && <button type="button" className="ml-1 underline" onClick={() => { const { endpoint: _e, ...rest } = i; void _e; onChange(rest); }}>Use the registered one</button>}</small></div>
+    {fields.length > 0 && <details className="group text-xs"><summary className="cursor-pointer text-ink-2 font-medium">What is sent <span className="font-normal text-ink-3">· {Object.keys(i.mapping).length} of {fields.length} answers{act?.required.length ? " · * required" : ""}</span></summary>
+      <div className="mt-1.5 grid gap-1.5">{fields.map((f) => { const k = String(f.props.name); return <label key={f.id} className="grid grid-cols-[1fr_1fr] items-center gap-2"><span className="truncate" title={k}>{String(f.props.label)}</span>
+        {custom ? <input className="bdl-field font-mono" disabled={!editable} placeholder="not sent" value={i.mapping[k] ?? ""} onChange={(e) => setMap(k, e.target.value)} />
+          : <select className="bdl-field" disabled={!editable} value={i.mapping[k] ?? ""} onChange={(e) => setMap(k, e.target.value)}><option value="">Not sent</option>{act?.target.map((x) => <option key={x} value={x}>{x}{act.required.includes(x) ? " *" : ""}</option>)}</select>}</label>; })}</div></details>}
   </div>;
 }

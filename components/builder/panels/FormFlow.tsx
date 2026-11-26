@@ -2,7 +2,7 @@
 import { ArrowRight, Check, CircleAlert, ClipboardCheck, FileText, Pencil, Plug, Plus, Send, Zap } from "lucide-react";
 import { PanelSection } from "./PanelSection";
 import { BLOCK_BY_TYPE } from "@/lib/blocks/registry";
-import { FIELD_TYPES, SUBMIT_ACTIONS, submitEndpoint } from "@/lib/forms/model";
+import { FIELD_TYPES, integrationName, submitEndpoint } from "@/lib/forms/model";
 import { RuleList, effectText, ruleFields, ruleProblem, rulesOn, type FormFlowState, type FormView } from "@/components/forms/rules";
 
 /**
@@ -90,8 +90,9 @@ export function SubmitPageView({ blocks, flow, onView, onEdit, onEditButton, pre
       <button type="button" className="f-btn sec" onClick={(e) => { e.stopPropagation(); onView({ page: "step", step: Math.max(steps.length - 1, 0) }); }}>Back</button>
       <button type="button" className="f-btn" title={preview ? undefined : "Set the integration this button sends to"} onClick={(e) => { e.stopPropagation(); if (preview) onView({ page: "success" }); else onEditButton(); }}><Send className="size-3.5" aria-hidden />{sp.button || "Submit"}</button>
     </div>
-    {!preview && (() => { const url = submitEndpoint(flow.submit); return <button type="button" data-ui className={`f-integr ${url ? "" : "bad"}`} onClick={(e) => { e.stopPropagation(); onEditButton(); }}>
-      <Plug className="size-3.5 shrink-0" aria-hidden /><span><b>{sp.button || "Submit"}</b> sends to <b>{SUBMIT_ACTIONS[flow.submit.action]?.name ?? flow.submit.action}</b><code>POST {url || "no endpoint yet"}</code></span>
+    {!preview && (() => { const ints = flow.submit.integrations; const bad = !ints.length || ints.some((i) => !/^https:\/\/\S+$/.test(submitEndpoint(i))); return <button type="button" data-ui className={`f-integr ${bad ? "bad" : ""}`} onClick={(e) => { e.stopPropagation(); onEditButton(); }}>
+      <Plug className="size-3.5 shrink-0" aria-hidden /><span><b>{sp.button || "Submit"}</b> {ints.length ? <>sends to {ints.length > 1 ? `${ints.length} integrations` : <b>{integrationName(ints[0])}</b>}</> : "is not connected to any integration"}
+        {ints.map((i) => <code key={i.id}>{ints.length > 1 && <b>{integrationName(i)} · </b>}POST {submitEndpoint(i) || "no endpoint yet"}</code>)}</span>
       <span className="go" onClick={(e) => { e.stopPropagation(); onView({ page: "success" }); }}>See Success page →</span></button>; })()}
   </div>;
 }
@@ -131,7 +132,7 @@ export function FormFlowPanel({ blocks, view, onView, flow, editable, sel, onSel
           </li>; })}
         {editable && flow.layout === "wizard" && <li className="px-3 py-1.5"><button type="button" className="btn btn-sm btn-secondary w-full justify-center" onClick={onAddStep}><Plus className="size-3.5" aria-hidden />Add step</button></li>}
         <li className="m-0 mt-2 border-t border-line px-3 pb-1 pt-2.5 text-[11px] font-medium uppercase tracking-wide text-ink-3">After the last step</li>
-        <li className="m-0 p-0"><button type="button" className={row(view.page === "submit")} onClick={() => { onView({ page: "submit" }); onEditSubmit(); }}><ClipboardCheck className="size-4 shrink-0 text-ink-3" aria-hidden /><span className="min-w-0 flex-1 truncate font-medium">Submit page</span><span className="text-[11px] text-ink-3 truncate max-w-[45%]" title={submitEndpoint(flow.submit)}>→ {SUBMIT_ACTIONS[flow.submit.action]?.name ?? "No integration"}</span></button></li>
+        <li className="m-0 p-0"><button type="button" className={row(view.page === "submit")} onClick={() => { onView({ page: "submit" }); onEditSubmit(); }}><ClipboardCheck className="size-4 shrink-0 text-ink-3" aria-hidden /><span className="min-w-0 flex-1 truncate font-medium">Submit page</span><span className="text-[11px] text-ink-3 truncate max-w-[45%]" title={flow.submit.integrations.map((i) => `${integrationName(i)}: ${submitEndpoint(i)}`).join("\n")}>→ {flow.submit.integrations.length > 1 ? `${flow.submit.integrations.length} integrations` : flow.submit.integrations.length ? integrationName(flow.submit.integrations[0]) : "No integration"}</span></button></li>
         <li className="m-0 p-0"><button type="button" className={row(sameView(view, { page: "success" }))} onClick={() => { onView({ page: "success" }); if (success) onSelect(success.id); }}><Check className="size-4 shrink-0 text-good" aria-hidden /><span className="min-w-0 flex-1 truncate font-medium">Success page</span></button></li>
         <li className="m-0 p-0"><button type="button" className={row(sameView(view, { page: "failure" }))} onClick={() => { onView({ page: "failure" }); if (failure) onSelect(failure.id); }}><CircleAlert className="size-4 shrink-0 text-crit" aria-hidden /><span className="min-w-0 flex-1 truncate font-medium">Failure page</span></button></li>
       </ul>

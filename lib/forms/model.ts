@@ -8,7 +8,10 @@
 export type RuleOp = "equals" | "not-equals" | "is-filled" | "is-empty" | "greater-than" | "less-than";
 export type RuleAction = "show" | "hide" | "require" | "skip-step";
 export type FormRule = { id: string; when: { field: string; op: RuleOp; value?: string }; then: { action: RuleAction; target: string } };
-export type FormSubmit = { action: string; mapping: Record<string, string>; retention: string; endpoint?: string };
+/** One system the Submit button sends to: a registered integration (or a custom endpoint), its answer mapping and, optionally, an endpoint that overrides the registered one. */
+export type FormIntegration = { id: string; action: string; mapping: Record<string, string>; endpoint?: string };
+/** The Submit button sends every submission to each of its integrations (story 3.7.2); retention is one policy for the whole form. */
+export type FormSubmit = { integrations: FormIntegration[]; retention: string };
 export const RULE_OPS: Record<RuleOp, string> = { equals: "is", "not-equals": "is not", "is-filled": "is filled in", "is-empty": "is empty", "greater-than": "is more than", "less-than": "is less than" };
 export const RULE_ACTIONS: Record<RuleAction, string> = { show: "Show", hide: "Hide", require: "Make required", "skip-step": "Skip step" };
 
@@ -21,9 +24,11 @@ export const SUBMIT_ACTIONS: Record<string, { name: string; desc: string; target
   custom: { name: "Custom endpoint", desc: "An HTTPS endpoint your team registered with the Forms solution", target: [], required: [], endpoint: "" },
 };
 /** Where the Submit button sends the answers: the endpoint typed on the button, else the integration's registered one. */
-export const submitEndpoint = (s: FormSubmit) => (s.endpoint?.trim() || SUBMIT_ACTIONS[s.action]?.endpoint || "");
+export const submitEndpoint = (i: FormIntegration) => (i.endpoint?.trim() || SUBMIT_ACTIONS[i.action]?.endpoint || "");
+export const integrationName = (i: FormIntegration) => SUBMIT_ACTIONS[i.action]?.name ?? i.action;
+export const newIntegration = (action: string, taken: FormIntegration[] = []): FormIntegration => { let n = taken.length + 1; while (taken.some((x) => x.id === `int-${n}`)) n++; return { id: `int-${n}`, action, mapping: {} }; };
 export const RETENTION: Record<string, string> = { "lead-12m": "Leads – kept 12 months", "contact-6m": "Contact requests – kept 6 months", "application-7y": "Applications – kept 7 years" };
-export const DEFAULT_SUBMIT: FormSubmit = { action: "crm-lead", mapping: {}, retention: "lead-12m" };
+export const DEFAULT_SUBMIT: FormSubmit = { integrations: [{ id: "int-1", action: "crm-lead", mapping: {} }], retention: "lead-12m" };
 
 /** UCP form component → AEM Forms core component (epic 3.4: one-to-one, so the Forms solution renders the definition as is). */
 export const AEM: Record<string, string> = {
@@ -41,7 +46,14 @@ const str = (v: unknown) => (v === undefined || v === null ? "" : String(v));
 const plain = (v: unknown) => str(v).replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").trim();
 const parse = <T,>(v: unknown, d: T): T => { if (typeof v !== "string" || !v) return d; try { return JSON.parse(v) as T; } catch { return d; } };
 export const formRules = (meta?: Record<string, unknown>) => parse<FormRule[]>(meta?.["ucp:formRules"], []);
-export const formSubmit = (meta?: Record<string, unknown>) => parse<FormSubmit>(meta?.["ucp:formSubmit"], DEFAULT_SUBMIT);
+/** Reads `ucp:formSubmit`. Forms saved before several integrations were allowed hold one `{ action, mapping, endpoint }`; that becomes the first integration. */
+export const formSubmit = (meta?: Record<string, unknown>): FormSubmit => {
+  const raw = parse<Record<string, unknown> | null>(meta?.["ucp:formSubmit"], null); if (!raw) return DEFAULT_SUBMIT;
+  const retention = typeof raw.retention === "string" ? raw.retention : DEFAULT_SUBMIT.retention;
+  if (Array.isArray(raw.integrations)) return { integrations: raw.integrations as FormIntegration[], retention };
+  if (typeof raw.action === "string") return { integrations: [{ id: "int-1", action: raw.action, mapping: (raw.mapping as Record<string, string>) ?? {}, ...(typeof raw.endpoint === "string" ? { endpoint: raw.endpoint } : {}) }], retention };
+  return { ...DEFAULT_SUBMIT, retention };
+};
 
 /** The page before sending: a summary of the answers and the Submit button (which carries the integration, see FormSubmit). */
 export type SubmitPage = { heading: string; intro: string; button: string; summary: boolean };
@@ -57,8 +69,11 @@ export function formChecks(comps: { type: string; props: Record<string, unknown>
   if (new Set(names).size !== names.length) out.push("Two fields share a field name");
   const steps = new Set(comps.filter((c) => c.type === "formstep").map((c) => str(c.props.title)));
   if (rules.some((r) => !names.includes(r.when.field) || (r.then.action === "skip-step" ? !steps.has(r.then.target) : !names.includes(r.then.target)))) out.push("A rule points to a field or step that no longer exists");
-  if (!/^https:\/\/\S+$/.test(submitEndpoint(submit))) out.push("Give the Submit button a full https:// endpoint");
-  const act = SUBMIT_ACTIONS[submit.action]; if (act) { const mapped = new Set(Object.values(submit.mapping)); const miss = act.required.filter((r) => !mapped.has(r)); if (miss.length) out.push(`Map the required ${act.name} fields: ${miss.join(", ")}`); }
+  if (!submit.integrations.length) out.push("Connect the Submit button to at least one integration");
+  for (const i of submit.integrations) {
+    if (!/^https:\/\/\S+$/.test(submitEndpoint(i))) out.push(`Give ${integrationName(i)} a full https:// endpoint`);
+    const act = SUBMIT_ACTIONS[i.action]; if (act) { const mapped = new Set(Object.values(i.mapping)); const miss = act.required.filter((r) => !mapped.has(r)); if (miss.length) out.push(`Map the required ${act.name} fields: ${miss.join(", ")}`); }
+  }
   return out;
 }
 
@@ -84,12 +99,13 @@ export function formDefinition(f: { id: string; title: string; status: string; l
   }
   const submit = formSubmit(f.meta);
   return {
-    contractVersion: "1.0", id: f.id, title: f.title, market: f.market, locale: f.locale, status: f.status, publishedAt: f.updatedAt ?? null, hostPage: f.hostPage ?? null,
+    contractVersion: "1.1", id: f.id, title: f.title, market: f.market, locale: f.locale, status: f.status, publishedAt: f.updatedAt ?? null, hostPage: f.hostPage ?? null,
     fieldType: "form", "sling:resourceType": "core/fd/components/form/container/v2/container",
     layout: formLayout(f.meta) === "wizard" ? "core/fd/components/form/wizard/v2/wizard" : "core/fd/components/form/panelcontainer/v1/panelcontainer",
     items: panels, rules: formRules(f.meta),
     submitPage: (() => { const sp = formSubmitPage(f.meta); return { title: sp.heading, description: sp.intro, showSummary: sp.summary,
-      submitButton: { label: sp.button, action: { id: submit.action, name: SUBMIT_ACTIONS[submit.action]?.name ?? submit.action }, method: "POST", endpoint: submitEndpoint(submit) || null, mapping: submit.mapping, retentionPolicy: submit.retention } }; })(),
+      submitButton: { label: sp.button, retentionPolicy: submit.retention,
+        integrations: submit.integrations.map((i) => ({ id: i.id, action: { id: i.action, name: integrationName(i) }, method: "POST", endpoint: submitEndpoint(i) || null, mapping: i.mapping })) } }; })(),
     thankYou: success, error: failure,
     _links: { self: `/v1/forms/${f.id}?market=${f.market}` },
   };
