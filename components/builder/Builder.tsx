@@ -1296,6 +1296,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {share && shareIn === "bar" && (status === "draft" || status === "failed") && <ShareReviewDialog key="draft" marketId={marketId} path={page.path} title={title} stage="draft" onClose={() => setShare(false)} />}
         {share && !sharePanel && status === "bizreview" && <ShareReviewDialog key={status} marketId={marketId} path={page.path} title={title} stage="bizreview" onSendBack={() => void reauthor()} onClose={() => setShare(false)} onAccess={(a) => { if (a.group) setBizGroups((g) => (g.includes(a.group!) ? g : [...g, a.group!])); if (a.person) setBizTaken(a.person); }} />}
         {publishing && <PublishDialog marketId={marketId} envName={envName} pages={[{ path: page.path, title, status, publishAt }]} mayPublish={() => mayStatus("published")} onClose={() => setPublishing(false)}
+          /* The page is live and read-only: there is nothing left to do to it here, so Close leaves the
+             editor for the list it came from rather than dropping the author back on a finished page. */
+          onFanfareClosed={() => router.push(`/${marketId}/${envId}/pages`)}
           onDone={(r, m) => { const x = r[0]; setPublishing(false); if (!x?.ok) { say(x?.reason ?? "Nothing was published"); return; } setStatus(x.status as PageStatus); setPublishAt(undefined); say(m === "cancel" ? "Schedule cancelled · back to Approved" : m === "schedule" ? "Scheduled for publishing" : `Published to ${envName}`); router.refresh(); }} />}
         {/* The modal is still the surface outside the preview -- and the one the form falls back to if the preview is left mid-send. */}
         {sending && shareIn === "bar" && !(sendHere && qcMode) && <SendForReviewModal marketId={marketId} pagePath={page.path} onClose={() => { setSending(false); setSendHere(false); }} onSend={sendForReview} />}

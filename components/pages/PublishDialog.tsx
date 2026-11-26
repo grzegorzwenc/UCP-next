@@ -24,7 +24,8 @@ const defaultWhen = () => { const d = new Date(); d.setDate(d.getDate() + 1); d.
  * Publish one page or a batch: "Publish now" or "Schedule" for a date and time. Pages that cannot go live yet are listed
  * with the reason and skipped. A scheduled single page can also be moved or cancelled from here.
  */
-export function PublishDialog({ marketId, envName, pages, mayPublish, onClose, onDone }: { marketId: string; envName: string; pages: PublishItem[]; mayPublish: (path: string) => boolean; onClose: () => void; onDone: (results: PublishOutcome[], mode: "now" | "schedule" | "cancel") => void }) {
+export function PublishDialog({ marketId, envName, pages, mayPublish, onClose, onDone, onFanfareClosed }: { marketId: string; envName: string; pages: PublishItem[]; mayPublish: (path: string) => boolean; onClose: () => void; onDone: (results: PublishOutcome[], mode: "now" | "schedule" | "cancel") => void;
+  /** Closing the "Published!" ceremony: where the author goes next (the builder sends them to the page list). */ onFanfareClosed?: () => void }) {
   const single = pages.length === 1 ? pages[0] : undefined;
   const ready = useMemo(() => pages.filter((p) => !publishBlock(p, mayPublish)), [pages, mayPublish]);
   const [mode, setMode] = useState<"now" | "schedule">(single?.status === "scheduled" ? "schedule" : "now");
@@ -49,7 +50,7 @@ export function PublishDialog({ marketId, envName, pages, mayPublish, onClose, o
     if (!cancel && (whenErr || !ready.length)) return; setBusy(true); setErr(null);
     try {
       const r = await ucpApi.publish(marketId, cancel ? [single!.path] : ready.map((p) => p.path), cancel ? { cancel: true } : { at: at?.toISOString(), assets: chosen });
-      const m = cancel ? "cancel" : mode; const live = r.filter((x) => x.ok); if (m === "now" && live.length) celebrate(live.map((x) => x.title), envName); // fanfare 🎉
+      const m = cancel ? "cancel" : mode; const live = r.filter((x) => x.ok); if (m === "now" && live.length) celebrate(live.map((x) => x.title), envName, onFanfareClosed); // fanfare 🎉
       if (r.every((x) => x.ok) && ready.length === pages.length) { onDone(r, m); return; }
       setResults([...r, ...pages.filter((p) => !ready.includes(p) && !cancel).map((p) => ({ path: p.path, title: p.title, ok: false, reason: publishBlock(p, mayPublish) }))]); onDone(r, m);
     } catch (e) { setErr(errorText(e)); } finally { setBusy(false); }
