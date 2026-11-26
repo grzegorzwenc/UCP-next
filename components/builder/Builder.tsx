@@ -650,6 +650,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
     if (dirty) await save();
     const r = await ucpApi.sendForReview(marketId, page.path, body);
     setSending(false); setSendHere(false); setAssignee(r.assignee); setStatus("review"); say("Sent for review · it is in the Backlog, any reviewer can take it"); router.refresh(); // sharing by link / e-mail is for the business review only
+    /* The page has left the author's hands, so the visitor preview has done its job: come back to the
+       editor (read-only now, rails folded by the locked branch). Staying in full screen left an
+       "Exit preview" button as the only thing on screen, with the workflow and panels already gone. */
+    if (focus) setFocusMode(false);
   }
   /* Token chips: while a block is being configured, insert into the last focused Configure field at its caret; otherwise copy. */
   const lastField = useRef<{ blockId: string; k: string; l: string; start: number; end: number } | null>(null);
