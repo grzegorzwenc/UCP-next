@@ -250,6 +250,8 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [commentCounts, setCommentCounts] = useState<Record<string, number>>({}); const [commentTotal, setCommentTotal] = useState(0);
   const [commentAbout, setCommentAbout] = useState<{ id: string; label: string } | null>(null); const [commentFocus, setCommentFocus] = useState(0); // "Comment" on a version
   const [floatOpen, setFloatOpen] = useState(true); // full screen: the floating comments card
+  const sharePushedFocus = useRef(false); // the share, not the author, turned preview on: closing it goes back to the editor
+  const [shareSeen, setShareSeen] = useState(false); // the share card has just opened: make sure it is not folded away
   /* Author's preview (Build the page → Preview): a quality checklist that follows the pointer; a click pins what it shows */
   const [qcTarget, setQcTarget] = useState<QcTarget | null>(null); const [qcPinned, setQcPinned] = useState(false); const [qcOpen, setQcOpen] = useState(true);
   const qcMode = focus && canEdit && (status === "draft" || status === "failed");
@@ -678,7 +680,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         return;
       }
       if ((e.metaKey || e.ctrlKey) && !e.shiftKey && e.key.toLowerCase() === "s") { e.preventDefault(); if (canEdit && !locked && dirty) { if (editing) commitInline(true); void saveRef.current().then(() => say("Saved"), () => {}); } return; } // ⌘S / Ctrl+S saves now
-      if (e.key === "Escape") { if (focus && !editing && !pop && !ctaPop) leavePreview(); }
+      if (e.key === "Escape") { if (sharePanel) { setShare(false); return; } if (focus && !editing && !pop && !ctaPop) leavePreview(); }
     };
     window.addEventListener("keydown", h); return () => window.removeEventListener("keydown", h);
   });
@@ -915,7 +917,11 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   /* First time anyone opens the builder, the tour introduces it — once, then never again
      unless they ask from the components panel. */
   useEffect(() => { if (tourSeen()) return; const id = setTimeout(runTour, 900); return () => clearTimeout(id); }, []); // eslint-disable-line react-hooks/exhaustive-deps
-  const railsOn = !preview || !!lockReason; // a locked page keeps the rails (panels open read-only or veiled); a plain preview hides them
+  /* A locked page keeps the rails in a plain preview (panels open read-only or veiled); a draft's
+     preview hides them. Full-screen preview hides them either way -- that is what it is for, and
+     while they stayed the 48px rail sat on top of a canvas already padded as if it were gone, so
+     the page was clipped down its left edge. */
+  const railsOn = (!preview || !!lockReason) && !focus;
   /* SMS, push and in-app messages are one fixed component: nothing to add, no patterns, a one-line outline.
      They get no left panel at all; the canvas and the settings on the right are all there is. */
   const leftOn = railsOn && !(channel && channel !== "email");
@@ -926,10 +932,24 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const panelW = rightW; // one width for every tab: a panel that jumps wider on Comments or History reads as a glitch
   /** The floating panel (quality checklist, review) is the width of the right rail. */
   const FLOAT_W = 320;
-  /* Sharing for business review happens in the floating panel it would otherwise cover, the same way
-     Send for review does. Outside the preview there is no floating panel, so the modal still serves —
-     and that is the path the toolbar and the automatic share after the transition take. */
-  const sharePanel = focus && share && status === "bizreview";
+  /* Sharing for business review is the preview with a floating card, exactly like the Quality
+     checklist and Send for review: the page is what the business is being asked to look at, so
+     opening the share puts the builder into preview — no rails, the canvas narrowed to leave the
+     card its gutter — rather than dropping a dialog on top of the editor. */
+  const sharePanel = share && status === "bizreview" && !phone;
+  /* An effect, not the render-time `…Seen` pattern: entering preview also touches `document.body`
+     and fires `ucp:focus`, which are not things a render may do. */
+  useEffect(() => {
+    if (sharePanel && !focus) { sharePushedFocus.current = true; setFocusMode(true); }
+    /* Closing the share always comes back to the editor, even if the preview was already on when it
+       opened: the next move is the decision itself (sign off, or send it back), and that lives in the
+       editor's status bar -- leaving someone in the preview would hide the thing they came back for. */
+    else if (!sharePanel && focus) { sharePushedFocus.current = false; setFocusMode(false); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the share opening or closing drives this
+  }, [sharePanel]);
+  /* Unfolding the card is plain state, so it uses the file's render-time pattern rather than the
+     effect above (a synchronous setState in an effect cascades renders, and eslint says so). */
+  if (shareSeen !== sharePanel) { setShareSeen(sharePanel); if (sharePanel) setFloatOpen(true); }
   const floatingOpen = focus && !phone && ((qcMode && qcOpen) || (reviewMode && floatOpen)); // full screen: keep the page clear of the floating panel
   /* The gutters reserve exactly what the docked panels occupy. They used to skip that on
      narrow viewports — from the days when the panels floated over the canvas — but the panels
@@ -939,7 +959,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
      the one control that disappeared when the top bar did. */
   const deviceSwitch = (cls = "") => <div role="group" aria-label="Preview width" className={`inline-flex overflow-hidden border border-line-2 ${cls}`}>{DEVICES.map(([d, label, path]) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center transition-colors duration-150 ease-out ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink hover:bg-surface-3"}`} title={`${label} · ${DEVICE_W[d]}px`} aria-label={`${label} view, ${DEVICE_W[d]} pixels`} aria-pressed={device === d}><Ico d={path} /></button>)}</div>;
   /** The watermark behind the page names the stage it is in. */
-  const stageMark = focus ? "stage-preview"
+  /* Full-screen preview of a draft says PREVIEW; once the page is locked the stage it is in says more
+     (REVIEWING, BUSINESS REVIEW, LIVE), so that wins -- the share is read in a business review, not
+     in a preview of nothing in particular. */
+  const stageMark = focus && !locked ? "stage-preview"
     : status === "published" ? "stage-live"
     : status === "approved" || status === "scheduled" ? "stage-ready"
     : status === "bizreview" ? "stage-biz"
@@ -1201,8 +1224,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {focus && <div className="fixed top-4 left-4 z-[80] flex items-center gap-2">
           {/* the width switch travels into the preview: on a white page it needs its own ground */}
           {deviceSwitch("bg-surface shadow-lg")}
-          {!qcMode && <button type="button" className="btn btn-sm btn-primary shadow-lg" onClick={leavePreview} title="Leave the visitor preview (Esc)"><Ico d="M6 6l12 12M18 6L6 18" />Exit preview<kbd className="ml-1.5 border border-white/40 px-1 text-xs font-normal">Esc</kbd></button>}
-          <span aria-live="polite" className={`hidden text-xs text-white bg-bdl-charcoal px-2.5 py-1.5 transition-opacity duration-700 sm:block ${fsHint ? "opacity-100" : "opacity-0"}`}>This is what visitors see</span>
+          {/* While the share is open there is no way out through the preview: leaving it would drop the
+              card onto the editor's own sidebar, which is the state the card exists to avoid. The way
+              out is the card itself -- Send, Go back, or its close -- and each of those returns to the
+              editor. The visitor hint goes too: this preview is here to be shared, not to be checked. */}
+          {!qcMode && !sharePanel && <button type="button" className="btn btn-sm btn-primary shadow-lg" onClick={leavePreview} title="Leave the visitor preview (Esc)"><Ico d="M6 6l12 12M18 6L6 18" />Exit preview<kbd className="ml-1.5 border border-white/40 px-1 text-xs font-normal">Esc</kbd></button>}
+          {!sharePanel && <span aria-live="polite" className={`hidden text-xs text-white bg-bdl-charcoal px-2.5 py-1.5 transition-opacity duration-700 sm:block ${fsHint ? "opacity-100" : "opacity-0"}`}>This is what visitors see</span>}
         </div>}
         {/* No Exit in this panel's header: the fixed "Exit preview" button above is on screen for
             the whole preview, review included, so a second one here only split the way out. */}

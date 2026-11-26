@@ -1547,3 +1547,43 @@ body.focus .crit-blk::after {
 /* page progress → the step's own actions: the main button is dark, so it never shares the current step's red */
 .flow-actions .btn-primary, .flow-actions .btn-next { background: var(--ink); border-color: var(--ink); color: var(--surface); }
 .flow-actions .btn-primary:hover, .flow-actions .btn-next:hover { background: var(--ink-2); border-color: var(--ink-2); color: var(--surface); }
+
+/* ---- "Sent for review" confirmation (components/tasks/ShareReviewDialog.tsx) ----
+   Seen once per share, so it may have a moment: the ring fades up from 0.92 (never from nothing)
+   and the tick draws itself, then the words follow on BDL's own `.bdl-stagger`. Keyframes rather
+   than transitions because this plays once and is never interrupted or retargeted, and the easing
+   is BDL's `--ease-out` so it matches every other entrance in the app. */
+.sent-ring {
+  animation: sent-ring 200ms var(--ease-out) both;
+}
+.sent-tick {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: sent-tick 260ms var(--ease-out) 120ms forwards;
+}
+@keyframes sent-ring {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+}
+@keyframes sent-tick {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* Fewer and gentler, not none: the tick is simply already drawn. */
+  .sent-ring {
+    animation: sent-ring-reduced 200ms ease both;
+  }
+  .sent-tick {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+  @keyframes sent-ring-reduced {
+    from {
+      opacity: 0;
+    }
+  }
+}

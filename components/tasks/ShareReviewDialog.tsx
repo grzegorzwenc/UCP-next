@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { BdlSelect } from "@/components/ui/BdlSelect";
+import { BdlMultiSelect } from "@/components/ui/BdlSelect";
 import { ModalShell, Err } from "@/components/models/ModalShell";
 import { FloatingPanel } from "@/components/review/FloatingPanel";
 import { ucpApi } from "@/lib/api";
@@ -73,11 +73,7 @@ function useShare({ marketId, path, stage, onAccess }: Omit<Shared, "onClose" | 
      workflow drawer, which shows the same controls in place rather than stacking a modal. */
   const body = <>
     {stage === "draft" && <p className="mb-3 text-sm text-ink-2">Let the business see the first version early. They open the draft, click a text or an image and comment. Nobody is assigned and nobody signs off.</p>}
-    <label className="block text-xs font-medium text-ink-2">{stage === "draft" ? "Draft link" : "Review link"}</label>
-    <div className="mt-1 flex gap-2"><input readOnly value={url ?? "Creating the link…"} onFocus={(e) => e.currentTarget.select()} className="flex-1 min-w-0 border border-line-2 rounded-md px-2.5 py-1.5 text-xs bg-surface-2" aria-label="Review link" />
-      <button className="btn btn-sm btn-secondary" disabled={!url} onClick={copy}>{copied ? "✓ Copied" : "Copy"}</button></div>
-    <p className="text-xs text-ink-3 mt-1">{stage === "draft" ? "Anyone with the link sees the latest saved draft and can comment until the page is sent for review." : <>Anyone with the link can comment until the {STAGE[stage]} ends.{stage === "bizreview" ? " Only people you e-mail or a group can sign off." : ""}</>}</p>
-    <label className="block text-xs font-medium text-ink-2 mt-4" htmlFor="rv-mail">Send by e-mail</label>
+    <label className="block text-xs font-medium text-ink-2" htmlFor="rv-mail">Send by e-mail</label>
     {people.length > 0 && <ul className="mt-1.5 flex flex-wrap gap-1.5" aria-label="People to notify">{people.map((x) => <li key={x}>
       <span className="inline-flex items-center gap-1 border border-line-2 bg-surface-2 px-2 py-0.5 text-xs text-ink">{x}
         <button type="button" aria-label={`Remove ${x}`} title={`Remove ${x}`} className="-me-0.5 grid h-4 w-4 place-items-center text-ink-3 hover:text-crit" onClick={() => setPeople((ps) => ps.filter((y) => y !== x))}>
@@ -88,16 +84,11 @@ function useShare({ marketId, path, stage, onAccess }: Omit<Shared, "onClose" | 
     <p className="text-xs text-ink-3 mt-1">A comma makes each address a chip.{stage === "draft" ? "" : " A UCP reviewer is also assigned."}</p>
     {stage !== "review" && <>
       <label className="block text-xs font-medium text-ink-2 mt-4" htmlFor="rv-group">Share with a group</label>
-      {/* the app's BDL dropdown, so the list is BDL open as well as shut (components/ui/BdlSelect) */}
-      {teams.length > 0 && <ul className="mt-1.5 m-0 flex list-none flex-wrap gap-1.5 p-0">{teams.map((t) => <li key={t}>
-        <span className="inline-flex items-center gap-1 border border-line-2 bg-surface-2 px-2 py-0.5 text-xs text-ink">{t}
-          <button type="button" aria-label={`Remove ${t}`} title={`Remove ${t}`} className="-me-0.5 grid h-4 w-4 place-items-center text-ink-3 hover:text-crit" onClick={() => setTeams((ts) => ts.filter((x) => x !== t))}>
-            <svg viewBox="0 0 24 24" aria-hidden className="h-3 w-3 fill-none stroke-current" strokeWidth={2.2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
-          </button></span></li>)}</ul>}
-      <div className="mt-1 flex gap-2"><BdlSelect id="rv-group" className="min-w-0 flex-1" value="" onValueChange={(v) => { if (v) setTeams((ts) => (ts.includes(v) ? ts : [...ts, v])); }} disabled={!groups}
-          placeholder={groups ? (teams.length ? "Add another group…" : "Choose a group…") : "Loading groups…"}
-          options={(groups ?? []).map((g) => ({ value: g.team, label: g.team, hint: `${g.members.length} ${g.members.length === 1 ? "person" : "people"}${g.shared ? " · has access" : ""}`, disabled: g.shared || teams.includes(g.team) }))} />
-</div>
+      {/* The picks live inside the list as checks, with a count on the trigger: a chip each added a row
+          to a 320px panel for every group, so four groups pushed the Message field off the bottom. */}
+      <div className="mt-1"><BdlMultiSelect id="rv-group" className="w-full" value={teams} onValueChange={setTeams} disabled={!groups}
+          placeholder={groups ? "Choose a group…" : "Loading groups…"} summary={(n) => `${n} group${n === 1 ? "" : "s"} selected`}
+          options={(groups ?? []).map((g) => ({ value: g.team, label: g.team, hint: `${g.members.length} ${g.members.length === 1 ? "person" : "people"}${g.shared ? " · has access" : ""}`, disabled: g.shared }))} /></div>
       <p className="text-xs text-ink-3 mt-1">{stage === "draft" ? "Everyone in the group gets the link by e-mail." : "The whole group sees it in My tasks."}</p>
       {withAccess.length > 0 && <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Groups with access">{withAccess.map((g) => <span key={g.team} className="inline-flex items-center gap-1 text-xs bg-info-soft text-info rounded-full px-2.5 py-0.5" title={g.members.map((m) => m.name).join(", ")}><svg aria-hidden width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3.2" /><path d="M3 19c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5" /><path d="M16 5.2a3 3 0 0 1 0 5.6M18 13.8c1.8.6 3 2.4 3 5.2" /></svg>{g.team} · {g.members.length}</span>)}</div>}
     </>}
@@ -108,24 +99,45 @@ function useShare({ marketId, path, stage, onAccess }: Omit<Shared, "onClose" | 
     <p className="mt-3 text-xs text-ink-3">{[people.length || email.trim() ? `${(people.length || 1)} by e-mail` : "", teams.length ? `${teams.length} ${teams.length === 1 ? "group" : "groups"}` : ""].filter(Boolean).join(" and ") || "Add someone above"}</p>
     {sent && <p role="status" className="text-xs bg-good-soft text-good rounded-md px-3 py-2 mt-3">✓ {sent}</p>}
     <Err err={err} />
+    {/* The link last, and as a button only. Naming people is the point of this panel; the link is the
+        fallback for anyone it misses, and the URL itself was 40 characters of noise nobody reads --
+        it is copied, not typed. */}
+    <div className="mt-4 border-t border-line pt-3">
+      <button className="btn btn-sm btn-secondary w-full justify-center" disabled={!url} onClick={copy}>
+        <svg aria-hidden viewBox="0 0 24 24" className="size-3.5 fill-none stroke-current" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round"><path d="M10 13.5a3.5 3.5 0 0 0 5 0l3-3a3.5 3.5 0 0 0-5-5l-1 1" /><path d="M14 10.5a3.5 3.5 0 0 0-5 0l-3 3a3.5 3.5 0 0 0 5 5l1-1" /></svg>
+        {copied ? "✓ Link copied" : url ? `Copy the ${stage === "draft" ? "draft" : "review"} link` : "Creating the link…"}</button>
+      <p className="mt-1.5 text-xs text-ink-3">{stage === "draft" ? "Anyone with the link sees the latest saved draft and can comment until the page is sent for review." : <>Anyone with the link can comment until the {STAGE[stage]} ends.{stage === "bizreview" ? " Only people you e-mail or a group can sign off." : ""}</>}</p>
+    </div>
   </>;
 
-  return { body, busy, nobody: !email.trim() && !people.length && !teams.length, sendAll };
+  /* What replaces the form once it has gone out. The decision that follows (sign off, or send it
+     back to the author) lives in the editor, so the only thing offered here is the way back to it. */
+  const done = <div role="status" className="flex flex-col items-center px-2 py-6 text-center">
+    <span aria-hidden className="sent-ring mb-3.5 grid size-12 place-items-center rounded-full bg-good-soft text-good">
+      <svg viewBox="0 0 24 24" className="size-6 fill-none stroke-current" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round"><path className="sent-tick" d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+    </span>
+    <span className="bdl-stagger flex flex-col gap-1.5">
+      <b className="text-sm font-medium">{stage === "draft" ? "The draft is with the business" : "Sent for business review"}</b>
+      <span className="text-xs leading-relaxed text-ink-2">{sent}</span>
+      <span className="text-xs leading-relaxed text-ink-3">{stage === "draft" ? "They can open the draft and comment while you carry on editing." : "They comment on the page. When they are done, sign it off or send it back to the author."}</span>
+    </span>
+  </div>;
+  return { body, done, sent, busy, nobody: !email.trim() && !people.length && !teams.length, sendAll };
 }
 
 const shareTitle = (stage: Shared["stage"]) => (stage === "draft" ? "Share the draft with the business" : `Share for ${STAGE[stage]}`);
 
 export function ShareReviewDialog({ title, onClose, onSendBack, inline = false, ...rest }: Shared & { /** render just the controls, for embedding in a panel */ inline?: boolean }) {
-  const { body, busy, nobody, sendAll } = useShare(rest);
-  if (inline) return <div className="flex flex-col">{body}</div>;
+  const { body, done, sent, busy, nobody, sendAll } = useShare(rest);
+  if (inline) return <div className="flex flex-col">{sent ? done : body}</div>;
 
-  return <ModalShell title={shareTitle(rest.stage)} subtitle={<b className="text-ink-2">{title}</b>} width={540} onClose={onClose}
-    footer={<>
+  return <ModalShell title={sent ? "Sent" : shareTitle(rest.stage)} subtitle={<b className="text-ink-2">{title}</b>} width={540} onClose={onClose}
+    footer={sent ? <button className="btn btn-sm btn-primary" onClick={onClose}>Close</button> : <>
       {onSendBack && <button className="btn btn-sm btn-secondary mr-auto" disabled={busy} onClick={() => { onClose(); onSendBack(); }}
         title="Hand the page back to its author instead of sending it on">Go back</button>}
       <button className="btn btn-sm btn-primary" disabled={busy || nobody} onClick={sendAll}>{busy ? "Sending\u2026" : "Send"}</button>
     </>}>
-    {body}
+    {sent ? done : body}
   </ModalShell>;
 }
 
@@ -135,17 +147,24 @@ export function ShareReviewDialog({ title, onClose, onSendBack, inline = false, 
  * over the panel that was already open; this reuses that panel, with the page title as the hint and
  * the dialog's own footer. Closing (the panel header's cross) returns whatever was there before.
  */
-export function ShareReviewPanel({ title, onClose, onSendBack, width, bottom, open, onToggle, ...rest }: Shared & { width?: number; bottom?: number; open: boolean; onToggle: (open: boolean) => void }) {
-  const { body, busy, nobody, sendAll } = useShare(rest);
-  return <FloatingPanel width={width} bottom={bottom} open={open} onToggle={onToggle} title={shareTitle(rest.stage)} hint={<b className="text-ink-2">{title}</b>}
+export function ShareReviewPanel({ title, onClose, onSendBack, width, top, bottom, open, onToggle, ...rest }: Shared & { width?: number; /** clear the editor's chrome when the page is not in full-screen preview */ top?: number; bottom?: number; open: boolean; onToggle: (open: boolean) => void }) {
+  const { body, done, sent, busy, nobody, sendAll } = useShare(rest);
+  /* Sent: the card is the message. No title bar, no page name, no icon -- the tick and the sentence
+     under it say everything those three repeated, and the Close button is the only thing to do. */
+  return <FloatingPanel width={width} top={top} bottom={bottom} open={open} onToggle={onToggle} header={!sent} title={shareTitle(rest.stage)} hint={sent ? undefined : <b className="text-ink-2">{title}</b>}
     icon={<svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5.5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="18.5" r="2.5" /><path d="M8.2 10.8l7.6-4M8.2 13.2l7.6 4" /></svg>}
-    actions={<button type="button" onClick={onClose} disabled={busy} className="w-7 h-7 rounded grid place-items-center text-ink-3 hover:bg-surface-3 hover:text-ink" title="Close" aria-label="Close sharing">
+    /* Once it is sent there is one thing left to do, so the header loses both its controls: a cross
+       and a fold-away beside a single Close button are three ways to dismiss the same confirmation. */
+    fold={!sent}
+    actions={sent ? undefined : <button type="button" onClick={onClose} disabled={busy} className="w-7 h-7 rounded grid place-items-center text-ink-3 hover:bg-surface-3 hover:text-ink" title="Close" aria-label="Close sharing">
       <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>}
-    footer={<div className="flex items-center gap-2">
-      {onSendBack && <button className="btn btn-sm btn-secondary flex-1 justify-center" disabled={busy} onClick={() => { onClose(); onSendBack(); }}
-        title="Hand the page back to its author instead of sending it on">Go back</button>}
-      <button className="btn btn-sm btn-primary flex-1 justify-center" disabled={busy || nobody} onClick={sendAll}>{busy ? "Sending\u2026" : "Send"}</button>
-    </div>}>
-    {body}
+    footer={sent
+      ? <button className="btn btn-sm btn-primary w-full justify-center" onClick={onClose}>Close</button>
+      : <div className="flex items-center gap-2">
+        {onSendBack && <button className="btn btn-sm btn-secondary flex-1 justify-center" disabled={busy} onClick={() => { onClose(); onSendBack(); }}
+          title="Hand the page back to its author instead of sending it on">Go back</button>}
+        <button className="btn btn-sm btn-primary flex-1 justify-center" disabled={busy || nobody} onClick={sendAll}>{busy ? "Sending\u2026" : "Send"}</button>
+      </div>}>
+    {sent ? <div className="grid h-full place-items-center">{done}</div> : body}
   </FloatingPanel>;
 }
