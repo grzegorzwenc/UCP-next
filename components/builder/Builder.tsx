@@ -1403,6 +1403,7 @@ function ContextBar({ block: b, index, count, mode, pop, setPop, clipboard, aiSe
         <GripVertical className="size-4" strokeWidth={1.6} aria-hidden />
       </span>}
       <b className="px-2 text-xs text-white/70 border-r border-white/15 mr-0.5">{BLOCK_BY_TYPE[b.type].name}{locked ? " · locked" : ""}{b.props.hidden ? " · hidden" : ""}</b>
+      {!!b.props.hidden && <Btn title="Show this component on the live site again" onClick={() => onMore("hide")} disabled={locked}><Eye className="size-3.5" strokeWidth={1.6} aria-hidden />Show</Btn>}
       <Btn title={editing ? "Finish editing text" : "Edit text, images and buttons in place"} on={editing} onClick={onEdit} disabled={locked}>{editing ? "Done" : "Edit"}</Btn>
       {onConfigure && <Btn title="All properties, layout and behaviour" onClick={onConfigure}>Configure</Btn>}
       <Btn title="Create a design pattern starting with this component" onClick={() => onMore("pattern")}><span className="inline-flex items-center gap-1.5"><svg viewBox="0 0 24 24" className="w-4 h-4 stroke-current fill-none" strokeWidth={1.8} strokeLinejoin="round" aria-hidden><path d={PATTERN_ICON} /></svg>Pattern</span></Btn>

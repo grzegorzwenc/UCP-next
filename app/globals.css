@@ -432,7 +432,9 @@
   background: #fdecee;
   box-shadow: 0 0 0 1px rgba(219, 0, 17, 0.35);
 }
-.cblk.hidden-blk > *:not(.tag) {
+/* Only the component fades: the toolbar, its menus and the rule/comment chips sit in the same box
+   (all marked data-ui) and must stay fully readable, or a hidden block can't be shown again. */
+.cblk.hidden-blk > *:not(.tag):not([data-ui]):not(.multi-n):not(.cmt-pick) {
   opacity: 0.4;
 }
 .cblk.hidden-blk::before {
