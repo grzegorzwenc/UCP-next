@@ -35,7 +35,7 @@ export function FormSettings({ marketId, base, path, blocks, host, editable, sta
         : <p className="text-xs text-crit">No host page. Every form must be placed on a page.</p>}
       <p className="text-xs text-ink-3">The page shows the form with its Form component. A page cannot go live with a form that is not published.</p>
     </S>
-    <p className="mx-3.5 my-2 text-xs text-ink-3">Steps, pages, layout and rules are in <b>Steps &amp; pages</b> on the left.</p>
+    <p className="mx-3.5 my-2 text-xs text-ink-3">Steps, layout and rules are in <b>Steps</b> on the left.</p>
     <S t="Submit page">
       <p className="text-xs text-ink-3">The last page before sending: customers check their answers and press the Submit button.</p>
       <label className="text-xs text-ink-2 font-medium">Heading<input className={sel} disabled={!editable} value={sp.heading} onChange={(e) => putSubmitPage({ ...sp, heading: e.target.value })} /></label>

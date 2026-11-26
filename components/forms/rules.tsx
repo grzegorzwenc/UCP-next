@@ -6,7 +6,7 @@ import { errorText } from "@/lib/api/errors";
 import { FIELD_TYPES, RULE_ACTIONS, RULE_OPS, formLayout, formRules, formSubmit, formSubmitPage, type FormRule, type FormSubmit, type RuleAction, type RuleOp, type SubmitPage } from "@/lib/forms/model";
 
 /**
- * Form rules, shared by every place that shows them: the Steps & pages tab, the form settings,
+ * Form rules, shared by every place that shows them: the Steps tab, the form settings,
  * the settings of one field, and the chips between fields on the canvas. One state, saved on the
  * form's jcr:content as `ucp:formRules` straight away.
  */

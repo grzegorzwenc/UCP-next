@@ -7,7 +7,7 @@
  * (/api/delivery/v1/messages/<id>), and describes that contract as JSON Schema. Client-safe.
  */
 import type { Channel } from "@/lib/blocks/registry";
-import { CHANNEL_LABEL } from "@/lib/blocks/registry";
+import { CHANNEL_LABEL, lines } from "@/lib/blocks/registry";
 import { smsSegments } from "@/lib/blocks/sms";
 
 export type { Channel };
@@ -50,7 +50,7 @@ export function messagePayload(m: MessageMeta, comps: Comp[], img: (id: string) 
   const one = (t: string) => comps.find((c) => typeOf(c) === t)?.props ?? {};
   if (m.channel === "email") { const e = emailHtml(comps, img); content = { ...e, blocks: comps.map((c) => ({ type: typeOf(c), ...Object.fromEntries(Object.entries(c.props).filter(([k]) => k !== "locked")) })) }; }
   if (m.channel === "sms") { const p = one("sms"); const optOut = str(p.optout).startsWith("Add"); const text = `${plain(p.text)}${optOut ? " Reply STOP to opt out" : ""}`; const sg = smsSegments(text); content = { sender: plain(p.sender), text, encoding: sg.encoding, segments: sg.segments, optOut }; }
-  if (m.channel === "push") { const p = one("push"); content = { title: plain(p.title), body: plain(p.body), deepLink: str(p.link) || null, image: p.image ? img(str(p.image)) : null, presentation: str(p.shown) === "Over the open app" ? "foreground" : "lock-screen" }; }
+  if (m.channel === "push") { const p = one("push"); content = { title: plain(p.title), body: plain(p.body), deepLink: str(p.link) || null, image: p.image ? img(str(p.image)) : null, presentation: str(p.shown) === "Over the open app" ? "foreground" : "lock-screen", actions: lines(p.actions).filter((r) => plain(r[0] ?? "")).slice(0, 3).map((r, i) => ({ id: `action${i + 1}`, label: plain(r[0] ?? ""), deepLink: (r[1] ?? "").trim() || null })) }; }
   if (m.channel === "inapp") { const p = one("inapp"); content = { title: plain(p.heading), body: plain(p.body), primaryAction: { label: plain(p.cta), link: str(p.link) }, dismissLabel: plain(p.dismiss), image: p.image ? img(str(p.image)) : null, format: ({ Modal: "modal", "Bottom sheet": "bottom-sheet", "Top banner": "top-banner", "Card in the feed": "card" } as Record<string, string>)[str(p.placement)] ?? "bottom-sheet", trigger: ({ "App open": "app-open", "After login": "login", "Screen view": "screen-view" } as Record<string, string>)[str(p.trigger)] ?? "app-open" }; }
   return {
     contractVersion: CONTRACT_VERSION, id: m.id, channel: m.channel, market: m.market, locale: m.locale, name: m.name, status: m.status,
@@ -66,7 +66,7 @@ export function messageSchema(channel: Channel): Record<string, unknown> {
   const content: Record<Channel, Record<string, unknown>> = {
     email: { type: "object", required: ["subject", "html", "text"], properties: { subject: s("Subject line, may contain {{variables}}", { maxLength: 90 }), preheader: s("Inbox preview text"), fromName: s("Sender display name"), html: s("Rendered HTML body; images use absolute URLs"), text: s("Plain-text alternative"), blocks: { type: "array", description: "The components the e-mail was built from" } } },
     sms: { type: "object", required: ["sender", "text"], properties: { sender: s("Alphanumeric sender ID", { maxLength: 11 }), text: s("Final text including the opt-out line"), encoding: { enum: ["GSM-7", "UCS-2"] }, segments: { type: "integer", minimum: 1 }, optOut: { type: "boolean" } } },
-    push: { type: "object", required: ["title", "body"], properties: { title: s("Title", { maxLength: 50 }), body: s("Text", { maxLength: 178 }), deepLink: { type: ["string", "null"] }, image: { type: ["string", "null"], format: "uri" }, presentation: { enum: ["lock-screen", "foreground"] } } },
+    push: { type: "object", required: ["title", "body"], properties: { title: s("Title", { maxLength: 50 }), body: s("Text", { maxLength: 178 }), deepLink: { type: ["string", "null"] }, image: { type: ["string", "null"], format: "uri" }, presentation: { enum: ["lock-screen", "foreground"] }, actions: { type: "array", maxItems: 3, description: "Buttons on the expanded notification", items: { type: "object", required: ["id", "label"], properties: { id: s("Action id the app receives"), label: s("Button label", { maxLength: 30 }), deepLink: { type: ["string", "null"], description: "Where the button goes; null opens the app" } } } } } },
     inapp: { type: "object", required: ["title", "body"], properties: { title: s("Heading"), body: s("Text"), primaryAction: { type: "object", properties: { label: s("Button label"), link: s("App link or URL") } }, dismissLabel: s("Close label"), image: { type: ["string", "null"], format: "uri" }, format: { enum: ["modal", "bottom-sheet", "top-banner", "card"] }, trigger: { enum: ["app-open", "login", "screen-view"] } } },
   };
   return { $schema: "https://json-schema.org/draft/2020-12/schema", $id: `ucp/messages/${channel}/${CONTRACT_VERSION}`, title: `UCP ${CHANNEL_LABEL[channel]} message`, type: "object",

@@ -88,7 +88,7 @@ type Props = {
   /** Dragging an outline row to a new position reorders the page itself. */
   onReorder?: (id: string, to: number) => void;
   /** without `patterns` (e.g. the template editor) only the component library shows */
-  /** Forms: the Steps & pages tab (pages, steps, rules), shown first. */
+  /** Forms: the Steps tab (layout, steps, end pages, rules), shown first. */
   flow?: React.ReactNode;
   patterns?: DesignPattern[] | null; tab?: LeftTab; onTab?: (t: LeftTab) => void;
   onAddPattern?: (p: DesignPattern) => void; onRemovePattern?: (p: DesignPattern) => void; onRestorePattern?: (p: DesignPattern) => void;
@@ -182,10 +182,10 @@ export function LeftPanel({
     <div role="tablist" aria-label="Left panel" className="flex min-w-0 flex-1 items-center">
       {/* Order is deliberate: the two things you add from come first, and Outline — which is
           about what is already on the page — sits last. */}
-      {flow && <button role="tab" aria-selected={tab === "flow"} className={tabCls(tab === "flow", true)} onClick={() => onTab("flow")}>Steps &amp; pages</button>}
-      <button role="tab" aria-selected={tab === "components"} className={tabCls(tab === "components", !!flow)} onClick={() => onTab("components")}>Components</button>
+      {flow && <button role="tab" aria-selected={tab === "flow"} className={tabCls(tab === "flow")} onClick={() => onTab("flow")}>Steps</button>}
+      <button role="tab" aria-selected={tab === "components"} className={tabCls(tab === "components")} onClick={() => onTab("components")}>Components</button>
       {withPatterns && <button role="tab" aria-selected={tab === "patterns"} className={tabCls(tab === "patterns")} onClick={() => onTab("patterns")}>Patterns</button>}
-      <button role="tab" aria-selected={tab === "outline"} className={tabCls(tab === "outline", !!flow)} onClick={() => onTab("outline")}>Outline</button>
+      <button role="tab" aria-selected={tab === "outline"} className={tabCls(tab === "outline")} onClick={() => onTab("outline")}>Outline</button>
     </div>
   );
 

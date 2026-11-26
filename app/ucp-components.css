@@ -48,6 +48,7 @@
 .m-notif .ic { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 5px; background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.08); }
 .m-notif .ic img { width: 16px; height: auto; display: block; }
 .m-notif .c { display: flex; gap: 8px; margin-top: 6px; font-size: 13px; line-height: 1.35; } .m-notif .c > div { flex: 1; min-width: 0; }
+.m-acts { display: flex; margin: 10px -12px -12px; border-top: 1px solid rgba(0,0,0,.1); } .m-acts span { flex: 1; padding: 9px 6px; text-align: center; font-size: 13px; font-weight: 500; color: #0a64d6; } .m-acts span + span { border-left: 1px solid rgba(0,0,0,.1); }
 .m-notif .th { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; flex: none; }
 .m-tap { position: absolute; bottom: 18px; left: 0; right: 0; text-align: center; font-size: 11px; opacity: .7; }
 .m-app { padding: 44px 16px 0; } .m-app img { height: 20px; } .m-app span { display: block; height: 70px; margin-top: 12px; border-radius: 12px; background: #fff; }

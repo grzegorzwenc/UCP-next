@@ -76,7 +76,7 @@ const FLOW_ICON = "M5 4h6v6H5zM13 14h6v6h-6zM8 10v4h8M16 14v-2";
 /** The Quality checklist panel's own mark — kept when the panel turns into Send for review, so the folded button stays the same thing. */
 const QC_ICON = <svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6h11M9 12h11M9 18h11" /><path d="M3.5 6l1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" /></svg>;
 const LEFT_RAIL: [LeftTab, string, string][] = [["components", "Add a component", "M12 3.5a8.5 8.5 0 1 0 0 17 8.5 8.5 0 0 0 0-17zM12 8.5v7M8.5 12h7"], ["patterns", "Design patterns", PATTERN_ICON], ["outline", "Outline", "M4 6h2M4 12h2M4 18h2M9 6h11M9 12h11M9 18h11"]];
-const FORM_LEFT_RAIL: [LeftTab, string, string][] = [["flow", "Steps & pages", FLOW_ICON], ...LEFT_RAIL];
+const FORM_LEFT_RAIL: [LeftTab, string, string][] = [["flow", "Steps", FLOW_ICON], ...LEFT_RAIL];
 /* Page settings first: it is what the panel opens on, so it leads the rail. */
 /* Version history is not here: it opens from the Save-draft menu, with the other page-level
    actions. Page settings stays, and leads, because it is what the panel opens on. */
