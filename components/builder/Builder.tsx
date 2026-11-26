@@ -45,7 +45,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/shadcn/too
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/shadcn/sheet";
 import { JiraPanel } from "./JiraPanel";
 import { jiraLabel } from "@/lib/ucp/jira";
-import { ShareReviewDialog } from "@/components/tasks/ShareReviewDialog";
+import { ShareReviewDialog, ShareReviewPanel } from "@/components/tasks/ShareReviewDialog";
 import { useConfirm } from "@/components/ui/Confirm";
 import { ReviewedChoice } from "@/components/tasks/ReviewedChoice";
 import { FloatingPanel, CommentIcon } from "@/components/review/FloatingPanel";
@@ -922,6 +922,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const panelW = rightW; // one width for every tab: a panel that jumps wider on Comments or History reads as a glitch
   /** The floating panel (quality checklist, review) is the width of the right rail. */
   const FLOAT_W = 320;
+  /* Sharing for business review happens in the floating panel it would otherwise cover, the same way
+     Send for review does. Outside the preview there is no floating panel, so the modal still serves —
+     and that is the path the toolbar and the automatic share after the transition take. */
+  const sharePanel = focus && share && status === "bizreview";
   const floatingOpen = focus && !phone && ((qcMode && qcOpen) || (reviewMode && floatOpen)); // full screen: keep the page clear of the floating panel
   /* The gutters reserve exactly what the docked panels occupy. They used to skip that on
      narrow viewports — from the days when the panels floated over the canvas — but the panels
@@ -1198,7 +1202,12 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         </div>}
         {/* No Exit in this panel's header: the fixed "Exit preview" button above is on screen for
             the whole preview, review included, so a second one here only split the way out. */}
-        {focus && reviewMode && <FloatingPanel width={FLOAT_W} title={status === "bizreview" && bizAssigned && mayBizApprove ? "Review" : "Comments"} count={commentTotal} open={floatOpen} onToggle={setFloatOpen} hint={commentTarget || (status === "bizreview" && bizAssigned && mayBizApprove) ? undefined : "Click a text, an image or a component on the page to comment on it."}>
+        {focus && reviewMode && !sharePanel && <FloatingPanel width={FLOAT_W} title={status === "bizreview" && bizAssigned && mayBizApprove ? "Review" : "Comments"} count={commentTotal} open={floatOpen} onToggle={setFloatOpen}
+          /* The only way into the share from inside the preview: the toolbar that carries it is not
+             on screen here, so without this the share could only ever be the modal. */
+          actions={status === "bizreview" && isAdmin ? <button type="button" onClick={() => { setShareIn("bar"); setShare(true); }} className="w-7 h-7 rounded grid place-items-center text-ink-3 hover:bg-surface-3 hover:text-ink" title="Share for business review" aria-label="Share for business review">
+            <svg aria-hidden width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5.5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="18.5" r="2.5" /><path d="M8.2 10.8l7.6-4M8.2 13.2l7.6 4" /></svg></button> : undefined}
+          hint={commentTarget || (status === "bizreview" && bizAssigned && mayBizApprove) ? undefined : "Click a text, an image or a component on the page to comment on it."}>
           {status === "bizreview" && bizAssigned && mayBizApprove && <section aria-labelledby="dec-b" className="mb-3"><h3 id="dec-b" className="text-xs font-medium uppercase tracking-[.08em] text-ink-3">Decision</h3><div className="mt-1.5 rounded-lg border border-line bg-surface-2 p-3 text-sm">
             <p className="text-xs text-ink-3">Everything right? Sign it off. Something to change? Send it back to the author.</p>
             {askingB ? <><p className="text-xs mt-1">{askingB === "signoff" ? "Sign off this page? It becomes ready to publish." : "Send it back to the author? The page goes back to Build the page."}</p>
@@ -1214,6 +1223,9 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             where the page was judged ready, so the decision stays on the same surface instead of a
             dialog that covers the page it is about. Leaving preview mid-send hands the form back to
             the modal (below), which is the only surface left once the panel is gone. */}
+        {sharePanel && <ShareReviewPanel width={FLOAT_W} bottom={16} open={floatOpen} onToggle={setFloatOpen}
+          marketId={marketId} path={page.path} title={title} stage="bizreview" onSendBack={() => void reauthor()} onClose={() => setShare(false)}
+          onAccess={(a) => { if (a.group) setBizGroups((g) => (g.includes(a.group!) ? g : [...g, a.group!])); if (a.person) setBizTaken(a.person); }} />}
         {qcMode && sendHere && sending && <SendForReviewPanel width={FLOAT_W} bottom={focus ? 16 : 52} open={qcOpen} onToggle={setQcOpen} icon={QC_ICON}
           marketId={marketId} pagePath={page.path} onClose={() => { setSending(false); setSendHere(false); }} onSend={sendForReview} />}
         {qcMode && !(sendHere && sending) && <FloatingPanel title="Quality checklist" width={FLOAT_W} bottom={focus ? 16 : 52} open={qcOpen} onToggle={setQcOpen}
@@ -1251,7 +1263,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {/* The draft share: without this the "Share draft" button set `share` and nothing rendered,
             because the only ShareReviewDialog here was the business-review one. */}
         {share && shareIn === "bar" && (status === "draft" || status === "failed") && <ShareReviewDialog key="draft" marketId={marketId} path={page.path} title={title} stage="draft" onClose={() => setShare(false)} />}
-        {share && status === "bizreview" && <ShareReviewDialog key={status} marketId={marketId} path={page.path} title={title} stage="bizreview" onSendBack={() => void reauthor()} onClose={() => setShare(false)} onAccess={(a) => { if (a.group) setBizGroups((g) => (g.includes(a.group!) ? g : [...g, a.group!])); if (a.person) setBizTaken(a.person); }} />}
+        {share && !sharePanel && status === "bizreview" && <ShareReviewDialog key={status} marketId={marketId} path={page.path} title={title} stage="bizreview" onSendBack={() => void reauthor()} onClose={() => setShare(false)} onAccess={(a) => { if (a.group) setBizGroups((g) => (g.includes(a.group!) ? g : [...g, a.group!])); if (a.person) setBizTaken(a.person); }} />}
         {publishing && <PublishDialog marketId={marketId} envName={envName} pages={[{ path: page.path, title, status, publishAt }]} mayPublish={() => mayStatus("published")} onClose={() => setPublishing(false)}
           onDone={(r, m) => { const x = r[0]; setPublishing(false); if (!x?.ok) { say(x?.reason ?? "Nothing was published"); return; } setStatus(x.status as PageStatus); setPublishAt(undefined); say(m === "cancel" ? "Schedule cancelled · back to Approved" : m === "schedule" ? "Scheduled for publishing" : `Published to ${envName}`); router.refresh(); }} />}
         {/* The modal is still the surface outside the preview -- and the one the form falls back to if the preview is left mid-send. */}

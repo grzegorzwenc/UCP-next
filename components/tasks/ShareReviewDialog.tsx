@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { BdlSelect } from "@/components/ui/BdlSelect";
 import { ModalShell, Err } from "@/components/models/ModalShell";
+import { FloatingPanel } from "@/components/review/FloatingPanel";
 import { ucpApi } from "@/lib/api";
 import { errorText } from "@/lib/api/errors";
 
@@ -14,8 +15,12 @@ const abs = (u: string) => `${window.location.origin}${u}`;
  * can still comment through the link. E-mails open in the sender's own mail app — the prototype sends nothing itself.
  * Site admins can approve straight away (on behalf of the reviewer).
  */
-export function ShareReviewDialog({ marketId, path, title, stage, onClose, onAccess, onSendBack, inline = false }: { /** render just the controls, for embedding in a panel */ inline?: boolean;
-  /** Hand the page back to its author instead of sending it on; shown as "Go back". */ onSendBack?: () => void; marketId: string; path: string; title: string; stage: "draft" | "review" | "bizreview"; onClose: () => void; onApprove?: () => Promise<void> | void; /** someone got the review: a person (by e-mail) or a group */ onAccess?: (a: { person?: string; group?: string }) => void }) {
+type Shared = { marketId: string; path: string; title: string; stage: "draft" | "review" | "bizreview"; onClose: () => void;
+  /** Hand the page back to its author instead of sending it on; shown as "Go back". */ onSendBack?: () => void;
+  /** someone got the review: a person (by e-mail) or a group */ onAccess?: (a: { person?: string; group?: string }) => void };
+
+/** The share form itself, shared by the dialog, the workflow drawer and the floating panel. */
+function useShare({ marketId, path, stage, onAccess }: Omit<Shared, "onClose" | "title">) {
   const [url, setUrl] = useState<string | null>(null); const [copied, setCopied] = useState(false);
   const [email, setEmail] = useState(""); const [sent, setSent] = useState<string | null>(null);
   const [busy, setBusy] = useState(false); const [err, setErr] = useState<string | null>(null);
@@ -99,20 +104,48 @@ export function ShareReviewDialog({ marketId, path, title, stage, onClose, onAcc
     <label className="block text-xs font-medium text-ink-2 mt-4" htmlFor="rv-note">Message <span className="font-normal text-ink-3">optional</span></label>
     <textarea id="rv-note" rows={3} className="bdl-field mt-1 text-sm" value={note} onChange={(e) => setNote(e.target.value)}
       placeholder={stage === "draft" ? "What would you like them to look at?" : "Anything the reviewer should know?"} />
-    <p className="mt-1 text-xs text-ink-3">It is added to the page\u2019s comments, so everyone you notify reads the same thing.</p>
+    <p className="mt-1 text-xs text-ink-3">It is added to the page’s comments, so everyone you notify reads the same thing.</p>
     <p className="mt-3 text-xs text-ink-3">{[people.length || email.trim() ? `${(people.length || 1)} by e-mail` : "", teams.length ? `${teams.length} ${teams.length === 1 ? "group" : "groups"}` : ""].filter(Boolean).join(" and ") || "Add someone above"}</p>
     {sent && <p role="status" className="text-xs bg-good-soft text-good rounded-md px-3 py-2 mt-3">✓ {sent}</p>}
     <Err err={err} />
   </>;
 
+  return { body, busy, nobody: !email.trim() && !people.length && !teams.length, sendAll };
+}
+
+const shareTitle = (stage: Shared["stage"]) => (stage === "draft" ? "Share the draft with the business" : `Share for ${STAGE[stage]}`);
+
+export function ShareReviewDialog({ title, onClose, onSendBack, inline = false, ...rest }: Shared & { /** render just the controls, for embedding in a panel */ inline?: boolean }) {
+  const { body, busy, nobody, sendAll } = useShare(rest);
   if (inline) return <div className="flex flex-col">{body}</div>;
 
-  return <ModalShell title={stage === "draft" ? "Share the draft with the business" : `Share for ${STAGE[stage]}`} subtitle={<b className="text-ink-2">{title}</b>} width={540} onClose={onClose}
+  return <ModalShell title={shareTitle(rest.stage)} subtitle={<b className="text-ink-2">{title}</b>} width={540} onClose={onClose}
     footer={<>
       {onSendBack && <button className="btn btn-sm btn-secondary mr-auto" disabled={busy} onClick={() => { onClose(); onSendBack(); }}
         title="Hand the page back to its author instead of sending it on">Go back</button>}
-      <button className="btn btn-sm btn-primary" disabled={busy || (!email.trim() && !people.length && !teams.length)} onClick={sendAll}>{busy ? "Sending\u2026" : "Send"}</button>
+      <button className="btn btn-sm btn-primary" disabled={busy || nobody} onClick={sendAll}>{busy ? "Sending\u2026" : "Send"}</button>
     </>}>
     {body}
   </ModalShell>;
+}
+
+/**
+ * The same share inside the builder's floating panel, for when the page is already being previewed.
+ * A modal there covers the page the reviewer is being asked to look at, and puts a second surface
+ * over the panel that was already open; this reuses that panel, with the page title as the hint and
+ * the dialog's own footer. Closing (the panel header's cross) returns whatever was there before.
+ */
+export function ShareReviewPanel({ title, onClose, onSendBack, width, bottom, open, onToggle, ...rest }: Shared & { width?: number; bottom?: number; open: boolean; onToggle: (open: boolean) => void }) {
+  const { body, busy, nobody, sendAll } = useShare(rest);
+  return <FloatingPanel width={width} bottom={bottom} open={open} onToggle={onToggle} title={shareTitle(rest.stage)} hint={<b className="text-ink-2">{title}</b>}
+    icon={<svg aria-hidden width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5.5" r="2.5" /><circle cx="6" cy="12" r="2.5" /><circle cx="18" cy="18.5" r="2.5" /><path d="M8.2 10.8l7.6-4M8.2 13.2l7.6 4" /></svg>}
+    actions={<button type="button" onClick={onClose} disabled={busy} className="w-7 h-7 rounded grid place-items-center text-ink-3 hover:bg-surface-3 hover:text-ink" title="Close" aria-label="Close sharing">
+      <svg aria-hidden width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg></button>}
+    footer={<div className="flex items-center gap-2">
+      {onSendBack && <button className="btn btn-sm btn-secondary flex-1 justify-center" disabled={busy} onClick={() => { onClose(); onSendBack(); }}
+        title="Hand the page back to its author instead of sending it on">Go back</button>}
+      <button className="btn btn-sm btn-primary flex-1 justify-center" disabled={busy || nobody} onClick={sendAll}>{busy ? "Sending\u2026" : "Send"}</button>
+    </div>}>
+    {body}
+  </FloatingPanel>;
 }
