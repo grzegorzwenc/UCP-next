@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useMemo, useSyncExternalStore } from "react";
 import { ChevronRight, Folder, FolderOpen, Layers } from "lucide-react";
 
-type Node = { path: string; title: string; children: Node[]; letter?: "P" | "M" | "F"; href?: string };
+type Node = { path: string; title: string; children: Node[]; href?: string };
 const KEY = "ucp-tree-open";
 
 /**
@@ -24,29 +24,40 @@ const subscribeSaved = (cb: () => void) => { window.addEventListener("storage", 
 const readSaved = (raw: string): Record<string, boolean> => { try { const v = JSON.parse(raw || "{}"); return Array.isArray(v) ? Object.fromEntries(v.map((x: string) => [x, true])) : v && typeof v === "object" ? v : {}; } catch { return {}; } };
 
 /**
- * `market`: one tree for the whole market in Pages, Messaging and Forms — the site's page folders (P), then
- * Messaging (M) and Forms (F) as a continuation, each with its own folders. Every row says which kind it is and
- * links to its own screen.
+ * One tree per section: Pages shows the site's page folders, Messaging the message folders, Forms the
+ * form folders. All three used to share one market-wide tree, so Forms listed Banking, Borrowing and
+ * the rest with a Forms folder among them — and every row then needed a P/M/F badge to explain what
+ * it was. A folder holds one kind of thing and the section already says which, so the badges went
+ * with the tree that needed them. Moving between sections is the app sidebar's job.
  */
-export function FolderTree({ section = "pages", root, marketName, base, current, folders, counts, market }: { section?: string; root: string; marketName: string; base: string; current: string; folders: { path: string; title: string }[]; counts: Record<string, number>; market?: { root: string; name: string; folders: { path: string; title: string }[] } }) {
-  if (market) return <MarketTree market={market} base={base} current={current} counts={counts} />;
-  return <SectionTree section={section} root={root} marketName={marketName} base={base} current={current} folders={folders} counts={counts} />;
+export function FolderTree({ section = "pages", root, marketName, base, current, folders, counts, find, onMenu, drop }: { section?: string; root: string; marketName: string; base: string; current: string; folders: { path: string; title: string }[]; counts: Record<string, number>; /** "Find a folder": keeps matching folders and their parents */ find?: string; onMenu?: Ctx["onMenu"]; drop?: Ctx["drop"] }) {
+  return <SectionTree section={section} root={root} marketName={marketName} base={base} current={current} folders={folders} counts={counts} find={find} onMenu={onMenu} drop={drop} />;
 }
 
-function SectionTree({ section, root, marketName, base, current, folders, counts }: { section: string; root: string; marketName: string; base: string; current: string; folders: { path: string; title: string }[]; counts: Record<string, number> }) {
+function SectionTree({ section, root, marketName, base, current, folders, counts, find = "", onMenu, drop }: { section: string; root: string; marketName: string; base: string; current: string; folders: { path: string; title: string }[]; counts: Record<string, number>; find?: string; onMenu?: Ctx["onMenu"]; drop?: Ctx["drop"] }) {
   const rel = (p: string) => p.replace(root, "") || "/";
-  const tree = build(root, folders);
+  /* Finding a folder keeps the matches and every folder above them, so a hit deep in the tree still
+     shows the path that leads to it. */
+  const needle = find.trim().toLowerCase();
+  const shown = needle
+    ? folders.filter((f) => { const hit = (x: { path: string; title: string }) => x.title.toLowerCase().includes(needle);
+        return hit(f) || folders.some((o) => hit(o) && o.path.startsWith(`${f.path}/`)); })
+    : folders;
+  const tree = build(root, shown);
   const ancestors = new Set<string>(); { let p = current; while (p.startsWith(root + "/")) { p = p.replace(/\/[^/]+$/, ""); ancestors.add(p); } }
   const raw = useSyncExternalStore(subscribeSaved, () => { try { return localStorage.getItem(KEY) ?? ""; } catch { return ""; } }, () => "");
   const saved = useMemo(() => readSaved(raw), [raw]);
   const isOpen = (p: string) => saved[p] ?? ancestors.has(p);
-  const open = new Set<string>([...ancestors, ...Object.keys(saved)].filter(isOpen));
+  const open = needle ? new Set(shown.map((f) => f.path)) : new Set<string>([...ancestors, ...Object.keys(saved)].filter(isOpen));
   const toggle = (p: string) => { const next = { ...saved, [p]: !isOpen(p) }; try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* private window */ } window.dispatchEvent(new Event(EVT)); };
-  const ctx = { root, base: `${base}/${section}`, current, open, toggle, rel, counts };
+  const ctx = { root, base: `${base}/${section}`, current, open, toggle, rel, counts, onMenu, drop };
+  if (needle && !shown.length) return <p className="px-4 py-3 text-xs text-ink-3">No folder matches “{find.trim()}”.</p>;
   return <ul aria-label="Folders" className="m-0 list-none p-0"><Row n={{ path: root, title: marketName, children: tree }} depth={0} ctx={ctx} /></ul>;
 }
 
-type Ctx = { root: string; base: string; current: string; open: Set<string>; toggle: (p: string) => void; rel: (p: string) => string; counts: Record<string, number> };
+type Ctx = { root: string; base: string; current: string; open: Set<string>; toggle: (p: string) => void; rel: (p: string) => string; counts: Record<string, number>;
+  /** Right-click on a folder (admins). `fixed`: the section root, which cannot be renamed or deleted. */ onMenu?: (n: { path: string; title: string; fixed: boolean }, at: { x: number; y: number }) => void;
+  /** Dropping pages on a folder row: the explorer owns the move, the tree only reports the target. */ drop?: { type: string; over: string | null; onOver: (path: string | null) => void; onDrop: (path: string, e: React.DragEvent) => void } };
 
 const ROW = "group/row flex h-8 items-center gap-0.5 pe-3 text-sm text-ink-2 transition-[background-color,box-shadow] duration-160 ease-out hover:bg-surface-3 data-[current=true]:bg-(--sidebar-active) data-[current=true]:font-medium data-[current=true]:text-foreground data-[current=true]:shadow-[inset_2px_0_0_var(--sidebar-active-bar)] data-[current=true]:hover:bg-(--sidebar-active-hover)";
 const ICON = "size-4 shrink-0 text-ink-3 group-data-[current=true]/row:text-brand";
@@ -63,7 +74,14 @@ function Row({ n, depth, ctx }: { n: Node; depth: number; ctx: Ctx }) {
   const count = counts[n.path];
   return (
     <li className="m-0 list-none p-0">
-      <div className={ROW} style={{ paddingInlineStart: fixed ? "0.75rem" : `${0.25 + depth * 0.75}rem` }} data-current={on}>
+      {/* Every row answers the right-click, including the ones nothing can be done to: leaving them to
+          the browser meant the native menu appeared on the section root and ours on the rest, which
+          read as the feature being broken. The root opens the menu too, and says why it is disabled. */}
+      <div className={`${ROW} ${ctx.drop?.over === n.path ? "outline outline-2 -outline-offset-2 outline-brand" : ""}`} style={{ paddingInlineStart: fixed ? "0.75rem" : `${0.25 + depth * 0.75}rem` }} data-current={on}
+        onContextMenu={ctx.onMenu ? (e) => { e.preventDefault(); ctx.onMenu!({ path: n.path, title: n.title, fixed }, { x: e.clientX, y: e.clientY }); } : undefined}
+        onDragOver={ctx.drop ? (e) => { if (e.dataTransfer.types.includes(ctx.drop!.type)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; ctx.drop!.onOver(n.path); } } : undefined}
+        onDragLeave={ctx.drop ? () => ctx.drop!.onOver(null) : undefined}
+        onDrop={ctx.drop ? (e) => ctx.drop!.onDrop(n.path, e) : undefined}>
         {fixed ? null : has ? (
           <button
             type="button"
@@ -80,7 +98,7 @@ function Row({ n, depth, ctx }: { n: Node; depth: number; ctx: Ctx }) {
           aria-current={on ? "true" : undefined}
           className="flex h-full min-w-0 flex-1 items-center gap-2 text-start no-underline"
         >
-          {n.letter && <KindLetter letter={n.letter} />}<Icon className={ICON} />
+          <Icon className={ICON} />
           <span className="min-w-0 flex-1 truncate">{n.title}</span>
           {count !== undefined && count > 0 && <span className="text-xs font-normal text-ink-3 tabular-nums">{count}</span>}
         </Link>
@@ -95,29 +113,4 @@ function build(root: string, folders: { path: string; title: string }[]): Node[]
   const top: Node[] = [];
   folders.slice().sort((a, b) => a.path.localeCompare(b.path)).forEach((f) => { const parent = f.path.replace(/\/[^/]+$/, ""); const node = byPath.get(f.path)!; if (parent === root || !byPath.has(parent)) top.push(node); else byPath.get(parent)!.children.push(node); });
   return top;
-}
-
-const LETTER_CLS: Record<string, string> = { P: "bg-ink/10 text-ink-2", M: "bg-[#00847f]/15 text-[#00665f]", F: "bg-[#b45309]/15 text-[#92400e]" };
-const LETTER_NAME: Record<string, string> = { P: "Pages", M: "Messaging", F: "Forms" };
-export function KindLetter({ letter }: { letter: "P" | "M" | "F" }) {
-  return <span className={`grid size-4 shrink-0 place-items-center rounded-[3px] text-[10px] font-bold leading-none ${LETTER_CLS[letter]}`} title={LETTER_NAME[letter]} aria-label={LETTER_NAME[letter]}>{letter}</span>;
-}
-
-function MarketTree({ market, base, current, counts }: { market: { root: string; name: string; folders: { path: string; title: string }[] }; base: string; current: string; counts: Record<string, number> }) {
-  const mr = market.root, msg = `${mr}/messaging`, frm = `${mr}/forms`;
-  const kind = (p: string): "P" | "M" | "F" => (p === msg || p.startsWith(`${msg}/`) ? "M" : p === frm || p.startsWith(`${frm}/`) ? "F" : "P");
-  const href = (p: string) => { const k = kind(p); return k === "M" ? `${base}/messaging${p.slice(msg.length)}` : k === "F" ? `${base}/forms${p.slice(frm.length)}` : `${base}/pages${p.slice(mr.length)}`; };
-  const nodes = build(mr, market.folders);
-  const tag = (n: Node): Node => ({ ...n, letter: kind(n.path), href: href(n.path), children: n.children.map(tag) });
-  /* page folders first, then Messaging and Forms as the continuation of the market */
-  const order = (n: Node) => (n.path === msg ? 1 : n.path === frm ? 2 : 0);
-  const top = nodes.map(tag).sort((a, b) => order(a) - order(b));
-  const ancestors = new Set<string>(); { let p = current; while (p.startsWith(mr + "/")) { p = p.replace(/\/[^/]+$/, ""); ancestors.add(p); } }
-  const raw = useSyncExternalStore(subscribeSaved, () => { try { return localStorage.getItem(KEY) ?? ""; } catch { return ""; } }, () => "");
-  const saved = useMemo(() => readSaved(raw), [raw]);
-  const isOpen = (p: string) => saved[p] ?? ancestors.has(p);
-  const open = new Set<string>([...ancestors, ...Object.keys(saved)].filter(isOpen));
-  const toggle = (p: string) => { const next = { ...saved, [p]: !isOpen(p) }; try { localStorage.setItem(KEY, JSON.stringify(next)); } catch { /* private window */ } window.dispatchEvent(new Event(EVT)); };
-  const ctx = { root: mr, base: `${base}/pages`, current, open, toggle, rel: (p: string) => p.slice(mr.length) || "/", counts };
-  return <ul aria-label="Folders" className="m-0 list-none p-0"><Row n={{ path: mr, title: market.name, children: top, href: `${base}/pages` }} depth={0} ctx={ctx} /></ul>;
 }

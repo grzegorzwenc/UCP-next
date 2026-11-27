@@ -34,7 +34,7 @@ import { FolderTree } from "@/components/explorer/FolderTree";
 import { FolderIcon, PageIcon } from "@/components/ui/Icons";
 
 type Folder = { path: string; title: string };
-type Props = { /** "messaging": the same explorer over the market's Messaging tree (messages are pages built in the page builder). */ section?: "pages" | "messaging" | "forms"; /** the whole market's folders (pages, Messaging, Forms) for the shared tree */ market?: { root: string; name: string; folders: Folder[] }; /** forms: the site pages a form can be shown on */ hostPages?: { path: string; title: string; rel: string; folder?: boolean }[]; /** the market root, when `root` is a sub-tree such as Messaging */ marketRoot?: string; marketId: string; envId: string; root: string; marketName: string; folder: Folder; items: PageSummary[]; tree: Folder[]; allPages: PageSummary[]; names: Record<string, string>; templates: Template[]; openNew?: boolean; newTemplate?: string; archived?: Archived[] };
+type Props = { /** "messaging": the same explorer over the market's Messaging tree (messages are pages built in the page builder). */ section?: "pages" | "messaging" | "forms"; /** forms: the site pages a form can be shown on */ hostPages?: { path: string; title: string; rel: string; folder?: boolean }[]; /** the market root, when `root` is a sub-tree such as Messaging */ marketRoot?: string; marketId: string; envId: string; root: string; marketName: string; folder: Folder; items: PageSummary[]; tree: Folder[]; allPages: PageSummary[]; names: Record<string, string>; templates: Template[]; openNew?: boolean; newTemplate?: string; archived?: Archived[] };
 type Archived = PageSummary & { archive: { by: string; name: string; at: string; from?: string } };
 /** Line icons for the selection bar (HSBC style: 1.8 stroke, round caps). */
 const BAR_ICONS: Record<string, string[]> = {
@@ -209,9 +209,11 @@ function useView(): [View, (v: View) => void] {
 }
 
 /* ---------------- explorer ---------------- */
-export function Explorer({ section = "pages", market, hostPages, marketRoot, marketId, envId, root, marketName, folder, items, tree, allPages, names, templates, openNew, newTemplate, archived = [] }: Props) {
+export function Explorer({ section = "pages", hostPages, marketRoot, marketId, envId, root, marketName, folder, items, tree, allPages, names, templates, openNew, newTemplate, archived = [] }: Props) {
   const router = useRouter(); const ask = useConfirm(); const [showArchive, setShowArchive] = useState(false);
-  const { can } = useSession();
+  const { can, user } = useSession();
+  /** Renaming or deleting a whole folder moves or destroys everything under it, so it is a site-admin job. */
+  const isAdmin = user.role === "admin" || !!user.perms.root?.manage;
   const base = `/${marketId}/${envId}`;
   const rel = (p: string) => p.replace(root, "") || "/";
   /** editor links are relative to the market root (the builder route), list links to this explorer's root */
@@ -286,6 +288,37 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
   /* The options are the market's declared locales, not just the ones present — as theirs takes
      them from its language list and counts rows against it. Otherwise a market whose pages are all
      one locale shows no filter at all, which is what happened here. */
+  const [folderQ, setFolderQ] = useState(""); // "Find a folder" in the tree rail
+  const [folderMenu, setFolderMenu] = useState<{ path: string; title: string; fixed: boolean; x: number; y: number } | null>(null);
+  /* Drag a page (or a whole selection) onto a folder to move it. The drop does not move anything by
+     itself: it opens the Move dialog with that folder chosen, so the address previews, the "N pages
+     link here" warning and the confirm are the same ones the menu gives. A drag is easy to start by
+     accident; it should not be able to move a live page without a word. */
+  const DRAG_TYPE = "application/x-ucp-paths";
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const dragPages = (p: PageSummary) => (sel.includes(p.path) ? items.filter((x) => sel.includes(x.path)) : [p]);
+  const onDragStartRow = (p: PageSummary) => (e: React.DragEvent) => {
+    const pages = dragPages(p).filter((x) => can("edit", x.path)); if (!pages.length) { e.preventDefault(); return; }
+    e.dataTransfer.setData(DRAG_TYPE, pages.map((x) => x.path).join("|"));
+    e.dataTransfer.effectAllowed = "move";
+  };
+  /** A folder that can take this drop: not where they already live, and not inside what is being dragged. */
+  const dropOk = (target: string, paths: string[]) => paths.length > 0 && can("edit", target)
+    && paths.every((x) => parentOf(x) !== target && target !== x && !target.startsWith(`${x}/`));
+  const dragPaths = (e: React.DragEvent) => (e.dataTransfer.getData(DRAG_TYPE) || "").split("|").filter(Boolean);
+  /** One descriptor for every drop target: the tree rows, the folder rows in the table and the tiles. */
+  const tileDrop = { type: DRAG_TYPE, over: dropTarget, onOver: setDropTarget, onDrop: (path: string, e: React.DragEvent) => onDropFolder(path)(e) };
+  const onDropFolder = (target: string) => (e: React.DragEvent) => {
+    e.preventDefault(); setDropTarget(null);
+    const paths = dragPaths(e); const pages = items.filter((x) => paths.includes(x.path));
+    if (!pages.length) return;
+    if (!dropOk(target, paths)) { say(paths.some((x) => parentOf(x) === target) ? "They are already in that folder" : "That folder cannot take them"); return; }
+    openModal({ kind: "move", pages }); setParent(target);
+  };
+  /* The tree hands back a path and a title; the rename and delete paths want a page, so one is made
+     from it. Both flows then behave exactly as they do for a folder row in the table -- same modal,
+     same risk list, same type-to-confirm -- rather than growing a second way to do the same thing. */
+  const asFolder = (f: { path: string; title: string }): PageSummary => ({ path: f.path, title: f.title, name: f.path.split("/").pop() ?? "", isFolder: true, status: "draft", template: "folder" } as PageSummary);
   const leafCount = items.filter((p) => !isFolder(p)).length;
   /** Messaging only: one chip per channel. Empty elsewhere, which keeps the strip to Language alone. */
   const typeOptions = msg ? CHANNEL_ORDER.map((c) => ({ value: c, label: CHANNEL_LABEL[c], count: items.filter((p) => !isFolder(p) && channelOf(p.template) === c).length })) : [];
@@ -417,16 +450,9 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
     try { await ucpApi.archivePages(marketId, pages.map((p) => p.path), false); say(`Restored ${pages.length === 1 ? `“${pages[0].title}”` : `${pages.length} items`} · back in the list as a draft`); router.refresh(); }
     catch (e) { say(errText(e)); }
   }
-  /** Delete always offers Archive first: an archived page can come back, a deleted one cannot. */
-  async function remove(pages: PageSummary[], fromArchive = false) {
-    if (!fromArchive) {
-      const one = pages.length === 1 ? pages[0] : null;
-      const r = await ask({ title: one ? `Archive “${one.title}” instead of deleting?` : `Archive ${pages.length} items instead of deleting?`, confirmLabel: "Archive",
-        body: <>Deleting cannot be undone. Archiving takes {one ? "it" : "them"} out of the list and offline too, but anyone with Edit can <b>restore</b> {one ? "it" : "them"} later.</>,
-        alt: { label: "No, delete permanently…", danger: true } });
-      if (r === true) { await archive(pages, true); return; }
-      if (r !== "alt") return;
-    }
+  /** Delete goes straight to what it costs: the Archive-instead step is gone, since the archive is not
+   *  a place anyone goes to -- it offered a detour to a screen that is not part of how this is used. */
+  async function remove(pages: PageSummary[]) {
     /* what goes with each item: pages inside folders, and which of them are live for customers */
     const inside = (p: PageSummary) => allPages.filter((x) => x.path.startsWith(`${p.path}/`) && !x.isFolder);
     const info = pages.map((p) => { const kids = inside(p); const live = [...(p.isFolder ? [] : [p]), ...kids].filter((x) => x.status === "published").length; return { p, kids: kids.length, live }; });
@@ -484,7 +510,19 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
             <h2 className="text-sm font-medium text-ink-2">Folders</h2>
             {canEditHere && <NewFolderButton onClick={() => { setParent(folder.path); openModal({ kind: "folder" }); }} />}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto py-1"><FolderTree market={market} section={section} root={root} marketName={marketName} base={base} current={folder.path} folders={tree} counts={counts} /></div>
+          {/* Find a folder: the tree is how you move around, and once a market runs past a screenful
+              scrolling for a name is the slow way. It narrows the tree only -- the table keeps its own
+              search -- and the placeholder says "folder" so it is clear which one is which. */}
+          <div className="shrink-0 border-b border-line px-3 py-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute start-2.5 top-1/2 size-3.5 -translate-y-1/2 text-ink-3" aria-hidden />
+              <input className="bdl-field ps-8! pe-8! text-xs" placeholder="Find a folder" aria-label="Find a folder" value={folderQ} onChange={(e) => setFolderQ(e.target.value)} />
+              {folderQ && <button type="button" className="absolute end-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center text-ink-3 transition-colors hover:text-ink" aria-label="Clear the folder search" onClick={() => setFolderQ("")}><X className="size-3.5" /></button>}
+            </div>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto py-1"><FolderTree section={section} root={root} marketName={marketName} base={base} current={folder.path} folders={tree} counts={counts} find={folderQ}
+            onMenu={isAdmin ? (n, at) => setFolderMenu({ ...n, x: at.x, y: at.y }) : undefined}
+            drop={tileDrop} /></div>
         </div>
 
         <div className="flex min-w-0 shrink-0 items-center justify-end">
@@ -495,7 +533,11 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
             sidebar and the folder tree — viewport breakpoints kept every column on at xl and
             squeezed Name down to its icon. Their toolbar uses the same idiom. */}
         <div className="@container flex min-h-0 flex-col overflow-hidden border border-line bg-surface">
-          <div className="flex shrink-0 items-center gap-4 border-b border-line px-4 py-3">
+          {/* The header wraps before it overflows: the title keeps its line and the controls drop under
+              it, so a narrow window loses no filter. `min-w-0` on both halves is what lets them shrink
+              in the first place -- without it the flex items stayed at their content width and the row
+              ran off the pane with nothing to scroll. */}
+          <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-2 border-b border-line px-4 py-3">
             <div className="min-w-28 flex-1">
               <h2 className="truncate text-base font-medium" title={scopeName}>{scopeName}</h2>
               {!q && crumbs.length > 0 && (
@@ -505,10 +547,10 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
                 </nav>
               )}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <div className="relative">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <div className="relative min-w-40 flex-1 sm:flex-none">
                 <Search className="pointer-events-none absolute start-2.5 top-1/2 size-4 -translate-y-1/2 text-ink-3" aria-hidden />
-                <input className="bdl-field w-48 ps-8! pe-8! xl:w-60" placeholder="Find a page by title or URL" aria-label="Find a page by title or URL" value={q} onChange={(e) => setQ(e.target.value)} />
+                <input className="bdl-field w-full ps-8! pe-8! sm:w-48 xl:w-60" placeholder="Find a page by title or URL" aria-label="Find a page by title or URL" value={q} onChange={(e) => setQ(e.target.value)} />
                 {q && <button type="button" className="absolute end-1.5 top-1/2 inline-flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center text-ink-3 transition-colors hover:text-ink" aria-label="Clear search" onClick={() => setQ("")}><X className="size-4" /></button>}
               </div>
               {/* Type is a combobox up here with Status, not a chip strip below: both narrow the same list,
@@ -526,12 +568,12 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
           <div className="relative min-h-0 flex-1 overflow-auto">
             {view !== "list" ? (
               <div className="flex flex-col gap-4 p-4">
-                {!q && <FolderTiles section={section} folders={items.filter(isFolder)} base={base} rel={rel} counts={counts} scopeName={scopeName} upHref={upHref} upName={upName} />}
+                {!q && <FolderTiles section={section} folders={items.filter(isFolder)} base={base} rel={rel} counts={counts} scopeName={scopeName} upHref={upHref} upName={upName} drop={tileDrop} />}
                 {shownPages.length ? (
                   <section aria-label={`Pages in ${scopeName}`}>
                     {!q && items.some(isFolder) && <h3 className="mb-2 text-xs font-medium text-ink-3">Pages</h3>}
                     <div className={`grid ${view === "compact" ? "gap-2 [grid-template-columns:repeat(auto-fill,minmax(9rem,1fr))]" : "gap-3 [grid-template-columns:repeat(auto-fill,minmax(13.5rem,1fr))]"}`}>
-                      {shownPages.map((n) => <PageCard key={n.path} page={n} href={`${base}/page${erel(n.path)}`} compact={view === "compact"} rel={rel} onCopyUrl={() => void copyUrl(n)} badge={msg && channelOf(n.template) ? <ChannelBadge channel={channelOf(n.template)!} /> : undefined} menu={<RowMenu page={n} canEdit={can("edit", n.path)} onAction={onAction} />} />)}
+                      {shownPages.map((n) => <PageCard key={n.path} page={n} href={`${base}/page${erel(n.path)}`} compact={view === "compact"} rel={rel} onCopyUrl={() => void copyUrl(n)} drag={{ draggable: can("edit", n.path), onDragStart: onDragStartRow(n) }} badge={msg && channelOf(n.template) ? <ChannelBadge channel={channelOf(n.template)!} /> : undefined} menu={<RowMenu page={n} canEdit={can("edit", n.path)} onAction={onAction} />} />)}
                     </div>
                   </section>
                 ) : empty}
@@ -551,7 +593,11 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
                     <th className="h-11 w-12 border-b border-line-2" />
                   </tr>
                 </thead>
-                <tbody>{shownPages.map((n) => { const on = sel.includes(n.path); const editable = can("edit", n.path); const src = n.meta?.["ucp:sourcePath"] as string | undefined; const who = n.lastModifiedBy ? names[n.lastModifiedBy] ?? n.lastModifiedBy : ""; return <tr key={n.path} className={on ? "bg-brand-soft/40" : "hover:bg-surface-2"}>
+                <tbody>{shownPages.map((n) => { const on = sel.includes(n.path); const editable = can("edit", n.path); const src = n.meta?.["ucp:sourcePath"] as string | undefined; const who = n.lastModifiedBy ? names[n.lastModifiedBy] ?? n.lastModifiedBy : ""; return <tr key={n.path} draggable={editable} onDragStart={editable ? onDragStartRow(n) : undefined}
+                  onDragOver={isFolder(n) ? (e) => { if (e.dataTransfer.types.includes(DRAG_TYPE)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; setDropTarget(n.path); } } : undefined}
+                  onDragLeave={isFolder(n) ? () => setDropTarget((t) => (t === n.path ? null : t)) : undefined}
+                  onDrop={isFolder(n) ? onDropFolder(n.path) : undefined}
+                  className={`${on ? "bg-brand-soft/40" : "hover:bg-surface-2"} ${dropTarget === n.path ? "outline outline-2 -outline-offset-2 outline-brand" : ""} ${editable ? "cursor-grab active:cursor-grabbing" : ""}`}>
                   <td className={cell}><input type="checkbox" className="bdl-checkbox bdl-checkbox-sm" aria-label={`Select ${n.title}`} checked={on} onChange={(e) => setSel(e.target.checked ? [...sel, n.path] : sel.filter((x) => x !== n.path))} /></td>
                   <td className={cell}>
                     <div className="flex min-w-0 items-center gap-2.5">
@@ -577,7 +623,7 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
                   <td className={`${cell} text-right whitespace-nowrap`}><RowMenu page={n} canEdit={editable} onAction={onAction} /></td>
                 </tr>; })}</tbody>
               </table>
-            ) : !q && items.some(isFolder) ? <div className="p-4"><FolderTiles section={section} folders={items.filter(isFolder)} base={base} rel={rel} counts={counts} scopeName={scopeName} upHref={upHref} upName={upName} /></div> : empty}
+            ) : !q && items.some(isFolder) ? <div className="p-4"><FolderTiles section={section} folders={items.filter(isFolder)} base={base} rel={rel} counts={counts} scopeName={scopeName} upHref={upHref} upName={upName} drop={tileDrop} /></div> : empty}
             {rows.length > shown.length && <div className="flex items-center justify-center gap-3 py-4 text-xs text-ink-3">Showing {shown.length} of {rows.length}<button className="btn btn-sm btn-secondary" onClick={() => setLimit(limit + PAGE)}>Show {Math.min(PAGE, rows.length - shown.length)} more</button></div>}
             <div className="px-4">
         {(() => { const here = archived.filter((a) => a.path.startsWith(`${folder.path}/`) && !archived.some((b) => b !== a && a.path.startsWith(`${b.path}/`))); if (!here.length || q) return null;
@@ -586,7 +632,7 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
             <ul className="border-t border-line divide-y divide-line">{here.map((a) => { const d = new Date(a.archive.at); return <li key={a.path} className="flex flex-wrap items-center gap-3 px-4 py-2.5 text-sm">
               <span className="text-ink-3">{a.isFolder ? <FolderIcon /> : <PageIcon />}</span>
               <span className="min-w-0 flex-1"><b className="block font-medium text-ink-2 truncate">{a.title}</b><span className="block text-xs text-ink-3"><span>{rel(a.path)}</span> · archived by {a.archive.name} · {d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}{a.archive.from === "published" ? " · was live" : ""}</span></span>
-              {can("edit", a.path) ? <><button className="btn btn-sm btn-secondary" onClick={() => void unarchive([a])}><BarIcon n="restore" />Restore</button><button className="btn btn-sm btn-secondary text-crit" onClick={() => void remove([a], true)}>Delete permanently</button></> : <span className="text-xs text-ink-3">Needs Edit to restore</span>}
+              {can("edit", a.path) ? <><button className="btn btn-sm btn-secondary" onClick={() => void unarchive([a])}><BarIcon n="restore" />Restore</button><button className="btn btn-sm btn-secondary text-crit" onClick={() => void remove([a])}>Delete permanently</button></> : <span className="text-xs text-ink-3">Needs Edit to restore</span>}
             </li>; })}</ul></details>; })()}
         {selected.length > 0 && <div className="sticky bottom-4 mt-4 flex flex-wrap items-center justify-center gap-2 bg-foreground text-background px-4 py-2.5 rounded-lg text-sm shadow-xl w-fit max-w-full mx-auto z-20"><b className="whitespace-nowrap">{selected.length} selected</b><span className="text-white/40">·</span>
           <button className={barBtn} style={barStyle} disabled={!selected.some((p) => !p.isFolder)} onClick={() => setModal({ kind: "translate", pages: selected.filter((p) => !p.isFolder) })}><BarIcon n="translate" />Translate</button>
@@ -620,7 +666,35 @@ export function Explorer({ section = "pages", market, hostPages, marketRoot, mar
 
       {modal?.kind === "rename" && <ModalShell title={`Rename “${modal.page.title}”`} width={460} onClose={() => setModal(null)} footer={<><button className="btn btn-sm btn-secondary" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-sm btn-primary" disabled={!title.trim() || busy} onClick={rename}>{busy ? "Saving…" : "Rename"}</button></>}>
         <label className="text-xs text-ink-3">New title<input autoFocus className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && title.trim()) rename(); }} /></label>
-        <div className="mt-2 text-xs text-ink-3">The URL <span>{rel(modal.page.path)}</span> stays the same.</div><Err err={err} /></ModalShell>}
+        {/* Renaming is the safe one of the pair, and saying so plainly is more use than a warning
+            for its own sake: the address is the folder's name in the repository, not its title. */}
+        {modal.page.isFolder
+          ? <div className="mt-3 border border-line bg-surface-2 p-3 text-xs text-ink-2">
+              <b className="mb-1 block font-medium">What changes</b>
+              <ul className="m-0 grid list-disc gap-1 ps-4">
+                <li>The name shown in the folder tree, the breadcrumbs and the lists.</li>
+                <li><b>Nothing moves.</b> The address <span className="font-mono">{rel(modal.page.path)}</span> and every page inside keep theirs, so live pages and links are untouched.</li>
+              </ul>
+            </div>
+          : <div className="mt-2 text-xs text-ink-3">The URL <span>{rel(modal.page.path)}</span> stays the same.</div>}
+        <Err err={err} /></ModalShell>}
+
+      {/* Right-click on a folder in the tree. A plain positioned menu rather than a library: it has two
+          items, must sit where the pointer is, and the app has no context-menu primitive. */}
+      {folderMenu && <>
+        <div className="fixed inset-0 z-50" onClick={() => setFolderMenu(null)} onContextMenu={(e) => { e.preventDefault(); setFolderMenu(null); }} aria-hidden />
+        <div role="menu" aria-label={`Folder ${folderMenu.title}`} className="fixed z-50 min-w-44 border border-line-2 bg-surface py-1 shadow-lg"
+          style={{ top: Math.min(folderMenu.y, window.innerHeight - 110), left: Math.min(folderMenu.x, window.innerWidth - 190) }}>
+          <div className="truncate px-3 pb-1.5 pt-1 text-xs text-ink-3" title={folderMenu.title}>{folderMenu.title}</div>
+          <button type="button" role="menuitem" disabled={folderMenu.fixed} className="flex w-full items-center gap-2 px-3 py-1.5 text-start text-sm hover:bg-surface-3 disabled:cursor-not-allowed disabled:text-ink-4 disabled:hover:bg-transparent"
+            onClick={() => { const f = folderMenu; setFolderMenu(null); openModal({ kind: "rename", page: asFolder(f) }); setTitle(f.title); }}>
+            <Pencil className="size-4 text-ink-3" aria-hidden />Rename folder…</button>
+          <button type="button" role="menuitem" disabled={folderMenu.fixed} className="flex w-full items-center gap-2 px-3 py-1.5 text-start text-sm text-crit hover:bg-crit-soft disabled:cursor-not-allowed disabled:text-ink-4 disabled:hover:bg-transparent"
+            onClick={() => { const f = folderMenu; setFolderMenu(null); void remove([asFolder(f)]); }}>
+            <Trash2 className="size-4" aria-hidden />Delete folder…</button>
+          {folderMenu.fixed && <p className="mt-1 border-t border-line px-3 pb-1 pt-1.5 text-xs text-ink-3">This is the top of the section. It cannot be renamed or deleted.</p>}
+        </div>
+      </>}
 
       {comparing && <CompareView marketId={marketId} marketName={marketName} path={comparing} onClose={() => setComparing(null)} />}
       {modal?.kind === "copy" && <ModalShell title={modal.pages.length === 1 ? `Copy “${modal.pages[0].title}”` : `Copy ${modal.pages.length} pages`} width={460} onClose={() => setModal(null)} footer={<><button className="btn btn-sm btn-secondary" onClick={() => setModal(null)}>Cancel</button><button className="btn btn-sm btn-primary" disabled={busy} onClick={copyTo}>{busy ? "Copying…" : "Copy here"}</button></>}>

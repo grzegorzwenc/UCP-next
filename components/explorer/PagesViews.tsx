@@ -43,7 +43,9 @@ export function ViewToggle({ view, onChange, modes = ALL_VIEWS }: { view: View; 
   );
 }
 
-export function FolderTiles({ section = "pages", folders, base, rel, counts, scopeName, upHref, upName }: {
+export function FolderTiles({ section = "pages", folders, base, rel, counts, scopeName, upHref, upName, drop }: {
+  /** Dropping dragged pages on a folder tile. `over` is the path currently under the pointer. */
+  drop?: { type: string; over: string | null; onOver: (path: string | null) => void; onDrop: (path: string, e: React.DragEvent) => void };
   section?: string;
   folders: PageSummary[];
   base: string;
@@ -73,7 +75,11 @@ export function FolderTiles({ section = "pages", folders, base, rel, counts, sco
           <Link
             key={f.path}
             href={`${base}/${section}${rel(f.path)}`}
-            className="group flex cursor-pointer items-center gap-2 border border-line bg-surface px-3 py-2 text-start text-sm no-underline transition-[background-color,box-shadow] duration-160 ease-out hover:bg-accent/40 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            onDragOver={drop ? (e) => { if (e.dataTransfer.types.includes(drop.type)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; drop.onOver(f.path); } } : undefined}
+            onDragLeave={drop ? () => drop.onOver(null) : undefined}
+            onDrop={drop ? (e) => drop.onDrop(f.path, e) : undefined}
+            data-drop={drop?.over === f.path || undefined}
+            className="group flex cursor-pointer items-center gap-2 border border-line bg-surface px-3 py-2 text-start text-sm no-underline transition-[background-color,box-shadow] duration-160 ease-out hover:bg-accent/40 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[drop]:outline data-[drop]:outline-2 data-[drop]:-outline-offset-2 data-[drop]:outline-brand"
           >
             <Folder className="size-4 shrink-0 text-ink-3 transition-colors group-hover:text-brand" />
             <span className="min-w-0 flex-1 truncate font-medium">{f.title}</span>
@@ -87,7 +93,9 @@ export function FolderTiles({ section = "pages", folders, base, rel, counts, sco
 
 const ACTION = "inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-ink no-underline transition-colors duration-160 ease-out hover:text-brand focus-visible:underline focus-visible:outline-none";
 
-export function PageCard({ page, href, compact, folderName, menu, rel, onCopyUrl, badge }: {
+export function PageCard({ page, href, compact, folderName, menu, rel, onCopyUrl, badge, drag }: {
+  /** Dragging the card to a folder, exactly as a table row drags (the explorer owns the move). */
+  drag?: { draggable: boolean; onDragStart: (e: React.DragEvent) => void };
   /** e.g. the message type in Messaging */
   badge?: React.ReactNode;
   page: PageSummary;
@@ -101,7 +109,8 @@ export function PageCard({ page, href, compact, folderName, menu, rel, onCopyUrl
 }) {
   const meta = [rel(page.path), compact ? null : ukDate(page.lastModified), folderName].filter(Boolean).join(" · ");
   return (
-    <div className="group relative flex flex-col border border-line bg-surface transition-[box-shadow] duration-160 ease-out hover:shadow-sm">
+    <div draggable={drag?.draggable} onDragStart={drag?.onDragStart}
+      className={`group relative flex flex-col border border-line bg-surface transition-[box-shadow] duration-160 ease-out hover:shadow-sm ${drag?.draggable ? "cursor-grab active:cursor-grabbing" : ""}`}>
       <Link href={href} aria-label={`Edit ${page.title}`} className="block w-full border-b border-line focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset focus-visible:outline-none">
         <PageThumb template={page.template} className="aspect-[16/10] w-full" />
       </Link>

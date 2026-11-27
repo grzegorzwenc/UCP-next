@@ -21,7 +21,5 @@ export default async function MessagingRoute({ params, searchParams }: PageProps
   const tree = all.filter((f) => f.isFolder).map((f) => ({ path: f.path, title: f.title }));
   const editorIds = [...new Set(all.filter((p) => !p.isFolder).map((p) => p.lastModifiedBy).filter((x): x is string => !!x))];
   const names = Object.fromEntries(await Promise.all(editorIds.map(async (id) => [id, await userName(id)] as const)));
-  /* one tree for the market: page folders (P), then Messaging (M) and Forms (F) */
-  const marketFolders = (await allPages(mk.root)).filter((f) => f.isFolder).map((f) => ({ path: f.path, title: f.title }));
-  return <Explorer market={{ root: mk.root, name: mk.name, folders: marketFolders }} section="messaging" marketRoot={mk.root} marketId={mid} envId={eid} root={root} marketName={`${mk.name} › Messaging`} folder={folder && path.length ? { path: folder.path, title: folder.title } : { path: root, title: "Messaging" }} items={list.items.filter((p) => !archiveOf(p))} archived={archived} tree={tree} allPages={all.filter((p) => !p.isFolder)} names={names} templates={templates} openNew={sp.new === "1"} newTemplate={typeof sp.template === "string" ? sp.template : undefined} />;
+  return <Explorer section="messaging" marketRoot={mk.root} marketId={mid} envId={eid} root={root} marketName={`${mk.name} › Messaging`} folder={folder && path.length ? { path: folder.path, title: folder.title } : { path: root, title: "Messaging" }} items={list.items.filter((p) => !archiveOf(p))} archived={archived} tree={tree} allPages={all.filter((p) => !p.isFolder)} names={names} templates={templates} openNew={sp.new === "1"} newTemplate={typeof sp.template === "string" ? sp.template : undefined} />;
 }
