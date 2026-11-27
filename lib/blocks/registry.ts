@@ -170,12 +170,19 @@ export const isAppTree = (path: string, marketRoot: string) => isMessagingPath(p
 export const templateBlocks = (id: string, title = ""): Block[] => { const t = TEMPLATES.find((x) => x.id === id); return (t?.blocks ?? []).map((b, i) => makeBlock(b, { ...(b === "mast" ? { heading: title } : {}), ...(t?.props?.[i] ?? {}) })); };
 
 /* ---------------- e-mail structure: fixed header, free body, fixed footer ---------------- */
-export type EmailRegion = "header" | "body" | "footer";
-/** Header (envelope + logo bar) and footer (legal text + unsubscribe) come with every e-mail template: they can be edited, not moved or removed. Components go in the body. */
-export const emailRegion = (type: string): EmailRegion => (type === "envelope" || type === "emailheader" ? "header" : type === "emailfooter" ? "footer" : "body");
+export type EmailRegion = "inbox" | "header" | "body" | "footer";
+/**
+ * Where a component sits in an e-mail. The envelope is its own region: it is the inbox line the mail
+ * client draws — sender, subject, preview — and not something an author adds or arranges, so it sits
+ * above the message rather than inside its Header, which starts at the logo bar.
+ *
+ * Header (logo bar) and footer (legal text + unsubscribe) come with every template: they can be
+ * edited, not moved or removed. Components go in the body.
+ */
+export const emailRegion = (type: string): EmailRegion => (type === "envelope" ? "inbox" : type === "emailheader" ? "header" : type === "emailfooter" ? "footer" : "body");
 /** Keeps an e-mail in header → body → footer order and puts back a header or footer component that an edit tried to remove. */
 export function arrangeEmail(next: Block[], prev: Block[]): Block[] {
   const lost = prev.filter((b) => emailRegion(b.type) !== "body" && !next.some((x) => x.id === b.id));
   const all = [...next, ...lost]; const by = (r: EmailRegion) => all.filter((b) => emailRegion(b.type) === r);
-  return [...by("header"), ...by("body"), ...by("footer")];
+  return [...by("inbox"), ...by("header"), ...by("body"), ...by("footer")];
 }

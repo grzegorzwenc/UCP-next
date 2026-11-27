@@ -1,11 +1,16 @@
 "use client";
+import { useState } from "react";
 import { Check } from "lucide-react";
 import { PanelSection } from "./PanelSection";
 import { CHANNEL_LABEL, TEMPLATES, type Channel } from "@/lib/blocks/registry";
 import { smsSegments } from "@/lib/blocks/sms";
 
 type B = { id: string; type: string; props: Record<string, unknown> };
-const S = ({ t, open = true, children }: { t: string; open?: boolean; children: React.ReactNode }) => <PanelSection id={`ms-${t.toLowerCase().replace(/\W+/g, "-")}`} title={t} defaultOpen={open} card><div className="flex flex-col gap-3">{children}</div></PanelSection>;
+/* One section at a time. Opening the panel used to unfold Basics, the checks, Delivery and Technical
+   all at once -- four cards of which only the first is ever wanted on arrival. Opening one now shuts
+   the others, so the panel is a short list of headings with the open one underneath. */
+const S = ({ t, open, onToggle, children }: { t: string; open: boolean; onToggle: (open: boolean) => void; children: React.ReactNode }) =>
+  <PanelSection id={`ms-${t.toLowerCase().replace(/\W+/g, "-")}`} title={t} open={open} onToggle={onToggle} card><div className="flex flex-col gap-3">{children}</div></PanelSection>;
 const plain = (v: unknown) => String(v ?? "").replace(/<[^>]+>/g, "").trim();
 
 /** Channel checks a reviewer would otherwise send back (stories 9.1.3–9.1.5, 2.3.7). */
@@ -28,21 +33,23 @@ export function MessageSettings({ channel, template, title, onTitle, blocks, sta
   channel: Channel; template?: string; title: string; onTitle: (v: string) => void; blocks: B[]; status: string; marketId: string; id: string; path: string; editable: boolean; onContract: () => void;
 }) {
   const checks = messageChecks(channel, blocks); const live = status === "published";
+  const [sec, setSec] = useState("Basics"); // the one open section; "" when the author closes it
+  const sp = (t: string) => ({ open: sec === t, onToggle: (o: boolean) => setSec(o ? t : "") });
   return <div className="flex flex-col">
-    <S t="Basics">
+    <S t="Basics" {...sp("Basics")}>
       <label className="text-xs text-ink-2 font-medium">Message name<input className="bdl-field mt-1" value={title} disabled={!editable} onChange={(e) => onTitle(e.target.value)} /><small className="block text-ink-3 font-normal mt-1">Internal name. Customers never see it.</small></label>
       <div className="grid grid-cols-2 gap-2 text-xs"><div><div className="text-ink-2 font-medium">Type</div><div className="bdl-field mt-1 !bg-surface-2">{CHANNEL_LABEL[channel]}</div></div><div><div className="text-ink-2 font-medium">Template</div><div className="bdl-field mt-1 !bg-surface-2 truncate">{TEMPLATES.find((t) => t.id === template)?.name ?? template}</div></div></div>
     </S>
-    <S t="Checks before review">
+    <S t="Checks before review" {...sp("Checks before review")}>
       {checks.length ? <ul className="grid gap-1 text-xs">{checks.map((c) => <li key={c} className="text-crit">● {c}</li>)}</ul> : <p className="text-xs text-good flex items-center gap-1"><Check className="size-3.5" aria-hidden />Nothing to fix</p>}
       <p className="text-xs text-ink-3">Personalisation such as {"{{firstName}}"} is filled in by MDP for each customer.</p>
     </S>
-    <S t="Delivery to MDP">
+    <S t="Delivery to MDP" {...sp("Delivery to MDP")}>
       <div className="text-xs"><span className={`inline-flex items-center gap-1.5 ${live ? "text-good" : "text-ink-3"}`}><span className={`size-1.5 rounded-full ${live ? "bg-good" : "bg-ink-4"}`} aria-hidden />{live ? "Published · MDP can fetch it" : "Not available to MDP until published"}</span></div>
       <code className="text-[11px] break-all bg-surface-2 border border-line px-2 py-1.5">GET /api/delivery/v1/messages/{id}?market={marketId}</code>
       <button type="button" className="btn btn-sm btn-secondary justify-center" disabled={!live} title={live ? undefined : "Available once the message is published"} onClick={onContract}>Show API contract</button>
       <p className="text-xs text-ink-3">MDP owns audiences, scheduling and sending. UCP hands over the approved content.</p>
     </S>
-    <S t="Technical" open={false}><div className="text-xs text-ink-2 font-medium">Repository path (JCR)<div className="bdl-field mt-1 !bg-surface-2 break-all font-normal">{path}/jcr:content</div></div></S>
+    <S t="Technical" {...sp("Technical")}><div className="text-xs text-ink-2 font-medium">Repository path (JCR)<div className="bdl-field mt-1 !bg-surface-2 break-all font-normal">{path}/jcr:content</div></div></S>
   </div>;
 }

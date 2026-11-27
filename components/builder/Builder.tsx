@@ -22,6 +22,7 @@ import type { Bindings } from "@/lib/ucp/types";
 import { ContentPicker, ContentIcon, type ContentChoice } from "./ContentPicker";
 import { EntitiesPanel, uniqueAlias, type ContentModelInfo } from "./LinkedContent";
 import { PublishDialog } from "@/components/pages/PublishDialog";
+import { Badge } from "@/components/shadcn/badge";
 import { ModalShell } from "@/components/models/ModalShell";
 import { SendForReviewModal, SendForReviewPanel, AssigneeChip, type ReviewBody } from "./SendForReview";
 import { AssetPicker } from "./AssetPicker";
@@ -158,6 +159,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   const [mode, setMode] = useState<"select" | "edit">("select");
   const [pop, setPop] = useState<"ai" | "more" | null>(null);
   const [device, setDevice] = useState<Device>("desktop");
+  const [guides, setGuides] = useState(true); // e-mail: the Header / Body / Footer seams
   const [preview, setPreviewRaw] = useState(!canEdit || startInPreview); // read-only users always see the preview; ?preview=1 opens straight into it
   const { phone, tablet } = useShellMode();
   const [left, setLeftRaw] = useState(true); const [right, setRight] = useState(true); // the right panel opens on Page settings, as in the mock
@@ -959,7 +961,15 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
      the one control that disappeared when the top bar did. */
   /* A message is never read at 1536px: an e-mail renders at 600, and SMS, push and in-app are phone
      only. The extra-large rendition is a website breakpoint, so it leaves the switch here. */
-  const deviceList = channel ? DEVICES.filter(([d]) => d !== "xl") : DEVICES;
+  /* An e-mail has two renditions worth checking: the 600px one every desktop and tablet client shows,
+     and the phone. A tablet button that draws the same 600px as desktop is a button that does nothing. */
+  const deviceList = channel === "email" ? DEVICES.filter(([d]) => d === "desktop" || d === "mobile") : channel ? DEVICES.filter(([d]) => d !== "xl") : DEVICES;
+  /** What the canvas renders: for an e-mail anything that is not the phone is the 600px rendition. */
+  const shownDevice: Device = channel === "email" && device !== "mobile" ? "desktop" : device;
+  /* Guides: the seams between Header, Body and Footer. On by default, and off for anyone who wants
+     to read the e-mail as the recipient will without leaving the editor. */
+  const guidesBtn = (cls = "") => channel === "email" ? <button type="button" onClick={() => setGuides(!guides)} aria-pressed={guides} title={guides ? "Hide the region guides" : "Show the region guides"} aria-label={guides ? "Hide the region guides" : "Show the region guides"}
+    className={`bdl-chip h-8 ${guides ? "bdl-chip-active" : ""} ${cls}`}><Ico d="M4 6h16M4 12h16M4 18h16" />Guides</button> : null;
   const deviceSwitch = (cls = "") => <div role="group" aria-label="Preview width" className={`inline-flex overflow-hidden border border-line-2 ${cls}`}>{deviceList.map(([d, label, path]) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center transition-colors duration-150 ease-out ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink hover:bg-surface-3"}`} title={`${label} · ${DEVICE_W[d]}px`} aria-label={`${label} view, ${DEVICE_W[d]} pixels`} aria-pressed={device === d}><Ico d={path} /></button>)}</div>;
   /** The watermark behind the page names the stage it is in. */
   /* Full-screen preview of a draft says PREVIEW; once the page is locked the stage it is in says more
@@ -980,7 +990,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
      full 1536 and zooms to fit, because a 1536 preview cannot exist on a 14" screen any other way.
      Tablet and mobile render at their true width and only zoom if the canvas is narrower. */
   const areaW = avail ? Math.max(0, avail - padL - padR - 2) : 0;
-  const siteW = channel === "email" ? (device === "mobile" ? DEVICE_W.mobile : 640) : channel ? 380 : device === "desktop" ? Math.min(DEVICE_W.desktop, areaW || DEVICE_W.desktop) : DEVICE_W[device];
+  /* 600px is the e-mail standard -- the width every client and template builder settles on -- and it
+     is the *message* that must be 600, so the device's own chrome is added on top: 1px of window
+     border, 14px of iPad bezel, 10px of iPhone bezel each side (app/ucp-components.css). */
+  const siteW = channel === "email" ? (shownDevice === "mobile" ? DEVICE_W.mobile + 20 : 602) : channel ? 380 : device === "desktop" ? Math.min(DEVICE_W.desktop, areaW || DEVICE_W.desktop) : DEVICE_W[device];
   const fit = areaW && areaW < siteW ? areaW / siteW : 1;
 
   return (
@@ -1001,7 +1014,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
         {/* The save state sits here, beside the width switch. It used to be stacked above the
             "Waiting for a reviewer" line on the right, where the two read as one crowded block. */}
         <div className="hidden lg:flex items-center gap-2.5 justify-self-center">
-          {deviceSwitch()}
+          {deviceSwitch()}{guidesBtn()}
           {saving === "Save failed" ? <button className="text-xs text-crit bg-crit-soft rounded-full px-2.5 py-1 hover:underline whitespace-nowrap" onClick={() => save().then(() => say("Saved")).catch(() => {})} title="Your last changes were not saved">Not saved · Retry</button>
             : canEdit && !locked && (status === "draft" || status === "failed") ? null /* the Save button says it */ : <span className="text-xs text-ink-3 bg-surface-2 rounded-full px-2.5 py-1 whitespace-nowrap" aria-live="polite" title="Changes are saved automatically">{saving === "Unsaved" ? "Saving…" : saving === "Saved just now" || saving === "Saved" ? "Saved" : saving}</span>}
         </div>
@@ -1090,10 +1103,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
           <div ref={canvasRef} className={`bld-pad stage-ground ${stageMark} ${focus ? "editor-ground flex-1 overflow-auto px-0 py-4" : "editor-ground flex-1 overflow-auto p-6 pb-24"} ${canEdit && !locked && !preview && !focus ? "can-edit" : ""} ${reviewMode ? "review-pick" : ""} ${patternMode ? "pattern-pick" : ""}`} style={{ paddingLeft: padL, paddingRight: padR }} onClick={onCanvasClick} onMouseMove={onCanvasMove} onDragOver={onCanvasDragOver} onDrop={onCanvasDrop} onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDropAt(null); }} onMouseLeave={() => { if (!qcPinned) setQcTarget(null); }} onDoubleClick={onCanvasDouble} onKeyDown={onCanvasKey} onInput={onInlineInput}>
             {isForm && <FormPageSwitch blocks={blocks} view={formView} layout={flow.layout} onView={goForm} />}
             {(() => { return <div className="bld-frame" style={{ width: siteW, zoom: fit, margin: "0 auto", ["--bld-unzoom" as string]: 1 / fit }}>
-            <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><ChromeFor channel={channel} host={isForm ? { title: host?.title ?? "Host page", crumbs: (host?.path.replace(root, "") ?? "").split("/").filter(Boolean) } : undefined} marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={device}>
+            <AssetsContext.Provider value={assetMap}><EntitiesContext.Provider value={entities}><InlineEditContext.Provider value={inlineCtx}><ChromeFor channel={channel} host={isForm ? { title: host?.title ?? "Host page", crumbs: (host?.path.replace(root, "") ?? "").split("/").filter(Boolean) } : undefined} marketName={marketName} crumbs={[...rel.split("/").filter(Boolean).slice(0, -1), title]} device={shownDevice}>
               {isForm && flow.layout === "wizard" && <FormProgress blocks={blocks} view={formView} submitTitle={flow.submitPage.heading} />}
               {isForm && formView.page === "submit" && <SubmitPageView blocks={blocks} flow={flow} onView={goForm} onEdit={() => openRight("page")} onEditButton={() => { openRight("page"); setTimeout(() => document.getElementById("fs-submit-button")?.scrollIntoView({ block: "start", behavior: "smooth" }), 120); }} preview={preview} />}
-              {blocks.length ? blocks.map((b, i) => { const line = dropAt === i && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />; return <Fragment key={b.id}>{channel === "email" && <EmailRegionLabel blocks={blocks} i={i} />}{line}{(() => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id && !commentTarget.field ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""} ${multi.includes(b.id) ? "multi" : ""} ${movingId === b.id ? "opacity-40" : ""} ${crit.blocks.has(b.id) ? "crit-blk" : ""} ${qcFlash === b.id ? "qc-flash" : ""} ${isForm && hiddenOnView(blocks, i, formView, flow.layout) ? "hidden!" : ""}`} tabIndex={0}>
+              {blocks.length ? blocks.map((b, i) => { const line = dropAt === i && <div data-ui aria-hidden className="relative z-20 -my-px h-0.5 bg-brand" />; return <Fragment key={b.id}>{channel === "email" && guides && <EmailRegionLabel blocks={blocks} i={i} />}{line}{(() => { const isSel = sel === b.id; const def = BLOCK_BY_TYPE[b.type]; return <div key={b.id} data-id={b.id} className={`cblk ${isSel ? "sel" : ""} ${commentTarget?.id === b.id && !commentTarget.field ? "cmt-target" : ""} ${isSel && mode === "edit" ? "editmode" : ""} ${b.props.hidden ? "hidden-blk" : ""} ${b.props.locked ? "locked" : ""} ${multi.includes(b.id) ? "multi" : ""} ${movingId === b.id ? "opacity-40" : ""} ${crit.blocks.has(b.id) ? "crit-blk" : ""} ${qcFlash === b.id ? "qc-flash" : ""} ${isForm && hiddenOnView(blocks, i, formView, flow.layout) ? "hidden!" : ""}`} tabIndex={0}>
                 {multi.includes(b.id) && <span className="multi-n" aria-hidden>{multiBlocks.findIndex((x) => x.id === b.id) + 1}</span>}
                 {reviewMode && <span className="cmt-pick" aria-hidden>{commentTarget?.id === b.id ? "Commenting here" : "Click a text or image to comment"}</span>}
                 {!!commentCounts[b.id] && <button type="button" data-ui className="cmt-badge" title={`${commentCounts[b.id]} comment${commentCounts[b.id] === 1 ? "" : "s"} on this component`} onClick={(e) => { e.stopPropagation(); if (focus) setFloatOpen(true); else { setRightTab("comments"); setRight(true); } }}><CommentIcon size={12} />{commentCounts[b.id]}</button>}
@@ -1226,7 +1239,7 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
             the Esc key, which is exactly the state this was meant to fix. */}
         {focus && <div className="fixed top-4 left-4 z-[80] flex items-center gap-2">
           {/* the width switch travels into the preview: on a white page it needs its own ground */}
-          {deviceSwitch("bg-surface shadow-lg")}
+          {deviceSwitch("bg-surface shadow-lg")}{guidesBtn("bg-surface shadow-lg")}
           {/* While the share is open there is no way out through the preview: leaving it would drop the
               card onto the editor's own sidebar, which is the state the card exists to avoid. The way
               out is the card itself -- Send, Go back, or its close -- and each of those returns to the
@@ -1632,9 +1645,12 @@ function ChromeFor({ channel, host, children, ...site }: { channel?: string; hos
 /** Region dividers on an e-mail canvas: Header and Footer are fixed (edit only), Body takes components. */
 function EmailRegionLabel({ blocks, i }: { blocks: Block[]; i: number }) {
   const r = emailRegion(blocks[i].type); const prev = i > 0 ? emailRegion(blocks[i - 1].type) : null; if (prev === r) return null;
-  /* A zero-height anchor in the flow, with the label itself parked in the stage gutter beside the
-     device. The strips used to sit in the canvas, which put editor furniture inside the mail window. */
-  const tag = (t: string, d: string) => <div data-ui className="m-region"><span className="m-region-tab"><b>{t}</b><span>{d}</span></span></div>;
+  /* A rule, not a strip: the words live in its tooltip. A labelled band inside the mail window was
+     editor furniture in the middle of the message, and the same label out in the dark gutter was
+     illegible. The rule reads as a seam, and hovering says which one it is. */
+  const tag = (t: string, d: string) => <div data-ui className="m-sep" role="separator" title={`${t} — ${d}`} aria-label={`${t}: ${d}`}>
+    <Badge variant="outline" className="bdl-badge-neutral m-sep-badge">{t}</Badge></div>;
+  if (r === "inbox") return null; // the client's own line, above the message: no seam above it
   if (r === "header") return tag("Header", "fixed · edit only");
   if (r === "body") return tag("Body", "add, move and remove components here");
   return <>{prev === "header" && <>{tag("Body", "add, move and remove components here")}<div data-ui className="m-region-empty">Add components from the left: they go into the body.</div></>}{tag("Footer", "fixed · edit only")}</>;
