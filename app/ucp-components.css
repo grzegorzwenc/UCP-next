@@ -11,15 +11,56 @@
 
 /* ===== Messaging: e-mail and phone frames used by the builder for pages under Messaging ===== */
 .msg-chrome { font-family: Arial, Helvetica, sans-serif; color: #000; }
-.msg-chrome.email { background: #f3f3f3; padding: 24px 0 40px; min-height: 100%; }
+.msg-chrome.email { background: #f3f3f3; min-height: 100%; }
 .msg-chrome .m-mail { background: #fff; max-width: 600px; margin: 0 auto; }
-.m-env { background: #fafafa; border-bottom: 1px solid #e5e5e5; padding: 12px 20px; font-size: 13px; display: grid; gap: 4px; }
-.m-env > div { display: flex; gap: 10px; align-items: baseline; }
-.m-env span { color: #767676; width: 64px; flex: none; }
-.m-env i { margin-left: auto; color: #767676; font-style: normal; font-size: 11px; }
-.m-head { padding: 18px 32px; border-top: 6px solid #db0011; border-bottom: 1px solid #e5e5e5; }
+
+/* The device the width switch is naming, drawn around the e-mail: a macOS window, an iPad, an
+   iPhone. The phone and pad bezels are the same construction as the SMS / push handset above, minus
+   its fixed screen height -- an e-mail is as long as it is, and a preview that scrolls inside a
+   frame hides the thing being judged. */
+.mdev { margin: 0 auto; }
+.dev-mac .mdev { border: 1px solid #d7d8d6; border-radius: 12px; background: #fff; box-shadow: 0 18px 50px rgba(0,0,0,.18); }
+.dev-mac .mdev-bar { border-radius: 11px 11px 0 0; }
+.dev-mac .mdev-screen { container: mailscreen / inline-size; }
+.mdev-bar { display: flex; align-items: center; gap: 8px; height: 38px; padding: 0 13px; background: linear-gradient(#f6f6f6, #e9e9e9); border-bottom: 1px solid #d7d8d6; }
+.mdev-bar i { display: block; width: 12px; height: 12px; border-radius: 50%; }
+.mdev-bar i:nth-child(1) { background: #ff5f57; } .mdev-bar i:nth-child(2) { background: #febc2e; } .mdev-bar i:nth-child(3) { background: #28c840; }
+.mdev-bar span { margin-left: 6px; font-size: 12px; color: #5f6368; }
+.dev-pad .mdev { padding: 14px; border-radius: 30px; background: #1d1d1f; box-shadow: 0 18px 50px rgba(0,0,0,.28); }
+.dev-pad .mdev-screen { border-radius: 16px; background: #fff; container: mailscreen / inline-size; }
+.dev-pad .m-mail, .dev-pad .mdev-status { border-radius: 16px 16px 0 0; }
+.dev-phone .mdev { padding: 10px; border-radius: 46px; background: #1d1d1f; box-shadow: 0 18px 50px rgba(0,0,0,.28); }
+.dev-phone .mdev-screen { position: relative; border-radius: 36px; background: #fff; container: mailscreen / inline-size; }
+.dev-phone .mdev-status { border-radius: 36px 36px 0 0; }
+.mdev-notch { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 112px; height: 26px; background: #000; border-radius: 0 0 16px 16px; z-index: 3; }
+.mdev-status { display: flex; align-items: center; justify-content: space-between; padding: 7px 20px 5px; font-size: 12px; font-weight: 600; color: #000; background: #fff; }
+.dev-phone .mdev-status { padding: 8px 22px 6px; }
+.mdev-icons { display: inline-flex; align-items: center; gap: 4px; }
+.mdev-icons i { display: block; background: #000; }
+.mdev-icons .sig { width: 15px; height: 9px; clip-path: polygon(0 70%, 20% 70%, 20% 100%, 0 100%, 0 70%, 27% 45%, 47% 45%, 47% 100%, 27% 100%, 27% 45%, 54% 22%, 74% 22%, 74% 100%, 54% 100%, 54% 22%, 81% 0, 100% 0, 100% 100%, 81% 100%); }
+.mdev-icons .wifi { width: 13px; height: 9px; clip-path: polygon(50% 100%, 0 38%, 12% 26%, 50% 62%, 88% 26%, 100% 38%); }
+.mdev-icons .bat { width: 22px; height: 10px; border-radius: 3px; background: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.35); position: relative; }
+.mdev-icons .bat::before { content: ""; position: absolute; inset: 2px; width: 70%; border-radius: 1px; background: #000; }
+.mdev-home { width: 124px; height: 5px; margin: 9px auto 0; border-radius: 99px; background: rgba(255,255,255,.65); }
+.dev-pad .mdev-home { width: 180px; }
+/* The envelope: one inbox line, the size a client draws it. 32px avatar, 13px sender, 13px subject,
+   12px grey snippet, each on one line -- an inbox gives a message a strip, not a page. */
+.m-env { display: flex; gap: 9px; align-items: center; padding: 0 12px; background: #f6f8fc; border-bottom: 1px solid #e3e6ea; font-size: 12px; color: #202124;
+  /* the message list spans the client, not the 600px mail column it sits above */
+  width: 100cqw; margin-inline: calc((100% - 100cqw) / 2); }
+.m-env-av { flex: none; margin: 5px 0; width: 26px; height: 26px; border-radius: 50%; background: #5f6368; color: #fff; display: grid; place-items: center; font-size: 11px; font-weight: 700; }
+.m-env-lines { min-width: 0; flex: 1; display: grid; gap: 1px; }
+.m-env-l1 { display: flex; gap: 8px; align-items: baseline; }
+.m-env-l1 b { min-width: 0; font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-env-l2 { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-env-l3 { font-size: 11px; color: #5f6368; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-env-when { margin-left: auto; flex: none; font-size: 10px; color: #5f6368; }
+@container mailscreen (max-width: 460px) {
+  .m-env { padding: 0 10px; }
+}
+.m-head { padding: 10px 24px 12px; border-top: 5px solid #db0011; border-bottom: 1px solid #e5e5e5; }
 .m-head img { height: 28px; display: block; }
-.m-head div { font-size: 12px; color: #575757; margin-top: 6px; }
+.m-head div { font-size: 12px; color: #575757; margin-top: 3px; }
 .m-hero { display: block; width: 100%; height: 220px; object-fit: cover; }
 .m-noimg { display: grid; place-items: center; height: 160px; background: #e5e5e5; color: #575757; font-size: 12px; }
 .m-h1 { margin: 0; padding: 28px 32px 6px; font-size: 26px; line-height: 1.25; font-weight: 400; }
@@ -29,7 +70,10 @@
 .m-prod { border: 1px solid #d7d8d6; padding: 18px 20px; }
 .m-prod .n { font-size: 13px; color: #575757; } .m-prod .r { font-size: 30px; margin: 4px 0; } .m-prod .d { font-size: 14px; color: #333; line-height: 1.5; } .m-prod .l { display: inline-block; margin-top: 10px; font-size: 14px; text-decoration: underline; }
 .m-hr { border: 0; border-top: 1px solid #e5e5e5; margin: 0; }
-.m-foot { background: #f3f3f3; padding: 24px 32px; font-size: 11px; line-height: 1.6; color: #575757; }
+/* The footer band runs the width of the client, like the inbox line above it: a grey strip that
+   stops short of the window's edge reads as a box inside the mail, not as the mail's own footer. */
+.m-foot { background: #f3f3f3; padding: 18px 24px; font-size: 11px; line-height: 1.6; color: #575757;
+  width: 100cqw; margin-inline: calc((100% - 100cqw) / 2); }
 .m-foot .u { display: block; margin-top: 12px; text-decoration: underline; }
 .msg-chrome.sms, .msg-chrome.push, .msg-chrome.inapp { background: #e9e9ec; padding: 32px 0; min-height: 100%; }
 .m-phone { width: 300px; margin: 0 auto; border-radius: 38px; border: 10px solid #1d1d1f; background: #1d1d1f; box-shadow: 0 12px 30px rgba(0,0,0,.25); }
@@ -90,8 +134,20 @@
 .m-banner .in { padding: 12px; display: grid; gap: 6px; font-size: 13px; } .m-banner .in b { font-size: 14px; } .m-banner .m-btn { padding: 8px; text-align: center; font-size: 12px; } .m-banner em { font-style: normal; font-size: 10px; color: rgba(0,0,0,.4); }
 .m-app .m-card { margin-top: 12px; border: 1px solid #e5e5e5; }
 /* e-mail regions in the builder (hidden in preview) */
+/* Region markers. Narrow canvases keep the old in-flow strip; once there is gutter beside the device
+   the label moves out there, so the mail window holds the e-mail and nothing of the editor's. */
 .m-region { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: #eef2f7; border-top: 1px dashed #9aa7b6; border-bottom: 1px dashed #9aa7b6; font: 600 11px/1.2 system-ui, sans-serif; color: #253038; text-transform: uppercase; letter-spacing: .06em; }
+.m-region-tab { display: contents; }
 .m-region span { text-transform: none; letter-spacing: 0; font-weight: 400; color: #5f6470; }
+/* Gated on the window, not the mail column: the column is 640px wide, so a container query on it
+   could never see the canvas gutter the tab is parked in. Below this the strip stays in the flow. */
+@media (min-width: 1280px) {
+  .m-region { position: relative; display: block; height: 0; padding: 0; background: none; border: 0; }
+  /* The gutter is the editor's dark ground, so the tab is written for that, not for the page. */
+  .m-region-tab { position: absolute; top: -3px; right: calc(100% + 26px); display: flex; flex-direction: column; gap: 1px; width: 150px; text-align: end; }
+  .m-region-tab b { font-size: 11px; letter-spacing: .06em; color: rgba(255,255,255,.82); }
+  .m-region-tab > span { font-size: 11px; line-height: 1.35; color: rgba(255,255,255,.5); }
+}
 .m-region-empty { margin: 12px 32px; padding: 22px; border: 2px dashed #c9ced6; text-align: center; color: #5f6470; font: 13px system-ui, sans-serif; }
 .preview .m-region, .preview .m-region-empty { display: none; }
 

@@ -53,8 +53,21 @@ export function RenderBlock({ b }: { b: Block }) {
     case "disclaimer":
       return <RichText k={`${id}|text`} value={p.text} className="s-disc" />;
     /* ---- e-mail components: table-free markup with the inline look of the HSBC e-mail template ---- */
-    case "envelope":
-      return <div className="m-env"><div><span>From</span><b><T id={id} f="fromName">{p.fromName}</T></b></div><div><span>Subject</span><b><T id={id} f="subject">{p.subject}</T></b><i>{String(p.subject ?? "").length}/90</i></div><div><span>Preview</span><T id={id} f="preheader">{p.preheader || ""}</T></div></div>;
+    /* The envelope is the inbox line and nothing else. It was a form of labelled rows, then a form
+       plus a full open-message header -- 230px of chrome above an e-mail whose own header had not
+       started yet. The inbox line is where a sender, a subject and a preview text are actually
+       judged, it holds all three in 60px, and the message below already reads as the open mail. */
+    case "envelope": {
+      const from = String(p.fromName ?? "").trim();
+      return <div className="m-env">
+        <span className="m-env-av" aria-hidden>{from.slice(0, 1).toUpperCase() || "H"}</span>
+        <span className="m-env-lines">
+          <span className="m-env-l1"><b><T id={id} f="fromName">{p.fromName}</T></b><span className="m-env-when">09:24</span></span>
+          <span className="m-env-l2"><T id={id} f="subject">{p.subject}</T></span>
+          <span className="m-env-l3"><T id={id} f="preheader">{p.preheader || ""}</T></span>
+        </span>
+      </div>;
+    }
     case "emailheader":
       return <div className="m-head"><img src="/hsbc-logo.svg" alt="HSBC" />{p.tagline && <div><T id={id} f="tagline">{p.tagline}</T></div>}</div>;
     case "emailhero":
@@ -116,9 +129,26 @@ const pushActions = (v: unknown) => { const label = (x?: string) => (x ?? "").re
   const rows = lines(v).filter((r) => label(r[0])).slice(0, 3);
   return rows.length ? <div className="m-acts">{rows.map((r, i) => <span key={i} title={r[1] ? `Opens ${r[1]}` : "Opens the app"}>{label(r[0])}</span>)}</div> : null; };
 
-/** The frame a message is built in: an e-mail on the inbox background, SMS / push / pop-up on a phone. Replaces the website chrome for pages under Messaging. */
-export function MessageChrome({ channel, children }: { channel: string; children: React.ReactNode }) {
-  return <div className={`msg-chrome ${channel}`}>{channel === "email" ? <div className="m-mail">{children}</div> : children}</div>;
+/**
+ * The frame a message is built in. SMS, push and pop-ups already draw a handset; an e-mail now gets
+ * the device its width switch is naming — a macOS window at desktop, an iPad at tablet, an iPhone at
+ * mobile — so "what does this look like on a phone" is answered by the picture, not by a number.
+ */
+export function MessageChrome({ channel, device = "desktop", children }: { channel: string; device?: string; children: React.ReactNode }) {
+  if (channel !== "email") return <div className={`msg-chrome ${channel}`}>{children}</div>;
+  const frame = device === "mobile" ? "phone" : device === "tablet" ? "pad" : "mac";
+  const status = <div className="mdev-status" aria-hidden><span>09:24</span><span className="mdev-icons"><i className="sig" /><i className="wifi" /><i className="bat" /></span></div>;
+  return <div className={`msg-chrome email dev-${frame}`}>
+    <div className="mdev">
+      {frame === "mac" && <div className="mdev-bar" aria-hidden><i /><i /><i /><span>Mail — Inbox</span></div>}
+      <div className="mdev-screen">
+        {frame === "phone" && <div className="mdev-notch" aria-hidden />}
+        {frame !== "mac" && status}
+        <div className="m-mail">{children}</div>
+      </div>
+      {frame !== "mac" && <div className="mdev-home" aria-hidden />}
+    </div>
+  </div>;
 }
 
 const CONSENT_TEXT: Record<string, string> = { "Privacy notice": "I have read the HSBC UK Privacy Notice, which explains how my information is used.", "Marketing preferences": "I'd like to hear about HSBC products and offers by e-mail, phone and post. I can change this at any time.", "Credit search": "I agree that HSBC can carry out a credit search, which will leave a footprint on my credit file." };

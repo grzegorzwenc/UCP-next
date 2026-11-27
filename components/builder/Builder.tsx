@@ -957,7 +957,10 @@ export function Builder({ marketId, envId, marketName, flag, domain, locale, env
   /* The width switch, defined once: the top bar has it while editing, and the preview overlay
      has it too — checking the page at each width is most of what a preview is for, and it was
      the one control that disappeared when the top bar did. */
-  const deviceSwitch = (cls = "") => <div role="group" aria-label="Preview width" className={`inline-flex overflow-hidden border border-line-2 ${cls}`}>{DEVICES.map(([d, label, path]) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center transition-colors duration-150 ease-out ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink hover:bg-surface-3"}`} title={`${label} · ${DEVICE_W[d]}px`} aria-label={`${label} view, ${DEVICE_W[d]} pixels`} aria-pressed={device === d}><Ico d={path} /></button>)}</div>;
+  /* A message is never read at 1536px: an e-mail renders at 600, and SMS, push and in-app are phone
+     only. The extra-large rendition is a website breakpoint, so it leaves the switch here. */
+  const deviceList = channel ? DEVICES.filter(([d]) => d !== "xl") : DEVICES;
+  const deviceSwitch = (cls = "") => <div role="group" aria-label="Preview width" className={`inline-flex overflow-hidden border border-line-2 ${cls}`}>{deviceList.map(([d, label, path]) => <button key={d} onClick={() => setDevice(d)} className={`px-2.5 h-8 grid place-items-center transition-colors duration-150 ease-out ${device === d ? "bg-ink text-white" : "text-ink-3 hover:text-ink hover:bg-surface-3"}`} title={`${label} · ${DEVICE_W[d]}px`} aria-label={`${label} view, ${DEVICE_W[d]} pixels`} aria-pressed={device === d}><Ico d={path} /></button>)}</div>;
   /** The watermark behind the page names the stage it is in. */
   /* Full-screen preview of a draft says PREVIEW; once the page is locked the stage it is in says more
      (REVIEWING, BUSINESS REVIEW, LIVE), so that wins -- the share is read in a business review, not
@@ -1623,13 +1626,15 @@ function AiPanel({ tasks, draft, setDraft, dirty, onAsk, onToggle, onRun, onUndo
 /** Website chrome for pages; the inbox or phone frame for messages. */
 function ChromeFor({ channel, host, children, ...site }: { channel?: string; host?: { title: string; crumbs: string[] }; marketName: string; crumbs: string[]; device: string; children: React.ReactNode }) {
   if (host) return <FormChrome marketName={site.marketName} crumbs={host.crumbs} hostTitle={host.title} device={site.device}>{children}</FormChrome>;
-  return channel ? <MessageChrome channel={channel}>{children}</MessageChrome> : <SiteChrome {...site}>{children}</SiteChrome>;
+  return channel ? <MessageChrome channel={channel} device={site.device}>{children}</MessageChrome> : <SiteChrome {...site}>{children}</SiteChrome>;
 }
 
 /** Region dividers on an e-mail canvas: Header and Footer are fixed (edit only), Body takes components. */
 function EmailRegionLabel({ blocks, i }: { blocks: Block[]; i: number }) {
   const r = emailRegion(blocks[i].type); const prev = i > 0 ? emailRegion(blocks[i - 1].type) : null; if (prev === r) return null;
-  const tag = (t: string, d: string) => <div data-ui className="m-region"><b>{t}</b><span>{d}</span></div>;
+  /* A zero-height anchor in the flow, with the label itself parked in the stage gutter beside the
+     device. The strips used to sit in the canvas, which put editor furniture inside the mail window. */
+  const tag = (t: string, d: string) => <div data-ui className="m-region"><span className="m-region-tab"><b>{t}</b><span>{d}</span></span></div>;
   if (r === "header") return tag("Header", "fixed · edit only");
   if (r === "body") return tag("Body", "add, move and remove components here");
   return <>{prev === "header" && <>{tag("Body", "add, move and remove components here")}<div data-ui className="m-region-empty">Add components from the left: they go into the body.</div></>}{tag("Footer", "fixed · edit only")}</>;
